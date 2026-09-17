@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import argparse
+import json
+import secrets
+import itertools
+import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+if __package__ in (None,""):
+    sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from rndplz.service import Service
+from rndplz.conversation import Conversation
+from rndplz.build_vault import export_vault
+
+WEB=Path(__file__).with_name("web")
+
+
+def make_server(host="127.0.0.1",port=8877,state_dir=None):
+    service=Service(state_dir=state_dir)
+    chat=Conversation(service)
+    token=secrets.token_urlsafe(32)
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self,format,*args):
+            # Avoid logging arbitrary question text or environment values.
+            pass
+        def send(self,status,data,content_type="application/json; charset=utf-8"):
+            raw=json.dumps(data,ensure_ascii=False).encode() if isinstance(data,(dict,list)) else data
+            self.send_response(status)
+            self.send_header("Content-Type",content_type)
+            self.send_header("Content-Length",str(len(raw)))
+            self.send_header("Cache-Control","no-store")
+            self.send_header("X-Content-Type-Options","nosniff")
+            self.send_header("Content-Security-Policy","default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+            self.end_headers()
+            self.wfile.write(raw)
+        def valid_host(self):
+            allowed={"127.0.0.1:"+str(self.server.server_port),"localhost:"+str(self.server.server_port)}
+            return self.headers.get("Host") in allowed
+        def do_GET(self):
+            if not self.valid_host():
+                return self.send(421,{"error":"로컬 주소로 접속해 주세요."})
+            parsed=urlparse(self.path)
+            query=parse_qs(parsed.query)
+            try:
+                if parsed.path=="/api/chat/bootstrap":
+                    return self.send(200,{"token":token,"history":chat.history(),**chat.models.catalog()})
+                if parsed.path=="/api/chat/session":
+                    return self.send(200,chat.get(query.get("id",[""])[0]))
+                if parsed.path=="/api/chat/models":
+                    return self.send(200,chat.models.catalog(refresh=query.get("refresh")==["1"]))
+                if parsed.path=="/api/attachment":
+                    item=chat.attachments.load(query.get("id",[""])[0])
+                    return self.send(200,{**chat.attachments.public(item),"text":item["text"],"image":item["image"],"mime":item["mime"]})
+                if parsed.path=="/api/bootstrap":
+                    return self.send(200,{**service.bootstrap(),"token":token})
+                if parsed.path=="/api/admin":
+                    return self.send(200,service.admin())
+                if parsed.path=="/api/proposals":
+                    return self.send(200,service.store.read()["proposals"])
+                if parsed.path=="/api/person":
+                    return self.send(200,service.person(query.get("id",[""])[0]))
+                if parsed.path=="/api/record":
+                    record=service.corpus.records.get(query.get("id",[""])[0])
+                    if not record:
+                        return self.send(404,{"error":"기록을 찾을 수 없습니다."})
+                    return self.send(200,{**service.engine.explain_record(record),"text":record.text,"details":record.details})
+                static={"/craft.css":("craft.css","text/css; charset=utf-8"),"/craft.js":("craft.js","text/javascript; charset=utf-8"),"/":("index.html","text/html; charset=utf-8"),"/explore":("explore.html","text/html; charset=utf-8"),"/chat.js":("chat.js","text/javascript; charset=utf-8"),"/chat.css":("chat.css","text/css; charset=utf-8"),"/app.js":("app.js","text/javascript; charset=utf-8"),"/style.css":("style.css","text/css; charset=utf-8")}
+                for slug in ("hinton", "lecun", "bengio", "ng", "manwoo-process-bg", "jinho-catalysis-bg"):
+                    static["/portraits/"+slug+".png"]=("portraits/"+slug+".png","image/png")
+                static["/portraits/manwoo.jpg"]=("portraits/manwoo.jpg","image/jpeg")
+                static["/portraits/jinho.jpg"]=("portraits/jinho.jpg","image/jpeg")
+                if parsed.path in static:
+                    name,mime=static[parsed.path]
+                    return self.send(200,(WEB/name).read_bytes(),mime)
+                return self.send(404,{"error":"페이지를 찾을 수 없습니다."})
+            except (ValueError,KeyError) as exc:
+                self.send(400,{"error":str(exc)})
+            except Exception:
+                self.send(500,{"error":"로컬 데이터 처리에 실패했습니다. 저장 파일은 보존됩니다."})
+        def do_POST(self):
+            if not self.valid_host() or self.headers.get("X-RnDplz-Token")!=token:
+                return self.send(403,{"error":"화면을 새로고침한 뒤 다시 시도해 주세요."})
+            origin=self.headers.get("Origin")
+            if origin and origin not in ("http://127.0.0.1:"+str(self.server.server_port),"http://localhost:"+str(self.server.server_port)):
+                return self.send(403,{"error":"허용되지 않는 요청입니다."})
+            try:
+                path=urlparse(self.path).path
+                length=int(self.headers.get("Content-Length","0"))
+                if length<1 or length>(12*1024*1024 if path=="/api/attachments" else 200000):
+                    return self.send(413,{"error":"요청 크기가 허용 범위를 넘었습니다."})
+                payload=json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload,dict):
+                    raise ValueError("요청 형식이 올바르지 않습니다.")
+                if path=="/api/chat":
+                    iterator=chat.stream(payload)
+                    first=next(iterator)
+                    self.send_response(200)
+                    self.send_header("Content-Type","application/x-ndjson; charset=utf-8")
+                    self.send_header("Cache-Control","no-store")
+                    self.send_header("X-Content-Type-Options","nosniff")
+                    self.send_header("Connection","close")
+                    self.end_headers();self.close_connection=True
+                    try:
+                        for event in itertools.chain([first],iterator):
+                            self.wfile.write((json.dumps(event,ensure_ascii=False)+"\n").encode())
+                            self.wfile.flush()
+                    except (BrokenPipeError,ConnectionResetError,OSError):
+                        pass
+                    finally:
+                        iterator.close()
+                    return
+                routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:chat.prepare(payload),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
+                path=urlparse(self.path).path
+                if path not in routes:
+                    return self.send(404,{"error":"경로를 찾을 수 없습니다."})
+                self.send(200,routes[path]())
+            except (ValueError,KeyError,TypeError) as exc:
+                self.send(400,{"error":str(exc)})
+            except Exception:
+                self.send(500,{"error":"저장에 실패했습니다. 입력을 유지하고 다시 시도해 주세요."})
+    server=ThreadingHTTPServer((host,port),Handler)
+    server.service=service
+    server.chat=chat
+    return server
+
+
+if __name__=="__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--port",type=int,default=8877)
+    parser.add_argument("--state-dir")
+    args=parser.parse_args()
+    server=make_server(port=args.port,state_dir=args.state_dir)
+    print("수소문 · http://127.0.0.1:"+str(server.server_port)+"/",flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()

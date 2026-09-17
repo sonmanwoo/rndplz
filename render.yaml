@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: rndplz
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -c gunicorn.conf.py rndplz.public_web:application
+    healthCheckPath: /healthz
+    envVars:
+      - key: RNDPLZ_SESSION_SECRET
+        generateValue: true
+      - key: RNDPLZ_PUBLISH_PERSONAL
+        value: "0"
+      - key: RNDPLZ_STATE_DIR
+        value: /tmp/rndplz-public-state

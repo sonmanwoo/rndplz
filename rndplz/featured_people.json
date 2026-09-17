@@ -1,0 +1,556 @@
+{
+  "checked_at": "2026-09-17",
+  "people": [
+    {
+      "id": "AI-HINTON",
+      "slug": "hinton",
+      "name": "Geoffrey Hinton",
+      "display_name": "제프리 힌튼",
+      "aliases": [
+        "제프리 힌튼",
+        "Geoffrey Hinton",
+        "힌튼",
+        "Geoffrey E. Hinton"
+      ],
+      "org": "University of Toronto · 명예교수",
+      "org_type": "education",
+      "tagline": "표현을 학습하는 신경망",
+      "biography": "신경망의 학습 알고리즘과 분산 표현을 연구했다. 역전파, 볼츠만 머신, 딥러닝에 기여했으며 토론토 연구팀에서 영상·음성 인식 연구를 수행했다.",
+      "skills": [
+        "역전파",
+        "표현 학습",
+        "딥러닝"
+      ],
+      "timeline": [
+        {
+          "date": "1978",
+          "text": "에든버러대학교 AI 박사",
+          "url": "https://www.cs.toronto.edu/~hinton/"
+        },
+        {
+          "date": "2013–2023",
+          "text": "Google에서 연구, Vice President·Engineering Fellow 역임",
+          "url": "https://www.cs.toronto.edu/~hinton/"
+        },
+        {
+          "date": "2024",
+          "text": "John Hopfield와 공동 노벨 물리학상 수상",
+          "url": "https://president.utoronto.ca/u-of-t-celebrates-geoffrey-hintons-nobel-prize/"
+        },
+        {
+          "date": "현재",
+          "text": "토론토대학교 명예교수",
+          "url": "https://www.cs.toronto.edu/~hinton/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "공식 이력",
+          "url": "https://www.cs.toronto.edu/~hinton/"
+        },
+        {
+          "title": "참고 사진 원본",
+          "url": "https://www.cs.toronto.edu/~hinton/pages/photos.html"
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/hinton.png",
+        "label": "AI 일러스트 · 공식 사진 참고",
+        "reference_url": "https://www.cs.toronto.edu/~hinton/pages/photos.html",
+        "photo_url": "https://www.cs.toronto.edu/~hinton/geoff1.jpg",
+        "generated": true
+      },
+      "curated": true,
+      "topics": [
+        {
+          "name": "역전파"
+        },
+        {
+          "name": "표현 학습"
+        },
+        {
+          "name": "딥러닝"
+        }
+      ],
+      "featured_work": "AI-PAPER-BACKPROP"
+    },
+    {
+      "id": "AI-LECUN",
+      "slug": "lecun",
+      "name": "Yann LeCun",
+      "display_name": "얀 르쿤",
+      "aliases": [
+        "얀 르쿤",
+        "Yann LeCun",
+        "르쿤",
+        "얀 르쾽"
+      ],
+      "org": "New York University · 교수",
+      "org_type": "education",
+      "tagline": "이미지를 이해하는 학습",
+      "biography": "합성곱 신경망과 문서 인식 연구를 이어왔다. NYU 데이터과학센터를 설립했으며, 최근에는 세계 모델을 연구하는 AMI Labs에 참여하고 있다.",
+      "skills": [
+        "합성곱 신경망",
+        "컴퓨터 비전",
+        "딥러닝"
+      ],
+      "timeline": [
+        {
+          "date": "1988",
+          "text": "AT&T Bell Laboratories 합류",
+          "url": "https://engineering.nyu.edu/events/2018/02/20/ai-seminar-series-yann-lecun-director-facebook-ai-research"
+        },
+        {
+          "date": "2018",
+          "text": "힌튼·벤지오와 공동 ACM 튜링상 수상",
+          "url": "https://engineering.nyu.edu/news/ai-pioneer-yann-lecun-will-address-class-2026-nyu-tandon-commencement"
+        },
+        {
+          "date": "2026",
+          "text": "NYU Jacob T. Schwartz Professor · AMI Labs Executive Chairman",
+          "url": "https://engineering.nyu.edu/news/ai-pioneer-yann-lecun-will-address-class-2026-nyu-tandon-commencement"
+        }
+      ],
+      "sources": [
+        {
+          "title": "공식 이력",
+          "url": "https://engineering.nyu.edu/news/ai-pioneer-yann-lecun-will-address-class-2026-nyu-tandon-commencement"
+        },
+        {
+          "title": "참고 사진 원본",
+          "url": "https://engineering.nyu.edu/faculty/yann-lecun"
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/lecun.png",
+        "label": "AI 일러스트 · 공식 사진 참고",
+        "reference_url": "https://engineering.nyu.edu/faculty/yann-lecun",
+        "photo_url": "https://engineering.nyu.edu/sites/default/files/styles/square_large_default_1x/public/2018-06/yann-lecun.jpg?h=65172a10&itok=NItwgG8z",
+        "generated": true
+      },
+      "curated": true,
+      "topics": [
+        {
+          "name": "합성곱 신경망"
+        },
+        {
+          "name": "컴퓨터 비전"
+        },
+        {
+          "name": "딥러닝"
+        }
+      ],
+      "featured_work": "AI-PAPER-LENET"
+    },
+    {
+      "id": "AI-BENGIO",
+      "slug": "bengio",
+      "name": "Yoshua Bengio",
+      "display_name": "요슈아 벤지오",
+      "aliases": [
+        "요슈아 벤지오",
+        "Yoshua Bengio",
+        "벤지오"
+      ],
+      "org": "Université de Montréal · 교수",
+      "org_type": "education",
+      "tagline": "언어와 의미의 표현 공간",
+      "biography": "단어의 분산 표현과 신경망 언어 모델을 연구했다. Mila 설립자이며, LawZero에서 안전한 AI 연구를 이끌고 있다.",
+      "skills": [
+        "신경망 언어 모델",
+        "표현 학습",
+        "딥러닝"
+      ],
+      "timeline": [
+        {
+          "date": "1993",
+          "text": "몬트리올대학교 교수진 합류",
+          "url": "https://yoshuabengio.org/wp-content/uploads/2020/01/Yoshua_Bengio_CV_1Aug2019.pdf"
+        },
+        {
+          "date": "2018",
+          "text": "힌튼·르쿤과 공동 ACM 튜링상 수상",
+          "url": "https://yoshuabengio.org/en"
+        },
+        {
+          "date": "2025–현재",
+          "text": "LawZero 출범 · 공동대표 및 Scientific Director",
+          "url": "https://yoshuabengio.org/en"
+        }
+      ],
+      "sources": [
+        {
+          "title": "공식 이력",
+          "url": "https://yoshuabengio.org/en"
+        },
+        {
+          "title": "참고 사진 원본",
+          "url": "https://yoshuabengio.org/en"
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/bengio.png",
+        "label": "AI 일러스트 · 공식 사진 참고",
+        "reference_url": "https://yoshuabengio.org/en",
+        "photo_url": "https://yoshuabengio.org/sites/default/files/styles/focal_crop_1250x1250/public/frontpage/yb2025rlm1481v3-website-4_1.jpg?h=755ef5dd&itok=lC-G_VMz",
+        "generated": true
+      },
+      "curated": true,
+      "topics": [
+        {
+          "name": "신경망 언어 모델"
+        },
+        {
+          "name": "표현 학습"
+        },
+        {
+          "name": "딥러닝"
+        }
+      ],
+      "featured_work": "AI-PAPER-NPLM"
+    },
+    {
+      "id": "AI-NG",
+      "slug": "ng",
+      "name": "Andrew Ng",
+      "display_name": "앤드류 응",
+      "aliases": [
+        "앤드류 응",
+        "Andrew Ng",
+        "앤드루 응",
+        "Andrew Y. Ng"
+      ],
+      "org": "Stanford University · 겸임교수",
+      "org_type": "education",
+      "tagline": "학습을 현실의 문제로",
+      "biography": "머신러닝·비지도 학습·AI 교육에 참여해왔다. Google Brain 창립 리드를 맡았으며 DeepLearning.AI를 설립하고 산업 현장의 AI 활용과 교육에 주력한다.",
+      "skills": [
+        "비지도 학습",
+        "토픽 모델링",
+        "머신러닝"
+      ],
+      "timeline": [
+        {
+          "date": "학위",
+          "text": "CMU 학사 · MIT 석사 · UC Berkeley 박사",
+          "url": "https://www.andrewng.org/"
+        },
+        {
+          "date": "이전",
+          "text": "Google Brain 창립 리드 · Baidu Chief Scientist",
+          "url": "https://www.andrewng.org/"
+        },
+        {
+          "date": "현재",
+          "text": "Stanford 겸임교수 · DeepLearning.AI 설립자",
+          "url": "https://www.andrewng.org/"
+        }
+      ],
+      "sources": [
+        {
+          "title": "공식 이력",
+          "url": "https://www.andrewng.org/"
+        },
+        {
+          "title": "참고 사진 원본",
+          "url": "https://www.andrewng.org/"
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/ng.png",
+        "label": "AI 일러스트 · 공식 사진 참고",
+        "reference_url": "https://www.andrewng.org/",
+        "photo_url": "https://www.andrewng.org/_next/image?url=%2Fimages%2Fandrew-ng-about-page.jpg&w=750&q=75&dpl=dpl_6bohFvstLwgAVoY3TgnriRTNxNkR",
+        "generated": true
+      },
+      "curated": true,
+      "topics": [
+        {
+          "name": "비지도 학습"
+        },
+        {
+          "name": "토픽 모델링"
+        },
+        {
+          "name": "머신러닝"
+        }
+      ],
+      "featured_work": "AI-PAPER-LDA"
+    }
+  ],
+  "papers": [
+    {
+      "id": "AI-PAPER-BACKPROP",
+      "title": "Learning representations by back-propagating errors",
+      "date": "1986-10-09",
+      "authors": [
+        {
+          "name": "David E. Rumelhart",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Geoffrey E. Hinton",
+          "person_id": "AI-HINTON",
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Ronald J. Williams",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-DL"
+      ],
+      "url": "https://doi.org/10.1038/323533a0",
+      "summary": "역전파 backpropagation로 다층 신경망 neural network의 가중치를 조정하여 내부 표현 representation learning을 학습하는 방법을 제시한다.",
+      "evidence_kind": "mixed",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-ALEXNET",
+      "title": "ImageNet Classification with Deep Convolutional Neural Networks",
+      "date": "2012",
+      "authors": [
+        {
+          "name": "Alex Krizhevsky",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Ilya Sutskever",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Geoffrey E. Hinton",
+          "person_id": "AI-HINTON",
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-DL",
+        "AI-CV"
+      ],
+      "url": "https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html",
+      "summary": "대규모 영상 분류 image classification에 깊은 합성곱 신경망 CNN과 GPU 학습을 적용했다. 컴퓨터 비전과 딥러닝 deep learning의 대표 사례이다.",
+      "evidence_kind": "mixed",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-LENET",
+      "title": "Gradient-Based Learning Applied to Document Recognition",
+      "date": "1998-11",
+      "authors": [
+        {
+          "name": "Yann LeCun",
+          "person_id": "AI-LECUN",
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Léon Bottou",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Yoshua Bengio",
+          "person_id": "AI-BENGIO",
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Patrick Haffner",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-DL",
+        "AI-CV"
+      ],
+      "url": "https://doi.org/10.1109/5.726791",
+      "summary": "문서 인식 document recognition과 손글씨 인식에 합성곱 신경망 CNN 및 경사 기반 학습을 적용하고 통합 인식 시스템을 설명한다.",
+      "evidence_kind": "mixed",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-DEEP-LEARNING",
+      "title": "Deep learning",
+      "date": "2015-05-27",
+      "authors": [
+        {
+          "name": "Yann LeCun",
+          "person_id": "AI-LECUN",
+          "role": "first",
+          "corresponding": true
+        },
+        {
+          "name": "Yoshua Bengio",
+          "person_id": "AI-BENGIO",
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Geoffrey E. Hinton",
+          "person_id": "AI-HINTON",
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-DL",
+        "AI-CV",
+        "AI-NLP"
+      ],
+      "url": "https://doi.org/10.1038/nature14539",
+      "summary": "딥러닝 deep learning의 다층 표현 학습 representation learning, 합성곱 신경망, 순환 신경망 및 영상·음성·언어 처리 연구를 정리한 리뷰이다.",
+      "evidence_kind": "review",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-NPLM",
+      "title": "A Neural Probabilistic Language Model",
+      "date": "2003-02",
+      "authors": [
+        {
+          "name": "Yoshua Bengio",
+          "person_id": "AI-BENGIO",
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Réjean Ducharme",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Pascal Vincent",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Christian Jauvin",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-NLP",
+        "AI-DL"
+      ],
+      "url": "https://jmlr.org/papers/v3/bengio03a.html",
+      "summary": "단어 임베딩 word embedding과 단어열 확률을 함께 학습하는 신경망 언어 모델 neural language model을 제안한다. 분산 표현으로 일반화를 개선한다.",
+      "evidence_kind": "mixed",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-LDA",
+      "title": "Latent Dirichlet Allocation",
+      "date": "2003-01",
+      "authors": [
+        {
+          "name": "David M. Blei",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Andrew Y. Ng",
+          "person_id": "AI-NG",
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Michael I. Jordan",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-TOPIC"
+      ],
+      "url": "https://jmlr.org/papers/v3/blei03a.html",
+      "summary": "문서 집합을 잠재 토픽의 혼합으로 설명하는 생성 확률 모델 LDA이다. 토픽 모델링 topic modeling, 문서 분류와 잠재 주제 추론을 다룬다.",
+      "evidence_kind": "theory",
+      "kind": "paper"
+    },
+    {
+      "id": "AI-PAPER-UNSUPERVISED",
+      "title": "Building high-level features using large scale unsupervised learning",
+      "date": "2012-07-12",
+      "authors": [
+        {
+          "name": "Quoc V. Le",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false
+        },
+        {
+          "name": "Marc'Aurelio Ranzato",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Rajat Monga",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Matthieu Devin",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Kai Chen",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Greg S. Corrado",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Jeff Dean",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false
+        },
+        {
+          "name": "Andrew Y. Ng",
+          "person_id": "AI-NG",
+          "role": "last",
+          "corresponding": false
+        }
+      ],
+      "tags": [
+        "AI-DL",
+        "AI-UNSUP"
+      ],
+      "url": "https://arxiv.org/abs/1112.6209",
+      "summary": "레이블 없는 대규모 영상에서 희소 오토인코더 sparse autoencoder로 고수준 특징을 학습했다. 대규모 비지도 학습 unsupervised learning을 분산 환경에서 실험했다.",
+      "evidence_kind": "mixed",
+      "kind": "preprint"
+    }
+  ],
+  "experience_records": []
+}

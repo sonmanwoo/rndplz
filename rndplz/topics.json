@@ -1,0 +1,404 @@
+[
+  {
+    "id": "T01",
+    "name": "유체 물성·점도",
+    "field": "immersion_cooling",
+    "color": "#dcbd54",
+    "keywords": [
+      "유체",
+      "물성",
+      "점도",
+      "기유",
+      "첨가제",
+      "윤활유",
+      "fluid",
+      "viscosity",
+      "viscous",
+      "rheolog",
+      "pao",
+      "poe",
+      "ester",
+      "lubricant"
+    ]
+  },
+  {
+    "id": "T02",
+    "name": "소재 호환성",
+    "field": "immersion_cooling",
+    "color": "#319a95",
+    "keywords": [
+      "소재",
+      "호환",
+      "회로기판",
+      "고무",
+      "씰",
+      "씰링",
+      "팽윤",
+      "pcb",
+      "fkm",
+      "elastomer",
+      "compatibility",
+      "polymer",
+      "seal",
+      "swelling",
+      "fr-4"
+    ]
+  },
+  {
+    "id": "T03",
+    "name": "열화·장기 신뢰성",
+    "field": "immersion_cooling",
+    "color": "#dc7959",
+    "keywords": [
+      "열화",
+      "장기",
+      "산화",
+      "신뢰성",
+      "오래",
+      "수명",
+      "산가",
+      "reliability",
+      "aging",
+      "ageing",
+      "oxidation",
+      "accelerated",
+      "stability",
+      "degradation"
+    ]
+  },
+  {
+    "id": "T04",
+    "name": "열전달·유동",
+    "field": "immersion_cooling",
+    "color": "#ef795a",
+    "keywords": [
+      "냉각",
+      "펌프",
+      "유동",
+      "열전달",
+      "거품",
+      "순환",
+      "cdu",
+      "cooling",
+      "heat transfer",
+      "thermal performance",
+      "flow",
+      "pump",
+      "foaming"
+    ]
+  },
+  {
+    "id": "T05",
+    "name": "AI 분자 탐색",
+    "field": "immersion_cooling",
+    "color": "#9482c3",
+    "keywords": [
+      "후보 분자",
+      "분자",
+      "물성 예측",
+      "인공지능",
+      "ai",
+      "machine learning",
+      "molecular",
+      "screening",
+      "materials discovery"
+    ]
+  },
+  {
+    "id": "T06",
+    "name": "전기 절연",
+    "field": "immersion_cooling",
+    "color": "#c7ac4e",
+    "keywords": [
+      "절연",
+      "체적저항",
+      "유전율",
+      "유전손실",
+      "수분",
+      "전기",
+      "dielectric",
+      "electrical",
+      "resistivity",
+      "insulation",
+      "breakdown"
+    ]
+  },
+  {
+    "id": "T07",
+    "name": "CPN·N₂O 산화",
+    "field": "cpn_n2o_oxidation",
+    "color": "#cb746b",
+    "keywords": [
+      "사이클로펜텐",
+      "사이클로펜타논",
+      "아산화질소",
+      "n2o",
+      "cyclopentene",
+      "cyclopentanone",
+      "nitrous oxide",
+      "cpn"
+    ]
+  },
+  {
+    "id": "T08",
+    "name": "결정화·영상 분석",
+    "field": "crystallization_kinetics",
+    "color": "#8686ba",
+    "keywords": [
+      "결정화",
+      "핵생성",
+      "성장 속도",
+      "crystallization",
+      "crystallisation",
+      "nucleation"
+    ]
+  },
+  {
+    "id": "T_catalyst_handling",
+    "name": "촉매 취급·자원",
+    "field": "site",
+    "color": "#7b969d",
+    "keywords": [
+      "촉매",
+      "소분",
+      "시료",
+      "인계",
+      "반출",
+      "catalyst",
+      "sample",
+      "handling"
+    ]
+  },
+  {
+    "id": "T_procurement",
+    "name": "구매·내부 이관",
+    "field": "site",
+    "color": "#79989f",
+    "keywords": [
+      "구매",
+      "벌크",
+      "계약",
+      "이관",
+      "승인",
+      "최소 주문",
+      "procurement",
+      "purchase",
+      "bulk"
+    ]
+  },
+  {
+    "id": "AI-DL",
+    "name": "딥러닝·표현 학습",
+    "field": "ai_foundations",
+    "color": "#9185b8",
+    "keywords": [
+      "딥러닝",
+      "deep learning",
+      "역전파",
+      "backpropagation",
+      "표현 학습",
+      "representation learning",
+      "신경망",
+      "neural network"
+    ]
+  },
+  {
+    "id": "AI-CV",
+    "name": "컴퓨터 비전·CNN",
+    "field": "ai_foundations",
+    "color": "#9185b8",
+    "keywords": [
+      "컴퓨터 비전",
+      "computer vision",
+      "합성곱",
+      "cnn",
+      "영상 분류",
+      "image classification",
+      "문서 인식",
+      "document recognition"
+    ]
+  },
+  {
+    "id": "AI-NLP",
+    "name": "신경망 언어 모델",
+    "field": "ai_foundations",
+    "color": "#9185b8",
+    "keywords": [
+      "언어 모델",
+      "language model",
+      "단어 임베딩",
+      "word embedding"
+    ]
+  },
+  {
+    "id": "AI-TOPIC",
+    "name": "토픽 모델링",
+    "field": "ai_foundations",
+    "color": "#9185b8",
+    "keywords": [
+      "토픽 모델",
+      "topic model",
+      "lda",
+      "잠재 주제"
+    ]
+  },
+  {
+    "id": "AI-UNSUP",
+    "name": "비지도 학습",
+    "field": "ai_foundations",
+    "color": "#9185b8",
+    "keywords": [
+      "비지도 학습",
+      "unsupervised learning",
+      "오토인코더",
+      "autoencoder"
+    ]
+  },
+  {
+    "id": "PE-SEP",
+    "name": "분리·정제 공정",
+    "field": "process_engineering",
+    "keywords": [
+      "분리 정제",
+      "분리·정제",
+      "증류",
+      "추출",
+      "흡착",
+      "수소화반응",
+      "distillation"
+    ],
+    "color": "#5c9690"
+  },
+  {
+    "id": "PE-MODEL",
+    "name": "공정 모델링·최적화",
+    "field": "process_engineering",
+    "keywords": [
+      "공정 모델링",
+      "공정 모사",
+      "공정 최적화",
+      "hysys",
+      "ncc",
+      "oxo-sru",
+      "ocu",
+      "btx"
+    ],
+    "color": "#5c9690"
+  },
+  {
+    "id": "PE-BIO",
+    "name": "바이오공정·탈색탈취",
+    "field": "process_engineering",
+    "keywords": [
+      "diol",
+      "diols",
+      "바이오공정",
+      "탈색",
+      "탈취"
+    ],
+    "color": "#5c9690"
+  },
+  {
+    "id": "PE-POLYMER",
+    "name": "유화 중합",
+    "field": "process_engineering",
+    "keywords": [
+      "라텍스",
+      "유화 중합",
+      "유화중합",
+      "에멀젼 중합"
+    ],
+    "color": "#5c9690"
+  },
+  {
+    "id": "PE-VISION",
+    "name": "필름 표면·영상 검사",
+    "field": "process_engineering",
+    "keywords": [
+      "필름 표면",
+      "필름 불량",
+      "표면 불량",
+      "제조 영상"
+    ],
+    "color": "#5c9690"
+  },
+  {
+    "id": "CE-CCU",
+    "name": "CO₂ 전환·CCU",
+    "field": "energy_catalysis",
+    "keywords": [
+      "co2",
+      "co₂",
+      "ccu",
+      "이산화탄소 전환",
+      "메탄올 합성"
+    ],
+    "color": "#8c84ad"
+  },
+  {
+    "id": "CE-H2",
+    "name": "수소 저장·LOHC",
+    "field": "energy_catalysis",
+    "keywords": [
+      "lohc",
+      "수소 저장",
+      "수소 생산",
+      "h2",
+      "h₂"
+    ],
+    "color": "#8c84ad"
+  },
+  {
+    "id": "CE-CAT",
+    "name": "촉매 설계·제법·평가",
+    "field": "energy_catalysis",
+    "keywords": [
+      "촉매 설계",
+      "촉매 디자인",
+      "촉매 제법",
+      "촉매 제조",
+      "촉매 평가",
+      "촉매 활성",
+      "촉매 분석",
+      "불균일계 촉매"
+    ],
+    "color": "#8c84ad"
+  },
+  {
+    "id": "CE-SAF",
+    "name": "SAF·항공연료",
+    "field": "energy_catalysis",
+    "keywords": [
+      "saf",
+      "항공연료",
+      "co2j"
+    ],
+    "color": "#8c84ad"
+  },
+  {
+    "id": "CE-BIO",
+    "name": "바이오연료·글리세롤 전환",
+    "field": "energy_catalysis",
+    "keywords": [
+      "글리세롤",
+      "프로판다이올",
+      "바이오디젤",
+      "폐유"
+    ],
+    "color": "#8c84ad"
+  },
+  {
+    "id": "CE-FAC",
+    "name": "CCU Lab·Pilot 설비",
+    "field": "energy_catalysis",
+    "keywords": [
+      "co2l",
+      "반응설비",
+      "반응 설비",
+      "실험실 구축",
+      "pilot scale",
+      "파일럿"
+    ],
+    "color": "#8c84ad"
+  }
+]
