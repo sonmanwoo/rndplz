@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ec">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>수소문 · 이름 우선 카드와 M8 표현 살펴보기</title>
+  <link rel="stylesheet" href="./vendor/app.css">
+  <link rel="stylesheet" href="./vendor/holo.css">
+  <link rel="stylesheet" href="./vendor/envelope.css">
+  <link rel="stylesheet" href="./review.css">
+  <script src="./vendor/holo.js" defer></script>
+  <script src="./vendor/envelope.js" defer></script>
+  <script src="./data.js" defer></script>
+  <script src="./review.js" defer></script>
+</head>
+<body class="m8-review" data-layout="fan">
+  <a class="preview-skip" href="#previewMain">비교 화면으로 건너뛰기</a>
+  <header class="preview-header">
+    <a class="preview-brand" href="#previewMain" aria-label="수소문 비교 화면 처음으로">
+      <span aria-hidden="true">H<span>·</span></span>
+      <strong>수소문<small>경험을 가진 사람에게</small></strong>
+    </a>
+    <nav class="preview-navigation" aria-label="비교 화면 이동">
+      <a href="#cardsSection">카드</a>
+      <a href="#envelopeSection">봉투</a>
+    </nav>
+    <span class="preview-badge">M8 · 작동 미리보기</span>
+  </header>
+
+  <main id="previewMain">
+    <section class="preview-intro" aria-labelledby="previewTitle">
+      <p class="preview-eyebrow">이름을 먼저, 기록을 함께.</p>
+      <h1 id="previewTitle">같은 사람의 기록,<br>두 가지 카드 표현.</h1>
+      <p class="preview-lead">이름·역할 우선인 <strong>A가 확정된 기본 화면</strong>입니다.<br class="preview-desktop-break"> 홀로 보기를 켜서 표현의 차이를 살펴보고, 받는 사람의 봉투도 열어보세요.</p>
+      <p class="preview-scope">Q01의 공개 연구자와 Q10의 가상 현장 인물을 한 명씩 골랐습니다. 전체 추천 결과나 제품의 모든 사용 흐름을 재현한 화면은 아닙니다.</p>
+      <div class="preview-boundary" role="note">
+        <span class="preview-boundary-dot" aria-hidden="true"></span>
+        <p><strong>이 페이지 안에서만 하는 시연입니다.</strong> 실제 제안 저장·발송·통화 예약·모델 호출은 없습니다. 변경한 상태는 새로고침하면 초기화됩니다.</p>
+      </div>
+    </section>
+
+    <div id="previewError" class="preview-error" role="alert" hidden></div>
+    <noscript><p class="preview-error">이 비교 화면의 토글과 봉투를 사용하려면 JavaScript가 필요합니다.</p></noscript>
+
+    <section id="cardsSection" class="preview-section" aria-labelledby="cardsTitle">
+      <div class="preview-section-heading">
+        <div>
+          <p class="preview-eyebrow">01 · 후보 카드</p>
+          <h2 id="cardsTitle">이름 우선은 그대로.</h2>
+        </div>
+        <p id="sampleCount" class="preview-section-meta">공개 연구 기록 1명 · 가상 현장 기록 1명</p>
+      </div>
+      <div class="preview-controls" aria-label="카드 표현 비교 설정">
+        <label class="preview-switch" for="holoToggle">
+          <input id="holoToggle" type="checkbox" disabled aria-describedby="holoHelp">
+          <span class="preview-switch-track" aria-hidden="true"></span>
+          <span>홀로 보기</span>
+        </label>
+        <label class="preview-switch" for="maskToggle">
+          <input id="maskToggle" type="checkbox" disabled aria-describedby="maskHelp">
+          <span class="preview-switch-track" aria-hidden="true"></span>
+          <span>이름 가리기</span>
+        </label>
+        <p id="viewStatus" class="preview-view-status" role="status" aria-live="polite">A 기본 · 이름 표시</p>
+      </div>
+      <div class="preview-control-help">
+        <p id="holoHelp">홀로를 켜면 카드 위에서 포인터를 움직여 보세요. 이름·추천 이유·근거는 같은 자료입니다.</p>
+        <p id="maskHelp">이름 가리기는 카드와 수신 봉투·편지의 표시만 바꿉니다. 공개·가상 원본이 자료에 포함되므로 익명화 기능은 아닙니다.</p>
+      </div>
+      <p id="motionStatus" class="preview-motion-note"></p>
+      <div id="candidateCards" class="candidate-grid preview-card-grid" aria-label="선별한 후보 카드"></div>
+      <div class="preview-reading-note">
+        <strong>비교할 때 살펴볼 점</strong>
+        <p>홀로에서는 이름 아래에 기록 요약과 추상 이미지가 더해집니다. 작은 화면에서 역할·추천 이유·근거를 읽기까지의 거리도 함께 살펴보세요.</p>
+        <p>광택은 데이터 확인 수준을 나타냅니다. 지금 자료는 모두 <strong>기록만 · 본인 미확인</strong>이며, HP는 전체 논문 수입니다. 사람의 능력이나 등급이 아닙니다.</p>
+      </div>
+    </section>
+
+    <section id="envelopeSection" class="preview-section preview-envelope-section" aria-labelledby="envelopeTitle">
+      <div class="preview-section-heading">
+        <div>
+          <p class="preview-eyebrow">02 · 받는 사람의 화면</p>
+          <h2 id="envelopeTitle">봉투를 열면,<br>요청의 맥락이 보입니다.</h2>
+        </div>
+        <span class="preview-section-meta">Q10 · 가상 현장 제안 일부</span>
+      </div>
+      <div class="preview-envelope-panel">
+        <div>
+          <p class="preview-envelope-recipient"><span id="recipientLabel">받는 사람</span>님께</p>
+          <p>봉투를 열고 편지를 읽은 뒤, ‘왜 저에게 왔나요?’에서 연결된 근거를 확인하세요.</p>
+          <p class="preview-small">수락·거절은 아래 시연 표시만 바꾸고, ‘나중에’는 상태를 그대로 둡니다. 실제 제안함이나 상대방에게 전달되지 않습니다.</p>
+          <p class="preview-demo-status">페이지 안 시연 상태 <strong id="proposalStatus">보냄</strong></p>
+        </div>
+        <div class="preview-envelope-actions">
+          <button id="openRecipient" class="preview-primary" type="button" disabled>받는 사람의 봉투 열기 <span aria-hidden="true">↗</span></button>
+          <button id="resetDemo" class="preview-secondary" type="button" disabled>시연 상태 처음으로</button>
+        </div>
+      </div>
+      <p id="demoNotice" class="preview-persistent-notice" role="status" aria-live="polite">페이지 안 시연 · 새로고침 시 초기화 · 실제 저장·발송 없음</p>
+    </section>
+
+    <footer class="preview-footer">
+      <p>확정된 A 이름 우선 위에서 홀로와 수신 봉투를 살펴보는 자료입니다. 토글이나 시연 버튼은 디자인 선택을 제출하지 않습니다.</p>
+      <details class="preview-source">
+        <summary>자료의 기준과 범위</summary>
+        <dl>
+          <div><dt>제품 코드 기준</dt><dd id="sourceCommit">055c9d2</dd></div>
+          <div><dt>자료 준비 시각</dt><dd id="sourceCapturedAt">확인 중</dd></div>
+          <div><dt>사용 자료</dt><dd>공개 논문 메타데이터와 시연용 가상 현장 기록의 선별본</dd></div>
+        </dl>
+        <p>제품의 홀로·수신 봉투 모듈을 이 페이지의 고정 자료에 연결했습니다. 검색·추천 계산·저장·모델은 실행하지 않습니다. 보내기 연출과 전체 제품 검증은 이 자료의 범위 밖입니다.</p>
+        <p>논문 원문 링크는 사용자가 누를 때 외부 출처를 엽니다. 가상·로컬 근거는 페이지 안에 포함된 정보만 보여줍니다.</p>
+      </details>
+    </footer>
+  </main>
+
+</body>
+</html>

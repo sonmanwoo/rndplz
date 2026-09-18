@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>수소문 · 발견을 만든 사람들</title>
+  <link rel="stylesheet" href="review.css">
+  <script src="data.js" defer></script>
+  <script src="review.js" defer></script>
+</head>
+<body data-finish="gold">
+  <a class="skip" href="#researchers">연구자 카드로 이동</a>
+  <header class="site-header">
+    <a class="brand" href="../../../">수소문<span>사람을 발견하는 다른 방법</span></a>
+    <span class="edition">DESIGN STUDY <b>LAUREATE / r1</b></span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">RESEARCHER COLLECTION · 01</p>
+        <h1 id="page-title">발견을 만든 사람들<span>그 이력에, 특별한 빛을.</span></h1>
+        <p class="lead">신경망부터 빛, 단백질, 백신까지.<br>공개 연구 이력으로 만나는 여섯 명의 노벨상 수상자.</p>
+      </div>
+      <aside class="intro-note"><span class="note-number">06</span><p>여섯 연구 분야<br><b>이름과 근거를 먼저</b></p><span class="note-rule"></span><p>수상은 연구 이력입니다.<br>현재 과제의 적합성은 별도 근거로 판단합니다.</p></aside>
+    </section>
+    <section class="controls" aria-label="카드 효과 미리보기">
+      <fieldset class="finishes"><legend>빛의 질감</legend>
+        <label><input type="radio" name="finish" value="gold" checked><span>금빛 포일</span></label>
+        <label><input type="radio" name="finish" value="prism"><span>분광 포일</span></label>
+        <label><input type="radio" name="finish" value="plain"><span>효과 끄기</span></label>
+      </fieldset>
+      <div class="light-control"><label for="lightPosition">빛의 각도</label><input id="lightPosition" type="range" min="0" max="100" value="35" aria-valuetext="35%"><button type="button" id="sweep">빛 움직여 보기 <span aria-hidden="true">↗</span></button></div>
+      <p id="effectStatus" class="effect-status" role="status">금빛 포일 · 카드 위에서 포인터를 움직이거나 빛의 각도를 조절해 보세요.</p>
+    </section>
+    <section id="researchers" class="researchers" aria-label="노벨상 수상자 카드" tabindex="-1"></section>
+    <noscript><p>카드를 보려면 JavaScript를 허용해 주세요. 수상 정보는 <a href="https://www.nobelprize.org/prizes/lists/all-nobel-prizes/">노벨상 공식 사이트</a>에서 확인할 수 있습니다.</p></noscript>
+    <section class="about-study" aria-labelledby="study-title">
+      <div><p class="eyebrow">ABOUT THIS STUDY</p><h2 id="study-title">사람을 읽는 화면은<br>선명하게 남습니다.</h2></div>
+      <div><p>이름 우선 디자인에 특별 포일을 더한 작동 시안입니다. 두 질감은 같은 사진과 이력을 사용합니다. 빛은 사진의 가장자리와 테두리에 머물며, 이름과 수상 사유에는 겹치지 않습니다.</p><p>휴대폰에서는 빛의 각도를 조절하거나 미리보기 버튼을 누를 수 있습니다. 기기의 ‘동작 줄이기’ 설정을 따르며, ‘효과 끄기’로 장식을 감출 수 있습니다.</p><p class="scope">공개 이력 시연 · 2026.09.18 기준 · 제품 검색에는 아직 연결되지 않았습니다. 수상 여부는 추천 순위·실무 능력 검증·연락 가능성을 뜻하지 않습니다.</p></div>
+    </section>
+    <details class="references"><summary>디자인 참고와 사진 사용 정보</summary><p>시각 참고: Simon Goellner의 <a href="https://poke-holo.simey.me/#secret-rare" target="_blank" rel="noopener noreferrer">Secret Rare (Gold)</a> 및 <a href="https://poke-holo.simey.me/#rainbow-rare" target="_blank" rel="noopener noreferrer">Rainbow Rare</a>. 해당 프로젝트의 <a href="https://github.com/simeydotme/pokemon-cards-css/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">소스 라이선스는 GPL-3.0</a>입니다. 이 시안의 효과 코드는 별도로 작성했으며 포켓몬 그림·코드·텍스처를 포함하지 않습니다.</p><p>사진별 작가·라이선스·원본은 각 카드의 ‘수상 이력과 출처’에서 확인할 수 있습니다. 재사용 사진의 라이선스는 해당 사진에 적용됩니다. 사진 파일은 Commons의 제공 썸네일 그대로 사용합니다. 화면에서는 카드 창에 맞춘 자르기와 별도 빛 장식이 적용되며, 해당 사진과 그 화면상 변경에는 각 사진의 라이선스를 유지합니다.</p><p>이 페이지는 Nobel Prize 또는 사진 속 인물의 제휴·추천을 나타내지 않습니다.</p></details>
+  </main>
+  <footer><span>수소문 / LAUREATE STUDY</span><a href="../../M8/r1/">기존 카드·봉투 작동 시안 ↗</a></footer>
+</body>
+</html>

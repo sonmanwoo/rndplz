@@ -36,6 +36,32 @@ PREVIEW_FILES = {
 }
 
 
+# Previews use fixed reviewed packages, never filesystem path discovery.
+PREVIEW_PACKAGES = {
+    PREVIEW_PREFIX: PREVIEW_FILES,
+    '/ui-previews/LAUREATE/r1/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'review.css': ('review.css', 'text/css; charset=utf-8'),
+        **{name: (name, 'text/javascript; charset=utf-8') for name in ('review.js', 'data.js')},
+        **{f'images/{name}.jpg': (f'images/{name}.jpg', 'image/jpeg') for name in
+           ('arnold', 'baker', 'bertozzi', 'hinton', 'kariko', 'strickland')},
+    },
+    '/ui-previews/M8/r1/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        **{name: (name, 'text/css; charset=utf-8') for name in
+           ('review.css', 'vendor/app.css', 'vendor/holo.css', 'vendor/envelope.css')},
+        **{name: (name, 'text/javascript; charset=utf-8') for name in
+           ('review.js', 'data.js', 'vendor/holo.js', 'vendor/envelope.js')},
+    },
+}
+PREVIEW_ROUTES = {
+    prefix + suffix: (prefix.strip('/') + '/' + name, mime)
+    for prefix, files in PREVIEW_PACKAGES.items()
+    for suffix, (name, mime) in files.items()
+}
+
 
 class PublicModels(ChatModels):
     """No local Ollama probing or visitor changes to shared API credentials."""
@@ -155,10 +181,10 @@ class PublicApp:
             return send(405, {'error': '지원하지 않는 요청입니다.'})
         if path.startswith('/ui-previews/'):
             if method != 'GET': return send(405, {'error': '읽기 전용 비교 페이지입니다.'})
-            entry = PREVIEW_FILES.get(path[len(PREVIEW_PREFIX):]) if path.startswith(PREVIEW_PREFIX) else None
+            entry = PREVIEW_ROUTES.get(path)
             if entry is None: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
             name, mime = entry
-            try: raw = (WEB / PREVIEW_PREFIX.strip('/') / name).read_bytes()
+            try: raw = (WEB / name).read_bytes()
             except FileNotFoundError: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
             return send(200, raw, mime)
         if path in ('/api/worker/poll','/api/worker/result'):
