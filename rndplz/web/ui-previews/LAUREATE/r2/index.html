@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>연구자의 초상 · 수소문 r2</title>
+  <link rel="stylesheet" href="review.css">
+  <script src="data.js" defer></script>
+  <script src="review.js" defer></script>
+</head>
+<body data-effect="off" data-motion="full">
+  <a class="skip-link" href="#researcherCards">인물 카드로 이동</a>
+  <header class="page-header">
+    <a class="brand" href="#top" aria-label="수소문, 처음으로"><span class="brand-symbol" aria-hidden="true">h</span><span>수소문<small>RESEARCH ARCHIVE</small></span></a>
+    <span class="review-status">LAUREATE · r2 검토 중</span>
+  </header>
+  <main id="top">
+    <section class="intro" aria-labelledby="pageTitle">
+      <p class="eyebrow">사람의 얼굴, 연구의 배경</p>
+      <h1 id="pageTitle">두 장의 연구자 초상.</h1>
+      <p class="intro-copy">기존의 따뜻한 종이 초상에 수상 이력과 작은 빛을 더했습니다.<br>같은 크기의 카드에서 그림과 효과를 살펴보세요.</p>
+      <p class="scope-note">이름 우선 A · 정적 검토 시안 · 제품 반영 전</p>
+    </section>
+    <section class="review-controls" aria-label="초상 효과 비교">
+      <div class="effect-controls">
+        <button id="effectToggle" class="primary" type="button" aria-pressed="false" aria-describedby="effectHelp">특별 효과 켜기</button>
+        <fieldset class="effect-picker">
+          <legend>빛의 색</legend>
+          <label><input id="effectGold" type="radio" name="effectStyle" value="gold" checked><span>금빛</span></label>
+          <label><input id="effectPrism" type="radio" name="effectStyle" value="prism"><span>분광</span></label>
+        </fieldset>
+        <button id="motionToggle" class="outline" type="button" aria-pressed="false">움직임 끄기</button>
+      </div>
+      <p id="effectHelp">처음에는 효과가 꺼져 있습니다. 빛은 초상 창 안에만 표시됩니다.</p>
+      <p id="motionStatus" class="control-status"></p>
+      <p id="cardKeyboardHelp" class="sr-only">효과가 켜져 있을 때 카드에 초점을 두고 방향키로 빛을 움직일 수 있습니다. Escape 키로 중앙에 돌려놓습니다.</p>
+      <p id="effectStatus" class="sr-only" role="status" aria-live="polite">특별 효과 꺼짐</p>
+    </section>
+    <section aria-label="동일한 용도의 연구자 카드 두 장">
+      <div id="researcherCards" class="researcher-grid"></div>
+      <p id="assetStatus" class="asset-status" role="status" aria-live="polite">초상 파일을 확인하고 있습니다.</p>
+      <noscript><p class="empty-note">이 비교안의 카드와 효과를 보려면 JavaScript를 켜 주세요.</p></noscript>
+    </section>
+    <aside class="review-boundary" aria-label="자료의 범위">
+      <p>수상 이력은 연구의 한 기록입니다. 현재 과제의 적합성이나 개인의 직접 수행 수준을 뜻하지 않습니다.</p>
+      <p>이미지 위의 제작 표시와 카드 아래 출처에서 참고 사진과 AI 생성물을 구분할 수 있습니다. 이 페이지의 조작은 저장되지 않습니다.</p>
+    </aside>
+  </main>
+  <footer class="page-footer"><span>수소문 · RESEARCH ARCHIVE</span><span>자료 확인 2026.09.18 · r2</span></footer>
+</body>
+</html>
+

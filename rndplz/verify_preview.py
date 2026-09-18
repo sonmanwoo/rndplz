@@ -28,7 +28,7 @@ class PreviewTests(unittest.TestCase):
             for suffix in ('../public_web.py', '../../data/site_records_seed.json', '%2e%2e/public_web.py', 'images/../../app.js', 'vendor/../../app.js', 'unknown.json'):
                 with self.subTest(path=prefix + suffix):
                     self.assertEqual(self.client.call(prefix + suffix)['status'], 404)
-            self.assertEqual(self.client.call(prefix.replace('/r1/', '/r2/'))['status'], 404)
+            self.assertEqual(self.client.call(prefix.rstrip('/').rsplit('/', 1)[0] + '/r999/')['status'], 404)
         self.app.visitor.assert_not_called()
 
     def test_preview_is_read_only_and_host_checked(self):
