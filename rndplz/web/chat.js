@@ -23,7 +23,7 @@ function render(){
  const started=messages.length>0;$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(m.model||"수소문")+'</span></div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+'</article>').join("");
  if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(option()?.name||"수소문")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
- if(session?.can_propose&&!session.ready&&!busy)$("thread").innerHTML+='<div class="continue-actions"><button class="primary" data-action="prepare">이 내용으로 사람 찾기 ↗</button></div>';
+ if(session?.can_propose&&!session.ready&&!busy)$("thread").innerHTML+='<div class="continue-actions"><button class="primary" data-action="prepare" title="대화를 계속하거나 지금까지의 조건으로 사람을 찾아볼 수 있어요.">이 조건으로 사람 찾기 (선택) ↗</button></div>';
  renderCandidates();controls();scrollBottom();
 }
 function renderCandidates(){

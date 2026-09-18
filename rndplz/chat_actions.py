@@ -157,12 +157,58 @@ class ChatActions:
 
     @staticmethod
     def people_request(text):
-        return bool(re.search(r'전문가|연구자|연구원|권위자|인재|누가|추천|명단|목록|사람.*(?:찾|필요|있|보여)|(?:찾|필요).*사람', text))
+        # Match the requested object, not the word "recommend" by itself.
+        if re.search(r'(?:찾는|찾을|추천하는|검색하는|필요한지|연결하는).{0,18}(?:방법|기준|이유|원리)', text):
+            return False
+        noun = r'(?:전문가|연구자|연구원|권위자|인재|사람|담당자|협업자|인물|누가|누구)'
+        clauses = re.finditer(r'([^.!?\n;]*?)(말고|아니라|대신|[.!?\n;]|$)', normalized(text))
+        for match in clauses:
+            clause, ending = match.groups()
+            if ending in ('말고', '아니라', '대신') or not re.search(noun, clause):
+                continue
+            if re.search(r'(?:찾|추천|검색|조회|연결|필요).{0,12}(?:않|말|마(?:세요|라|요|$)|나중|아직|없|아니|안\s*(?:해|하|찾|추천))|(?:전문가|사람|인물)(?:가|는|은|이)?\s*아니', clause):
+                continue
+            if re.search(r'찾|추천|검색|조회|연결|보여|알려|필요|있(?:니|나|을)|누가|누구|명단|목록|만나|이야기|상담|협업', clause):
+                return True
+            # Topic + person category is a normal compact search ("딥러닝 권위자").
+            if re.search(noun + r'(?:들)?(?:요)?\s*$', clause.strip()):
+                return True
+        return False
+
+    @classmethod
+    def discussion_request(cls, text):
+        value = normalized(text)
+        if re.search(r'(?:이력|프로필|경력)(?:들)?(?:을|를)?\s*비교', value):
+            return False
+        person = r'(?:전문가|사람|연구자|인물|검색|추천)'
+        deferred = re.search(person + r'.{0,25}(?:찾지|추천하지|검색하지|조회하지|아직|나중|찾는\s*(?:게|건|것)|아니라|말고|안\s*해도)', value)
+        # A later explicit positive people request can end an earlier deferral.
+        if cls.people_request(value):
+            return False
+        if deferred:
+            return True
+        return bool(re.search(r'(?:방법|대안|아이디어|접근|설계|가설|실험|장단점|원리|판단\s*기준|문제\s*정의).{0,50}(?:추천|비교|설명|고민|정리|검토|알려|어떻게|생각)|(?:비교|설명|고민|논의|정정|수정)(?:해|하|할|을|하는|한|부터)|무엇부터|어느\s*실험', value))
+
+    def search_refinement(self, context, text):
+        if context.get('kind') != 'recommend' or self.discussion_request(text):
+            return False
+        if re.search(r'그\s*중|거기서|후보|명단|목록|검색\s*결과|더\s*좁혀', text):
+            return True
+        if context.get('profile_only_ids') and re.search(r'말고|제외|아닌|빼(?:고|줘)', text):
+            return True
+        # A short topical fragment refines displayed people; a methods question does not.
+        return bool(len(text.strip()) < 60 and self.engine.topics_for(text)
+                    and not re.search(r'[?？]|줘|주세요|할까|할지|어떻게|정리|검토|설명|실험|정정', text))
 
     def query_for(self, session, text):
+        prepared = '_request_query' in session
+        if prepared:
+            text = session['_request_query']
         # A conversational synonym; it does not change corpus classification or weights.
         text = re.sub(r'전열\s*성능', '열전달 heat transfer 성능', text)
         text = re.sub(r'이미지\s*인식', '컴퓨터 비전', text)
+        if prepared:
+            return text
         context = session.get('search_context') or {}
         previous = context.get('query', '') if context.get('kind') == 'recommend' else ''
         current_topics = self.engine.topics_for(text)
@@ -213,6 +259,10 @@ class ChatActions:
                 reply += ' AI 분야는 수록된 공개 연구 사례이며 전체 전문가 명단이나 협업 가능 인원은 아닙니다.'
         else:
             reply = '현재 열람 가능한 자료에서는 이 요청과 연결할 근거를 찾지 못했습니다. 자료에 없다는 뜻이며, 해당 분야의 전문가가 없다는 뜻은 아닙니다.'
+        if count:
+            explanations = [f"{c['name']}: {c['reason']}" for c in result['candidates'][:3]]
+            reply += '\n\n' + '\n'.join(explanations)
+            reply += '\n\n기간·자원·현재 가용성은 요청 조건이며, 해당 인물이 모두 충족한다는 확인은 아닙니다. 근거의 출처와 확인 범위를 카드에서 확인해 주세요.'
         return {'reply': reply, 'result': result,
                 'context': {'kind': 'recommend', 'ids': [c['id'] for c in result['candidates']],
                             'query': query, 'profile_only_ids': profile_ids},
@@ -228,6 +278,8 @@ class ChatActions:
             if context.get('kind') != 'person_choice' or selected not in context.get('ids', []) or selected not in self.corpus.people:
                 raise ValueError('표시된 인물 선택지에서 다시 선택해 주세요.')
             return self.profiles([selected], context.get('query', ''))
+        if self.discussion_request(text):
+            return None
         ids, remaining = self.matches(text)
         # A narrated reading experience followed by a methods question is free conversation.
         lookup_request = re.search(r'보여\s*(?:줘|주|달)|찾아\s*(?:줘|주|달)|알려\s*(?:줘|주|달)|누구|있니|있나|궁금|어때|비교', text)
@@ -293,7 +345,7 @@ class ChatActions:
             return {'reply': message, 'result': self.blank('person_lookup', message),
                     'context': {'kind': 'person_lookup', 'ids': [], 'query': ''}, 'can_propose': False}
         people_request = self.people_request(text)
-        refine = context.get('kind') == 'recommend' and (self.engine.topics_for(text) or re.search(r'조건|온도|성능|쪽|관련|먼저|중심', text) or context.get('profile_only_ids') and re.search(r'말고|제외|아닌|빼(?:고|줘)', text))
+        refine = self.search_refinement(context, text)
         if people_request or refine:
             return self.recommend(session, text)
         return None
