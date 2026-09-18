@@ -6,7 +6,11 @@ const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong
 async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw new Error(data.error||"요청을 처리하지 못했어요.");return data;}
 function error(message=""){$("composerError").textContent=message;$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
-function modal(id){document.querySelectorAll("dialog[open]").forEach(d=>d.close());$(id).showModal();}
+function modal(id,returnFocus=document.activeElement){
+ document.querySelectorAll("dialog[open]").forEach(d=>d.close());const dialog=$(id);dialog.returnFocus=returnFocus;
+ if(!dialog.focusReturnBound){dialog.addEventListener("close",()=>{if(!document.querySelector("dialog[open]")&&dialog.returnFocus?.isConnected)dialog.returnFocus.focus();});dialog.focusReturnBound=true;}
+ dialog.showModal();
+}
 function option(){return catalog.find(m=>m.id===selectedModel);}
 function modelOptions(data,preferred){publicMode=!!data.public;if(publicMode){$("configForm").hidden=true;$("localStatus").closest(".local-status").querySelector("small").textContent="대화와 제안은 방문자별로 분리됩니다. 무료 시연 기록은 서버 재시작 때 사라질 수 있습니다.";$("settingsDialog").querySelector("p.subtle").textContent="운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";$("letterDialog").querySelector("p.subtle").textContent="이 방문자의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.";}catalog=data.models;selectedModel=preferred&&catalog.some(m=>m.id===preferred&&m.enabled)?preferred:data.default||"";$("modelSelect").innerHTML=catalog.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===selectedModel?' selected':'')+'>'+esc(m.provider==="ollama"?m.name+" · 로컬":m.name)+'</option>').join("")||'<option value="">연결할 모델 없음</option>';$("localStatus").textContent=publicMode?"공개 서비스 · 방문자별 대화":catalog.filter(m=>m.local).length?"Ollama · 설치 모델 "+catalog.filter(m=>m.local).length+"개":"Ollama에 연결할 수 없어요";controls();}
 function controls(){const m=option();$("sendButton").disabled=busy||uploading||!m?.enabled||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=busy;$("attachButton").disabled=busy||uploading;$("message").disabled=busy;$("newButton").disabled=busy;$("historyButton").disabled=busy;$("settingsButton").disabled=busy;$("modelHint").textContent=uploading?"첨부파일을 읽고 있어요…":m?.provider==="guide"?"AI 미연결 · 입력한 내용으로 연구 기록을 탐색합니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";}
@@ -24,14 +28,20 @@ function render(){
 }
 function renderCandidates(){
  const zone=$("proposalZone");zone.hidden=!session?.ready||busy;if(zone.hidden)return;
- const result=session.result;
- let html='<div class="collection-heading"><div><span class="micro">PEOPLE / COLLECTED FOR YOUR QUESTION</span><h2>이 경험에서, 연결을 시작해요.</h2><p>기록을 살펴보고 함께 이야기하고 싶은 사람을 골라보세요.</p></div><span class="collection-count">'+String(result.candidates.length).padStart(2,"0")+'</span></div>';
- if(!result.candidates.length)html+='<div class="empty-result">지금 자료에서는 근거가 있는 후보를 찾지 못했어요.<br>대상을 더 설명하거나 다른 조건으로 대화를 이어갈 수 있습니다.</div>';
- if(result.mode==="resource_request"&&result.candidates.length)html+='<button class="secondary" data-action="route-letter">경로별 제안문 준비하기 ↗</button>';
+ const result=session.result,lookup=result.intent==="person_lookup",choosing=result.intent==="person_choice";
+ let html='<div class="collection-heading"><div><span class="micro">PEOPLE / RECORDS</span><h2>'+esc(choosing?'어느 분을 말씀하시나요?':lookup?'이름으로 찾은 기록입니다.':'이 경험에서, 연결을 시작해요.')+'</h2><p>'+esc(lookup?'등록 이력을 보여드립니다. 요청한 일의 적합성을 확정하는 추천은 아닙니다.':choosing?'소속과 이름을 확인해 선택해 주세요.':'먼저 근거를 살펴보고, 조건을 더 알려주시면 함께 좁혀볼게요.')+'</p></div><span class="collection-count">'+String((choosing?(result.choices||[]):result.candidates).length).padStart(2,"0")+'</span></div>';
+ if(choosing){
+  html+='<div class="candidate-list">'+(result.choices||[]).map(c=>'<article class="candidate"><h3>'+esc(c.name)+'</h3><p>'+esc(c.org)+'</p>'+(c.virtual?'<p>가상 현장 인물</p>':'')+'<button class="primary" data-action="person-select" data-id="'+esc(c.id)+'">이 사람의 이력 보기</button></article>').join('')+'</div>';
+ }
+ if(!result.candidates.length)html+='<div class="empty-result">'+esc(result.empty_message||'현재 열람 가능한 자료에서 근거를 찾지 못했습니다.')+'</div>';
+ if(result.mode==="resource_request"&&result.candidates.some(c=>!c.lookup_only)&&!lookup)html+='<button class="secondary" data-action="route-letter">경로별 제안문 준비하기 ↗</button>';
  html+='<div class="candidate-list">'+result.candidates.map((c,i)=>{
  const initials=c.name.split(/\s+/).filter(Boolean).slice(0,2).map(n=>n[0]).join("");
- return '<article class="candidate holo-card" data-tilt style="--deal:'+i+'"><div class="sticker-top"><span>No. '+String(i+1).padStart(2,"0")+'</span><span>RESEARCH / PEOPLE</span></div>'+(c.profile?.portrait?RndCraft.portrait(c.profile,c.name):'<div class="profile-glyph" aria-hidden="true"><span class="initials">'+esc(initials)+'</span></div>')+'<h3>'+esc(c.name)+'</h3><p class="candidate-org">'+esc(c.org)+'</p><span class="scope-sticker">'+esc(c.virtual?"가상 현장 기록":c.evidence[0].scope)+'</span><p class="candidate-reason">'+esc(c.route_role||c.reason)+'</p><div class="evidence">'+esc(c.evidence[0].title)+'</div><small class="candidate-boundary">'+esc(c.evidence[0].boundary)+'</small><div class="candidate-actions"><button class="text-button" data-action="person" data-id="'+esc(c.id)+'">근거 펼쳐보기</button><button class="primary" data-action="letter" data-id="'+esc(c.id)+'">편지 쓰기 ↗</button></div><div class="candidate-footer"><span>H:문 — CONNECT BY EXPERIENCE</span><span>↗</span></div></article>';
- }).join("")+'</div><p class="subtle small">참여 기록으로 찾은 연결입니다. 개인 수행·현재 연락 의향은 확인이 필요합니다.</p>';
+ const evidence=c.evidence?.[0]||{scope:'등록 프로필',title:'연결된 근거 기록 없음',boundary:'이 프로필만으로 수행 경험을 확인할 수 없습니다.'};
+ const nobel=RndCraft.isLaureate(c.profile),personal=RndCraft.isPersonalIllustration(c.profile),lookupOnly=lookup||c.lookup_only;
+ const art=c.profile?.portrait||nobel||personal?RndCraft.portrait(c.profile,c.name):'<div class="profile-glyph" aria-hidden="true"><span class="initials">'+esc(initials)+'</span></div>';
+ return '<article class="candidate holo-card'+(nobel?' laureate-card':'')+'" data-person-id="'+esc(c.id)+'" data-tilt'+RndCraft.laureateAttributes(c.profile)+' style="--deal:'+i+'"><div class="sticker-top"><span>No. '+String(i+1).padStart(2,"0")+'</span><span>RESEARCH / PEOPLE</span></div>'+(nobel?RndCraft.nameBlock(c)+art+RndCraft.awardSummary(c.profile)+RndCraft.effectControls(c.profile,c.name):personal?RndCraft.nameBlock(c,'h3','personal-name')+art+RndCraft.personalPortraitNote(c.profile):art+'<h3>'+esc(c.name)+'</h3><p class="candidate-org">'+esc(c.org)+'</p>')+'<span class="scope-sticker">'+esc(c.virtual?"가상 현장 기록":evidence.scope)+'</span><p class="candidate-reason">'+esc(c.route_role||c.reason)+'</p><div class="evidence">'+esc(evidence.title)+'</div><small class="candidate-boundary">'+esc(evidence.boundary)+'</small><div class="candidate-actions"><button class="text-button" data-action="person" data-id="'+esc(c.id)+'">근거 펼쳐보기</button>'+(lookupOnly?'':'<button class="primary" data-action="letter" data-id="'+esc(c.id)+'">편지 쓰기 ↗</button>')+'</div><div class="candidate-footer"><span>H:문 — CONNECT BY EXPERIENCE</span><span>↗</span></div></article>';
+ }).join("")+'</div><p class="subtle small">등록 자료 범위의 기록입니다. 개인 수행·현재 소속·연락 의향은 별도 확인이 필요합니다.</p>';
  zone.innerHTML=html;
 }
 function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated};history=[row,...history.filter(s=>s.id!==row.id)];}
@@ -74,7 +84,12 @@ async function upload(list){
  catch(e){error(e.message);}finally{uploading=false;$("fileInput").value="";controls();}
 }
 function safeUrl(url){try{return ["https:","http:"].includes(new URL(url).protocol);}catch{return false;}}
-async function showPerson(id){const p=await api("/api/person?id="+encodeURIComponent(id));$("detailContent").innerHTML='<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p><p class="small">'+(p.virtual?"시연용 가상 인물":"참여 기록 확인 · 개인 수행·본인 확인·연락 의향 미확인")+'</p>'+p.evidence.map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+'</section>').join("");modal("detailDialog");}
+async function showPerson(id,opener=document.activeElement){
+ const p=await api("/api/person?id="+encodeURIComponent(id));
+ const profile=RndCraft.profileDetails(p);
+ $("detailContent").innerHTML=(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+'<p class="small">'+(p.virtual?"시연용 가상 인물":"참여 기록 확인 · 개인 수행·본인 확인·연락 의향 미확인")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+'</section>').join("");
+ modal("detailDialog",opener);
+}
 async function openLetter(ids){const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}
 function renderLetter(){const d=letter.drafts[letter.index];$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
 function keepLetter(){const id=letter.ids[letter.index];if(letter.bodies[id]!==$("letterBody").value){letter.bodies[id]=$("letterBody").value;letter.key=crypto.randomUUID();}}
@@ -98,11 +113,12 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   if(action==="remove-file"){files=files.filter(f=>f.id!==id);renderFiles();}
   else if(action==="preview-file"){const item=await api("/api/attachment?id="+id);$("fileTitle").textContent=item.name;$("fileInfo").textContent=item.kind==="image"?"이미지 지원 모델에서만 대화에 사용할 수 있어요.":"읽은 텍스트 "+item.characters.toLocaleString()+"자"+(item.truncated?" · 길이 제한으로 앞부분만 읽었습니다.":"");$("filePreview").innerHTML=item.image?'<img alt="첨부 이미지" src="data:'+item.mime+';base64,'+item.image+'">':'<pre>'+esc(item.text)+'</pre>';modal("fileDialog");}
   else if(action==="history"){session=await api("/api/chat/session?id="+id);if(catalog.some(m=>m.id===session.model_id&&m.enabled)){selectedModel=session.model_id;$("modelSelect").value=selectedModel;}files=[];$("message").value="";renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
-  else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");selectedModel=assistant?.model_id||session.model_id;$("modelSelect").value=selectedModel;await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:selectedModel,turn_id:id});}
+  else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");selectedModel=assistant?.model_id||session.model_id;$("modelSelect").value=selectedModel;await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:selectedModel,turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});}
   else if(action==="prepare"){button.disabled=true;button.textContent="관련 기록을 찾고 있어요…";session=await api("/api/chat/prepare",{session_id:session.id});autoScroll=false;render();$("proposalZone").scrollIntoView({block:"start",behavior:RndCraft.quiet()?"instant":"smooth"});}
-  else if(action==="person")await showPerson(id);
+  else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,turn_id:crypto.randomUUID()});}
+  else if(action==="person")await showPerson(id,button);
   else if(action==="letter")await openLetter([id]);
-  else if(action==="route-letter")await openLetter(session.result.candidates.map(c=>c.id));
+  else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(c=>!c.lookup_only).map(c=>c.id);if(ids.length)await openLetter(ids);}
  }catch(e){error(e.message);button.disabled=false;}
 });
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});

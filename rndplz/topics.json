@@ -215,7 +215,8 @@
       "영상 분류",
       "image classification",
       "문서 인식",
-      "document recognition"
+      "document recognition",
+      "imagenet"
     ]
   },
   {
@@ -400,5 +401,118 @@
       "파일럿"
     ],
     "color": "#8c84ad"
+  },
+  {
+    "id": "PE-OPT",
+    "name": "공정 최적화·혼합정수 계획",
+    "field": "process_engineering",
+    "keywords": [
+      "공정 최적화",
+      "혼합정수",
+      "공정 합성",
+      "스케줄링",
+      "mixed-integer",
+      "mixed integer",
+      "process synthesis",
+      "disjunctive programming"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "MAT-SKIN",
+    "name": "전자 피부·유기 전자소재",
+    "field": "materials_polymers",
+    "keywords": [
+      "전자 피부",
+      "전자피부",
+      "유연 전자소재",
+      "신축성 고분자",
+      "electronic skin",
+      "mechanoreceptor",
+      "organic electronics"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "TH-SOLAR",
+    "name": "태양열 증발·열 국소화",
+    "field": "thermal_fluid_management",
+    "keywords": [
+      "태양열 증발",
+      "태양열 증기",
+      "열 국소화",
+      "solar steam",
+      "heat localization",
+      "solar evaporation"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "BIO-ENZYME",
+    "name": "효소 유도진화",
+    "field": "biocatalysis_enzyme_evolution",
+    "keywords": [
+      "효소",
+      "유도진화",
+      "유도 진화",
+      "directed evolution",
+      "enzyme"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "BIO-ORTHO",
+    "name": "생체직교화학",
+    "field": "chemical_biology_bioorthogonal",
+    "keywords": [
+      "생체직교",
+      "생체 직교",
+      "bioorthogonal",
+      "strain-promoted cycloaddition",
+      "staudinger reaction"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "PHY-LASER",
+    "name": "초단 펄스·레이저",
+    "field": "physics_optics_lasers",
+    "keywords": [
+      "레이저",
+      "광펄스",
+      "처프 펄스",
+      "chirped pulse",
+      "laser",
+      "ultrashort pulse",
+      "chirped optical pulses"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "BIO-RNA",
+    "name": "RNA·핵산 변형",
+    "field": "rna_biology_medicine",
+    "keywords": [
+      "mrna",
+      "rna",
+      "메신저 rna",
+      "뉴클레오사이드",
+      "nucleoside",
+      "nucleoside modification"
+    ],
+    "color": "#847b6e"
+  },
+  {
+    "id": "BIO-PROTEIN",
+    "name": "계산 단백질 설계",
+    "field": "protein_design_computational_biology",
+    "keywords": [
+      "단백질 설계",
+      "protein design",
+      "de novo protein",
+      "rosetta",
+      "globular protein fold"
+    ],
+    "color": "#847b6e"
   }
 ]

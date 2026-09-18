@@ -47,6 +47,8 @@ class Service:
                 session=next((s for s in state["sessions"] if s["id"]==sid),None)
                 if session is None:
                     raise ValueError("대화를 찾을 수 없습니다.")
+                if session.get("kind") == "chat":
+                    raise ValueError("채팅에서 시작한 요청은 대화창에 새 조건을 입력해 이어가 주세요.")
                 if session["turns"]>=3:
                     raise ValueError("이 대화는 이미 구체화를 마쳤습니다. 조건을 수정하거나 새 질문을 시작해 주세요.")
                 session["turns"]+=1
@@ -93,6 +95,8 @@ class Service:
             session=next((s for s in state["sessions"] if s["id"]==payload.get("session_id")),None)
             if not session:
                 raise ValueError("대화를 찾을 수 없습니다.")
+            if session.get("kind") == "chat":
+                raise ValueError("채팅에서 시작한 요청은 대화창에 새 조건을 입력해 이어가 주세요.")
             patch=payload.get("slots") or {}
             if not isinstance(patch,dict):
                 raise ValueError("조건 카드 형식이 올바르지 않습니다.")
@@ -120,6 +124,8 @@ class Service:
         c=next((c for c in (session.get("result") or {}).get("candidates",[]) if c["id"]==cid),None)
         if not c:
             raise ValueError("이 질문의 근거 있는 후보를 선택해 주세요.")
+        if c.get("lookup_only"):
+            raise ValueError("지금은 인물 이력 조회입니다. 도움받을 일과 조건을 입력해 관련 근거로 사람을 찾아 주세요.")
         slots=session["slots"]
         request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
         refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])

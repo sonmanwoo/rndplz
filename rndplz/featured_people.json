@@ -2,6 +2,284 @@
   "checked_at": "2026-09-17",
   "people": [
     {
+      "id": "LOCAL-MANWOO",
+      "slug": "manwoo",
+      "name": "손만우",
+      "display_name": "MANWOO SON",
+      "aliases": [
+        "손만우",
+        "manwooson",
+        "Manwoo Son",
+        "Son Manwoo"
+      ],
+      "org": "GS칼텍스 · 바이오공정팀 · 책임연구원",
+      "org_type": "company",
+      "curated": true,
+      "source_type": "self_reported",
+      "tagline": "공정을 이해하고, 데이터로 풀다",
+      "biography": "공정 모델링과 실험, 데이터 분석 및 DX 기술을 연결하는 연구원입니다. LG화학에서 모노머 공정 최적화와 라텍스 유화 중합 모델링을 수행했고, 현재 GS칼텍스 바이오공정팀에서 Diols 탈색·탈취 공정 개발을 담당하고 있습니다.",
+      "skills": [
+        "공정 모델링",
+        "분리·정제",
+        "데이터 분석 · ML/DL"
+      ],
+      "skill_groups": [
+        {
+          "name": "분리·반응",
+          "items": [
+            "모노머/솔벤트 분리·정제",
+            "추출·증류 실험",
+            "흡착·수소화반응",
+            "탈색·탈취",
+            "에멀젼 중합"
+          ]
+        },
+        {
+          "name": "모델링·제어",
+          "items": [
+            "HYSYS",
+            "수학적 모델링·공정 모사",
+            "APC Application",
+            "열역학·물성 데이터 분석",
+            "통계적 공정관리"
+          ]
+        },
+        {
+          "name": "데이터·DX",
+          "items": [
+            "데이터 모델링·통계 분석",
+            "머신러닝·프로그래밍",
+            "ML/DL 모델 구축·현상 해석",
+            "이미지 인식 기반 필름 불량 감지"
+          ]
+        }
+      ],
+      "interests": [
+        "분리·정제: 추출 및 증류",
+        "공정 제어: PID 및 모델 예측 제어",
+        "통계 분석: Exploratory Data Analysis",
+        "DX: ML/DL 모델 구축 및 현상 해석"
+      ],
+      "timeline": [
+        {
+          "date": "2023.01 — 현재",
+          "text": "GS칼텍스 바이오공정팀 · 책임연구원. 2023.01.30 입사. Diols 탈색·탈취 공정 개발: 증류·흡착·수소화반응, 데이터 분석 및 모델링. 프로젝트 Full-time 멤버로 모델링·데이터 분석·실험 수행.",
+          "url": ""
+        },
+        {
+          "date": "2021.07 — 2023.01",
+          "text": "LG Chem, Korea · Research Engineer. 라텍스 유화 중합 공정 모델링, AI 기술을 이용한 중합 해석, 이미지 인식 모델 기반 필름 표면 불량 감지 기술 개발.",
+          "url": ""
+        },
+        {
+          "date": "2018.07 — 2021.07",
+          "text": "LG Chem, Korea · Research Engineer. 모노머 공정 모델링·최적화 및 데이터 모델링(NCC, OXO-SRU, OCU, BTX), 증류·추출 실험 수행.",
+          "url": ""
+        }
+      ],
+      "sources": [
+        {
+          "title": "본인 제공 Self-Resume PDF · 2026.09.17",
+          "url": ""
+        },
+        {
+          "title": "본인이 대화에서 보완한 주요 직무 경력 · 2026.09.17",
+          "url": ""
+        },
+        {
+          "title": "본인 제공 프로필 사진",
+          "url": ""
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/manwoo-illustration.png",
+        "label": "AI ILLUSTRATION",
+        "generated": true,
+        "kind": "personal_illustration",
+        "reference": {
+          "title": "사용자가 제공한 손만우 프로필 사진",
+          "kind": "user_provided",
+          "usage": "제공된 사진은 외형 참고 자료이며, 카드에는 사진을 참고해 생성한 별도 일러스트를 표시합니다."
+        },
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "change_note": "제공된 사진을 종이·흑연 질감의 초상과 역량 배경이 결합된 일러스트로 새로 구성했습니다.",
+        "sha256": "7b8d2cee44e453172580212d006dccc3a6577743115ee82386ecdc845b7800cb",
+        "width": 1086,
+        "height": 1448
+      },
+      "portrait_note": "제공된 사진을 참고한 AI 생성 초상 일러스트 · 증류·분리 공정과 분자·데이터 모델링을 상징적으로 표현했습니다.",
+      "profile_note": "본인 제공 이력과 경력 보완을 바탕으로 구성했습니다. 회사 HR 연동·수행 수준·현재 협업 가능 여부는 별도 확인 항목입니다.",
+      "featured_work": "CAREER-MW-BIO",
+      "topics": [
+        {
+          "name": "공정 모델링"
+        },
+        {
+          "name": "분리·정제"
+        },
+        {
+          "name": "데이터 분석"
+        }
+      ]
+    },
+    {
+      "id": "LOCAL-JINHO",
+      "slug": "jinho",
+      "name": "오진호",
+      "display_name": "JINHO OH",
+      "aliases": [
+        "오진호",
+        "Jinho Oh",
+        "Oh Jinho"
+      ],
+      "org": "GS칼텍스 · CO2J Project팀 · 책임",
+      "org_type": "company",
+      "curated": true,
+      "source_type": "provided_resume",
+      "tagline": "촉매로 잇는 탄소와 수소의 전환",
+      "biography": "H₂/CO₂ 기술을 위한 촉매 디자인과 제법 개발을 연구합니다. CO₂의 화학적 전환에서 촉매 설계·제조·활성 평가와 Lab/Pilot 공정 개발을 수행했으며, 현재 CO2J Project에서 SAF 생산 CCU 기술을 개발하고 있습니다. 자기소개에서 도전의식과 책임감을 강조합니다.",
+      "skills": [
+        "CO₂ 전환 · CCU",
+        "촉매 설계·평가",
+        "H₂ 저장 · SAF"
+      ],
+      "timeline": [
+        {
+          "date": "2026.01 — 현재",
+          "text": "CO2J Project팀 · 책임. CO₂ 전환 SAF 생산을 위한 촉매 설계·제법 개발·반응 활성 평가.",
+          "url": ""
+        },
+        {
+          "date": "2025.01 — 2025.12",
+          "text": "CO2L Project팀 · 책임. CO₂ 전환 기초유분·납사 생산용 촉매 설계·제법 개발·반응 활성 평가.",
+          "url": ""
+        },
+        {
+          "date": "2021.08 — 2024.12",
+          "text": "에너지기술개발팀 · 책임연구원. 2021.08.02 입사. CO₂ 전환 기초유분·납사 생산용 CCU 촉매 공정 기술개발.",
+          "url": ""
+        },
+        {
+          "date": "2019.09 — 2021.07",
+          "text": "입사 전 · 선임연구원. LOHC를 활용한 수소 저장·생산용 촉매 개발. 소속 기관은 제공 자료에 기재되지 않았습니다.",
+          "url": ""
+        },
+        {
+          "date": "2014.09 — 2019.08",
+          "text": "입사 전 · 에너지/환경 촉매개발. LOHC 수소 저장·생산 촉매와 저순도 CO₂ 전환 메탄올 합성 촉매 개발.",
+          "url": ""
+        },
+        {
+          "date": "2010.03 — 2012.02",
+          "text": "입사 전 · 촉매 연구/개발. 글리세롤을 1,3-프로판다이올로 전환하는 불균일계 촉매와 폐유 유래 바이오디젤·윤활유 생산용 불균일계 촉매 개발.",
+          "url": ""
+        }
+      ],
+      "projects": [
+        {
+          "date": "2026.01 — 현재",
+          "title": "CO2J Project",
+          "text": "Full-time 멤버 · CO₂ 화학적 전환 Lab Scale 촉매 공정기술 개발: SAF 생산 CCU 기술."
+        },
+        {
+          "date": "2025.01 — 2025.12",
+          "title": "CO2L Project",
+          "text": "Full-time 멤버 · CO₂ 화학적 전환 Pilot Scale 촉매 공정기술 개발: 기초유분·납사 CCU 기술."
+        },
+        {
+          "date": "2023.01 — 2024.12",
+          "title": "CO2 to Chemical Project",
+          "text": "Full-time 멤버 · CO₂ 화학적 전환 Lab Scale 촉매 공정기술 개발: 기초유분·납사 CCU 기술."
+        },
+        {
+          "date": "2021.08 — 2022.12",
+          "title": "CO2 to Chemical · 예비타당성 단계",
+          "text": "Full-time 멤버 · 촉매 설계·제법 개발·활성 평가, Lab Scale 반응설비 시스템 구축(실험실·반응기·유틸리티)."
+        }
+      ],
+      "education": [
+        {
+          "date": "2023.08 — 2023.09",
+          "title": "EuropaCat 2023 · 15th European Congress on Catalysis",
+          "text": "최신 촉매 기술 동향 파악 및 관련 인사이트 확보."
+        },
+        {
+          "date": "2023.07",
+          "title": "2023 계산화학 여름학교",
+          "text": "촉매 설계를 위한 DFT(밀도함수이론) 계산화학 이론·실습."
+        }
+      ],
+      "skill_groups": [
+        {
+          "name": "촉매 설계·제조·평가",
+          "items": [
+            "촉매 디자인·제법 개발",
+            "촉매 분석",
+            "촉매 활성 평가",
+            "무기화학",
+            "고급 기기분석 이론"
+          ]
+        },
+        {
+          "name": "에너지 전환·공정",
+          "items": [
+            "CCU 촉매 공정",
+            "LOHC 수소 저장·생산",
+            "에너지 전환 기술",
+            "화공·촉매·고분자 지식",
+            "Lab/Pilot 공정 기술개발"
+          ]
+        }
+      ],
+      "interests": [
+        "신재생에너지 전환",
+        "CO₂ 저장·감축 기술",
+        "촉매 기술·공정",
+        "Biofuel·SAF 생산 기술 및 스펙 평가",
+        "H₂ 저장·생산 기술"
+      ],
+      "sources": [
+        {
+          "title": "사용자 제공 Self-Resume 화면 및 경력 본문 · 2026.09.17",
+          "url": ""
+        },
+        {
+          "title": "사용자 제공 오진호 프로필 사진",
+          "url": ""
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/jinho-illustration.png",
+        "label": "AI ILLUSTRATION",
+        "generated": true,
+        "kind": "personal_illustration",
+        "reference": {
+          "title": "사용자가 제공한 오진호 프로필 사진",
+          "kind": "user_provided",
+          "usage": "제공된 사진은 외형 참고 자료이며, 카드에는 사진을 참고해 생성한 별도 일러스트를 표시합니다."
+        },
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "change_note": "제공된 사진을 종이·흑연 질감의 초상과 역량 배경이 결합된 일러스트로 새로 구성했습니다.",
+        "sha256": "7d3194c716ffedd1cd077cccb6b96cd24093f865b766d2c1f954e2768bfb15f8",
+        "width": 1087,
+        "height": 1447
+      },
+      "portrait_note": "제공된 사진을 참고한 AI 생성 초상 일러스트 · 촉매·CO₂ 전환·수소 저장·SAF를 상징적으로 표현했습니다.",
+      "profile_note": "사용자가 제공한 이력·프로젝트·교육 자료로 구성했습니다. 회사 HR 연동·수행 수준·현재 협업 가능 여부는 별도 확인 항목입니다.",
+      "featured_work": "CAREER-JO-CO2J",
+      "topics": [
+        {
+          "name": "CO₂ 전환·CCU"
+        },
+        {
+          "name": "촉매 설계·평가"
+        },
+        {
+          "name": "수소 저장·생산"
+        }
+      ]
+    },
+    {
       "id": "AI-HINTON",
       "slug": "hinton",
       "name": "Geoffrey Hinton",
@@ -51,6 +329,36 @@
         {
           "title": "참고 사진 원본",
           "url": "https://www.cs.toronto.edu/~hinton/pages/photos.html"
+        },
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://www.cs.toronto.edu/~hinton/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://web.cs.toronto.edu/people/faculty-directory",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.nature.com/articles/323533a0",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.cs.toronto.edu/~hinton/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/laureate/1038",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/phy/2024",
+          "checked_at": "2026-09-18"
         }
       ],
       "portrait": {
@@ -72,7 +380,75 @@
           "name": "딥러닝"
         }
       ],
-      "featured_work": "AI-PAPER-BACKPROP"
+      "featured_work": "AI-PAPER-BACKPROP",
+      "manifest_key": "public-hinton-toronto",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "University of Toronto, Computer Science",
+      "role": "University Professor Emeritus",
+      "current_role": "University Professor Emeritus",
+      "research_field": "ai_neural_networks",
+      "field_label": "AI·신경망",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "emeritus",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "명예교수 상태를 현직 전임 채용이나 협업 가능으로 바꾸지 않는다. 노벨 물리학상과 ACM Turing Award는 서로 다른 수상이다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Learning representations by back-propagating errors",
+        "year": 1986,
+        "authors": [
+          "David E. Rumelhart",
+          "Geoffrey E. Hinton",
+          "Ronald J. Williams"
+        ],
+        "venue": "Nature 323, 533–536",
+        "doi": "10.1038/323533a0",
+        "url": "https://www.nature.com/articles/323533a0",
+        "metadata_sources": [
+          "https://www.nature.com/articles/323533a0",
+          "https://www.cs.toronto.edu/~hinton/"
+        ],
+        "kind": "research_letter",
+        "summary": "역전파를 이용해 다층 신경망의 내부 표현을 학습하는 방법을 설명한다.",
+        "contribution": "공동 저자로 확인. 이 한 편이 노벨상 수상 공적 전체라는 의미는 아니다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2024,
+        "discipline": "Physics",
+        "label_ko": "2024 노벨 물리학상",
+        "facts_url": "https://www.nobelprize.org/prizes/physics/2024/hinton/facts/",
+        "verified_source": "https://www.nobelprize.org/laureate/1038",
+        "summary": "인공 신경망을 통한 기계학습을 가능하게 한 기초 발견·발명",
+        "award_affiliation": "University of Toronto",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/phy/2024",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.nobelprize.org/laureate/1038",
+        "credit": "© Nobel Prize Outreach. Photo: Clément Morin",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18",
+        "rights_note": "공개 사진·크레딧 존재는 서비스 재사용 허락을 뜻하지 않는다. UI 담당이 사용 조건을 별도 확인한다."
+      }
     },
     {
       "id": "AI-LECUN",
@@ -186,6 +562,21 @@
         {
           "title": "참고 사진 원본",
           "url": "https://yoshuabengio.org/en"
+        },
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://mila.quebec/en/directory/yoshua-bengio",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://www.umontreal.ca/en/artificialintelligence/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://jmlr.org/papers/v3/bengio03a.html",
+          "checked_at": "2026-09-18"
         }
       ],
       "portrait": {
@@ -207,7 +598,49 @@
           "name": "딥러닝"
         }
       ],
-      "featured_work": "AI-PAPER-NPLM"
+      "featured_work": "AI-PAPER-NPLM",
+      "manifest_key": "public-bengio-udem",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Université de Montréal, Computer Science and Operations Research",
+      "role": "Full Professor; Mila founder and scientific advisor",
+      "current_role": "Full Professor; Mila founder and scientific advisor",
+      "research_field": "ai_deep_learning",
+      "field_label": "AI·딥러닝",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "언어 모델 논문은 이미지 인식의 구체적인 현업 경력을 대신하지 않는다. 오래된 공식 소개의 Mila director 표현 대신 확인일 현재 Mila 페이지의 scientific advisor를 사용한다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "A Neural Probabilistic Language Model",
+        "year": 2003,
+        "authors": [
+          "Yoshua Bengio",
+          "Réjean Ducharme",
+          "Pascal Vincent",
+          "Christian Jauvin"
+        ],
+        "venue": "Journal of Machine Learning Research 3(Feb), 1137–1155",
+        "doi": null,
+        "url": "https://jmlr.org/papers/v3/bengio03a.html",
+        "metadata_sources": [
+          "https://jmlr.org/papers/v3/bengio03a.html"
+        ],
+        "kind": "research_article",
+        "summary": "단어의 분산 표현과 확률 언어 모델을 함께 학습하는 접근을 제시한다.",
+        "contribution": "공동 저자로 확인. 공식 JMLR 표기대로 저자를 보존하며 저자별 수행 수준은 미확인.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
     },
     {
       "id": "AI-NG",
@@ -276,6 +709,1216 @@
         }
       ],
       "featured_work": "AI-PAPER-LDA"
+    },
+    {
+      "id": "PUB-GROSSMANN",
+      "slug": "grossmann",
+      "name": "Ignacio E. Grossmann",
+      "display_name": "Ignacio E. Grossmann",
+      "aliases": [
+        "Ignacio E. Grossmann"
+      ],
+      "org": "Carnegie Mellon University, Chemical Engineering",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "화학공정·공정모델링",
+      "biography": "공정 합성·계획·스케줄링을 위한 혼합정수·비선형 최적화 연구를 보여주는 사례.",
+      "skills": [
+        "공정 최적화"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://engineering.cmu.edu/directory/bios/grossmann-ignacio.html",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://egon.cheme.cmu.edu/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://doi.org/10.1023/A%3A1021039126272",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://egon.cheme.cmu.edu/research.html",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-GROSSMANN",
+      "topics": [
+        {
+          "name": "공정 최적화"
+        }
+      ],
+      "profile_note": "공정 시스템 최적화 사례이며 모든 화학 공정의 현장 운전·특정 장비 경험을 뜻하지 않는다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-grossmann-cmu",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Carnegie Mellon University, Chemical Engineering",
+      "role": "Rudolph R. and Florence Dean University Professor",
+      "current_role": "Rudolph R. and Florence Dean University Professor",
+      "research_field": "chemical_process_modeling",
+      "field_label": "화학공정·공정모델링",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "공정 시스템 최적화 사례이며 모든 화학 공정의 현장 운전·특정 장비 경험을 뜻하지 않는다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Review of Nonlinear Mixed-Integer and Disjunctive Programming Techniques",
+        "year": 2002,
+        "authors": [
+          "Ignacio E. Grossmann"
+        ],
+        "venue": "Optimization and Engineering 3, 227–252",
+        "doi": "10.1023/A:1021039126272",
+        "url": "https://doi.org/10.1023/A:1021039126272",
+        "metadata_sources": [
+          "https://doi.org/10.1023/A%3A1021039126272",
+          "https://egon.cheme.cmu.edu/research.html"
+        ],
+        "kind": "review",
+        "summary": "혼합정수 비선형 및 논리 분기 최적화 기법을 정리한다.",
+        "contribution": "단독 저자라는 서지 사실만 확인. 산업 현장 수행 수준은 미확인.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
+    },
+    {
+      "id": "PUB-NORSKOV",
+      "slug": "norskov",
+      "name": "Jens Kehlet Nørskov",
+      "display_name": "Jens Kehlet Nørskov",
+      "aliases": [
+        "Jens Kehlet Nørskov",
+        "Jens Kehlet Norskov",
+        "J. K. Nørskov",
+        "J. K. Norskov"
+      ],
+      "org": "Technical University of Denmark, Department of Physics",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "촉매·반응",
+      "biography": "표면 반응·불균일 촉매를 전자구조 계산과 연결하는 연구 사례.",
+      "skills": [
+        "촉매 설계"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://www.dtu.dk/english/person/jens-kehlet-noerskov?id=1875",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://www.staff.dtu.dk/jkno",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.nature.com/articles/nchem.121",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-NORSKOV",
+      "topics": [
+        {
+          "name": "촉매 설계"
+        }
+      ],
+      "profile_note": "계산 기반 촉매 설계가 특정 촉매의 합성·파일럿 운전 숙련을 자동 입증하지 않는다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-norskov-dtu",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Technical University of Denmark, Department of Physics",
+      "role": "Villum Kann Rasmussen Professor; Professor of Physics",
+      "current_role": "Villum Kann Rasmussen Professor; Professor of Physics",
+      "research_field": "catalysis_reaction",
+      "field_label": "촉매·반응",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "계산 기반 촉매 설계가 특정 촉매의 합성·파일럿 운전 숙련을 자동 입증하지 않는다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Towards the computational design of solid catalysts",
+        "year": 2009,
+        "authors": [
+          "J. K. Nørskov",
+          "T. Bligaard",
+          "J. Rossmeisl",
+          "C. H. Christensen"
+        ],
+        "venue": "Nature Chemistry 1, 37–46",
+        "doi": "10.1038/nchem.121",
+        "url": "https://www.nature.com/articles/nchem.121",
+        "metadata_sources": [
+          "https://www.nature.com/articles/nchem.121"
+        ],
+        "kind": "review",
+        "summary": "표면 반응 계산과 촉매 활성·선택성의 관계를 촉매 설계 관점에서 검토한다.",
+        "contribution": "공동 저자로 확인. 개인별 직접 실험 수행은 이 자료로 판정하지 않는다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
+    },
+    {
+      "id": "PUB-BAO",
+      "slug": "bao",
+      "name": "Zhenan Bao",
+      "display_name": "Zhenan Bao",
+      "aliases": [
+        "Zhenan Bao",
+        "Z. Bao"
+      ],
+      "org": "Stanford University, Chemical Engineering",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "소재·고분자",
+      "biography": "유연·신축성 고분자와 전자 피부 연구로 소재 분야를 확장하는 사례.",
+      "skills": [
+        "전자 피부·유연 전자소재"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://baogroup.stanford.edu/people/zhenan-bao",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://baogroup.stanford.edu/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://baogroup.stanford.edu/publications",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://profiles.stanford.edu/zhenan-bao",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-BAO",
+      "topics": [
+        {
+          "name": "전자 피부·유연 전자소재"
+        }
+      ],
+      "profile_note": "전자 피부와 유기 전자소재 사례이며 범용 고분자 제조 공정이나 양산 경험 전체를 대표하지 않는다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-bao-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Stanford University, Chemical Engineering",
+      "role": "LCY: K.K. Lee Professor of Chemical Engineering",
+      "current_role": "LCY: K.K. Lee Professor of Chemical Engineering",
+      "research_field": "materials_polymers",
+      "field_label": "소재·고분자",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "전자 피부와 유기 전자소재 사례이며 범용 고분자 제조 공정이나 양산 경험 전체를 대표하지 않는다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "A skin-inspired organic digital mechanoreceptor",
+        "year": 2015,
+        "authors": [
+          "B. C.-K. Tee",
+          "A. Chortos",
+          "A. Berndt",
+          "A. K. Nguyen",
+          "A. Tom",
+          "A. McGuire",
+          "Z. C. Lin",
+          "K. Tien",
+          "W.-G. Bae",
+          "H. Wang",
+          "P. Mei",
+          "H.-H. Chou",
+          "B. Cui",
+          "K. Deisseroth",
+          "T. N. Ng",
+          "Z. Bao"
+        ],
+        "venue": "Science 350, 313–316",
+        "doi": "10.1126/science.aaa9306",
+        "url": "https://doi.org/10.1126/science.aaa9306",
+        "metadata_sources": [
+          "https://baogroup.stanford.edu/publications",
+          "https://profiles.stanford.edu/zhenan-bao"
+        ],
+        "kind": "research_article",
+        "summary": "압력 자극을 디지털 신호로 바꾸는 유기 전자 감각 소자의 사례.",
+        "contribution": "공동 저자로 확인. 마지막 저자라는 이유만으로 모든 실험 직접 수행을 추정하지 않는다.",
+        "access_note": "Science DOI 직접 열기는 도구에서 접근 불가. Stanford 공식 논문 목록의 제목·연도·저자 및 공식 프로필의 DOI를 교차 확인했다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
+    },
+    {
+      "id": "PUB-CHEN-MIT",
+      "slug": "chen-mit",
+      "name": "Gang Chen",
+      "display_name": "Gang Chen",
+      "aliases": [
+        "Gang Chen"
+      ],
+      "org": "Massachusetts Institute of Technology, Mechanical Engineering",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "열유체·열관리",
+      "biography": "열전달·에너지 변환과 국소 가열 증발을 통해 액침냉각 이외 열관리 사례를 제공한다.",
+      "skills": [
+        "태양열 증발·열 국소화"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://meche.mit.edu/people/faculty/gchen2@mit.edu",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://energy.mit.edu/profile/gang-chen/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.nature.com/articles/ncomms5449",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-CHEN-MIT",
+      "topics": [
+        {
+          "name": "태양열 증발·열 국소화"
+        }
+      ],
+      "profile_note": "선정 논문은 태양열 증발 연구이며 액침냉각유의 적합성·특정 설비 운전 경력을 증명하지 않는다. 기존 같은 이름의 OpenAlex 묶음과 자동 병합 금지. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-chen-mit",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Massachusetts Institute of Technology, Mechanical Engineering",
+      "role": "Carl Richard Soderberg Professor of Power Engineering; Professor of Mechanical Engineering",
+      "current_role": "Carl Richard Soderberg Professor of Power Engineering; Professor of Mechanical Engineering",
+      "research_field": "thermal_fluid_management",
+      "field_label": "열유체·열관리",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "선정 논문은 태양열 증발 연구이며 액침냉각유의 적합성·특정 설비 운전 경력을 증명하지 않는다. 기존 같은 이름의 OpenAlex 묶음과 자동 병합 금지.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Solar steam generation by heat localization",
+        "year": 2014,
+        "authors": [
+          "Hadi Ghasemi",
+          "George Ni",
+          "Amy Marie Marconnet",
+          "James Loomis",
+          "Selcuk Yerci",
+          "Nenad Miljkovic",
+          "Gang Chen"
+        ],
+        "venue": "Nature Communications 5, 4449",
+        "doi": "10.1038/ncomms5449",
+        "url": "https://www.nature.com/articles/ncomms5449",
+        "metadata_sources": [
+          "https://www.nature.com/articles/ncomms5449"
+        ],
+        "kind": "research_article",
+        "summary": "열을 증발 위치에 모으고 유체를 공급하는 구조의 증기 생성 연구.",
+        "contribution": "논문 기여문은 Gang Chen의 역할을 연구 지도로 구분한다. 실험 설계·실행은 다른 명시 저자들에게 배정되어 있어 Chen을 직접 실험 수행자로 표시하지 않는다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
+    },
+    {
+      "id": "PUB-LI-FEIFEI",
+      "slug": "li-feifei",
+      "name": "Fei-Fei Li",
+      "display_name": "Fei-Fei Li",
+      "aliases": [
+        "Fei-Fei Li",
+        "Li Fei-Fei"
+      ],
+      "org": "Stanford University, Computer Science",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "AI·이미지 인식",
+      "biography": "ImageNet을 통해 이미지 데이터·시각 인식 연구를 구체적인 근거와 연결하는 사례.",
+      "skills": [
+        "컴퓨터 비전"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://profiles.stanford.edu/fei-fei-li",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://www.image-net.org/about",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.image-net.org/about",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.image-net.org/static_files/papers/imagenet_cvpr09.pdf",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://profiles.stanford.edu/fei-fei-li",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-LI-FEIFEI",
+      "topics": [
+        {
+          "name": "컴퓨터 비전"
+        }
+      ],
+      "profile_note": "ImageNet 연구가 특정 사내 불량 검사 과제의 정확도나 공장 배치 실적을 보장하지 않는다. 2009 논문 당시 Princeton 소속과 현재 Stanford 프로필을 분리한다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-feifei-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Stanford University, Computer Science",
+      "role": "Sequoia Professor of Computer Science",
+      "current_role": "Sequoia Professor of Computer Science",
+      "research_field": "ai_computer_vision",
+      "field_label": "AI·이미지 인식",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_faculty; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "ImageNet 연구가 특정 사내 불량 검사 과제의 정확도나 공장 배치 실적을 보장하지 않는다. 2009 논문 당시 Princeton 소속과 현재 Stanford 프로필을 분리한다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "ImageNet: A Large-Scale Hierarchical Image Database",
+        "year": 2009,
+        "authors": [
+          "Jia Deng",
+          "Wei Dong",
+          "Richard Socher",
+          "Li-Jia Li",
+          "Kai Li",
+          "Li Fei-Fei"
+        ],
+        "venue": "IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2009",
+        "doi": "10.1109/CVPR.2009.5206848",
+        "url": "https://ieeexplore.ieee.org/document/5206848/",
+        "metadata_sources": [
+          "https://www.image-net.org/about",
+          "https://www.image-net.org/static_files/papers/imagenet_cvpr09.pdf",
+          "https://profiles.stanford.edu/fei-fei-li"
+        ],
+        "kind": "conference_paper",
+        "summary": "계층적 이미지 데이터셋 구축과 시각 인식 연구 활용을 설명한다.",
+        "contribution": "공동 저자로 확인. 저자별 구현·라벨링·실험 수행 비율은 미확인.",
+        "access_note": "IEEE DOI는 해당 문서로 이동하지만 봇 확인 화면. 서지는 연구팀 공식 ImageNet 페이지·원문 첫 페이지·Stanford 목록으로 확인했다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      }
+    },
+    {
+      "id": "PUB-ARNOLD",
+      "slug": "arnold",
+      "name": "Frances H. Arnold",
+      "display_name": "Frances H. Arnold",
+      "aliases": [
+        "Frances H. Arnold",
+        "프랜시스 아널드",
+        "Frances Arnold"
+      ],
+      "org": "California Institute of Technology",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "생촉매·효소 공학",
+      "biography": "효소 진화를 통해 화학 공정과 생명공학을 연결하는 사례.",
+      "skills": [
+        "효소 유도진화"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://cce.caltech.edu/faculty/frances-h-arnold",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://fhalab.caltech.edu/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://authors.library.caltech.edu/records/z50e0-jsz09",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://cheme.caltech.edu/groups/fha/publications/Chen%2BArnold_PNAS_1993.pdf",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/prizes/chemistry/2018/arnold/facts/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/che/2018",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-ARNOLD",
+      "topics": [
+        {
+          "name": "효소 유도진화"
+        }
+      ],
+      "profile_note": "특정 연구용 효소의 결과를 모든 공정·양산 설비에 일반화하지 않는다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-arnold-caltech",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "California Institute of Technology",
+      "role": "Linus Pauling Professor of Chemical Engineering, Bioengineering and Biochemistry",
+      "current_role": "Linus Pauling Professor of Chemical Engineering, Bioengineering and Biochemistry",
+      "research_field": "biocatalysis_enzyme_evolution",
+      "field_label": "생촉매·효소 공학",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "특정 연구용 효소의 결과를 모든 공정·양산 설비에 일반화하지 않는다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Tuning the activity of an enzyme for unusual environments: Sequential random mutagenesis of subtilisin E for catalysis in dimethylformamide",
+        "year": 1993,
+        "authors": [
+          "Keqin Chen",
+          "Frances H. Arnold"
+        ],
+        "venue": "Proceedings of the National Academy of Sciences 90, 5618–5622",
+        "doi": null,
+        "url": "https://authors.library.caltech.edu/records/z50e0-jsz09",
+        "metadata_sources": [
+          "https://authors.library.caltech.edu/records/z50e0-jsz09",
+          "https://cheme.caltech.edu/groups/fha/publications/Chen%2BArnold_PNAS_1993.pdf"
+        ],
+        "kind": "research_article",
+        "summary": "반복 변이·선별로 효소의 유기용매 환경 활동을 개선한 사례.",
+        "contribution": "공동 저자로 확인. 저자별 직접 실험 수행 비율은 이 조사에서 확인하지 않았다.",
+        "access_note": "PNAS DOI 후보 직접 열기는 cookieAbsent 화면으로 이동했다. DOI를 검증 완료 값으로 저장하지 않고 Caltech 공식 저자 저장소·원문 서지를 사용한다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2018,
+        "discipline": "Chemistry",
+        "label_ko": "2018 노벨 화학상",
+        "facts_url": "https://www.nobelprize.org/prizes/chemistry/2018/arnold/facts/",
+        "verified_source": "https://www.nobelprize.org/prizes/chemistry/2018/arnold/facts/",
+        "summary": "효소의 유도 진화",
+        "award_affiliation": "California Institute of Technology",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/che/2018",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.nobelprize.org/prizes/chemistry/2018/arnold/facts/",
+        "credit": "© Nobel Prize Outreach. Photo: A. Mahmoud",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18",
+        "rights_note": "공개 사진·크레딧 존재는 서비스 재사용 허락을 뜻하지 않는다. UI 담당이 사용 조건을 별도 확인한다."
+      },
+      "portrait": {
+        "path": "/portraits/arnold.png",
+        "generated": true,
+        "label": "AI ILLUSTRATION",
+        "reference": {
+          "title": "Frances Arnold in 2021 05.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Frances_Arnold_in_2021_05.jpg",
+          "author": "Christopher Michel (Commons: Cmichel67; EXIF: Christopher P. Michel)",
+          "author_url": "https://commons.wikimedia.org/wiki/User:Cmichel67",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+          "credit": "Frances Arnold in 2021 05.jpg — Christopher Michel / Cmichel67. Wikimedia Commons · CC BY-SA 4.0.",
+          "usage": "사진은 외형 참고 자료입니다. 카드에는 사진을 바탕으로 변환한 AI 일러스트를 표시합니다."
+        },
+        "generated_credit": "사진 참고: Christopher Michel / Cmichel67 · 변환 일러스트: RnDplz 시안, AI 생성",
+        "generated_license": "CC BY-SA 4.0",
+        "generated_license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "change_note": "참고 사진을 AI 초상 일러스트로 변환하고 상징적인 효소 연구 배경을 구성. 변환 일러스트도 CC BY-SA 4.0으로 제공합니다. 빛 효과는 분리된 CSS입니다.",
+        "sha256": "b15953e65b5d56a29908174efcca6d107ffb6a3faf626d5b85d00970216bbc9f"
+      }
+    },
+    {
+      "id": "PUB-BERTOZZI",
+      "slug": "bertozzi",
+      "name": "Carolyn R. Bertozzi",
+      "display_name": "Carolyn R. Bertozzi",
+      "aliases": [
+        "Carolyn R. Bertozzi",
+        "C. R. Bertozzi"
+      ],
+      "org": "Stanford University, Chemistry; Howard Hughes Medical Institute",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "화학생물학·생체직교화학",
+      "biography": "생체 내 화학 반응·당생물학을 통해 화학과 생명과학 영역을 넓힌다.",
+      "skills": [
+        "생체직교화학"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://med.stanford.edu/profiles/carolyn-bertozzi",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://bertozzigroup.stanford.edu/publications",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://bertozzigroup.stanford.edu/publications",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://cap.stanford.edu/profiles/frdActionServlet?choiceId=printerprofile&profileId=64872&profileversion=full",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/laureate/1015",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/che/2022",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-BERTOZZI",
+      "topics": [
+        {
+          "name": "생체직교화학"
+        }
+      ],
+      "profile_note": "분자 표지 연구를 임상 치료 효과나 의료인 자격의 근거로 제시하지 않는다. 과거 UC Berkeley 소속과 현재 Stanford를 분리한다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-bertozzi-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "Stanford University, Chemistry; Howard Hughes Medical Institute",
+      "role": "Anne T. and Robert M. Bass Professor; Director of Sarafan ChEM-H; HHMI Investigator",
+      "current_role": "Anne T. and Robert M. Bass Professor; Director of Sarafan ChEM-H; HHMI Investigator",
+      "research_field": "chemical_biology_bioorthogonal",
+      "field_label": "화학생물학·생체직교화학",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "분자 표지 연구를 임상 치료 효과나 의료인 자격의 근거로 제시하지 않는다. 과거 UC Berkeley 소속과 현재 Stanford를 분리한다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Cell surface engineering by a modified Staudinger reaction",
+        "year": 2000,
+        "authors": [
+          "E. Saxon",
+          "C. R. Bertozzi"
+        ],
+        "venue": "Science 287(5460), 2007–2010",
+        "doi": "10.1126/science.287.5460.2007",
+        "url": "https://doi.org/10.1126/science.287.5460.2007",
+        "metadata_sources": [
+          "https://bertozzigroup.stanford.edu/publications",
+          "https://cap.stanford.edu/profiles/frdActionServlet?choiceId=printerprofile&profileId=64872&profileversion=full"
+        ],
+        "kind": "research_article",
+        "summary": "세포 표면을 선택적 화학 반응으로 표지하는 연구 사례.",
+        "contribution": "두 저자의 서지 사실을 보존한다. 수상자 한 명이 독자적으로 모든 실험을 수행했다고 표현하지 않는다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2022,
+        "discipline": "Chemistry",
+        "label_ko": "2022 노벨 화학상",
+        "facts_url": "https://www.nobelprize.org/prizes/chemistry/2022/bertozzi/facts/",
+        "verified_source": "https://www.nobelprize.org/laureate/1015",
+        "summary": "클릭 화학과 생체직교화학 개발",
+        "award_affiliation": "Stanford University; Howard Hughes Medical Institute",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/che/2022",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.nobelprize.org/laureate/1015",
+        "credit": "© Nobel Prize Outreach. Photo: Stefan Bladh",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18",
+        "rights_note": "공개 사진·크레딧 존재는 서비스 재사용 허락을 뜻하지 않는다. UI 담당이 사용 조건을 별도 확인한다."
+      },
+      "portrait": {
+        "path": "/portraits/bertozzi.png",
+        "generated": true,
+        "label": "AI ILLUSTRATION",
+        "reference": {
+          "title": "Carolyn Bertozzi in 2022 by Christopher Michel 03.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Carolyn_Bertozzi_in_2022_by_Christopher_Michel_03.jpg",
+          "author": "Christopher Michel (Commons: Cmichel67)",
+          "author_url": "https://commons.wikimedia.org/wiki/User:Cmichel67",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+          "credit": "Carolyn Bertozzi in 2022 by Christopher Michel 03.jpg — Christopher Michel (Commons: Cmichel67). Wikimedia Commons · CC BY-SA 4.0.",
+          "usage": "사진은 외형 참고 자료입니다. 카드에는 새로운 구도와 분야 배경으로 제작한 AI 일러스트를 표시합니다."
+        },
+        "generated_credit": "사진 참고: Christopher Michel (Commons: Cmichel67) · 변환 일러스트: RnDplz 시안, AI 생성",
+        "generated_license": "CC BY-SA 4.0",
+        "generated_license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "change_note": "참고 사진의 인물을 종이·흑연 질감의 중앙 흉상으로 새로 구성하고 상징적인 연구 배경을 더했습니다. 사진의 원래 조명·무대·손은 재현하지 않았습니다. 변환 일러스트는 CC BY-SA 4.0으로 제공합니다. 빛 효과는 분리된 CSS입니다.",
+        "sha256": "67a9e3f6a51eeeb7353ffbaa2491b1fb0c13e8aa65d28284fb21ecc82f24096d"
+      }
+    },
+    {
+      "id": "PUB-STRICKLAND",
+      "slug": "strickland",
+      "name": "Donna Strickland",
+      "display_name": "Donna Strickland",
+      "aliases": [
+        "Donna Strickland"
+      ],
+      "org": "University of Waterloo, Physics and Astronomy",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "물리·광학·레이저",
+      "biography": "초단펄스·고강도 레이저 연구로 광학 및 물리 분야를 보충한다.",
+      "skills": [
+        "초단 광펄스·레이저"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://uwaterloo.ca/physics-astronomy/profile/strickla",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://uwaterloo.ca/science/news/waterloo-celebrates-remarkable-career-professor-donna",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.sciencedirect.com/science/article/pii/0030401885901208",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://uwaterloo.ca/physics-astronomy/profile/strickla",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/prizes/physics/2018/press-release/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/phy/2018",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-STRICKLAND",
+      "topics": [
+        {
+          "name": "초단 광펄스·레이저"
+        }
+      ],
+      "profile_note": "기초 레이저 연구를 특정 산업 장비 운용 자격이나 수술 경험으로 간주하지 않는다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-strickland-waterloo",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "University of Waterloo, Physics and Astronomy",
+      "role": "Professor; University Professor designation",
+      "current_role": "Professor; University Professor designation",
+      "research_field": "physics_optics_lasers",
+      "field_label": "물리·광학·레이저",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "기초 레이저 연구를 특정 산업 장비 운용 자격이나 수술 경험으로 간주하지 않는다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Compression of amplified chirped optical pulses",
+        "year": 1985,
+        "authors": [
+          "Donna Strickland",
+          "Gerard Mourou"
+        ],
+        "venue": "Optics Communications 56(3), 219–221 (corrected version)",
+        "doi": "10.1016/0030-4018(85)90120-8",
+        "url": "https://www.sciencedirect.com/science/article/pii/0030401885901208",
+        "metadata_sources": [
+          "https://www.sciencedirect.com/science/article/pii/0030401885901208",
+          "https://uwaterloo.ca/physics-astronomy/profile/strickla"
+        ],
+        "kind": "research_article_corrected_version",
+        "summary": "늘린 광펄스를 증폭한 뒤 다시 압축하는 방법을 제시한다.",
+        "contribution": "Strickland와 Mourou 공동 연구로 표시한다.",
+        "access_note": "Waterloo는 최초55(6),447–449를 기재하고 출판사 DOI는 잘못 인쇄된 그림을 바로잡은56(3),219–221 버전이다. 두 서지를 뒤섞지 않는다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2018,
+        "discipline": "Physics",
+        "label_ko": "2018 노벨 물리학상",
+        "facts_url": "https://www.nobelprize.org/prizes/physics/2018/strickland/facts/",
+        "verified_source": "https://www.nobelprize.org/prizes/physics/2018/press-release/",
+        "summary": "고강도 초단 광펄스를 생성하는 방법",
+        "award_affiliation": "University of Waterloo",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/phy/2018",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.nobelprize.org/prizes/physics/2018/summary/",
+        "credit": "© Nobel Prize Outreach. Photo: A. Mahmoud",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18",
+        "rights_note": "공개 사진·크레딧 존재는 서비스 재사용 허락을 뜻하지 않는다. UI 담당이 사용 조건을 별도 확인한다."
+      },
+      "portrait": {
+        "path": "/portraits/strickland.png",
+        "generated": true,
+        "label": "AI ILLUSTRATION",
+        "reference": {
+          "title": "Donna Strickland EM1B5760 (46183560632).jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Donna_Strickland_EM1B5760_(46183560632).jpg",
+          "author": "Bengt Nyman",
+          "author_url": "https://www.flickr.com/people/97469566@N00",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0/",
+          "credit": "Donna Strickland EM1B5760 (46183560632).jpg — Bengt Nyman. Wikimedia Commons · CC BY 2.0.",
+          "usage": "사진은 외형 참고 자료입니다. 카드에는 새로운 구도와 분야 배경으로 제작한 AI 일러스트를 표시합니다."
+        },
+        "generated_credit": "사진 참고: Bengt Nyman · 변환 일러스트: RnDplz 시안, AI 생성",
+        "generated_license": "CC BY 2.0",
+        "generated_license_url": "https://creativecommons.org/licenses/by/2.0/",
+        "change_note": "참고 사진의 인물을 종이·흑연 질감의 중앙 흉상으로 새로 구성하고 상징적인 연구 배경을 더했습니다. 사진의 원래 조명·무대·손은 재현하지 않았습니다. 변환 일러스트는 CC BY 2.0으로 제공합니다. 빛 효과는 분리된 CSS입니다.",
+        "sha256": "e3fa9a15d942ccebaffafe3d7e6d60ea925f523705da0a5a82ad0ba735d08949"
+      }
+    },
+    {
+      "id": "PUB-KARIKO",
+      "slug": "kariko",
+      "name": "Katalin Karikó",
+      "display_name": "Katalin Karikó",
+      "aliases": [
+        "Katalin Karikó",
+        "Katalin Kariko",
+        "K. Karikó",
+        "K. Kariko"
+      ],
+      "org": "University of Pennsylvania, Perelman School of Medicine",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "생명과학·mRNA",
+      "biography": "RNA 변형 연구를 통해 생명과학·의학 관련 자료 탐색을 시연한다.",
+      "skills": [
+        "RNA 변형·면역 인식"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://www.med.upenn.edu/apps/faculty/index.php/g325/p13418",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://www.med.upenn.edu/apps/faculty/index.php/g325/p13418",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.sciencedirect.com/science/article/pii/S1074761305002116",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.nobelprize.org/prizes/medicine/2023/advanced-information/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/prizes/medicine/2023/kariko/facts/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/med/2023",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-KARIKO",
+      "topics": [
+        {
+          "name": "RNA 변형·면역 인식"
+        }
+      ],
+      "profile_note": "연구 논문과 수상을 개인 의료 조언이나 의사 자격으로 표현하지 않는다. 수상 당시 Szeged·Penn 표기와 이번 현재 소속 확인(Penn 겸임교수)을 분리한다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-kariko-penn",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "University of Pennsylvania, Perelman School of Medicine",
+      "role": "Adjunct Professor of Neurosurgery",
+      "current_role": "Adjunct Professor of Neurosurgery",
+      "research_field": "rna_biology_medicine",
+      "field_label": "생명과학·mRNA",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "연구 논문과 수상을 개인 의료 조언이나 의사 자격으로 표현하지 않는다. 수상 당시 Szeged·Penn 표기와 이번 현재 소속 확인(Penn 겸임교수)을 분리한다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Suppression of RNA Recognition by Toll-like Receptors: The Impact of Nucleoside Modification and the Evolutionary Origin of RNA",
+        "year": 2005,
+        "authors": [
+          "K. Karikó",
+          "M. Buckstein",
+          "H. Ni",
+          "D. Weissman"
+        ],
+        "venue": "Immunity 23(2), 165–175",
+        "doi": "10.1016/j.immuni.2005.06.008",
+        "url": "https://www.sciencedirect.com/science/article/pii/S1074761305002116",
+        "metadata_sources": [
+          "https://www.sciencedirect.com/science/article/pii/S1074761305002116",
+          "https://www.nobelprize.org/prizes/medicine/2023/advanced-information/"
+        ],
+        "kind": "research_article",
+        "summary": "RNA의 변형과 면역 인식 사이 관계를 다룬 기초 연구.",
+        "contribution": "공동 저자 전체를 보존하며 후속 백신 개발 전체를 한 사람의 단독 성과로 합치지 않는다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2023,
+        "discipline": "Physiology or Medicine",
+        "label_ko": "2023 노벨 생리의학상",
+        "facts_url": "https://www.nobelprize.org/prizes/medicine/2023/kariko/facts/",
+        "verified_source": "https://www.nobelprize.org/prizes/medicine/2023/kariko/facts/",
+        "summary": "효과적인 코로나19 mRNA 백신 개발을 가능하게 한 뉴클레오사이드 염기 변형 발견",
+        "award_affiliation": "Szeged University; University of Pennsylvania",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/med/2023",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.nobelprize.org/prizes/medicine/2023/kariko/facts/",
+        "credit": "© Nobel Prize Outreach. Photo: Clément Morin",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18",
+        "rights_note": "공개 사진·크레딧 존재는 서비스 재사용 허락을 뜻하지 않는다. UI 담당이 사용 조건을 별도 확인한다."
+      },
+      "portrait": {
+        "path": "/portraits/kariko.png",
+        "generated": true,
+        "label": "AI ILLUSTRATION",
+        "reference": {
+          "title": "Katalin Karikó by Christopher Michel in 2024 (3x4 close cropped).jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Katalin_Karik%C3%B3_by_Christopher_Michel_in_2024_(3x4_close_cropped).jpg",
+          "author": "Christopher Michel (Christopher P. Michel / Cmichel67)",
+          "author_url": "https://commons.wikimedia.org/wiki/User:Cmichel67",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+          "credit": "Katalin Karikó by Christopher Michel in 2024 (3x4 close cropped).jpg — Christopher Michel (Christopher P. Michel / Cmichel67). 기존 크롭: Wabbuh. Wikimedia Commons · CC BY-SA 4.0.",
+          "usage": "사진은 외형 참고 자료입니다. 카드에는 새로운 구도와 분야 배경으로 제작한 AI 일러스트를 표시합니다."
+        },
+        "generated_credit": "사진 참고: Christopher Michel (Christopher P. Michel / Cmichel67) · 변환 일러스트: RnDplz 시안, AI 생성",
+        "generated_license": "CC BY-SA 4.0",
+        "generated_license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "change_note": "참고 사진의 인물을 종이·흑연 질감의 중앙 흉상으로 새로 구성하고 상징적인 연구 배경을 더했습니다. 사진의 원래 조명·무대·손은 재현하지 않았습니다. 변환 일러스트는 CC BY-SA 4.0으로 제공합니다. 빛 효과는 분리된 CSS입니다.",
+        "sha256": "097f7c2aa89c0d052aa15a925412ceecb99558c0a3fd6b75771f60f69d5e25f0"
+      }
+    },
+    {
+      "id": "PUB-BAKER",
+      "slug": "baker",
+      "name": "David Baker",
+      "display_name": "David Baker",
+      "aliases": [
+        "David Baker"
+      ],
+      "org": "University of Washington, Biochemistry; Howard Hughes Medical Institute",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "단백질 설계·계산생물학",
+      "biography": "계산 기반 단백질 설계를 통해 화학·생명과학·AI를 잇는 사례.",
+      "skills": [
+        "계산 단백질 설계"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "공식 소속·프로필",
+          "url": "https://www.ipd.uw.edu/david-baker/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 연구 소개",
+          "url": "https://www.bakerlab.org/members/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.bakerlab.org/2015/11/25/design-of-a-novel-globular-protein-fold-with-atomic-level-accuracy/",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "대표 논문 서지 출처",
+          "url": "https://www.bakerlab.org/wp-content/uploads/2016/06/kuhlman03A.pdf",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 기록",
+          "url": "https://www.nobelprize.org/uploads/2024/10/press-chemistryprize2024-3.pdf",
+          "checked_at": "2026-09-18"
+        },
+        {
+          "title": "공식 수상 API 대조",
+          "url": "https://api.nobelprize.org/2.1/nobelPrize/che/2024",
+          "checked_at": "2026-09-18"
+        }
+      ],
+      "featured_work": "PUB-PAPER-BAKER",
+      "topics": [
+        {
+          "name": "계산 단백질 설계"
+        }
+      ],
+      "profile_note": "Baker의 계산 단백질 설계 수상 사유와 Hassabis·Jumper의 단백질 구조 예측 수상 사유를 구분한다. 공식 공개 기록에 기반한 연구 사례이며 개인 수행·연락 의향·현재 협업 가능 여부는 별도 확인이 필요합니다.",
+      "manifest_key": "public-baker-uw",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "checked_at": "2026-09-18",
+      "affiliation": "University of Washington, Biochemistry; Howard Hughes Medical Institute",
+      "role": "Professor of Biochemistry; Director, Institute for Protein Design; HHMI Investigator",
+      "current_role": "Professor of Biochemistry; Director, Institute for Protein Design; HHMI Investigator",
+      "research_field": "protein_design_computational_biology",
+      "field_label": "단백질 설계·계산생물학",
+      "affiliation_as_of": "2026-09-18",
+      "retired_or_emeritus": "not_designated_on_checked_profile",
+      "employment_verification": "official_profile_lists_current_role; no HR integration",
+      "internal_employee": false,
+      "collaboration_availability": "unknown",
+      "contact_consent": "not_obtained",
+      "limit": "Baker의 계산 단백질 설계 수상 사유와 Hassabis·Jumper의 단백질 구조 예측 수상 사유를 구분한다.",
+      "evidence_sources": [
+        "official_institution_profile",
+        "published_paper_metadata",
+        "official_award_record",
+        "editorial_summary"
+      ],
+      "representative_paper_metadata": {
+        "title": "Design of a Novel Globular Protein Fold with Atomic-Level Accuracy",
+        "year": 2003,
+        "authors": [
+          "Brian Kuhlman",
+          "Gautam Dantas",
+          "Gregory C. Ireton",
+          "Gabriele Varani",
+          "Barry L. Stoddard",
+          "David Baker"
+        ],
+        "venue": "Science 302, 1364–1368",
+        "doi": "10.1126/science.1089427",
+        "url": "https://doi.org/10.1126/science.1089427",
+        "metadata_sources": [
+          "https://www.bakerlab.org/2015/11/25/design-of-a-novel-globular-protein-fold-with-atomic-level-accuracy/",
+          "https://www.bakerlab.org/wp-content/uploads/2016/06/kuhlman03A.pdf"
+        ],
+        "kind": "research_article",
+        "summary": "자연에서 관측되지 않은 구조의 단백질을 계산 설계하고 구조를 검증한 사례.",
+        "contribution": "전체 공동 저자를 보존한다. 실험과 계산의 개인별 직접 수행 수준은 미확인.",
+        "access_note": "연구실 소개 글 게시일2015와 원 논문 출판연도2003을 구분한다.",
+        "accessed_at": "2026-09-18",
+        "fulltext_or_abstract_copied": false
+      },
+      "award": {
+        "name": "Nobel Prize",
+        "year": 2024,
+        "discipline": "Chemistry",
+        "label_ko": "2024 노벨 화학상",
+        "facts_url": "https://www.nobelprize.org/prizes/chemistry/2024/baker/facts/",
+        "verified_source": "https://www.nobelprize.org/uploads/2024/10/press-chemistryprize2024-3.pdf",
+        "summary": "계산 단백질 설계",
+        "award_affiliation": "University of Washington; Howard Hughes Medical Institute",
+        "accessed_at": "2026-09-18",
+        "facts_page_fetch_status": "direct_open_403; facts metadata or official press release verified via web search index",
+        "represents_whole_research_career": false,
+        "independent_api_source": "https://api.nobelprize.org/2.1/nobelPrize/che/2024",
+        "independent_api_verified_at": "2026-09-18"
+      },
+      "portrait_source": {
+        "source_page": "https://www.ipd.uw.edu/david-baker/",
+        "credit": "Christopher Michel",
+        "rights_note": "공식 페이지는 강연 소개에 이 사진을 사용할 수 있다고 명시한다. 서비스 카드·상업 서비스 재사용 허용까지 확인한 것은 아니다.",
+        "image_url": null,
+        "license": null,
+        "reuse_status": "source_page_only_pending_rights_check",
+        "downloaded": false,
+        "accessed_at": "2026-09-18"
+      },
+      "portrait": {
+        "path": "/portraits/baker.png",
+        "generated": true,
+        "label": "AI ILLUSTRATION",
+        "reference": {
+          "title": "David Baker, 2024 Nobel Prize Laureate in Chemistry.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:David_Baker,_2024_Nobel_Prize_Laureate_in_Chemistry.jpg",
+          "author": "Arthur Petron",
+          "author_url": "https://commons.wikimedia.org/wiki/User:Arthur_Petron",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+          "credit": "David Baker, 2024 Nobel Prize Laureate in Chemistry.jpg — Arthur Petron. Wikimedia Commons · CC BY-SA 4.0.",
+          "usage": "사진은 외형 참고 자료입니다. 카드에는 새로운 구도와 분야 배경으로 제작한 AI 일러스트를 표시합니다."
+        },
+        "generated_credit": "사진 참고: Arthur Petron · 변환 일러스트: RnDplz 시안, AI 생성",
+        "generated_license": "CC BY-SA 4.0",
+        "generated_license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "change_note": "참고 사진의 인물을 종이·흑연 질감의 중앙 흉상으로 새로 구성하고 상징적인 연구 배경을 더했습니다. 사진의 원래 조명·무대·손은 재현하지 않았습니다. 변환 일러스트는 CC BY-SA 4.0으로 제공합니다. 빛 효과는 분리된 CSS입니다.",
+        "sha256": "c9392cca2affe8b7921aab67cb5f05d8ad77ce3314483770bf50d1726b2fe6fb"
+      }
     }
   ],
   "papers": [
@@ -550,7 +2193,803 @@
       "summary": "레이블 없는 대규모 영상에서 희소 오토인코더 sparse autoencoder로 고수준 특징을 학습했다. 대규모 비지도 학습 unsupervised learning을 분산 환경에서 실험했다.",
       "evidence_kind": "mixed",
       "kind": "preprint"
+    },
+    {
+      "id": "PUB-PAPER-GROSSMANN",
+      "title": "Review of Nonlinear Mixed-Integer and Disjunctive Programming Techniques",
+      "date": "2002",
+      "authors": [
+        {
+          "name": "Ignacio E. Grossmann",
+          "person_id": "PUB-GROSSMANN",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "PE-OPT"
+      ],
+      "url": "https://doi.org/10.1023/A:1021039126272",
+      "summary": "혼합정수 비선형 및 논리 분기 최적화 기법을 정리한다.",
+      "evidence_kind": "review",
+      "classification_basis": [
+        "제목·문헌 유형의 리뷰 표현"
+      ],
+      "kind": "paper",
+      "publication_type": "review",
+      "field": "process_engineering",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1023/A:1021039126272",
+      "venue": "Optimization and Engineering 3, 227–252",
+      "contribution_note": "단독 저자라는 서지 사실만 확인. 산업 현장 수행 수준은 미확인.",
+      "boundary_note": "공정 시스템 최적화 사례이며 모든 화학 공정의 현장 운전·특정 장비 경험을 뜻하지 않는다.",
+      "metadata_sources": [
+        "https://doi.org/10.1023/A%3A1021039126272",
+        "https://egon.cheme.cmu.edu/research.html"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-grossmann-cmu",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae"
+    },
+    {
+      "id": "PUB-PAPER-NORSKOV",
+      "title": "Towards the computational design of solid catalysts",
+      "date": "2009",
+      "authors": [
+        {
+          "name": "J. K. Nørskov",
+          "person_id": "PUB-NORSKOV",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "T. Bligaard",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "J. Rossmeisl",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "C. H. Christensen",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "CE-CAT"
+      ],
+      "url": "https://www.nature.com/articles/nchem.121",
+      "summary": "표면 반응 계산과 촉매 활성·선택성의 관계를 촉매 설계 관점에서 검토한다.",
+      "evidence_kind": "review",
+      "classification_basis": [
+        "제목·문헌 유형의 리뷰 표현"
+      ],
+      "kind": "paper",
+      "publication_type": "review",
+      "field": "energy_catalysis",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1038/nchem.121",
+      "venue": "Nature Chemistry 1, 37–46",
+      "contribution_note": "공동 저자로 확인. 개인별 직접 실험 수행은 이 자료로 판정하지 않는다.",
+      "boundary_note": "계산 기반 촉매 설계가 특정 촉매의 합성·파일럿 운전 숙련을 자동 입증하지 않는다.",
+      "metadata_sources": [
+        "https://www.nature.com/articles/nchem.121"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-norskov-dtu",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae"
+    },
+    {
+      "id": "PUB-PAPER-BAO",
+      "title": "A skin-inspired organic digital mechanoreceptor",
+      "date": "2015",
+      "authors": [
+        {
+          "name": "B. C.-K. Tee",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "A. Chortos",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "A. Berndt",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "A. K. Nguyen",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "A. Tom",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "A. McGuire",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Z. C. Lin",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "K. Tien",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "W.-G. Bae",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "H. Wang",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "P. Mei",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "H.-H. Chou",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "B. Cui",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "K. Deisseroth",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "T. N. Ng",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Z. Bao",
+          "person_id": "PUB-BAO",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "MAT-SKIN"
+      ],
+      "url": "https://doi.org/10.1126/science.aaa9306",
+      "summary": "압력 자극을 디지털 신호로 바꾸는 유기 전자 감각 소자의 사례.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "materials_polymers",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1126/science.aaa9306",
+      "venue": "Science 350, 313–316",
+      "contribution_note": "공동 저자로 확인. 마지막 저자라는 이유만으로 모든 실험 직접 수행을 추정하지 않는다.",
+      "boundary_note": "전자 피부와 유기 전자소재 사례이며 범용 고분자 제조 공정이나 양산 경험 전체를 대표하지 않는다.",
+      "metadata_sources": [
+        "https://baogroup.stanford.edu/publications",
+        "https://profiles.stanford.edu/zhenan-bao"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-bao-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "source_access_note": "Science DOI 직접 열기는 도구에서 접근 불가. Stanford 공식 논문 목록의 제목·연도·저자 및 공식 프로필의 DOI를 교차 확인했다."
+    },
+    {
+      "id": "PUB-PAPER-CHEN-MIT",
+      "title": "Solar steam generation by heat localization",
+      "date": "2014",
+      "authors": [
+        {
+          "name": "Hadi Ghasemi",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "George Ni",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Amy Marie Marconnet",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "James Loomis",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Selcuk Yerci",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Nenad Miljkovic",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Gang Chen",
+          "person_id": "PUB-CHEN-MIT",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "TH-SOLAR"
+      ],
+      "url": "https://www.nature.com/articles/ncomms5449",
+      "summary": "열을 증발 위치에 모으고 유체를 공급하는 구조의 증기 생성 연구.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "thermal_fluid_management",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1038/ncomms5449",
+      "venue": "Nature Communications 5, 4449",
+      "contribution_note": "논문 기여문은 Gang Chen의 역할을 연구 지도로 구분한다. 실험 설계·실행은 다른 명시 저자들에게 배정되어 있어 Chen을 직접 실험 수행자로 표시하지 않는다.",
+      "boundary_note": "선정 논문은 태양열 증발 연구이며 액침냉각유의 적합성·특정 설비 운전 경력을 증명하지 않는다. 기존 같은 이름의 OpenAlex 묶음과 자동 병합 금지.",
+      "metadata_sources": [
+        "https://www.nature.com/articles/ncomms5449"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-chen-mit",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae"
+    },
+    {
+      "id": "PUB-PAPER-LI-FEIFEI",
+      "title": "ImageNet: A Large-Scale Hierarchical Image Database",
+      "date": "2009",
+      "authors": [
+        {
+          "name": "Jia Deng",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Wei Dong",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Richard Socher",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Li-Jia Li",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Kai Li",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Li Fei-Fei",
+          "person_id": "PUB-LI-FEIFEI",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "AI-CV"
+      ],
+      "url": "https://ieeexplore.ieee.org/document/5206848/",
+      "summary": "계층적 이미지 데이터셋 구축과 시각 인식 연구 활용을 설명한다.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "conference_paper",
+      "field": "ai_foundations",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1109/CVPR.2009.5206848",
+      "venue": "IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2009",
+      "contribution_note": "공동 저자로 확인. 저자별 구현·라벨링·실험 수행 비율은 미확인.",
+      "boundary_note": "ImageNet 연구가 특정 사내 불량 검사 과제의 정확도나 공장 배치 실적을 보장하지 않는다. 2009 논문 당시 Princeton 소속과 현재 Stanford 프로필을 분리한다.",
+      "metadata_sources": [
+        "https://www.image-net.org/about",
+        "https://www.image-net.org/static_files/papers/imagenet_cvpr09.pdf",
+        "https://profiles.stanford.edu/fei-fei-li"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-feifei-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "source_access_note": "IEEE DOI는 해당 문서로 이동하지만 봇 확인 화면. 서지는 연구팀 공식 ImageNet 페이지·원문 첫 페이지·Stanford 목록으로 확인했다."
+    },
+    {
+      "id": "PUB-PAPER-ARNOLD",
+      "title": "Tuning the activity of an enzyme for unusual environments: Sequential random mutagenesis of subtilisin E for catalysis in dimethylformamide",
+      "date": "1993",
+      "authors": [
+        {
+          "name": "Keqin Chen",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Frances H. Arnold",
+          "person_id": "PUB-ARNOLD",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "BIO-ENZYME"
+      ],
+      "url": "https://authors.library.caltech.edu/records/z50e0-jsz09",
+      "summary": "반복 변이·선별로 효소의 유기용매 환경 활동을 개선한 사례.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "biocatalysis_enzyme_evolution",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": null,
+      "venue": "Proceedings of the National Academy of Sciences 90, 5618–5622",
+      "contribution_note": "공동 저자로 확인. 저자별 직접 실험 수행 비율은 이 조사에서 확인하지 않았다.",
+      "boundary_note": "특정 연구용 효소의 결과를 모든 공정·양산 설비에 일반화하지 않는다.",
+      "metadata_sources": [
+        "https://authors.library.caltech.edu/records/z50e0-jsz09",
+        "https://cheme.caltech.edu/groups/fha/publications/Chen%2BArnold_PNAS_1993.pdf"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-arnold-caltech",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "source_access_note": "PNAS DOI 후보 직접 열기는 cookieAbsent 화면으로 이동했다. DOI를 검증 완료 값으로 저장하지 않고 Caltech 공식 저자 저장소·원문 서지를 사용한다."
+    },
+    {
+      "id": "PUB-PAPER-BERTOZZI",
+      "title": "Cell surface engineering by a modified Staudinger reaction",
+      "date": "2000",
+      "authors": [
+        {
+          "name": "E. Saxon",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "C. R. Bertozzi",
+          "person_id": "PUB-BERTOZZI",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "BIO-ORTHO"
+      ],
+      "url": "https://doi.org/10.1126/science.287.5460.2007",
+      "summary": "세포 표면을 선택적 화학 반응으로 표지하는 연구 사례.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "chemical_biology_bioorthogonal",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1126/science.287.5460.2007",
+      "venue": "Science 287(5460), 2007–2010",
+      "contribution_note": "두 저자의 서지 사실을 보존한다. 수상자 한 명이 독자적으로 모든 실험을 수행했다고 표현하지 않는다.",
+      "boundary_note": "분자 표지 연구를 임상 치료 효과나 의료인 자격의 근거로 제시하지 않는다. 과거 UC Berkeley 소속과 현재 Stanford를 분리한다.",
+      "metadata_sources": [
+        "https://bertozzigroup.stanford.edu/publications",
+        "https://cap.stanford.edu/profiles/frdActionServlet?choiceId=printerprofile&profileId=64872&profileversion=full"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-bertozzi-stanford",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae"
+    },
+    {
+      "id": "PUB-PAPER-STRICKLAND",
+      "title": "Compression of amplified chirped optical pulses",
+      "date": "1985",
+      "authors": [
+        {
+          "name": "Donna Strickland",
+          "person_id": "PUB-STRICKLAND",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Gerard Mourou",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "PHY-LASER"
+      ],
+      "url": "https://www.sciencedirect.com/science/article/pii/0030401885901208",
+      "summary": "늘린 광펄스를 증폭한 뒤 다시 압축하는 방법을 제시한다.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article_corrected_version",
+      "field": "physics_optics_lasers",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1016/0030-4018(85)90120-8",
+      "venue": "Optics Communications 56(3), 219–221 (corrected version)",
+      "contribution_note": "Strickland와 Mourou 공동 연구로 표시한다.",
+      "boundary_note": "기초 레이저 연구를 특정 산업 장비 운용 자격이나 수술 경험으로 간주하지 않는다.",
+      "metadata_sources": [
+        "https://www.sciencedirect.com/science/article/pii/0030401885901208",
+        "https://uwaterloo.ca/physics-astronomy/profile/strickla"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-strickland-waterloo",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "source_access_note": "Waterloo는 최초55(6),447–449를 기재하고 출판사 DOI는 잘못 인쇄된 그림을 바로잡은56(3),219–221 버전이다. 두 서지를 뒤섞지 않는다."
+    },
+    {
+      "id": "PUB-PAPER-KARIKO",
+      "title": "Suppression of RNA Recognition by Toll-like Receptors: The Impact of Nucleoside Modification and the Evolutionary Origin of RNA",
+      "date": "2005",
+      "authors": [
+        {
+          "name": "K. Karikó",
+          "person_id": "PUB-KARIKO",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "M. Buckstein",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "H. Ni",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "D. Weissman",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "BIO-RNA"
+      ],
+      "url": "https://www.sciencedirect.com/science/article/pii/S1074761305002116",
+      "summary": "RNA의 변형과 면역 인식 사이 관계를 다룬 기초 연구.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "rna_biology_medicine",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1016/j.immuni.2005.06.008",
+      "venue": "Immunity 23(2), 165–175",
+      "contribution_note": "공동 저자 전체를 보존하며 후속 백신 개발 전체를 한 사람의 단독 성과로 합치지 않는다.",
+      "boundary_note": "연구 논문과 수상을 개인 의료 조언이나 의사 자격으로 표현하지 않는다. 수상 당시 Szeged·Penn 표기와 이번 현재 소속 확인(Penn 겸임교수)을 분리한다.",
+      "metadata_sources": [
+        "https://www.sciencedirect.com/science/article/pii/S1074761305002116",
+        "https://www.nobelprize.org/prizes/medicine/2023/advanced-information/"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-kariko-penn",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae"
+    },
+    {
+      "id": "PUB-PAPER-BAKER",
+      "title": "Design of a Novel Globular Protein Fold with Atomic-Level Accuracy",
+      "date": "2003",
+      "authors": [
+        {
+          "name": "Brian Kuhlman",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Gautam Dantas",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Gregory C. Ireton",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Gabriele Varani",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Barry L. Stoddard",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "David Baker",
+          "person_id": "PUB-BAKER",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "BIO-PROTEIN"
+      ],
+      "url": "https://doi.org/10.1126/science.1089427",
+      "summary": "자연에서 관측되지 않은 구조의 단백질을 계산 설계하고 구조를 검증한 사례.",
+      "evidence_kind": "unknown",
+      "classification_basis": [],
+      "kind": "paper",
+      "publication_type": "research_article",
+      "field": "protein_design_computational_biology",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-18",
+      "doi": "10.1126/science.1089427",
+      "venue": "Science 302, 1364–1368",
+      "contribution_note": "전체 공동 저자를 보존한다. 실험과 계산의 개인별 직접 수행 수준은 미확인.",
+      "boundary_note": "Baker의 계산 단백질 설계 수상 사유와 Hassabis·Jumper의 단백질 구조 예측 수상 사유를 구분한다.",
+      "metadata_sources": [
+        "https://www.bakerlab.org/2015/11/25/design-of-a-novel-globular-protein-fold-with-atomic-level-accuracy/",
+        "https://www.bakerlab.org/wp-content/uploads/2016/06/kuhlman03A.pdf"
+      ],
+      "fulltext_or_abstract_copied": false,
+      "author_coverage": "selected_manifest_profile_only",
+      "manifest_key": "public-baker-uw",
+      "manifest_revision": 3,
+      "manifest_sha256": "26f3a705a26b1dc90edfb0a8dbeb3f99c54dace4dd51434a78771a0326be65ae",
+      "source_access_note": "연구실 소개 글 게시일2015와 원 논문 출판연도2003을 구분한다."
     }
   ],
-  "experience_records": []
+  "experience_records": [
+    {
+      "id": "CAREER-MW-BIO",
+      "person_id": "LOCAL-MANWOO",
+      "title": "Diols 탈색·탈취 공정 개발",
+      "date": "2023.01 — 현재",
+      "summary": "GS칼텍스 바이오공정팀 책임연구원. 증류, 흡착, 수소화반응 등을 활용한 Diols 탈색·탈취 공정 개발과 데이터 분석 및 모델링. Full-time 프로젝트 멤버로 모델링·데이터 분석·실험 수행.",
+      "tags": [
+        "PE-BIO",
+        "PE-SEP",
+        "PE-MODEL"
+      ]
+    },
+    {
+      "id": "CAREER-MW-POLYMER",
+      "person_id": "LOCAL-MANWOO",
+      "title": "라텍스 유화 중합 모델링 · 필름 표면 불량 감지",
+      "date": "2021.07 — 2023.01",
+      "summary": "LG Chem, Korea Research Engineer. 라텍스 유화 중합 공정 모델링, AI 기술을 이용한 중합 해석, 이미지 인식 모델을 이용한 필름 표면 불량 감지 기술 개발.",
+      "tags": [
+        "PE-POLYMER",
+        "PE-MODEL",
+        "PE-VISION"
+      ]
+    },
+    {
+      "id": "CAREER-MW-MONOMER",
+      "person_id": "LOCAL-MANWOO",
+      "title": "모노머 공정 모델링·최적화 및 증류·추출 실험",
+      "date": "2018.07 — 2021.07",
+      "summary": "LG Chem, Korea Research Engineer. 모노머 공정 모델링 및 최적화, 데이터 모델링(NCC, OXO-SRU, OCU, BTX), 증류 및 추출 실험 수행.",
+      "tags": [
+        "PE-MODEL",
+        "PE-SEP"
+      ]
+    },
+    {
+      "id": "CAREER-JO-CO2J",
+      "person_id": "LOCAL-JINHO",
+      "title": "CO₂ 전환 SAF 생산 · CO2J 촉매 공정 개발",
+      "date": "2026.01 — 현재",
+      "summary": "CO2J Project팀 책임. CO₂ 화학적 전환용 촉매 설계·제법 개발 및 반응 활성 평가. Full-time 멤버로 Lab Scale SAF 생산 CCU 촉매 공정 기술개발.",
+      "tags": [
+        "CE-CCU",
+        "CE-CAT",
+        "CE-SAF"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-JO-CO2L",
+      "person_id": "LOCAL-JINHO",
+      "title": "CO₂ 전환 기초유분·납사 · Pilot 공정 개발",
+      "date": "2025.01 — 2025.12",
+      "summary": "CO2L Project팀 책임. CO₂ 전환 기초유분·납사 생산용 촉매 설계·제법 개발·반응 활성 평가. Full-time 멤버로 Pilot Scale CCU 촉매 공정 기술개발.",
+      "tags": [
+        "CE-CCU",
+        "CE-CAT",
+        "CE-FAC"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-JO-ENERGY",
+      "person_id": "LOCAL-JINHO",
+      "title": "CO₂ 전환 촉매 개발 · Lab 반응설비 구축",
+      "date": "2021.08 — 2024.12",
+      "summary": "에너지기술개발팀 책임연구원. 2021.08–2022.12 예비타당성 연구: 촉매 설계·제법 개발·활성 평가와 실험실·반응기·유틸리티 설비 구축. 2023.01–2024.12 CO2 to Chemical Project: Lab Scale 기초유분·납사 생산 CCU 촉매 공정 기술개발.",
+      "tags": [
+        "CE-CCU",
+        "CE-CAT",
+        "CE-FAC"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-JO-LOHC",
+      "person_id": "LOCAL-JINHO",
+      "title": "LOHC 수소 저장·생산용 촉매 개발",
+      "date": "2019.09 — 2021.07",
+      "summary": "입사 전 선임연구원. 액상 수소 저장 운반체(LOHC)를 활용한 수소 저장 및 생산용 촉매 개발. 소속 기관은 제공 자료에서 확인되지 않음.",
+      "tags": [
+        "CE-H2",
+        "CE-CAT"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-JO-METHANOL",
+      "person_id": "LOCAL-JINHO",
+      "title": "LOHC 촉매 및 저순도 CO₂ 전환 메탄올 합성",
+      "date": "2014.09 — 2019.08",
+      "summary": "입사 전 에너지/환경 촉매개발. LOHC 수소 저장·생산 촉매 개발 및 저순도 CO₂ 전환 메탄올 합성 촉매 개발.",
+      "tags": [
+        "CE-H2",
+        "CE-CCU",
+        "CE-CAT"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-JO-BIO",
+      "person_id": "LOCAL-JINHO",
+      "title": "글리세롤·폐유 전환 불균일계 촉매 개발",
+      "date": "2010.03 — 2012.02",
+      "summary": "입사 전 촉매 연구/개발. 글리세롤에서 1,3-프로판다이올로 전환하는 불균일계 촉매, 폐유 유래 바이오디젤 및 윤활유 생산용 불균일계 촉매 개발.",
+      "tags": [
+        "CE-BIO",
+        "CE-CAT"
+      ],
+      "field": "energy_catalysis",
+      "scope": "provided_resume"
+    }
+  ]
 }

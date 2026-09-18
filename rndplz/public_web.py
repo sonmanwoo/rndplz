@@ -202,6 +202,12 @@ class PublicApp:
             try: raw = (WEB / name).read_bytes()
             except FileNotFoundError: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
             return send(200, raw, mime)
+        if path.startswith('/portraits/'):
+            if method != 'GET': return send(405, {'error': '읽기 전용 이미지입니다.'})
+            if path not in self.images: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
+            try: raw = (WEB / path.lstrip('/')).read_bytes()
+            except FileNotFoundError: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
+            return send(200, raw, 'image/png' if path.endswith('.png') else 'image/jpeg')
         if path in ('/api/worker/poll','/api/worker/result'):
             if method!='POST': return send(405,{'error':'지원하지 않는 요청입니다.'})
             if not self.models.bridge.authorized(environ.get('HTTP_X_RNDPLZ_BRIDGE','')):
@@ -243,8 +249,6 @@ class PublicApp:
                 if path in files:
                     name, mime = files[path]
                     return send(200, (WEB / name).read_bytes(), mime + '; charset=utf-8')
-                if path in self.images:
-                    return send(200, (WEB / path.lstrip('/')).read_bytes(), 'image/png' if path.endswith('.png') else 'image/jpeg')
                 return send(404, {'error': '페이지를 찾을 수 없습니다.'})
             if not hmac.compare_digest(environ.get('HTTP_X_RNDPLZ_TOKEN', ''), token):
                 return send(403, {'error': '화면을 새로고침한 뒤 다시 시도해 주세요.'})

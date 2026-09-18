@@ -6,7 +6,7 @@ const stateNames={draft:"초안",sent:"보냄 · 시연",accepted:"수락 · 시
 const modes={advice:"자문",verify:"AI 답 검증",member:"프로젝트 멤버",site_request:"현장 의뢰",resource_request:"자원 요청"};
 const labels=["AI 답 검증","PCB·고무 씰","열전달·유동","전기 절연","AI 분자 탐색","전기차에서 힌트","낯선 분야","CPN·N₂O","결정화 속도","현장 거품","촉매 5kg"];
 let boot, session=null, token="", admin=null, activeTopic="", page=0, mapPoints=[], letter=null, toastTimer, busy=false, exported=null;
-let view="chat", received=null, detailReturn=null;
+let view="chat", received=null, detailReturn=null, detailTrigger=null;
 const slots=()=>Object.fromEntries(["goal","target","conditions","resources","deadline"].map(k=>[k,$(k).value]));
 async function api(path,body){
  const res=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});
@@ -25,9 +25,20 @@ async function task(fn,button){
 }
 function showDialog(id){
  const prior=document.querySelector("dialog[open]");
- if(id==="detailDialog"&&prior&&prior.id!=="detailDialog")detailReturn=prior.id;
+ if(id==="detailDialog"){if(prior?.id!=="detailDialog")detailReturn=prior?.id||null;}
+ else if(prior?.id==="detailDialog"){detailReturn=null;detailTrigger=null;}
  for(const d of document.querySelectorAll("dialog[open]"))d.close();
  $(id).showModal();
+}
+function rememberDetailTrigger(trigger){
+ if(!$("detailDialog").open)detailTrigger=trigger;
+}
+function closeDetail(){
+ const back=detailReturn, trigger=detailTrigger;
+ detailReturn=null;detailTrigger=null;
+ $("detailDialog").close();
+ if(back)showDialog(back);
+ if(trigger?.isConnected&&!trigger.disabled)trigger.focus();
 }
 function renderExamples(){
  const groups=[["연구",boot.questions.filter(q=>!["Q00","Q09","Q10"].includes(q.id))],["검증",boot.questions.filter(q=>q.id==="Q00")],["현장·자원",boot.questions.filter(q=>["Q09","Q10"].includes(q.id))]];
@@ -183,12 +194,13 @@ document.addEventListener("click",event=>{
  const button=event.target.closest("button[data-action]");if(!button)return;
  const action=button.dataset.action,id=button.dataset.id,value=button.dataset.value;
  if(action==="close"){
-  const dialog=button.closest("dialog");dialog.close();
-  if(dialog.id==="detailDialog"&&detailReturn){const back=detailReturn;detailReturn=null;showDialog(back);}
+  const dialog=button.closest("dialog");
+  if(dialog.id==="detailDialog")closeDetail();else dialog.close();
   return;
  }
  if(action==="scene-close"){$("sentScene").close();$("askButton").focus();return;}
  task(async()=>{
+  if(["person","candidate","record"].includes(action))rememberDetailTrigger(button);
   if(action==="tab"){if(value==="chat")location.href="/";else await showTab(value);}
   else if(action==="new")newQuestion();
   else if(action==="example"){const q=boot.questions.find(q=>q.id===id);newQuestion();$("question").value=q.question+(q.ai_answer?"\n\n[검증 대상 · 가상의 AI 답]\n"+q.ai_answer:"");$("mode").value=q.mode||"";$("question").focus();}
@@ -239,7 +251,7 @@ document.addEventListener("change",e=>{
 $("mapCanvas").addEventListener("mousemove",e=>{const hit=pickPoint(e);$("mapTooltip").hidden=!hit;$("mapCanvas").style.cursor=craftMap?.drag?"grabbing":hit?"pointer":"grab";if(hit)$("mapTooltip").textContent=hit.node.name+" · 기록 "+hit.node.record_count+"건"+(hit.node.virtual?" · 가상":"");});
 $("mapCanvas").addEventListener("pointerdown",()=>$("mapTooltip").hidden=true);
 $("mapCanvas").addEventListener("mouseleave",()=>$("mapTooltip").hidden=true);
-$("mapCanvas").addEventListener("click",e=>{if(craftMap?.consumeClick())return;const hit=pickPoint(e);if(hit)task(async()=>showPerson(await api("/api/person?id="+encodeURIComponent(hit.node.id))));});
+$("mapCanvas").addEventListener("click",e=>{if(craftMap?.consumeClick())return;const hit=pickPoint(e);if(hit)task(async()=>{rememberDetailTrigger(document.activeElement);showPerson(await api("/api/person?id="+encodeURIComponent(hit.node.id)));});});
 new ResizeObserver(()=>drawMap()).observe($("mapCanvas"));
 (async()=>{
  try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("peopleCards").scrollIntoView({block:"start"});}
@@ -259,4 +271,4 @@ document.addEventListener("pointerout",event=>{
  if(card&&!card.contains(event.relatedTarget)){card.style.transform="";card.style.removeProperty("--shine-x");card.style.removeProperty("--shine-y");}
 });
 
-$("detailDialog").addEventListener("cancel",e=>{if(detailReturn){e.preventDefault();$("detailDialog").close();const back=detailReturn;detailReturn=null;showDialog(back);}});
+$("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail();});

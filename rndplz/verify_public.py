@@ -43,11 +43,14 @@ class PublicTests(unittest.TestCase):
 
     def test_public_data_excludes_unapproved_people_and_photos(self):
         data = self.a.call('/api/admin')['data']
-        self.assertEqual(len(data['featured']), 4)
+        self.assertEqual(len(data['featured']), 14)
         self.assertFalse(any(n['id'].startswith('LOCAL-') for n in data['nodes']))
-        self.assertEqual(self.a.call('/api/person?id=LOCAL-MANWOO')['status'], 400)
-        self.assertEqual(self.a.call('/portraits/manwoo.jpg')['status'], 404)
-        self.assertEqual(self.a.call('/portraits/jinho-catalysis-bg.png')['status'], 404)
+        for pid in ('LOCAL-MANWOO', 'LOCAL-JINHO'):
+            self.assertEqual(self.a.call('/api/person?id=' + pid)['status'], 400)
+        for filename in ('manwoo.jpg', 'manwoo-process-bg.png', 'jinho.jpg',
+                         'jinho-catalysis-bg.png', 'manwoo-illustration.png',
+                         'jinho-illustration.png'):
+            self.assertEqual(self.a.call('/portraits/' + filename)['status'], 404)
         self.assertEqual(self.a.call('/portraits/hinton.png')['status'], 200)
 
     def test_visitor_history_attachment_and_csrf_are_isolated(self):
@@ -119,8 +122,15 @@ class PublicTests(unittest.TestCase):
         result = client.call('/api/chat/bootstrap')
         self.assertIn('HttpOnly', result['headers']['Set-Cookie'])
         self.assertIn('Secure', result['headers']['Set-Cookie'])
-        self.assertEqual(client.call('/portraits/manwoo.jpg')['status'], 200)
-        self.assertEqual(len(client.call('/api/admin')['data']['featured']), 6)
+        for pid, filename in (('LOCAL-MANWOO', 'manwoo-illustration.png'),
+                              ('LOCAL-JINHO', 'jinho-illustration.png')):
+            self.assertEqual(client.call('/portraits/' + filename)['status'], 200)
+            detail = client.call('/api/person?id=' + pid)['data']
+            self.assertEqual(detail['profile']['portrait']['path'], '/portraits/' + filename)
+            self.assertIs(detail['profile']['portrait']['generated'], True)
+            self.assertFalse(detail['virtual'])
+            self.assertFalse(detail['person_confirmed'])
+        self.assertEqual(len(client.call('/api/admin')['data']['featured']), 16)
 
 
 if __name__ == '__main__': unittest.main()

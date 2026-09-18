@@ -141,3 +141,54 @@ body.crafted:before{content:"";position:fixed;inset:0;pointer-events:none;z-inde
 .portrait-art.has-process-art .foil-sheen,.portrait-art.has-process-art .foil-glare{z-index:2}
 .portrait-art.portrait-manwoo>img.portrait-person{mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201400%201800%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22edge%22%3E%3CfeGaussianBlur%20stdDeviation%3D%221.8%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22white%22%20filter%3D%22url%28%23edge%29%22%20d%3D%22M0%201800V1700C90%201640%20239%201603%20299%201541C303%201476%20332%201434%20374%201419L362%201275C338%201212%20314%201153%20299%201090C223%201075%20211%201002%20181%20923C155%20865%20145%20809%20161%20780Q175%20761%20196%20765C166%20684%20142%20600%20156%20494C166%20349%20233%20239%20345%20170Q438%20124%20534%20141C545%2079%20608%2051%20658%2051C827%2042%201005%2093%201080%20178C1191%20266%201226%20375%201242%20477C1260%20594%201230%20710%201218%20747C1248%20776%201230%20864%201211%20945C1194%201034%201167%201077%201094%201099C1077%201178%201022%201240%201015%201291L1008%201436C1036%201471%201046%201511%201057%201538C1141%201596%201274%201623%201400%201680V1800Z%22%2F%3E%3C%2Fsvg%3E");mask-size:100% 100%;mask-repeat:no-repeat}
 .portrait-art.portrait-jinho>img.portrait-person{mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20413%20531%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22edge%22%3E%3CfeGaussianBlur%20stdDeviation%3D%22.55%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22white%22%20filter%3D%22url%28%23edge%29%22%20d%3D%22M0%20531C2%20479%2017%20423%2042%20394C61%20373%2096%20355%20122%20339L131%20303C119%20270%20115%20236%20110%20213C101%20200%2094%20177%20103%20160C103%20112%20124%2065%20160%2045C189%2029%20220%2028%20247%2039C284%2049%20301%2083%20305%20120L305%20166C314%20176%20306%20203%20302%20219L301%20299C316%20327%20351%20343%20375%20369C401%20397%20412%20435%20413%20471V531Z%22%2F%3E%3C%2Fsvg%3E");mask-size:100% 100%;mask-repeat:no-repeat}
+
+
+/* Nobel portrait presentation only. The original artwork stays unchanged. */
+.laureate-name{padding:0 0 13px;min-width:0}
+.laureate-name h2,.laureate-name h3{margin:0 0 7px;font:600 25px/1.25 Georgia,"Malgun Gothic",serif;letter-spacing:-.6px;overflow-wrap:anywhere}
+.laureate-name .candidate-org{margin:0 0 6px;min-height:0;font-size:11px;line-height:1.65;color:#576657;overflow-wrap:anywhere}
+.laureate-role{font-size:10px;line-height:1.65;color:#586451;margin:0;overflow-wrap:anywhere}
+.candidate .laureate-portrait,.researcher-detail-hero .laureate-portrait,.laureate-portrait{aspect-ratio:3/4;width:100%;flex:none;background:var(--sheet,#fffdf7)}
+.candidate .laureate-portrait img,.researcher-detail-hero .laureate-portrait img,.laureate-portrait img{position:absolute;inset:0;object-fit:contain;object-position:center;width:100%;height:100%;opacity:0;filter:none}
+.laureate-portrait[data-asset="ready"] img{opacity:1}
+.portrait-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;font-size:12px;line-height:1.8;color:#69715c;background:var(--sheet,#fffdf7);overflow-wrap:anywhere}
+.portrait-status[hidden]{display:none}
+.laureate-portrait .portrait-label{font-size:8px;padding:5px 7px;background:#fff8e9ed;color:#42533d}
+.laureate-portrait .foil-sheen,.laureate-portrait .foil-glare{z-index:2;opacity:0!important;mask-image:radial-gradient(ellipse 37% 35% at 50% 37%,#0002 0%,#0002 52%,#000 100%);-webkit-mask-image:radial-gradient(ellipse 37% 35% at 50% 37%,#0002 0%,#0002 52%,#000 100%)}
+.laureate-portrait[data-laureate-effect="gold"] .foil-sheen{background-image:repeating-linear-gradient(115deg,#d1b46c80 0%,#fff5c790 15%,#bc985364 32%,#e5d7a882 49%,#d1b46c80 65%),repeating-linear-gradient(25deg,transparent 0 3px,#ffffff45 3px 4px,transparent 4px 8px);filter:none}
+.laureate-portrait[data-laureate-effect="prism"] .foil-sheen{filter:saturate(1.1)}
+.laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-sheen{opacity:.16!important}
+.laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-glare{opacity:.15!important}
+.laureate-card:is(:hover,:focus-within) .laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-sheen{opacity:.34!important}
+.laureate-card:is(:hover,:focus-within) .laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-glare{opacity:.38!important}
+.laureate-card[data-laureate-effect="off"]{--rx:0deg!important;--ry:0deg!important}
+.laureate-award{border-top:1px solid #7b8e7140;padding:13px 0;margin:0 0 12px;font-size:12px;line-height:1.75;color:#3b4d36;overflow-wrap:anywhere}
+.laureate-award p{margin:0 0 7px}.laureate-award .laureate-award-label{color:#775521;font-weight:600;font-size:12px}.laureate-award .laureate-award-domain{font:10px/1.5 Consolas,monospace;color:#68715e}
+.laureate-award a,.portrait-provenance a{color:var(--green,#315e50);text-decoration:underline;text-underline-offset:3px;font-size:11px;overflow-wrap:anywhere}
+.laureate-award small{display:block;font-size:10px;color:#63705b;margin-top:7px}
+.laureate-effect-controls{margin:0 0 16px;min-width:0}.laureate-effect-controls label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-size:11px;color:#53614d}
+.laureate-effect-controls select{font:inherit;min-height:40px;width:auto;min-width:105px;max-width:100%;padding:7px 9px;margin:0;border:1px solid #a6b39b;border-radius:4px;background:var(--sheet,#fffdf7);color:#344c32;cursor:pointer}
+.laureate-effect-controls select:disabled{cursor:default;color:#69715c}.laureate-effect-help{font-size:10px!important;line-height:1.6;margin:7px 0 0;color:#66705e}
+.portrait-provenance{border-top:1px dashed #75886666;margin:18px 0;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.portrait-provenance summary{min-height:44px;padding:11px 0;cursor:pointer;color:#344c32;font-size:12px}
+.portrait-provenance h4{font-size:12px;margin:13px 0 5px}.portrait-provenance p{margin:5px 0}
+.laureate-effect-controls select:focus-visible,.portrait-provenance summary:focus-visible{outline:3px solid var(--green,#315e50);outline-offset:3px}
+.no-motion .laureate-portrait .foil-sheen,.no-motion .laureate-portrait .foil-glare{display:none!important;opacity:0!important}
+@media(prefers-reduced-motion:reduce){.laureate-card{transform:none!important;translate:none!important}.laureate-portrait .foil-sheen,.laureate-portrait .foil-glare{display:none!important;opacity:0!important}}
+@media(max-width:430px){.laureate-name h2,.laureate-name h3{font-size:24px}.laureate-effect-controls label{gap:8px}.laureate-portrait .portrait-label{font-size:7px}.portrait-provenance{max-width:100%}}
+
+
+/* User-provided profiles: a complete illustration, separate from old photo masks. */
+.candidate .personal-illustration,.researcher-detail-hero .personal-illustration,.personal-illustration{aspect-ratio:3/4;width:100%;flex:none;background:var(--sheet,#fffdf7)}
+.candidate .personal-illustration img,.researcher-detail-hero .personal-illustration img,.personal-illustration img{position:absolute;inset:0;left:0;top:0;width:100%;height:100%;object-fit:contain;object-position:center;mask:none;-webkit-mask:none;filter:none;mix-blend-mode:normal;opacity:0}
+.personal-illustration[data-asset="ready"] img{opacity:1}
+.personal-illustration .portrait-label{font-size:8px;padding:5px 7px;background:#fff8e9ed;color:#42533d}
+.personal-name{padding:0 0 13px;min-width:0}
+.personal-name h2,.personal-name h3{margin:0 0 7px;font:600 25px/1.25 Georgia,"Malgun Gothic",serif;letter-spacing:-.6px;overflow-wrap:anywhere}
+.personal-name .candidate-org{margin:0 0 6px;min-height:0;font-size:11px;line-height:1.65;color:#576657;overflow-wrap:anywhere}
+.personal-portrait-note{font-size:11px;line-height:1.8;color:#53614d;overflow-wrap:anywhere;margin:0 0 14px}
+.personal-portrait-provenance{border-top:1px dashed #75886666;margin:16px 0;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.personal-portrait-provenance summary{min-height:44px;padding:11px 0;cursor:pointer;color:#344c32;font-size:12px}
+.personal-portrait-provenance h4{font-size:12px;margin:13px 0 5px}.personal-portrait-provenance p{margin:5px 0}
+.personal-portrait-provenance summary:focus-visible{outline:3px solid var(--green,#315e50);outline-offset:3px}
+@media(max-width:430px){.personal-name h2,.personal-name h3{font-size:24px}.personal-illustration .portrait-label{font-size:7px}}

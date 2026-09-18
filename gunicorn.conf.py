@@ -10,3 +10,6 @@ errorlog = "-"
 limit_request_line = 4094
 limit_request_fields = 50
 limit_request_field_size = 4096
+
+# This release includes the two explicitly approved profile cards.
+raw_env = ["RNDPLZ_PUBLISH_PERSONAL=1"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import secrets
+import re
 import itertools
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,14 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
     service=Service(state_dir=state_dir)
     chat=Conversation(service)
     token=secrets.token_urlsafe(32)
+    # Only active portrait assets in the local corpus are served; no directory scan.
+    portraits={}
+    image_mimes={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'}
+    for person in service.corpus.people.values():
+        for key in ('path','background'):
+            asset=person.profile.get('portrait',{}).get(key)
+            if isinstance(asset,str) and re.fullmatch(r'/portraits/[A-Za-z0-9_.-]+\.(?:png|jpe?g|webp)',asset):
+                portraits[asset]=(asset.lstrip('/'),image_mimes[Path(asset).suffix])
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,format,*args):
             # Avoid logging arbitrary question text or environment values.
@@ -67,10 +76,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                         return self.send(404,{"error":"기록을 찾을 수 없습니다."})
                     return self.send(200,{**service.engine.explain_record(record),"text":record.text,"details":record.details})
                 static={"/craft.css":("craft.css","text/css; charset=utf-8"),"/craft.js":("craft.js","text/javascript; charset=utf-8"),"/":("index.html","text/html; charset=utf-8"),"/explore":("explore.html","text/html; charset=utf-8"),"/chat.js":("chat.js","text/javascript; charset=utf-8"),"/chat.css":("chat.css","text/css; charset=utf-8"),"/app.js":("app.js","text/javascript; charset=utf-8"),"/style.css":("style.css","text/css; charset=utf-8")}
-                for slug in ("hinton", "lecun", "bengio", "ng", "manwoo-process-bg", "jinho-catalysis-bg"):
-                    static["/portraits/"+slug+".png"]=("portraits/"+slug+".png","image/png")
-                static["/portraits/manwoo.jpg"]=("portraits/manwoo.jpg","image/jpeg")
-                static["/portraits/jinho.jpg"]=("portraits/jinho.jpg","image/jpeg")
+                static.update(portraits)
                 if parsed.path in static:
                     name,mime=static[parsed.path]
                     return self.send(200,(WEB/name).read_bytes(),mime)

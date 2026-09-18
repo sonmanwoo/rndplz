@@ -10,6 +10,6 @@ services:
       - key: RNDPLZ_SESSION_SECRET
         generateValue: true
       - key: RNDPLZ_PUBLISH_PERSONAL
-        value: "0"
+        value: "1"
       - key: RNDPLZ_STATE_DIR
         value: /tmp/rndplz-public-state

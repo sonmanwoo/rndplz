@@ -73,6 +73,7 @@ class Corpus:
     def add(self, collection, obj):
         if not obj.id or obj.id in collection:
             self.errors.append("식별자 누락 또는 중복: " + str(obj.id))
+            return
         collection[obj.id] = obj
 
     def load(self):
@@ -115,11 +116,17 @@ class Corpus:
             for c in contributions:
                 if c.person_id and c.person_id not in self.people:
                     self.errors.append("미해결 저자 참조: " + c.person_id)
+            for tag in raw["tags"]:
+                if tag not in self.topic_by_id:
+                    self.errors.append("미해결 주제 참조: " + tag)
+            details = {"text_kind": "editorial_summary", "abstract_available": False,
+                       "author_coverage": "selected_curated_profiles", "all_authors": [a["name"] for a in raw["authors"]]}
+            for key in ("contribution_note", "boundary_note", "metadata_sources", "venue", "doi", "publication_type", "source_access_note"):
+                if key in raw: details[key] = raw[key]
             self.add(self.records, Record(raw["id"], raw["kind"], raw["title"], raw["summary"], raw["date"],
-                contributions, raw["tags"], "ai_foundations", "ai_foundations", "curated_primary_sources", raw["id"],
-                raw["url"], featured["checked_at"], raw["evidence_kind"], ["원문 서지·초록을 확인한 편집 요약"],
-                details={"text_kind": "editorial_summary", "abstract_available": False, "author_coverage": "four_selected_profiles",
-                         "all_authors": [a["name"] for a in raw["authors"]]}))
+                contributions, raw["tags"], raw.get("field", "ai_foundations"), raw.get("scope", "ai_foundations"), "curated_primary_sources", raw["id"],
+                raw["url"], raw.get("checked_at", featured["checked_at"]), raw["evidence_kind"],
+                raw.get("classification_basis", ["원문 서지·초록을 확인한 편집 요약"]), details=details))
         for raw in featured.get("experience_records", []):
             person = self.people[raw["person_id"]]
             self.add(self.records, Record(raw["id"], "career_record", raw["title"], raw["summary"], raw["date"],

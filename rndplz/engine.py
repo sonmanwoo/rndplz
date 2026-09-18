@@ -4,7 +4,7 @@ import re
 from collections import Counter
 from .data import Corpus, matches
 
-SCOPE = {"provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
+SCOPE = {"public_research_case":"공개 연구 사례","provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
 KIND = {"career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
 MODE = {"advice":"자문","verify":"검증 요청","member":"프로젝트 멤버","site_request":"현장 의뢰","resource_request":"자원 요청"}
 ROLE = {"first":"1저자","middle":"공저자","last":"마지막 저자","unknown":"저자","recorded_role":"기록상 담당"}
@@ -13,10 +13,13 @@ ROLE = {"first":"1저자","middle":"공저자","last":"마지막 저자","unknow
 class Engine:
     def __init__(self, corpus=None):
         self.corpus = corpus or Corpus()
+        self.public_fields = {t["field"] for t in self.corpus.topics} - {
+            "site", "immersion_cooling", "cpn_n2o_oxidation", "crystallization_kinetics",
+            "ai_foundations", "process_engineering", "energy_catalysis"}
 
     def topics_for(self, text):
         scores = {t["id"]:sum(matches(text,k) for k in t["keywords"]) for t in self.corpus.topics}
-        has_ai_topic = any(v for k,v in scores.items() if k.startswith(("AI-", "PE-", "CE-")))
+        has_ai_topic = any(v for k,v in scores.items() if k.startswith(("AI-", "PE-", "CE-")) or self.corpus.topic_by_id[k]["field"] in self.public_fields)
         for person in self.corpus.people.values():
             if not has_ai_topic and person.profile.get("curated") and any(matches(text, a) for a in person.profile.get("aliases", [])):
                 for record in self.corpus.by_person[person.id]:
@@ -49,6 +52,10 @@ class Engine:
         anchors=("액침","냉각","서버","데이터센터","데이터 센터","회로기판","pcb","fkm","fr-4","절연유","변압기","윤활유","기유","pao","poe","에스테르","전기차","배터리","immersion","coolant","cooling","data center","datacenter","transformer","dielectric fluid","lubricant","thermal management","heat transfer")
         if any(t in topics for t in ("T01","T02","T03","T04","T05","T06")) and any(matches(text,k) for k in anchors):
             return "immersion_cooling"
+        extra_fields = {self.corpus.topic_by_id[t]["field"] for t in topics
+                        if self.corpus.topic_by_id[t]["field"] in self.public_fields}
+        if extra_fields:
+            return next(iter(extra_fields)) if len(extra_fields) == 1 else "unknown"
         if any(t.startswith("CE-") for t in topics):
             return "energy_catalysis"
         if any(t.startswith("PE-") for t in topics):
@@ -67,6 +74,9 @@ class Engine:
             boundary += " 초록이 없어 제목·메타데이터에 근거합니다."
         if record.scope == "ai_foundations":
             boundary = "공개 AI 연구 사례입니다. 사내 재직·협업 가능 여부나 정유·냉각 분야 수행 경험을 뜻하지 않습니다."
+        if record.scope == "public_research_case":
+            boundary = "공식 프로필·논문에 근거한 공개 연구 사례입니다. 사내 재직·개인 수행·현재 협업 가능 여부는 확인하지 않았습니다."
+            boundary += " " + " ".join(record.details.get(k, "") for k in ("contribution_note", "boundary_note") if record.details.get(k))
         if record.kind == "career_record":
             boundary = "본인 제공 경력 자료입니다. 회사 HR 검증·수행 수준·현재 협업 가능 여부는 확인하지 않았습니다."
         if record.scope == "provided_resume":
@@ -96,7 +106,7 @@ class Engine:
             for entity in ("pcb","fkm","pao","poe","fr-4","n2o","cyclopentanone","crystallization"):
                 if (matches(text,entity) or (entity in aliases and aliases[entity] in text)) and matches(record.title+" "+record.text,entity):
                     score+=.6
-            if record.field in ("ai_foundations", "process_engineering", "energy_catalysis"):
+            if record.field in self.public_fields or record.field in ("ai_foundations", "process_engineering", "energy_catalysis"):
                 if any(c.person_id and any(matches(text, a) for a in self.corpus.people[c.person_id].profile.get("aliases", [])) for c in record.people):
                     score += 2
             if record.scope.startswith("adjacent"):
@@ -143,7 +153,7 @@ class Engine:
         named = {p.id for p in self.corpus.people.values() if p.profile.get("curated") and any(matches(text, a) for a in p.profile.get("aliases", []))}
         for record,score in scores:
             for contribution in record.people:
-                if named and field in ("ai_foundations", "process_engineering", "energy_catalysis") and contribution.person_id not in named:
+                if named and (field in self.public_fields or field in ("ai_foundations", "process_engineering", "energy_catalysis")) and contribution.person_id not in named:
                     continue
                 if contribution.person_id and score>=.2:
                     grouped.setdefault(contribution.person_id,[]).append((record,score))
