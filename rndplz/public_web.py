@@ -321,7 +321,16 @@ class PublicApp:
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})
             return send(200, routes[path]())
-        except (ValueError, KeyError, TypeError):
+        except ValueError as exc:
+            # Only fixed, user-actionable validation messages may cross this boundary.
+            safe_messages = {
+                '선택한 모델은 이미지를 읽지 못합니다. 이미지 지원 모델을 선택하거나 문서로 첨부해 주세요.',
+                '이 대화에는 이미지가 있습니다. 이미지 지원 모델을 선택하거나 새 대화를 시작해 주세요.',
+            }
+            message = str(exc)
+            return send(400, {'error': message if message in safe_messages else
+                             '요청을 처리하지 못했습니다. 현재 방문자의 대화·첨부를 확인해 주세요.'})
+        except (KeyError, TypeError):
             return send(400, {'error': '요청을 처리하지 못했습니다. 현재 방문자의 대화·첨부를 확인해 주세요.'})
         except Exception:
             return send(500, {'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'})

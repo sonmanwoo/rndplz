@@ -91,7 +91,14 @@ class Conversation:
                 s['messages'].append({'role':'user','input_text':text,'text':text or '첨부한 자료를 함께 검토해 주세요.','turn_id':turn_id,'digest':digest,'attachments':[self.attachments.public(x) for x in items]})
                 s['turns']+=1
                 if selected:s['messages'][-1]['person_id']=selected
-            action=self.actions.resolve(s,text,selected) if text or selected else None
+            # Document questions must reach the model, including later turns.
+            # Keep attachments as user-supplied material, never as corpus evidence.
+            attached_context=any(m.get('attachments') for m in s['messages'] if m['role']=='user')
+            direct_action=selected is not None or not attached_context or self.actions.cancelled(text)
+            if not direct_action and (s.get('search_context') or {}).get('kind')=='stopped' and self.actions.people_request(text):
+                # An explicit new search can resume; a courtesy reply cannot.
+                s['search_context']={}
+            action=self.actions.resolve(s,text,selected) if direct_action and (text or selected) else None
             s['pending_action']=action
             s['pending']=turn_id;s['model_id']=option['id'];s['ready']=False;s['result']=None;s['updated']=now()
             messages=[] if action else self.model_messages(s,option)
@@ -143,14 +150,21 @@ class Conversation:
             if not s or s.get('pending'):raise ValueError('응답이 끝난 대화에서 사람 찾기를 시작해 주세요.')
             if (s.get('search_context') or {}).get('kind')=='stopped':raise ValueError('중단한 요청입니다. 새 요청을 입력해 주세요.')
             if s.get('ready') and s.get('result') is not None:return copy.deepcopy(s)
-            query=''
+            query='';attachment_parts=[];last_user_text=''
             for m in s['messages']:
                 if m['role']!='user':continue
-                part=m['text']
+                part=m['text'];last_user_text=part
                 for ref in m.get('attachments',[]):
                     item=self.attachments.load(ref['id'])
-                    if item['text']:part+='\n[사용자 첨부 자료 · '+item['name']+']\n'+item['text']
+                    if item['text']:
+                        fragment='[사용자 첨부 자료 · '+item['name']+']\n'+item['text']
+                        attachment_parts.append(self.actions.query_for({},fragment))
+                        part+='\n'+fragment
                 query=self.actions.query_for({'search_context':{'kind':'recommend','query':query}},part)
+            # A fresh search may reset earlier dialogue, but explicit document references retain its supplied conditions.
+            if re.search(r'첨부|문서|파일|자료',last_user_text):
+                for fragment in dict.fromkeys(attachment_parts):
+                    if fragment not in query:query+='\n'+fragment
             s['mode']=self.service.engine.mode_for(query)
             s['asker']='site' if s['mode']=='site_request' else 'lab'
             s['proposal_context']=query[:12000]

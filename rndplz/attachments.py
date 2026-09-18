@@ -60,6 +60,10 @@ class Attachments:
                     if b'<!DOCTYPE' in xml or b'<!ENTITY' in xml:raise ValueError('지원하지 않는 문서 형식입니다.')
                     root=ElementTree.fromstring(xml)
                     ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                    # Word stores these visible separators as empty XML elements.
+                    separators={f'{{{ns["w"]}}}tab':'\t',f'{{{ns["w"]}}}br':'\n',f'{{{ns["w"]}}}cr':'\n'}
+                    for element in root.iter():
+                        if element.tag in separators:element.text=separators[element.tag]
                     text='\n'.join(''.join(p.itertext()) for p in root.findall('.//w:p',ns))
             except ValueError:raise
             except Exception:raise ValueError('DOCX 내용을 읽지 못했습니다.') from None
