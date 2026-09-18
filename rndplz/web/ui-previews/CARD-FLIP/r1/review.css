@@ -1,0 +1,131 @@
+*{box-sizing:border-box}
+:root{font-family:"Segoe UI","Malgun Gothic",sans-serif;color:#f2eee5;background:#111418;font-synthesis:none;--muted:#a4abb3;--line:#343a43;--gold:#edce88}
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(ellipse at 50% 24%,#252a33 0,transparent 54%),#111418;min-height:100vh}
+button,a{-webkit-tap-highlight-color:transparent}
+button{font:inherit}
+a{color:inherit;text-underline-offset:4px;text-decoration-color:#737d8b}
+a:hover{color:#fff;text-decoration-color:currentColor}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid #9de2ff;outline-offset:5px}
+main{max-width:1256px;margin:auto;padding:48px 36px 28px}
+.page-header{max-width:1020px;margin:0 auto 42px;text-align:center}
+.release{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px;font-size:11px;letter-spacing:.06em;color:#aeb6c1}
+.release-dot{height:5px;width:5px;border-radius:50%;background:#d7be85;box-shadow:0 0 12px #d7be8560}
+.status-tag{border:1px solid #4a4540;background:#2b272140;padding:5px 8px;border-radius:4px;color:#cbb78f}
+.eyebrow{color:#cab88c;font-size:11px;letter-spacing:.24em;margin:37px 0 14px}
+h1{font-family:Georgia,"Malgun Gothic",serif;font-size:clamp(31px,3.2vw,43px);line-height:1.34;font-weight:500;letter-spacing:-.065em;margin:0}
+h1 span{color:#aaaeb4}
+.intro{font-size:13px;line-height:1.85;color:#afb5be;margin:18px 0}
+.how-to{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:center;font-size:10px;color:#969faa}
+.how-to i{font-style:normal;color:#d0c5ac;margin-right:5px;font-size:15px}
+.as-of{padding-left:18px;border-left:1px solid #454b52;font-size:10px;color:#7f8996}
+.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:31px;align-items:start}
+.card-column{min-width:0}
+.variant-heading{height:49px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:0 3px}
+.variant-heading h2{margin:0;color:#d8dce1;font-size:13px;font-weight:500;letter-spacing:.03em}
+.variant-heading p{margin:6px 0 0;font-size:10px;color:#778491}
+.variant-code{font-family:Georgia,serif;font-size:28px;line-height:1;color:#687484}
+.variant-heading.gold .variant-code{color:#e5c179}
+.variant-heading.prism .variant-code{color:#afaeed}
+.recommend{font:10px "Malgun Gothic",sans-serif;margin-left:6px;background:#3b3220;color:#eed19a;border:1px solid #6d5832;border-radius:3px;padding:2px 5px;vertical-align:1px}
+.research-card{--rx:0deg;--ry:0deg;--mx:50%;--my:45%;--bx:50%;--by:50%;--intensity:0;aspect-ratio:5/7;width:100%;position:relative;perspective:1300px;outline:none;isolation:isolate}
+.card-tilt{width:100%;height:100%;position:relative;transform:rotateX(var(--rx)) rotateY(var(--ry));transform-style:preserve-3d;transition:transform .3s ease;will-change:transform}
+.research-card.is-tracking .card-tilt,.research-card.is-demo .card-tilt{transition:transform .06s linear}
+.card-flipper{width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:rotateY(0deg);transition:transform .65s cubic-bezier(.2,.75,.2,1)}
+.research-card.is-flipped .card-flipper{transform:rotateY(180deg)}
+.card-face{position:absolute;inset:0;border-radius:21px;padding:7px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform-style:preserve-3d;box-shadow:0 21px 36px #0009,0 4px 8px #0008;overflow:hidden;background:linear-gradient(140deg,#e7e8e3 0,#798187 9%,#d7dce0 22%,#4a525d 46%,#bbc2c8 75%,#535c68);border:1px solid #aeb8bd}
+.card-face::after{content:"";position:absolute;inset:3px;border:1px solid #eaf1f63d;border-radius:17px;pointer-events:none;z-index:8}
+.card-front{transform:translateZ(1px)}
+.card-back{transform:rotateY(180deg) translateZ(1px)}
+.front-content,.back-content{position:relative;width:100%;height:100%;border-radius:14px;overflow:hidden;background:#17222a;border:1px solid #b2c7d233}
+.front-content{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.front-top{position:relative;z-index:5;padding:13px 12px 10px;background:linear-gradient(125deg,#1c2931,#17212b);border-bottom:1px solid #bccdd130;min-width:0}
+.name-row{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.person-name{font-size:clamp(17px,1.65vw,23px);line-height:1.2;letter-spacing:-.04em;margin:0;font-weight:650;color:#f7f3e9;white-space:nowrap}
+.nobel-year{flex-shrink:0;font-size:8px;line-height:1.3;letter-spacing:.08em;padding:4px 6px;border:1px solid #d9b664;color:#efd59a;border-radius:3px;font-weight:600}
+.person-org{font-size:9.5px;line-height:1.5;margin:7px 0 0;color:#b7c4cb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.portrait-window{position:relative;min-height:0;display:flex;justify-content:center;align-items:center;background:#e9e3ce;overflow:hidden}
+.portrait-window::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse,#f5efda00 30%,#24362b20);pointer-events:none;z-index:1}
+.portrait{height:100%;width:100%;max-width:100%;object-fit:contain;display:block}
+.image-label{position:absolute;bottom:7px;left:9px;z-index:6;font-size:7px;letter-spacing:.12em;line-height:1.3;padding:4px 5px;color:#27372f;background:#f4f0dfed;border:1px solid #87978750;border-radius:2px;box-shadow:0 1px 5px #0001}
+.front-bottom{position:relative;z-index:5;padding:12px;background:linear-gradient(125deg,#1c2931,#17212b);border-top:1px solid #bccdd130}
+.tags{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.field-tag{font-size:10px;color:#d5dfdf;line-height:1.3;border:1px solid #879da14a;background:#d1dad908;padding:4px 7px;border-radius:3px}
+.flip-hint{display:flex;align-items:center;justify-content:space-between;color:#92a4ac;font-size:8px;letter-spacing:.05em;margin-top:9px}
+.flip-hint span:last-child{font-size:14px;line-height:1}
+.face-hit{position:absolute;inset:0;z-index:10;border:0;background:transparent;color:transparent;border-radius:14px;cursor:pointer}
+.face-hit:focus-visible{outline:3px solid #c7ecff;outline-offset:-5px}
+.foil-texture,.foil-sheen,.foil-glare{position:absolute;inset:7px;border-radius:14px;pointer-events:none;z-index:3}
+.foil-texture{background:repeating-linear-gradient(125deg,#ffffff0c 0 1px,transparent 1px 7px);mix-blend-mode:soft-light;opacity:.3}
+.foil-sheen{background:linear-gradient(115deg,transparent 20%,#d9edff55 36%,#ffffff99 40%,#d9edff22 44%,transparent 65%);background-size:260% 220%;background-position:var(--bx) var(--by);mix-blend-mode:soft-light;opacity:calc(.1 + var(--intensity)*.45)}
+.foil-glare{background:radial-gradient(circle at var(--mx) var(--my),#fff9,transparent 48%);mix-blend-mode:soft-light;opacity:calc(.05 + var(--intensity)*.48)}
+.research-card[data-variant="gold"] .card-face{border-color:#f6dc98;background:repeating-linear-gradient(128deg,#e3c787 0 2px,#95723b 2px 3px,#d8b665 3px 5px,#634219 5px 6px);box-shadow:0 22px 42px #0009,0 0 0 1px #c39a4b40,0 0 25px #d4a3410d}
+.research-card[data-variant="gold"] .card-face::after{border:1px solid #fff0b6bb;box-shadow:inset 0 0 0 1px #725022,inset 0 0 0 3px #f8ce5d38}
+.research-card[data-variant="gold"] .front-content,.research-card[data-variant="gold"] .back-content{border-color:#f6d08077;background:#282219}
+.research-card[data-variant="gold"] .front-top,.research-card[data-variant="gold"] .front-bottom{background:linear-gradient(115deg,#3b2e18,#221f1a 56%,#48371e);border-color:#cbad5c70}
+.research-card[data-variant="gold"] .person-name{color:#ffedba}
+.research-card[data-variant="gold"] .person-org{color:#d8cbaa}
+.research-card[data-variant="gold"] .field-tag{color:#f0dcae;border-color:#c1a05b70;background:#d7b0570c}
+.research-card[data-variant="gold"] .flip-hint{color:#c7ad72}
+.research-card[data-variant="gold"] .foil-texture{background:radial-gradient(circle,#f9d670 0 .8px,transparent 1.1px) 0 0/8px 8px,repeating-conic-gradient(from 45deg,#ba8c381b 0deg 90deg,transparent 90deg 180deg) 0 0/25px 25px;mix-blend-mode:multiply;opacity:.25}
+.research-card[data-variant="gold"] .foil-sheen{background:linear-gradient(118deg,transparent 12%,#78551c66 27%,#f5d97c99 39%,#fff2bbcc 43%,#cb933966 48%,#e4c89244 57%,transparent 73%);background-size:230% 190%;background-position:var(--bx) var(--by);mix-blend-mode:soft-light;opacity:calc(.22 + var(--intensity)*.66)}
+.research-card[data-variant="gold"] .foil-glare{background:radial-gradient(ellipse at var(--mx) var(--my),#fff2cbdd 0,transparent 52%);opacity:calc(.1 + var(--intensity)*.55)}
+.research-card[data-variant="prism"] .card-face{border-color:#b7aaff;background:conic-gradient(from 145deg,#b6cdf1,#b69cff,#68c2ce,#d9e6b0,#dfb1d8,#8372cf,#a2d8de,#b6cdf1);box-shadow:0 22px 42px #0009,0 0 0 1px #9acbe354,0 0 28px #7773ed18}
+.research-card[data-variant="prism"] .card-face::after{border-color:#d1ebffb0;background:repeating-linear-gradient(130deg,transparent 0 4px,#e2ffff25 4px 5px);mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;padding:3px}
+.research-card[data-variant="prism"] .front-content,.research-card[data-variant="prism"] .back-content{border-color:#c6d8ee99;background:#1c2436}
+.research-card[data-variant="prism"] .front-top,.research-card[data-variant="prism"] .front-bottom{background:linear-gradient(118deg,#203747,#242238 60%,#35304e);border-color:#ab9ade88}
+.research-card[data-variant="prism"] .person-name{color:#e4e8ff}
+.research-card[data-variant="prism"] .nobel-year{color:#e1d8ff;border-color:#b8a3e5;background:#a07adc13}
+.research-card[data-variant="prism"] .field-tag{color:#d9d9fa;border-color:#9c9ccc70}
+.research-card[data-variant="prism"] .foil-texture{background:repeating-linear-gradient(129deg,#fff5 0 .6px,transparent .8px 8px),repeating-linear-gradient(39deg,#6b84e02a 0 .6px,transparent 1px 24px);mix-blend-mode:soft-light;opacity:.2}
+.research-card[data-variant="prism"] .foil-sheen{background:repeating-linear-gradient(118deg,#8f74c766 0%,#5699d388 10%,#79d5c955 20%,#edd69866 30%,#d894c088 40%,#8f74c766 50%);background-size:320% 250%;background-position:var(--bx) var(--by);mix-blend-mode:color;opacity:calc(.1 + var(--intensity)*.4)}
+.research-card[data-variant="prism"] .foil-glare{background:radial-gradient(ellipse at var(--mx) var(--my),#ffffffdd,transparent 52%);opacity:calc(.06 + var(--intensity)*.55)}
+.card-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:17px;padding:0 3px}
+.grade-note{font-size:9px;line-height:1.65;color:#8f98a4;margin:0}
+.demo-button{flex-shrink:0;border:1px solid #5b626b;background:#1c222b;color:#d0d8df;border-radius:5px;padding:8px 10px;font-size:10px;cursor:pointer}
+.demo-button:hover{background:#283340;border-color:#91a1b1}
+.demo-button:disabled{opacity:.45;cursor:default}
+.research-card.is-flipped .foil-texture,.research-card.is-flipped .foil-sheen,.research-card.is-flipped .foil-glare{opacity:0}
+.back-content{display:flex;flex-direction:column;background:linear-gradient(135deg,#202c35,#141c25);color:#d7dee3}
+.back-header{padding:15px 15px 10px;border-bottom:1px solid #ffffff20}
+.back-kicker{font-size:8px;letter-spacing:.16em;color:#9daeb8;margin:0 0 6px}
+.back-header h3{margin:0;font-size:18px;font-weight:600;letter-spacing:-.03em;line-height:1.25}
+.back-header .alternate{color:#9eacb5;font-size:9px;line-height:1.4;margin:5px 0 0}
+.back-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#66717c #ffffff08;padding:14px 15px 20px;font-size:12.5px;line-height:1.8;-webkit-overflow-scrolling:touch}
+.back-scroll h4{font-size:11.5px;letter-spacing:.04em;color:#e8dab5;margin:19px 0 6px}
+.back-scroll h4:first-child{margin-top:0}
+.back-scroll p{margin:0 0 9px;overflow-wrap:anywhere}
+.back-scroll .lead{font-size:14px;color:#f0ece3;line-height:1.7}
+.detail-list{padding:0;list-style:none;margin:0}
+.detail-list li{margin:0 0 11px;padding:0 0 10px;border-bottom:1px solid #ffffff12}
+.detail-date{font-size:10.5px;color:#a7b9c4;display:block;margin-bottom:3px}
+.detail-title{font-size:12px;color:#e7e7e1;font-weight:600;display:block;line-height:1.6}
+.detail-list p{color:#b4c0ca;margin:4px 0 0}
+.detail-list a{display:inline-block;line-height:1.8}
+.source-list{padding-left:15px;margin:0 0 10px}
+.source-list li{padding:3px 0}
+.source-note{color:#9ca9b3;font-size:11px}
+.award-panel{border:1px solid #d1b77366;padding:10px;border-radius:4px;background:#d8ac3610;margin-bottom:13px}
+.award-panel .detail-title{color:#efd69c}
+.back-actions{padding:9px 13px;border-top:1px solid #ffffff22;background:#111b23dd;flex-shrink:0}
+.back-flip{width:100%;border:1px solid #8898a36b;background:#34414c;color:#eff1ed;padding:8px;border-radius:4px;font-size:10px;cursor:pointer}
+.back-flip:hover{background:#405261}
+.motion-note{margin:32px auto 22px;text-align:center;font-size:10px;color:#87929e;line-height:1.8}
+.collection-note{display:flex;align-items:center;gap:16px;max-width:825px;margin:0 auto 37px;padding:17px 21px;border:1px solid #363d46;border-radius:7px;background:#1d232b70}
+.note-symbol{color:#cab282;font-size:27px}
+.collection-note p{font-size:10px;line-height:1.8;margin:0;color:#929eac}
+.collection-note strong{font-weight:500;color:#c1c8cf}
+.page-footer{border-top:1px solid #333b44;padding:18px 0 0;color:#727f8d;font-size:9px;line-height:1.9;text-align:center}
+.page-footer p{margin:0 0 7px}
+.noscript,.empty-state{max-width:700px;margin:40px auto;padding:20px;color:#e2c99d;border:1px solid #736442}
+@media(min-width:1250px){main{padding-top:45px}.gallery{gap:38px}}
+@media(max-width:980px) and (min-width:701px){main{padding:36px 22px}.gallery{gap:18px}.person-name{font-size:17px}.front-top{padding:10px 8px 8px}.person-org{font-size:8px}.nobel-year{font-size:7px;padding:3px}.front-bottom{padding:9px 8px}.field-tag{font-size:8px;padding:3px 4px}.variant-heading h2{font-size:11px}.grade-note{font-size:8px}.demo-button{font-size:9px;padding:7px}}
+@media(max-width:700px){main{padding:29px 23px 22px}.page-header{margin-bottom:36px}.release{font-size:9px;gap:7px}.status-tag{font-size:9px;padding:4px 6px}.eyebrow{margin-top:28px;font-size:9px;letter-spacing:.2em}h1{font-size:30px}.intro{font-size:11px;line-height:1.85}.wide-only{display:none}.how-to{gap:8px 15px;font-size:9px}.as-of{flex-basis:100%;border:0;padding:0;margin-top:4px;font-size:9px}.gallery{grid-template-columns:minmax(0,1fr);gap:39px;max-width:360px;margin:auto}.variant-heading{height:47px}.variant-heading h2{font-size:13px}.person-name{font-size:22px}.front-top{padding:13px 12px 10px}.person-org{font-size:10px}.nobel-year{font-size:8px}.front-bottom{padding:12px}.field-tag{font-size:10px}.image-label{font-size:7px}.card-tools{margin-top:15px}.grade-note{font-size:9px}.demo-button{font-size:10px}.motion-note{font-size:9px;margin-top:30px}.collection-note{padding:15px;gap:12px}.collection-note p{font-size:9px}.page-footer{font-size:9px;text-align:left}.back-scroll{font-size:13px}.back-header h3{font-size:19px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card-tilt,.card-flipper{transition:none!important;transform:none!important;will-change:auto}.card-face{transform:none!important}.card-back{visibility:hidden}.research-card.is-flipped .card-front{visibility:hidden}.research-card.is-flipped .card-back{visibility:visible}.foil-sheen,.foil-glare{opacity:.08!important}.research-card{perspective:none}}
+
+/* Keep the portrait's central facial area quiet while its surrounding print catches light. */
+.foil-texture,.foil-sheen,.foil-glare{mask-image:radial-gradient(ellipse 25% 24% at 50% 44%,#0002 0,#0004 68%,#000 145%);-webkit-mask-image:radial-gradient(ellipse 25% 24% at 50% 44%,#0002 0,#0004 68%,#000 145%)}
+.front-top::before,.front-bottom::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,transparent 15%,#e4edff33 40%,transparent 62%);background-size:240% 100%;background-position:var(--bx) 50%;opacity:calc(.12 + var(--intensity)*.25)}
+.front-top>* ,.front-bottom>*{position:relative}
+.research-card[data-variant="gold"] .front-top::before,.research-card[data-variant="gold"] .front-bottom::before{background:repeating-linear-gradient(125deg,#f4d47d1a 0 1px,transparent 1px 5px),linear-gradient(120deg,transparent 15%,#fff2bba0 44%,#b77b3040 52%,transparent 72%);background-size:auto,240% 100%;background-position:0 0,var(--bx) 50%;opacity:calc(.22 + var(--intensity)*.3)}
+.research-card[data-variant="prism"] .front-top::before,.research-card[data-variant="prism"] .front-bottom::before{background:repeating-linear-gradient(130deg,#d8f3ff25 0 1px,transparent 1px 8px),linear-gradient(118deg,#96c5fb55,#c6a9ec55,#98d8d055,#e6d6ac55);background-size:auto,240% 100%;background-position:0 0,var(--bx) 50%;opacity:calc(.24 + var(--intensity)*.24)}

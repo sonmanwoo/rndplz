@@ -39,6 +39,13 @@ PREVIEW_FILES = {
 # Previews use fixed reviewed packages, never filesystem path discovery.
 PREVIEW_PACKAGES = {
     PREVIEW_PREFIX: PREVIEW_FILES,
+    '/ui-previews/CARD-FLIP/r1/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'review.css': ('review.css', 'text/css; charset=utf-8'),
+        **{name: (name, 'text/javascript; charset=utf-8') for name in ('review.js', 'data.js')},
+        **{f'images/{name}.png': (f'images/{name}.png', 'image/png') for name in ('manwoo', 'hinton')},
+    },
     '/ui-previews/LAUREATE/r3/': {
         '': ('index.html', 'text/html; charset=utf-8'),
         'index.html': ('index.html', 'text/html; charset=utf-8'),
