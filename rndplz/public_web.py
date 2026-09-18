@@ -24,6 +24,17 @@ from .models import ExternalModel
 from .service import Service
 
 WEB = Path(__file__).with_name('web')
+# Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
+PREVIEW_PREFIX = '/ui-previews/UI-MAIN-001/r1/'
+PREVIEW_FILES = {
+    '': ('index.html', 'text/html; charset=utf-8'),
+    'index.html': ('index.html', 'text/html; charset=utf-8'),
+    'review.css': ('review.css', 'text/css; charset=utf-8'),
+    'review.js': ('review.js', 'text/javascript; charset=utf-8'),
+    **{f'images/{name}-{size}.png': (f'images/{name}-{size}.png', 'image/png')
+       for name in ('fan', 'evidence') for size in ('desktop', 'mobile')},
+}
+
 
 
 class PublicModels(ChatModels):
@@ -142,6 +153,14 @@ class PublicApp:
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
             return send(405, {'error': '지원하지 않는 요청입니다.'})
+        if path.startswith('/ui-previews/'):
+            if method != 'GET': return send(405, {'error': '읽기 전용 비교 페이지입니다.'})
+            entry = PREVIEW_FILES.get(path[len(PREVIEW_PREFIX):]) if path.startswith(PREVIEW_PREFIX) else None
+            if entry is None: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
+            name, mime = entry
+            try: raw = (WEB / PREVIEW_PREFIX.strip('/') / name).read_bytes()
+            except FileNotFoundError: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
+            return send(200, raw, mime)
         if path in ('/api/worker/poll','/api/worker/result'):
             if method!='POST': return send(405,{'error':'지원하지 않는 요청입니다.'})
             if not self.models.bridge.authorized(environ.get('HTTP_X_RNDPLZ_BRIDGE','')):
