@@ -2,7 +2,7 @@
 (() => {
   const layouts={fan:'A · 이름·역할 우선',evidence:'B · 이유·근거 우선'};
   const devices={desktop:'데스크톱',mobile:'모바일'};
-  let layout='evidence';
+  let layout='fan';
   let device=matchMedia('(max-width:600px)').matches?'mobile':'desktop';
   const picture=document.getElementById('preview-image');
   const link=document.getElementById('image-link');

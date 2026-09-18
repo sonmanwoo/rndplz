@@ -11,22 +11,22 @@
 </head>
 <body>
   <main>
-    <header class="page-header"><a class="brand" href="/">수소문<span>UI 리뷰</span></a><span class="version">UI-MAIN-001 · r1</span></header>
+    <header class="page-header"><a class="brand" href="/">수소문<span>UI 리뷰</span></a><span class="version">UI-MAIN-001 · 비교 화면 r1 · 최신 선택 r2</span></header>
     <section class="intro" aria-labelledby="page-title">
-      <p class="decision">선택 완료 <strong>B · 이유·근거 우선</strong></p>
-      <h1 id="page-title">사람보다 먼저,<br>추천된 이유를 읽습니다.</h1>
+      <p class="decision">선택 완료 <strong>A · 이름·역할 우선</strong></p>
+      <h1 id="page-title">이름과 역할부터,<br>사람을 살펴봅니다.</h1>
       <p class="lead">같은 질문, 같은 후보 7명. 정보의 순서만 바꿔 비교했습니다.</p>
     </section>
     <section class="options" aria-label="두 안의 차이">
-      <article><span class="option-letter">A</span><h2>이름·역할 우선</h2><p>누구인지 먼저 구분한 뒤<br>추천 이유와 근거를 읽습니다.</p></article>
-      <article class="chosen"><span class="option-letter">B</span><h2>이유·근거 우선 <small>선택</small></h2><p>왜 추천됐는지 먼저 비교한 뒤<br>그 경험을 가진 사람을 확인합니다.</p></article>
+      <article class="chosen"><span class="option-letter">A</span><h2>이름·역할 우선 <small>선택</small></h2><p>누구인지 먼저 구분한 뒤<br>추천 이유와 근거를 읽습니다.</p></article>
+      <article><span class="option-letter">B</span><h2>이유·근거 우선</h2><p>왜 추천됐는지 먼저 비교한 뒤<br>그 경험을 가진 사람을 확인합니다.</p></article>
     </section>
     <section class="viewer" aria-labelledby="preview-title">
       <div class="viewer-header"><h2 id="preview-title">비교 화면</h2><p>화면을 누르면 원본 크기로 볼 수 있습니다.</p></div>
       <div class="controls">
         <div class="segmented" role="group" aria-label="비교안 선택">
-          <button type="button" data-layout="fan" aria-pressed="false">A · 이름 우선</button>
-          <button type="button" data-layout="evidence" aria-pressed="true">B · 근거 우선</button>
+          <button type="button" data-layout="fan" aria-pressed="true">A · 이름 우선</button>
+          <button type="button" data-layout="evidence" aria-pressed="false">B · 근거 우선</button>
         </div>
         <div class="segmented devices" role="group" aria-label="화면 크기 선택">
           <button type="button" data-device="desktop" aria-pressed="true">데스크톱</button>
@@ -34,13 +34,13 @@
         </div>
       </div>
       <p class="preview-label">캡처의 확인 수준 비율은 이전 표현이며, 현재는 참여 기록·수행 추정·본인 미확인으로 구분합니다. 비율은 실제 본인 확인 결과가 아닙니다.</p>
-      <p class="preview-label" id="preview-label" aria-live="polite">B · 이유·근거 우선 / 데스크톱</p>
-      <a class="screenshot desktop" id="image-link" href="images/evidence-desktop.png" target="_blank" rel="noopener" aria-label="현재 비교 화면 원본 열기">
-        <img id="preview-image" src="images/evidence-desktop.png" alt="B안 데스크톱: 추천 이유와 근거 논문 아래에 이름과 역할을 배치한 후보 카드" width="1440" height="1050">
+      <p class="preview-label" id="preview-label" aria-live="polite">A · 이름·역할 우선 / 데스크톱</p>
+      <a class="screenshot desktop" id="image-link" href="images/fan-desktop.png" target="_blank" rel="noopener" aria-label="현재 비교 화면 원본 열기">
+        <img id="preview-image" src="images/fan-desktop.png" alt="A안 데스크톱: 이름과 역할 아래에 추천 이유와 근거 논문을 배치한 후보 카드" width="1440" height="1050">
       </a>
       <noscript><p class="no-script">원본 화면: <a href="images/fan-desktop.png">A 데스크톱</a> · <a href="images/evidence-desktop.png">B 데스크톱</a> · <a href="images/fan-mobile.png">A 모바일</a> · <a href="images/evidence-mobile.png">B 모바일</a></p></noscript>
     </section>
-    <aside class="rationale"><h2>B를 선택한 이유</h2><p>“이 일을 해 본 근거”가 먼저 보이면 후보를 비교하기 쉽습니다. 모바일에서는 긴 설명 때문에 이름이 아래로 밀리는 점을 더 다듬을 예정입니다.</p></aside>
+    <aside class="rationale"><h2>A를 선택한 이유</h2><p>이름과 역할이 먼저 보이는 카드 디자인이 더 보기 좋다는 사용자의 시각적 선호를 반영했습니다. 이전 B 선택을 A로 변경했으며, 추천 이유와 근거는 이름 아래에서 이어서 확인합니다.</p></aside>
     <footer><p>2026.09.18 · 후보 카드 정보 순서 비교</p><p>화면은 11:57 KST의 비교 캡처입니다. 후보 7명 중 화면에 보이는 구간을 담았으며, 이후 변경된 서비스 전체의 모습은 아닙니다. 제안 발송이나 정보 입력 기능은 없습니다.</p></footer>
   </main>
 </body>
