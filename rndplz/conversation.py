@@ -64,13 +64,13 @@ class Conversation:
         """
         active = {}; issues = {}; documents = {}; archive = {}; activated = set()
         messages = session.get('messages', [])
-        number = re.compile(r'(?<![\w.])\d+(?:,\d{3})*(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%)?|(?<=[가-힣])\d+(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%)?')
+        number = re.compile(r'(?<![\w.])\d+(?:,\d{3})*(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%|초)?|(?<=[가-힣])\d+(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%|초)?')
         labels = re.compile(r'라벨(?:링)?|이미지|사진|데이터|시료|샘플|예산|기간|기한|온도')
         keys = {'라벨':'label_count','라벨링':'label_count','이미지':'image_count','사진':'image_count',
                 '데이터':'data_count','시료':'sample_count','샘플':'sample_count','예산':'budget',
                 '기간':'duration','기한':'duration','온도':'temperature'}
         titles = {'label_count':'라벨','image_count':'이미지','data_count':'데이터','sample_count':'시료',
-                  'budget':'예산','duration':'기간','temperature':'온도','equipment':'장비','control_method':'제어 방법'}
+                  'budget':'예산','duration':'기간','temperature':'온도','equipment':'장비','control_method':'제어 방법','recording_interval':'기록 간격'}
         correction = re.compile(r'아니라|아니고|대신|말고|→|->|정정|수정|변경|바꿔|늘려|줄여')
 
         def put(key, text, source, position, value=None):
@@ -84,6 +84,73 @@ class Conversation:
                 issues.pop(key, None)
             active[key] = {'text':text, 'source':source, 'position':position, 'value':value}
 
+        interval_label = re.compile(r'기록\s*(?:간격|주기)')
+        seconds = re.compile(r'\d+(?:\.\d+)?\s*초')
+        bound = r'최대|최소|상한|하한|이하|이상|미만|초과|이내|약'
+        interval_value = re.compile(r'\s*(?:은|는|이|가|을|를)?\s*(?P<bound>'+bound+r')?\s*(?P<value>\d+(?:\.\d+)?)\s*초\s*(?P<post>이하|이상|미만|초과|이내)?')
+        replacement = re.compile(r'\s*(?:가|이|를|을)?\s*(?:아니라|아니고|대신|말고|→|->)')
+
+        def consume_interval(clause, origin, position):
+            # Isolate this supported time condition before the generic control
+            # branch stores a whole PID clause. Keep the unmodified quote.
+            label = interval_label.search(clause)
+            bare = re.match(r'^(?:정정(?:할게|해|합니다)?[ .:]*)?\d+(?:\.\d+)?\s*초',clause)
+            if not label and (not bare or ('recording_interval' not in active and not correction.search(clause))):
+                return False
+            body = clause[label.end():] if label else re.sub(r'^정정(?:할게|해|합니다)?[ .:]*','',clause)
+            if label and clause[:label.start()].strip():
+                consume(clause[:label.start()],origin,position)
+            prior = active.get('recording_interval')
+            # Discussion and prohibitions are not an accepted replacement.
+            if re.search(r'[?？]|할까|어떨|비교|둘\s*중|어느|고민|후보(?:일)?\s*뿐|것\s*같|일\s*수도|지\s*(?:마|않)|안\s*(?:바꿔|해|하|할)',body):
+                if not prior:
+                    issues['recording_interval']='기록 간격이 아직 확정되지 않았어요. 이번 검색에 사용할 값이나 범위를 알려 주세요.'
+                return True
+            if re.fullmatch(r'\s*(?:은|는|이|가)?\s*(?:그대로|유지)(?:야|해|한다)?[.!]?\s*',body):
+                return True
+            first = interval_value.match(body)
+            if not first:
+                if label or correction.search(body):
+                    issues['recording_interval']='사용할 기록 간격을 초 단위의 확정값과 한도 여부로 알려 주세요.'
+                return True
+            chosen = first; end = first.end()
+            link = replacement.match(body[end:])
+            if link:
+                changed = interval_value.match(body,end+link.end())
+                if not changed:
+                    issues['recording_interval']='기록 간격을 무엇으로 정정할지 초 단위로 알려 주세요.'
+                    return True
+                chosen = changed; end = changed.end()
+            tail = body[end:]
+            if re.search(r'아니(?:야|에요|다|었)|아닌|아님|아냐',tail):
+                if prior and prior.get('value')==first['value']:
+                    active.pop('recording_interval',None)
+                    issues['recording_interval']='앞서 말한 기록 간격 대신 사용할 값을 알려 주세요.'
+                elif not prior:
+                    issues['recording_interval']='이번 검색에 사용할 기록 간격을 알려 주세요.'
+                return True
+            # Ranges/alternatives and an extra unscoped value are not the last
+            # number in a sentence. A separate, explicit next clause is retained.
+            if seconds.search(tail) and not re.match(r'\s*(?:고|이고|이며|인데|그리고|로\s*하고)\s+',tail):
+                issues['recording_interval']='기록 간격의 범위나 여러 값 중 이번 검색에 사용할 조건을 명확히 알려 주세요.'
+                return True
+            if not label:
+                other_time = any(k!='recording_interval' and seconds.search(v['text']) for k,v in active.items())
+                if not link or not prior or prior.get('value')!=first['value'] or other_time:
+                    issues['recording_interval']='어떤 시간 조건을 정정하나요? 기록 간격인지 대상과 새 값을 함께 알려 주세요.'
+                    return True
+            qualifiers = [v for v in (chosen['bound'],chosen['post']) if v]
+            if not qualifiers and (link or correction.search(body)) and prior:
+                qualifiers = re.findall(bound,prior['text'])
+            rendered = '기록 간격 '+(' '.join(dict.fromkeys(qualifiers))+' ' if qualifiers else '')+chosen['value']+'초'
+            put('recording_interval',rendered,origin,position,chosen['value'])
+            # Strip only the interval's grammatical ending; preserve a following
+            # equipment/resource constraint as a separate original-source clause.
+            tail = re.sub(r'^\s*(?:으로|로)?\s*(?:(?:정정|수정|변경|설정)(?:할게|해줘|했어|했어요|해|합니다)?|바꿀게|바꿔줘|하자|할게|한다|이야|야|입니다|이고|이며|인데|고)?[.!]?\s*','',tail)
+            if tail.strip():
+                consume(tail,origin,position)
+            return True
+
         def consume(clause, source, position):
             clause = clause.strip(' \t-•*')
             if not clause or re.search(r'^(?:만약|가정|예를\s*들어)', clause):
@@ -92,6 +159,8 @@ class Conversation:
             if re.search(r'(?:채택|동의|수락|확정|선택|적용)(?:하)?지\s*않|(?:채택|동의|수락|확정|선택|적용)(?:한|된)?\s*(?:게|것이|건)?\s*아니|(?:채택|동의|수락|확정|선택|적용)(?:은|는|를)?\s*안\s*(?:했|해|하)|거절했|받아들이지', clause):
                 return
             if re.search(r'미정|정하지\s*않|정한\s*(?:게|것이)\s*없|아직\s*모르',clause):
+                if interval_label.search(clause):
+                    active.pop('recording_interval',None); issues.pop('recording_interval',None)
                 for label in labels.findall(clause):
                     active.pop(keys[label],None); issues.pop(keys[label],None)
                 return
@@ -101,7 +170,9 @@ class Conversation:
             # Document instructions cannot alter dialogue control or profile facts.
             if source['kind'] == 'user_document' and re.search(r'<\s*/?system|시스템\s*지시|지시.*무시|person_confirmed|individual_performance_verified', clause, re.I):
                 return
-            origin = {**source, 'quote':clause}
+            origin = {**source, 'quote':source.get('quote',clause)}
+            if consume_interval(clause,origin,position):
+                return
             found = list(number.finditer(clause)); accepted = []; previous_key = None; previous_end = 0; ambiguous_quantity = False
             for match in found:
                 literal = match.group().strip(); numeric = re.match(r'[\d,.]+', literal).group().replace(',', '')
@@ -113,8 +184,8 @@ class Conversation:
                 if key is None and unit in ('주','일','개월','시간'): key = 'duration'
                 if key is None and unit in ('원','만원'): key = 'budget'
                 if key is None and previous_key and correction.search(before): key = previous_key
-                if key is None and correction.search(clause):
-                    same = [k for k,v in active.items() if v.get('value') == numeric]
+                if key is None and unit != '초' and correction.search(clause):
+                    same = [k for k,v in active.items() if k != 'recording_interval' and v.get('value') == numeric]
                     if len(same) == 1: key = same[0]
                     elif not same:
                         counts = [k for k in active if k.endswith('_count')]

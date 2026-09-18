@@ -112,7 +112,7 @@ class PublicModels(ChatModels):
                  for p, label in [('openai', 'OpenAI API'), ('claude', 'Claude API')]
                  if (c := self.configs.get(p))]
         if not items:
-            items = [{'id': 'guide', 'provider': 'guide', 'name': '기록 탐색 안내 · AI 미연결',
+            items = [{'id': 'guide', 'provider': 'guide', 'name': '기록 탐색 안내 · AI 미사용',
                       'enabled': True, 'local': False, 'vision': False}]
         return {'models': items, 'default': items[0]['id'], 'public': True}
 
@@ -129,7 +129,7 @@ class PublicModels(ChatModels):
             return
         users = [m for m in messages if m['role'] == 'user']
         if len(users) == 1:
-            yield '기록 탐색 안내입니다. 현재 공개 서버에 AI 모델이 연결되지 않아 기술 답변은 생성하지 않습니다. 찾으려는 사람의 연구 주제와 필요한 경험·조건을 한 번 더 적어 주세요.'
+            yield '기록 탐색 안내를 선택하셨습니다. 이 모드는 AI 기술 답변을 생성하지 않고 등록된 기록에서 사람을 찾도록 돕습니다. 찾으려는 연구 주제와 필요한 경험·조건을 적은 뒤 «이 내용으로 사람 찾기»를 눌러 주세요.'
         else:
             yield '입력한 내용을 함께 검색할 준비가 됐습니다. 아래 «이 내용으로 사람 찾기»를 누르면 공개된 인물·논문·경력 기록에서 관련 근거를 찾아 보여드립니다.'
 
