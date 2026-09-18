@@ -24,6 +24,7 @@ from .engine import Engine
 from .models import ExternalModel
 from .service import Service
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
+from .profiles import Profiles, ProfileError
 
 WEB = Path(__file__).with_name('web')
 # Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
@@ -200,7 +201,7 @@ class PublicApp:
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
                 service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
-                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models),
+                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
                                       'visitor_ref':self.signature('diagnostic:' + sid)}
             context = self.contexts[sid]
@@ -306,7 +307,7 @@ class PublicApp:
         try:
             context, cookie = self.visitor(environ)
             headers.append(('Set-Cookie', cookie))
-            service, chat = context['service'], context['chat']
+            service, chat, profile = context['service'], context['chat'], context['profile']
             token = context['token']
             query = parse_qs(environ.get('QUERY_STRING', ''))
             identifier = query.get('id', [''])[0]
@@ -318,6 +319,8 @@ class PublicApp:
                 marker=environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC_RUN','')
                 if isinstance(marker,str) and re.fullmatch(r'[a-f0-9]{32}',marker):diagnostic_request['diagnostic_run']=marker
             if method == 'GET':
+                if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
+                if path == '/api/self-profile/source': return send(200, profile.source(identifier))
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog()})
                 if path == '/api/chat/models': return send(200, self.models.catalog())
                 if path == '/api/chat/session': return send(200, chat.get(identifier))
@@ -332,8 +335,8 @@ class PublicApp:
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
-                files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html')}
-                for name in ('craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js'):
+                files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html')}
+                for name in ('craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
@@ -348,7 +351,7 @@ class PublicApp:
             if path in ('/api/chat/configure', '/api/export', '/api/ai/structure', '/api/ai/draft'):
                 return send(403, {'error': '공개 시연에서 제공하지 않는 관리 기능입니다.'})
             length = int(environ.get('CONTENT_LENGTH') or '0')
-            if not 0 < length <= (1500000 if path == '/api/attachments' else 200000):
+            if not 0 < length <= (1500000 if path in ('/api/attachments','/api/self-profile/upload') else 200000):
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             payload = json.loads(environ['wsgi.input'].read(length).decode('utf-8'))
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
@@ -396,6 +399,10 @@ class PublicApp:
             if path == '/api/attachments' and len(list(chat.attachments.directory.glob('*.json'))) >= 12:
                 return send(429, {'error': '공개 시연의 첨부 개수 한도에 도달했습니다.'})
             routes = {
+                '/api/self-profile/save': lambda: profile.save(payload),
+                '/api/self-profile/upload': lambda: profile.upload(payload),
+                '/api/self-profile/suggest': lambda: profile.suggest(payload),
+                '/api/self-profile/source-action': lambda: profile.source_action(payload),
                 '/api/attachments': lambda: chat.attachments.upload(payload),
                 '/api/chat/prepare': lambda: chat.prepare(payload),
                 '/api/converse': lambda: service.converse(payload),
@@ -409,6 +416,8 @@ class PublicApp:
                 with diagnostic_scope(self.diagnostics,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
+        except ProfileError as exc:
+            return send(exc.status, {'error':str(exc), 'code':exc.code})
         except ValueError as exc:
             # Only fixed, user-actionable validation messages may cross this boundary.
             safe_messages = {

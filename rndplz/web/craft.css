@@ -293,3 +293,6 @@ body.crafted:before{content:"";position:fixed;inset:0;pointer-events:none;z-inde
  .explorer-page #mapResults .map-empty{padding:22px}
  .explorer-page #mapResults .map-empty h3{font-size:18px}
 }
+
+/* Keep all four menu targets and actions within a narrow phone header. */
+@media(max-width:380px){.chat-page .craft-header,.explorer-page .craft-header{padding-inline:8px;gap:4px}}

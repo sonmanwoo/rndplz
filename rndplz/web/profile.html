@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f2eb"><title>내 프로필 — 수소문</title>
+  <link rel="stylesheet" href="/craft.css"><link rel="stylesheet" href="/profile.css">
+  <script src="/profile.js" defer></script>
+</head>
+<body class="crafted profile-page">
+<a class="skip-link" href="#profileForm">프로필 편집으로 이동</a>
+<header class="craft-header">
+  <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
+  <nav class="craft-nav" aria-label="서비스 메뉴"><a href="/">대화</a><a href="/explore#map">연구 맵</a><a href="/explore#inbox">제안함</a><a href="/profile" aria-current="page">내 프로필</a></nav>
+  <span class="private-label">PRIVATE DRAFT</span>
+</header>
+<main class="profile-shell">
+  <section class="profile-intro" aria-labelledby="pageTitle">
+    <div><p class="eyebrow">A RECORD OF WHAT YOU BRING.</p><h1 id="pageTitle">내가 쌓아온 경험을,<br><em>내 말로.</em></h1><p class="intro-copy">함께 풀 수 있는 일과 관심 있는 연구.<br>직접 적고, 자료를 살펴 나의 프로필을 다듬어보세요.</p></div>
+    <div class="draft-stamp" aria-label="내 프로필 시연 초안"><span>내 프로필</span><strong>시연 초안</strong><small>공개 인물과 미연결</small></div>
+  </section>
+  <aside class="scope-note" aria-label="저장 범위"><strong>이 방문자의 초안에만 저장합니다.</strong><p id="scopeNotice">저장 범위를 확인하고 있습니다. 실제 계정이나 공개 인물 카드와 자동으로 연결되지 않습니다.</p><details><summary>임시 저장과 자료 처리 안내</summary><p>영구 보관이나 기기 간 복구를 지원하지 않습니다. 공개 시연의 방문자 쿠키는 발급 후 24시간 유효하며, 접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.</p><p>이 화면의 자료는 프로필 검토에만 사용합니다. 원본 파일은 보관하지 않고 읽힌 텍스트만 저장합니다. 이미지·OCR·모델을 통한 분석은 지원하지 않습니다.</p></details></aside>
+  <div class="profile-status" id="pageStatus" role="status" aria-live="polite">프로필을 불러오고 있어요.</div>
+  <div class="profile-error" id="pageError" role="alert" tabindex="-1" hidden></div>
+  <section id="conflictPanel" class="conflict-panel" aria-labelledby="conflictTitle" hidden>
+    <h2 id="conflictTitle">저장된 내용이 달라졌어요.</h2><p>작성 중인 입력과 선택은 이 페이지에 남겨두었습니다. 최신 저장값을 확인하고 다시 비교해 주세요.</p>
+    <button type="button" id="refreshConflict" class="secondary-button" data-lock>최신 값 불러와 비교</button><div id="conflictComparison"></div>
+    <div class="button-row" id="conflictActions" hidden><button type="button" id="keepEdits" class="primary-button" data-lock>비교했어요 · 내 수정 유지</button><button type="button" id="useLatest" class="secondary-button" data-lock>최신 저장값 사용</button></div>
+  </section>
+  <div class="profile-layout">
+    <aside class="profile-sidebar">
+      <div class="identity-note"><span class="eyebrow">YOUR RESEARCH NOTE</span><span class="identity-mark" aria-hidden="true">✳</span><h2 id="previewName">당신의 이름</h2><p id="previewRole">지금 하는 일부터 적어보세요.</p><span class="draft-tag">본인 연결 미확인</span><p class="identity-footnote">이름을 입력하거나 자료를 채택해도<br>본인·경력 확인으로 표시하지 않습니다.</p></div>
+      <nav class="section-nav" aria-label="프로필 구역"><a href="#basics"><span>01</span>기본 정보</a><a href="#expertise"><span>02</span>전문 분야와 관심</a><a href="#careers"><span>03</span>경력·프로젝트</a><a href="#sources"><span>04</span>근거 자료</a><a href="#review"><span>05</span>자료 제안 검토 <b id="reviewCount">0</b></a></nav>
+      <p id="savedVersion" class="version-note">저장된 프로필 없음</p>
+    </aside>
+    <div class="profile-workspace">
+      <form id="profileForm" novalidate tabindex="-1">
+        <fieldset id="profileFields" disabled>
+          <section id="basics" class="profile-section"><div class="section-heading"><span class="section-number">01</span><div><h2>기본 정보</h2><p>알고 있는 만큼만 적어도 괜찮아요.</p></div></div><div id="basicFields" class="field-grid"></div></section>
+          <section id="expertise" class="profile-section"><div class="section-heading"><span class="section-number">02</span><div><h2>전문 분야와 관심</h2><p>다뤄본 기술과 앞으로 탐색할 주제를 구분해 주세요.</p></div></div><div id="expertiseFields" class="field-grid"></div></section>
+          <section id="careers" class="profile-section"><div class="section-heading"><span class="section-number">03</span><div><h2>경력·프로젝트</h2><p>맡았던 역할과 한 일을 나의 표현으로 기록해 주세요.</p></div></div><div id="careerRows"></div><button type="button" id="addCareer" class="add-row" data-lock>＋ 경력·프로젝트 추가</button></section>
+        </fieldset>
+      </form>
+      <section id="sources" class="profile-section"><div class="section-heading"><span class="section-number">04</span><div><h2>근거 자료</h2><p>자료에서 읽은 내용을 확인한 뒤, 필요한 항목만 반영합니다.</p></div></div>
+        <div class="upload-box"><span class="upload-symbol" aria-hidden="true">↥</span><div><strong>이력이나 연구 기록을 곁에 두세요.</strong><p id="uploadLimits">지원 형식과 용량을 확인하고 있습니다.</p><p>등록만으로 프로필에 반영되지 않습니다.</p></div><label class="secondary-button upload-label" for="sourceFile">자료 추가<input id="sourceFile" type="file" accept=".txt,.md,.csv,.json,.log,.pdf,.docx" data-lock disabled></label></div>
+        <div id="sourceList" class="source-list"></div>
+      </section>
+      <section id="review" class="profile-section" tabindex="-1"><div class="section-heading"><span class="section-number">05</span><div><h2>자료 제안 검토</h2><p>문서의 문장을 항목별로 비교합니다. 적용할 항목은 직접 고르세요.</p></div></div><p class="section-help">자료에 적힌 주장입니다. 직급·기간·숙련도를 추론하지 않으며, 기본값은 미채택입니다.</p><button id="refreshSuggestions" type="button" class="text-button" data-lock hidden>최신 저장값으로 후보 다시 비교 ↻</button><div id="suggestionList"></div></section>
+      <details class="profile-section history-section"><summary>변경·검토 기록 <span id="historyCount">0</span></summary><div id="historyList"></div></details>
+    </div>
+  </div>
+  <div class="save-bar"><div><strong id="changeCount">변경 없음</strong><span id="saveScope">이 방문자의 초안에 저장 · 외부 비공유</span></div><button id="saveProfile" type="submit" form="profileForm" class="primary-button" disabled>변경 저장 <span aria-hidden="true">↗</span></button></div>
+</main>
+<footer class="craft-footer"><span><b>H:문</b> — EXPERIENCE, IN YOUR OWN WORDS.</span><span>자료의 주장과 나의 기록을 함께 살펴봅니다.</span></footer>
+<dialog id="sourceDialog" aria-labelledby="sourceTitle"><div class="dialog-heading"><h2 id="sourceTitle">읽은 내용</h2><button type="button" class="close-button" data-close="sourceDialog" aria-label="읽은 내용 닫기">×</button></div><p id="sourceInfo" class="section-help"></p><pre id="sourceText"></pre></dialog>
+<dialog id="actionDialog" aria-labelledby="actionTitle"><div class="dialog-heading"><h2 id="actionTitle">자료 변경 확인</h2><button type="button" class="close-button" data-close="actionDialog" aria-label="자료 변경 닫기">×</button></div><p id="actionDescription"></p><div id="actionImpact" class="impact-note"></div><div id="replacementField" hidden><label for="replacementSource">대신 연결할 등록 자료</label><select id="replacementSource" data-lock></select><p class="section-help">새 파일은 먼저 자료 추가로 등록하세요. 교체 후에도 새 자료의 제안을 따로 검토해야 합니다.</p></div><p id="actionError" role="alert" class="profile-error" hidden></p><div class="button-row"><button type="button" id="cancelAction" class="secondary-button" data-close="actionDialog">돌아가기</button><button type="button" id="confirmAction" class="primary-button" data-lock>확인</button></div></dialog>
+</body>
+</html>

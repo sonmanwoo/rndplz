@@ -6,10 +6,10 @@
 <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/craft.css"><script src="/craft.js" defer></script><script src="/app.js" defer></script>
 </head>
 <body class="crafted explorer-page">
-<header class="craft-header"><a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a><nav class="craft-nav" aria-label="서비스 메뉴"><button id="chatTab" data-action="tab" data-value="chat">대화</button><button id="mapTab" class="active" aria-current="page" data-action="tab" data-value="map">연구 맵</button><button data-action="inbox">제안함 <span id="inboxCount">0</span></button></nav><div class="craft-actions"><a href="/?settings=1" aria-label="모델 연결 설정">모델 설정 ↗</a></div></header>
+<header class="craft-header"><a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a><nav class="craft-nav" aria-label="서비스 메뉴"><button id="chatTab" data-action="tab" data-value="chat">대화</button><button id="mapTab" class="active" aria-current="page" data-action="tab" data-value="map">연구 맵</button><button data-action="inbox">제안함 <span id="inboxCount">0</span></button><a href="/profile">내 프로필</a></nav><div class="craft-actions"><a href="/?settings=1" aria-label="모델 연결 설정">모델 설정 ↗</a></div></header>
 <main>
 <section id="chatView" aria-labelledby="heroTitle">
-<div class="intro"><p class="eyebrow"><span class="dot"></span> EXPERIENCE CONNECTS US</p><h1 id="heroTitle">답이 막히면,<br>경험이 있는 <em>사람에게.</em></h1><p class="intro-copy">함께 풀어갈 일을 적어주세요.<br class="mobile-only"> 연구 기록을 따라, 물어볼 사람을 찾아드릴게요.</p><div class="intro-stamp" aria-hidden="true">연구와 연구 사이<br><b>H:문</b><span>CONNECTED BY EXPERIENCE</span></div></div>
+<div class="intro"><p class="eyebrow"><span class="dot"></span> EXPERIENCE CONNECTS US</p><h1 id="heroTitle">막힌 문제,<br><em>누구에게</em> 물어보면 좋을까요?</h1><p class="intro-copy">문제와 조건을 적고, 등록된 연구·경력 기록에서 관련 후보와 근거를 찾아보세요.<br class="mobile-only"> 제안 가능한 후보에게 물어볼 자문 요청 초안을 준비합니다.</p><div class="intro-stamp" aria-hidden="true">연구와 연구 사이<br><b>H:문</b><span>CONNECTED BY EXPERIENCE</span></div></div>
 <div class="workspace">
 <section class="conversation paper" aria-label="질문과 대화">
 <div class="section-label"><span>01 / 어떤 일인가요?</span><button class="text-button" data-action="new">새 질문 ↗</button></div>
@@ -35,8 +35,9 @@
 <section id="results" class="results" aria-live="polite"></section>
 </section>
 <section id="mapView" hidden aria-labelledby="mapTitle">
-<div class="map-header"><div><p class="eyebrow">OVERVIEW / RESEARCH LANDSCAPE</p><h1 id="mapTitle">경험의 지도를 펼쳐보세요.</h1><p class="muted">기록에서 시작해, 그 뒤에 있는 사람까지.</p></div><a class="collection-jump" href="#peopleCards">인물 카드 보기 ↓</a><button class="outline" data-action="export">Obsidian으로 내보내기 ↗</button></div>
+<div class="map-header"><div><p class="eyebrow">OVERVIEW / RESEARCH LANDSCAPE</p><h1 id="mapTitle">등록 인물·연구 기록 둘러보기</h1><p class="muted">주제로 좁혀 관련 기록을 살펴보세요. 등록 인원은 현재 연락·참여 가능한 인원 수가 아닙니다.</p></div><a class="collection-jump" href="#peopleCards">인물 카드 보기 ↓</a><button class="outline" data-action="export">Obsidian으로 내보내기 ↗</button></div>
 <div id="mapStats" class="stats-row"></div>
+<p id="mapMeaning" class="scope-note">타일 하나는 등록된 인물입니다. 구에서 위치·거리·앞뒤와 일반 색은 연구 관계나 추천 순위를 뜻하지 않습니다. 타일 크기는 기록 수와 화면 원근의 영향을 받으며 역량 점수가 아닙니다. 주제 필터는 관련 기록으로 좁히며, 가상 현장 인물은 별도로 표시합니다.</p>
 <section id="mapResults" class="map-results" data-mode="empty" data-count="0" aria-labelledby="mapResultsTitle">
 <div class="map-results-heading"><div><span class="section-label">01 / 현재 조건으로 찾은 사람</span><h2 id="mapResultsTitle" tabindex="-1">기록에서 찾은 사람 <span id="peopleCount"></span></h2></div><button class="text-button" data-action="clear-all" disabled>전체 조건 해제</button></div>
 <div class="map-search"><label for="personSearch">이름으로 좁히기</label><div class="map-search-input"><input id="personSearch" type="search" placeholder="현재 주제에서 이름 또는 별칭 찾기" autocomplete="off"><button class="quiet" data-action="clear-search" disabled>검색 지우기</button></div></div>
@@ -46,15 +47,15 @@
 <div class="map-results-content"><div class="map-notes"><h3 id="mapTopicTitle">모든 연결의 시작</h3><p id="mapTopicDescription">관련 기록을 확인하며 탐색하세요.</p></div>
 <div class="map-results-body">
 <div id="orbitView" class="orbit-container" hidden inert>
-<div class="orbit-stage"><canvas id="mapCanvas" tabindex="-1" role="img" aria-label="회전하는 연구자 구형 지도" aria-describedby="mapInstructions">구를 회전해 탐색하거나 옆의 프로필 목록을 사용하세요.</canvas><div id="mapTooltip" class="map-tooltip" hidden></div></div>
+<div class="orbit-stage"><canvas id="mapCanvas" tabindex="-1" role="img" aria-label="회전하는 연구자 구형 지도" aria-describedby="mapMeaning mapInstructions">구를 회전해 탐색하거나 옆의 프로필 목록을 사용하세요.</canvas><div id="mapTooltip" class="map-tooltip" hidden></div></div>
 <div class="orbit-caption"><span id="orbitCount">—</span><b id="orbitLabel">사람의 기록</b></div>
 <div class="orbit-controls" role="group" aria-label="구형 지도 조작"><button type="button" data-orbit="left" aria-label="구를 왼쪽으로 회전">←</button><button type="button" data-orbit="pause" aria-pressed="false">자동 회전 일시정지</button><button type="button" data-orbit="right" aria-label="구를 오른쪽으로 회전">→</button><button type="button" data-orbit="reset" aria-label="구의 처음 각도로 돌아가기">↺</button></div>
 <p class="map-instruction" id="mapInstructions">같은 조건의 사람을 구와 옆 목록에서 살펴보세요. 드래그로 회전 · 방향키로 조작 · 스페이스로 일시정지 · Home으로 처음 각도.</p>
-<div class="legend"><span><i class="legend-square real"></i>연구자 프로필 · 색은 구분용</span><span><i class="legend-square virtual"></i>가상 현장 인물</span></div>
+<div class="legend"><span><i class="legend-square real"></i>등록 인물 · 일반 색은 구분용</span><span><i class="legend-square virtual"></i>가상 현장 인물</span></div>
 <button class="text-button" data-action="list-focus">이름 목록으로 이동 ↓</button>
 </div>
 <section id="peoplePanel" class="people-panel" aria-label="현재 조건의 인물 목록"><ul id="peopleList"></ul><div id="peoplePagination" class="pagination" hidden><button class="quiet" data-action="prev-page">← 이전</button><span id="pageLabel" aria-live="polite"></span><button class="quiet" data-action="next-page">다음 →</button></div></section>
-</div><p class="scope-note map-scope">공개 논문·본인 제공 경력·가상 현장 기록의 분포입니다. 기록 수는 역량 점수가 아니며, 사내 역량이나 현재 가용 인원은 확인하지 않았습니다.</p></div>
+</div><p class="scope-note map-scope">공개 논문·제공 경력·가상 현장 기록을 둘러보는 화면입니다. 관련 기록은 직접 수행의 확인이나 연락·참여 가능 여부를 보장하지 않습니다. 요청문은 시연용이며 실제 연락을 보내지 않습니다.</p></div>
 </div></section>
 <section id="peopleCards" class="researcher-collection" aria-labelledby="peopleCardsTitle"><div class="collection-heading"><div><span class="micro">THE RESEARCHERS / SPECIAL COLLECTION</span><h2 id="peopleCardsTitle">별도로 소개하는 인물 카드.</h2><p>현재 필터 결과와 별개인 대표 모음입니다. 사람들의 연구 여정을 한 장의 카드에서 펼쳐보세요.</p></div><span class="collection-count"></span></div><p class="collection-note">공개 연구 사례와 본인 제공 경력 · 사진·AI 일러스트는 카드에 표시</p><div id="researcherCards" class="researcher-grid"></div></section><div class="map-lower">
 <section class="paper demand-panel"><div class="section-label">03 / 요청과 관련 기록</div><h2>다음 연결이 필요한 곳</h2><p class="muted">요청 수는 대화 단위로 중복을 제거합니다. 관련 인원은 주제 사이에 중복될 수 있어요.</p><div id="demandTable"></div></section></div>
