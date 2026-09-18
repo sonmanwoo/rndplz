@@ -145,12 +145,18 @@
       this.ctx.setTransform(d,0,0,d,0,0);this.kick();
     }
     setData(nodes,topic='') {
-      if(this.signature===topic+'|'+nodes.map(n=>n.id).join(','))return;
-      this.signature=topic+'|'+nodes.map(n=>n.id).join(',');this.started=performance.now();this.hover=null;
-      const old=new Map(this.points.map(p=>[p.node.id,p]));
-      // Stable positions preserve spatial memory. Filtering changes emphasis, not identity or geometry.
-      this.points=nodes.map((node,i)=>{
-        const position=TileOrbit.position(i,nodes.length),prior=old.get(node.id),selected=!topic||node.topics.includes(topic);
+      const visibleNodes=topic?nodes.filter(node=>(node.topics||[]).includes(topic)):nodes;
+      const signature=topic+'|'+visibleNodes.map(n=>n.id).join(',');
+      if(this.signature===signature)return;
+      this.signature=signature;this.started=performance.now();this.last=0;
+      // Removed people must leave both the drawing and picking buffers immediately.
+      const drag=this.drag;this.drag=null;this.blockClick=Boolean(drag);
+      if(drag&&this.canvas.hasPointerCapture(drag.id))this.canvas.releasePointerCapture(drag.id);
+      this.canvas.classList.remove('is-dragging');this.canvas.style.cursor='grab';
+      this.hover=null;this.rendered=[];this.velocity={x:0,y:0};
+      if(visibleNodes.length===1){this.yaw=0;this.pitch=0;}
+      this.points=visibleNodes.map((node,i)=>{
+        const position=visibleNodes.length===1?{x:0,y:0,z:1}:TileOrbit.position(i,visibleNodes.length);
         const length=Math.hypot(position.x,position.z);
         const u={x:position.z/length,y:0,z:-position.x/length};
         const v={x:position.y*u.z,y:position.z*u.x-position.x*u.z,z:-position.y*u.x};
@@ -160,14 +166,14 @@
           y:position.y+u.y*a*width/2+v.y*b*width*.68,
           z:position.z+u.z*a*width/2+v.z*b*width*.68
         }));
-        return {node,i,position,corners,selected,emphasis:prior?.emphasis??(selected?1:.08),from:prior?.emphasis??(selected?1:.08)};
+        return {node,i,position,corners,selected:true};
       });
       this.kick();
     }
     kick(){if(!this.frame&&this.visible&&!document.hidden)this.frame=requestAnimationFrame(t=>this.draw(t));}
     draw(now) {
       this.frame=0;if(!this.visible||document.hidden||!this.size)return;
-      const moving=!quiet&&!this.paused&&!this.drag&&!this.hover;
+      const moving=this.points.length>1&&!quiet&&!this.paused&&!this.drag&&!this.hover;
       if(moving&&this.last&&now-this.last<28){this.kick();return;}
       const interval=this.last?now-this.last:0,dt=Math.min(interval||16.7,50)/16.7;this.last=now;
       if(moving) {
@@ -185,10 +191,8 @@
       shadow.addColorStop(0,'#37412b18');shadow.addColorStop(1,'#37412b00');
       ctx.save();ctx.translate(0,s*.92);ctx.scale(1,.11);ctx.translate(0,-s*.92);
       ctx.fillStyle=shadow;ctx.fillRect(s*.2,s*.65,s*.6,s*.55);ctx.restore();
-      const progress=quiet?1:Math.min(1,(now-this.started)/650),ease=1-Math.pow(1-progress,3);
       const palette=['#c9aa8a','#33584c','#90abc5','#aa91b9','#d5b557','#e4dcc5','#283e3b'];
       this.rendered=this.points.map(p=>{
-        p.emphasis=p.from+((p.selected?1:.08)-p.from)*ease;
         const rotated=TileOrbit.rotate(p.position,this.yaw,this.pitch),screen=TileOrbit.project(rotated,s);
         p.depth=rotated.z;p.drawX=screen.x;p.drawY=screen.y;
         p.screen=p.corners.map(c=>TileOrbit.project(TileOrbit.rotate(c,this.yaw,this.pitch),s));
@@ -196,11 +200,11 @@
       }).sort((a,b)=>a.depth-b.depth);
       for(const p of this.rendered) {
         const front=p.depth>1/3.6,c=p.screen;
-        ctx.globalAlpha=p.emphasis*(front?.6+.4*p.depth:.055+.1*(p.depth+1)/2);
+        ctx.globalAlpha=front?.6+.4*p.depth:.055+.1*(p.depth+1)/2;
         ctx.fillStyle=p.node.virtual?'#cd503b':palette[p.i%palette.length];
         ctx.beginPath();ctx.moveTo(c[0].x,c[0].y);
         for(let j=1;j<4;j++)ctx.lineTo(c[j].x,c[j].y);ctx.closePath();ctx.fill();
-        if(front&&p.emphasis>.2) {
+        if(front) {
           // Paper detail follows the same projected plane.
           ctx.strokeStyle='#fff9';ctx.lineWidth=Math.max(.5,s/900);
           ctx.beginPath();
@@ -219,7 +223,7 @@
           this.measured=true;
         }
       }
-      if(moving||progress<1)this.kick();
+      if(moving)this.kick();
     }
     hit(event) {
       if(this.drag)return null;
@@ -280,7 +284,7 @@
   document.addEventListener('error',portraitState,true);
   function portrait(profile,name) {
     const nobel=isLaureate(profile), personal=isPersonalIllustration(profile), path=artPath(profile?.portrait?.path);
-    if(!path && !nobel && !personal)return '';
+    if(!path && !nobel && !personal)return '<div class="portrait-art portrait-unavailable"><strong>초상 미제공</strong><p>이력과 연구 기록을 살펴보세요.</p></div>';
     const generated=profile?.portrait?.generated, background=artPath(profile?.portrait?.background);
     if(personal) {
       const art=profile.portrait, width=Number.isSafeInteger(art.width)&&art.width>0?art.width:600, height=Number.isSafeInteger(art.height)&&art.height>0?art.height:800;
@@ -318,14 +322,14 @@
   function researcherCard(person,index=0,total=1) {
     const p=person.profile||{},work=(person.evidence||[]).find(e=>e.id===p.featured_work)||person.evidence?.[0],nobel=isLaureate(p),personal=isPersonalIllustration(p);
     const career=['self_reported','provided_resume'].includes(p.source_type), action=career?'이력과 경력 보기':'이력과 논문 보기';
-    return '<article class="researcher-card holo-card'+(nobel?' laureate-card':'')+'" data-person-id="'+html(person.id)+'" data-tilt'+laureateAttributes(p)+'><div class="researcher-edition"><span>H:문 / RESEARCH ARCHIVE</span><span>'+String(index+1).padStart(2,'0')+' / '+String(total).padStart(2,'0')+'</span></div>'+(nobel?nameBlock(person):personal?nameBlock(person,'h3','personal-name'):'')+portrait(p,person.name)+'<div class="researcher-card-copy">'+(nobel?awardSummary(p)+effectControls(p,person.name):personal?personalPortraitNote(p):'<span class="researcher-korean">'+html(p.display_name)+'</span><h3>'+html(person.name)+'</h3>')+'<p class="researcher-tagline">'+html(p.tagline)+'</p><div class="researcher-skills">'+(p.skills||[]).map(x=>'<span>'+html(x)+'</span>').join('')+'</div>'+(work?'<p class="researcher-paper"><span>'+(career?'CAREER / ':'SELECTED WORK / ')+html(work.date)+'</span>'+html(work.title)+'</p>':'')+'<button class="researcher-open" data-action="person" data-id="'+html(person.id)+'" aria-label="'+html(person.name)+' '+action+'"><span>'+(career?'이력과 경력 ':'이력과 논문 ')+person.record_count+(career?'건':'편')+'</span><span>↗</span></button></div></article>';
+    return '<article class="researcher-card holo-card'+(nobel?' laureate-card':'')+'" data-person-id="'+html(person.id)+'" data-tilt'+laureateAttributes(p)+'><div class="researcher-edition"><span>H:문 / RESEARCH ARCHIVE</span><span>'+String(index+1).padStart(2,'0')+' / '+String(total).padStart(2,'0')+'</span></div>'+(nobel?nameBlock(person):nameBlock(person,'h3',personal?'personal-name':'researcher-name'))+portrait(p,person.name)+'<div class="researcher-card-copy">'+(nobel?awardSummary(p)+effectControls(p,person.name):personal?personalPortraitNote(p):'')+'<p class="researcher-tagline">'+html(p.tagline)+'</p><div class="researcher-skills">'+(p.skills||[]).map(x=>'<span>'+html(x)+'</span>').join('')+'</div>'+(work?'<p class="researcher-paper"><span>'+(career?'CAREER / ':'SELECTED WORK / ')+html(work.date)+'</span>'+html(work.title)+'</p>':'')+'<button class="researcher-open" data-action="person" data-id="'+html(person.id)+'" aria-label="'+html(person.name)+' '+action+'"><span>'+(career?'이력과 경력 ':'이력과 논문 ')+person.record_count+(career?'건':'편')+'</span><span>↗</span></button></div></article>';
   }
   function profileDetails(person) {
     const p=person.profile;if(!p?.curated)return '';
     const nobel=isLaureate(p),personal=isPersonalIllustration(p);
     const hero='<div class="researcher-detail-hero holo-card'+(nobel?' laureate-card':'')+'" data-tilt'+laureateAttributes(p)+'>'+portrait(p,person.name)+'</div>';
-    const heading=nobel?nameBlock(person,'h2'):personal?nameBlock(person,'h2','personal-name'):'<span class="researcher-korean">'+html(p.display_name)+'</span><h2>'+html(person.name)+'</h2><p>'+html(person.org)+'</p>'+(p.current_role?'<p class="scope-note">'+html(p.current_role)+(p.affiliation_as_of?' · 공개 프로필 확인 '+html(p.affiliation_as_of):'')+'</p>':'');
-    return (nobel?heading+hero+awardSummary(p)+effectControls(p,person.name)+portraitSources(p):personal?heading+hero+personalPortraitNote(p,true):hero+heading)+'<p class="researcher-bio">'+html(p.biography)+'</p><div class="researcher-skills">'+(p.skills||[]).map(x=>'<span>'+html(x)+'</span>').join('')+'</div>'+(personal?'':'<p class="scope-note">'+html(p.portrait_note||(p.portrait?.generated?'AI 생성 초상 일러스트':p.portrait?.path?'출처에 표시된 프로필 사진':'사진 미제공 · 공개 프로필과 논문 기록을 확인해 주세요.'))+'</p>')+((p.timeline||[]).length?'<h3>이력의 발자취</h3><ol class="researcher-timeline">'+p.timeline.map(t=>'<li><span>'+html(t.date)+'</span><div>'+html(t.text)+' '+sourceLink(t.url,'출처')+'</div></li>').join('')+'</ol>':'')+[['projects','프로젝트 이력'],['education','교육 이력']].map(([key,title])=>p[key]?'<h3>'+title+'</h3><ol class="researcher-timeline">'+p[key].map(x=>'<li><span>'+html(x.date)+'</span><div><strong>'+html(x.title)+'</strong><p>'+html(x.text)+'</p></div></li>').join('')+'</ol>':'').join('')+(p.skill_groups?'<h3>다룰 수 있는 일</h3>'+p.skill_groups.map(g=>'<h4>'+html(g.name)+'</h4><p>'+g.items.map(html).join(' · ')+'</p>').join(''):'')+(p.interests?'<h3>관심 분야</h3><ul>'+p.interests.map(x=>'<li>'+html(x)+'</li>').join('')+'</ul>':'')+'<div class="researcher-sources">'+(p.sources||[]).map(x=>sourceLink(x.url,x.title)).join(' · ')+'</div><p class="scope-note">'+html(p.profile_note||'공개 연구 사례입니다. 사내 구성원이나 협업 가능 인원으로 확인된 것은 아닙니다.')+'</p>';
+    const heading=nameBlock(person,'h2',nobel?'laureate-name':personal?'personal-name':'researcher-name');
+    return heading+hero+(nobel?awardSummary(p)+effectControls(p,person.name)+portraitSources(p):personal?personalPortraitNote(p,true):'')+'<p class="researcher-bio">'+html(p.biography)+'</p><div class="researcher-skills">'+(p.skills||[]).map(x=>'<span>'+html(x)+'</span>').join('')+'</div>'+(personal?'':'<p class="scope-note">'+html(p.portrait_note||(p.portrait?.generated?'AI 생성 초상 일러스트':p.portrait?.path?'출처에 표시된 프로필 사진':'사진 미제공 · 공개 프로필과 논문 기록을 확인해 주세요.'))+'</p>')+((p.timeline||[]).length?'<h3>이력의 발자취</h3><ol class="researcher-timeline">'+p.timeline.map(t=>'<li><span>'+html(t.date)+'</span><div>'+html(t.text)+' '+sourceLink(t.url,'출처')+'</div></li>').join('')+'</ol>':'')+[['projects','프로젝트 이력'],['education','교육 이력']].map(([key,title])=>p[key]?'<h3>'+title+'</h3><ol class="researcher-timeline">'+p[key].map(x=>'<li><span>'+html(x.date)+'</span><div><strong>'+html(x.title)+'</strong><p>'+html(x.text)+'</p></div></li>').join('')+'</ol>':'').join('')+(p.skill_groups?'<h3>다룰 수 있는 일</h3>'+p.skill_groups.map(g=>'<h4>'+html(g.name)+'</h4><p>'+g.items.map(html).join(' · ')+'</p>').join(''):'')+(p.interests?'<h3>관심 분야</h3><ul>'+p.interests.map(x=>'<li>'+html(x)+'</li>').join('')+'</ul>':'')+'<div class="researcher-sources">'+(p.sources||[]).map(x=>sourceLink(x.url,x.title)).join(' · ')+'</div><p class="scope-note">'+html(p.profile_note||'공개 연구 사례입니다. 사내 구성원이나 협업 가능 인원으로 확인된 것은 아닙니다.')+'</p>';
   }
   window.RndCraft={TileOrbit,deliver,pause,portrait,researcherCard,profileDetails,isLaureate,isPersonalIllustration,personalPortraitNote,awardSummary,effectControls,laureateAttributes,nameBlock,quiet:()=>quiet};
   setQuiet(quiet);

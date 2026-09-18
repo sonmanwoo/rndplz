@@ -153,9 +153,8 @@ function filteredPeople(){
  return admin.nodes.filter(n=>(!activeTopic||n.topics.includes(activeTopic))&&(!q||[n.name,...(n.aliases||[])].join(" ").toLowerCase().includes(q)));
 }
 function renderMap(){
- const topic=admin.topics.find(t=>t.id===activeTopic), count=activeTopic?topic.people:admin.nodes.length;
+ const topic=admin.topics.find(t=>t.id===activeTopic);
  $("mapStats").innerHTML=[[boot.stats.researchers,"연구자 프로필"],[admin.nodes.filter(n=>n.virtual).length,"가상 현장 인물"],[admin.requests,"누적 질문"],[admin.proposals,"시연 제안"]].map(([n,label])=>'<div class="stat"><b>'+nfmt(n)+'</b><span>'+label+'</span></div>').join("");
- $("orbitCount").textContent=nfmt(count);$("orbitLabel").textContent=activeTopic?"이 주제와 연결된 사람":"사람의 기록";
  $("mapTopicTitle").textContent=topic?.name||"모든 연결의 시작";
  $("mapTopicDescription").textContent=topic?("관련 기록 "+topic.records+"건에서 연구자 "+topic.researchers+"명과 가상 현장 인물 "+topic.virtual_people+"명을 연결했습니다."):"타일 하나는 사람 한 명의 프로필입니다. 관련 기록을 확인하며 탐색하세요.";
  $("topicFilters").innerHTML='<button class="'+(!activeTopic?"active":"")+'" data-action="topic" data-id="">전체 기록 <span>'+nfmt(admin.nodes.length)+'</span></button>'+admin.topics.map(t=>'<button class="'+(activeTopic===t.id?"active":"")+'" data-action="topic" data-id="'+t.id+'">'+esc(t.name)+'<span>'+nfmt(t.people)+'</span></button>').join("");
@@ -163,10 +162,15 @@ function renderMap(){
  document.querySelector(".collection-count").textContent=String((admin.featured||[]).length).padStart(2,"0");
  document.querySelector(".collection-jump").textContent="인물 카드 "+(admin.featured||[]).length+"장 ↓";
  $("researcherCards").innerHTML=(admin.featured||[]).map((p,i)=>RndCraft.researcherCard(p,i,admin.featured.length)).join("");
- renderPeople();drawMap();
+ refreshPeople();
 }
-function renderPeople(){
- const nodes=filteredPeople();page=Math.max(0,Math.min(page,Math.max(0,Math.ceil(nodes.length/10)-1)));
+function refreshPeople(){
+ if(!admin)return;
+ const nodes=filteredPeople();
+ renderPeople(nodes);drawMap(nodes);
+}
+function renderPeople(nodes=filteredPeople()){
+ page=Math.max(0,Math.min(page,Math.max(0,Math.ceil(nodes.length/10)-1)));
  $("peopleCount").textContent="· "+nfmt(nodes.length)+"명";
  $("peopleList").innerHTML=nodes.slice(page*10,page*10+10).map(n=>'<button class="people-row" data-action="person" data-id="'+esc(n.id)+'"><span>'+esc(n.name)+(n.virtual?' <span class="tag">가상</span>':"")+'</span><small>기록 '+n.record_count+'건 ↗</small></button>').join("")||'<p class="muted">조건에 맞는 프로필이 없습니다.</p>';
  $("pageLabel").textContent=nodes.length?(page+1)+" / "+Math.ceil(nodes.length/10):"0 / 0";
@@ -174,11 +178,13 @@ function renderPeople(){
  document.querySelector('[data-action="next-page"]').disabled=(page+1)*10>=nodes.length;
 }
 let craftMap=null;
-function drawMap(){
+function drawMap(nodes){
  $("mapTooltip").hidden=true;
  if(!admin||view!=="map")return;
+ $("orbitCount").textContent=nfmt(nodes.length);
+ $("orbitLabel").textContent=$("personSearch").value.trim()?"조건에 맞는 사람":activeTopic?"이 주제와 연결된 사람":"사람의 기록";
  if(!craftMap)craftMap=new RndCraft.TileOrbit($("mapCanvas"));
- craftMap.setData(admin.nodes,activeTopic);
+ craftMap.setData(nodes,activeTopic);
 }
 function pickPoint(event){return craftMap?.hit(event);}
 function renderSettings(){
@@ -242,7 +248,7 @@ document.addEventListener("click",event=>{
 });
 $("questionForm").addEventListener("submit",e=>{e.preventDefault();task(()=>ask(),$("askButton"));});
 $("slotsForm").addEventListener("submit",e=>{e.preventDefault();task(async()=>{session=await api("/api/slots",{session_id:session.id,slots:slots(),mode:$("mode").value});admin=null;renderSession();toast("조건을 반영했어요.");},$("applySlots"));});
-$("personSearch").addEventListener("input",()=>{page=0;renderPeople();});
+$("personSearch").addEventListener("input",()=>{page=0;refreshPeople();});
 $("letterBody").addEventListener("input",keepLetter);
 document.addEventListener("change",e=>{
  if(e.target.id==="letterRecipient"){keepLetter();letter.index=Number(e.target.value);renderLetter();}
@@ -252,7 +258,6 @@ $("mapCanvas").addEventListener("mousemove",e=>{const hit=pickPoint(e);$("mapToo
 $("mapCanvas").addEventListener("pointerdown",()=>$("mapTooltip").hidden=true);
 $("mapCanvas").addEventListener("mouseleave",()=>$("mapTooltip").hidden=true);
 $("mapCanvas").addEventListener("click",e=>{if(craftMap?.consumeClick())return;const hit=pickPoint(e);if(hit)task(async()=>{rememberDetailTrigger(document.activeElement);showPerson(await api("/api/person?id="+encodeURIComponent(hit.node.id)));});});
-new ResizeObserver(()=>drawMap()).observe($("mapCanvas"));
 (async()=>{
  try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("peopleCards").scrollIntoView({block:"start"});}
  catch(e){toast(e.message+" 새로고침해 주세요.",true);$("askButton").disabled=true;}
