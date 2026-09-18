@@ -37,14 +37,26 @@
 <section id="mapView" hidden aria-labelledby="mapTitle">
 <div class="map-header"><div><p class="eyebrow">OVERVIEW / RESEARCH LANDSCAPE</p><h1 id="mapTitle">경험의 지도를 펼쳐보세요.</h1><p class="muted">기록에서 시작해, 그 뒤에 있는 사람까지.</p></div><a class="collection-jump" href="#peopleCards">인물 카드 보기 ↓</a><button class="outline" data-action="export">Obsidian으로 내보내기 ↗</button></div>
 <div id="mapStats" class="stats-row"></div>
-<div class="map-layout"><aside class="map-notes"><div class="section-label">01 / 자료의 범위</div><h2 id="mapTopicTitle">모든 연결의 시작</h2><p id="mapTopicDescription">타일 하나는 사람 한 명의 프로필입니다. 관련 기록을 확인하며 탐색하세요.</p><p class="scope-note">공개 논문·본인 제공 경력·가상 현장 기록의 분포입니다. 사내 역량이나 현재 가용 인원은 확인하지 않았습니다.</p><div class="legend"><span><i class="legend-square real"></i>연구자 프로필 · 색은 구분용</span><span><i class="legend-square virtual"></i>가상 현장 인물</span></div><button class="text-button" data-action="list-focus">같은 사람을 목록으로 보기 ↓</button></aside>
-<div class="orbit-container">
-<div class="orbit-stage"><canvas id="mapCanvas" tabindex="0" role="img" aria-label="회전하는 연구자 구형 지도" aria-describedby="mapInstructions">구를 회전해 탐색하거나 아래 프로필 목록을 사용하세요.</canvas><div id="mapTooltip" class="map-tooltip" hidden></div></div>
-<div class="orbit-caption" aria-live="polite"><span id="orbitCount">—</span><b id="orbitLabel">사람의 기록</b></div>
+<section id="mapResults" class="map-results" data-mode="empty" data-count="0" aria-labelledby="mapResultsTitle">
+<div class="map-results-heading"><div><span class="section-label">01 / 현재 조건으로 찾은 사람</span><h2 id="mapResultsTitle" tabindex="-1">기록에서 찾은 사람 <span id="peopleCount"></span></h2></div><button class="text-button" data-action="clear-all" disabled>전체 조건 해제</button></div>
+<div class="map-search"><label for="personSearch">이름으로 좁히기</label><div class="map-search-input"><input id="personSearch" type="search" placeholder="현재 주제에서 이름 또는 별칭 찾기" autocomplete="off"><button class="quiet" data-action="clear-search" disabled>검색 지우기</button></div></div>
+<p id="mapConditions" class="map-conditions">주제 · 전체 기록 / 이름 · 전체</p><p id="mapResultStatus" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+<div class="map-layout">
+<aside class="topic-panel" aria-label="주제 필터"><details id="topicDisclosure" open><summary>주제로 좁히기 <span id="topicSelection">전체 기록</span></summary><div id="topicFilters"></div></details><button class="text-button" data-action="clear-topic" disabled>주제 해제</button></aside>
+<div class="map-results-content"><div class="map-notes"><h3 id="mapTopicTitle">모든 연결의 시작</h3><p id="mapTopicDescription">관련 기록을 확인하며 탐색하세요.</p></div>
+<div class="map-results-body">
+<div id="orbitView" class="orbit-container" hidden inert>
+<div class="orbit-stage"><canvas id="mapCanvas" tabindex="-1" role="img" aria-label="회전하는 연구자 구형 지도" aria-describedby="mapInstructions">구를 회전해 탐색하거나 옆의 프로필 목록을 사용하세요.</canvas><div id="mapTooltip" class="map-tooltip" hidden></div></div>
+<div class="orbit-caption"><span id="orbitCount">—</span><b id="orbitLabel">사람의 기록</b></div>
 <div class="orbit-controls" role="group" aria-label="구형 지도 조작"><button type="button" data-orbit="left" aria-label="구를 왼쪽으로 회전">←</button><button type="button" data-orbit="pause" aria-pressed="false">자동 회전 일시정지</button><button type="button" data-orbit="right" aria-label="구를 오른쪽으로 회전">→</button><button type="button" data-orbit="reset" aria-label="구의 처음 각도로 돌아가기">↺</button></div>
+<p class="map-instruction" id="mapInstructions">같은 조건의 사람을 구와 옆 목록에서 살펴보세요. 드래그로 회전 · 방향키로 조작 · 스페이스로 일시정지 · Home으로 처음 각도.</p>
+<div class="legend"><span><i class="legend-square real"></i>연구자 프로필 · 색은 구분용</span><span><i class="legend-square virtual"></i>가상 현장 인물</span></div>
+<button class="text-button" data-action="list-focus">이름 목록으로 이동 ↓</button>
 </div>
-<aside class="topic-panel"><div class="section-label">02 / 주제로 좁히기</div><div id="topicFilters"></div></aside></div>
-<p class="map-instruction" id="mapInstructions">선택한 분야와 검색 조건에 맞는 사람만 표시합니다. 드래그로 구를 돌리고, 타일을 눌러 기록을 펼쳐보세요. 키보드는 방향키 · 스페이스로 일시정지 · Home으로 처음 각도.</p><section id="peopleCards" class="researcher-collection" aria-labelledby="peopleCardsTitle"><div class="collection-heading"><div><span class="micro">THE RESEARCHERS / SPECIAL COLLECTION</span><h2 id="peopleCardsTitle">아이디어 뒤에 있는 사람들.</h2><p>사람들의 연구 여정을, 한 장의 카드에서 펼쳐보세요.</p></div><span class="collection-count"></span></div><p class="collection-note">공개 연구 사례와 본인 제공 경력 · 사진·AI 일러스트는 카드에 표시</p><div id="researcherCards" class="researcher-grid"></div></section><div class="map-lower"><section class="paper people-panel"><div class="section-label"><span>프로필 목록 <span id="peopleCount"></span></span><span>지도와 같은 필터</span></div><label for="personSearch" class="sr-only">현재 주제에서 이름 찾기</label><input id="personSearch" placeholder="현재 주제에서 이름 찾기"><div id="peopleList"></div><div class="pagination"><button class="quiet" data-action="prev-page">← 이전</button><span id="pageLabel"></span><button class="quiet" data-action="next-page">다음 →</button></div></section>
+<section id="peoplePanel" class="people-panel" aria-label="현재 조건의 인물 목록"><ul id="peopleList"></ul><div id="peoplePagination" class="pagination" hidden><button class="quiet" data-action="prev-page">← 이전</button><span id="pageLabel" aria-live="polite"></span><button class="quiet" data-action="next-page">다음 →</button></div></section>
+</div><p class="scope-note map-scope">공개 논문·본인 제공 경력·가상 현장 기록의 분포입니다. 기록 수는 역량 점수가 아니며, 사내 역량이나 현재 가용 인원은 확인하지 않았습니다.</p></div>
+</div></section>
+<section id="peopleCards" class="researcher-collection" aria-labelledby="peopleCardsTitle"><div class="collection-heading"><div><span class="micro">THE RESEARCHERS / SPECIAL COLLECTION</span><h2 id="peopleCardsTitle">별도로 소개하는 인물 카드.</h2><p>현재 필터 결과와 별개인 대표 모음입니다. 사람들의 연구 여정을 한 장의 카드에서 펼쳐보세요.</p></div><span class="collection-count"></span></div><p class="collection-note">공개 연구 사례와 본인 제공 경력 · 사진·AI 일러스트는 카드에 표시</p><div id="researcherCards" class="researcher-grid"></div></section><div class="map-lower">
 <section class="paper demand-panel"><div class="section-label">03 / 요청과 관련 기록</div><h2>다음 연결이 필요한 곳</h2><p class="muted">요청 수는 대화 단위로 중복을 제거합니다. 관련 인원은 주제 사이에 중복될 수 있어요.</p><div id="demandTable"></div></section></div>
 </section>
 </main>

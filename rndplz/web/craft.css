@@ -200,3 +200,96 @@ body.crafted:before{content:"";position:fixed;inset:0;pointer-events:none;z-inde
 .portrait-unavailable{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:linear-gradient(145deg,#f3f0e5,#e3e5d9);color:#66715b}
 .portrait-unavailable strong{font-size:14px;font-weight:500}.portrait-unavailable p{margin:0;font-size:11px;line-height:1.8}
 @media(max-width:430px){.researcher-name h2,.researcher-name h3{font-size:24px}}
+
+/* Filter results stay together; sparse sets use names instead of an empty sphere. */
+.explorer-page #mapResults{margin:30px 0 38px;min-width:0}
+.explorer-page #mapResults .map-results-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.explorer-page #mapResults .map-results-heading .section-label{margin-bottom:8px}
+.explorer-page #mapResultsTitle{margin:0;font-size:25px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.explorer-page #peopleCount{color:var(--green);white-space:nowrap;font-size:17px;font-weight:400}
+.explorer-page #mapResults button,.explorer-page #topicDisclosure>summary{min-height:44px;min-width:44px}
+.explorer-page #mapResults button:disabled{cursor:default}
+.explorer-page #mapResults button:active{transform:none}
+.explorer-page #mapResultsTitle:focus,.explorer-page #topicDisclosure>summary:focus-visible{outline:2px solid var(--red);outline-offset:4px}
+.explorer-page #mapResults .map-search{max-width:760px}
+.explorer-page #mapResults .map-search>label{font-weight:400;font-size:12px;margin-bottom:7px;color:var(--muted)}
+.explorer-page #mapResults .map-search-input{display:flex;align-items:center;gap:10px}
+.explorer-page #personSearch{min-width:0;flex:1;font-size:15px;min-height:46px;background:var(--sheet);border-radius:5px}
+.explorer-page #mapResults .map-search-input button{flex:none;font-size:12px;padding:8px}
+.explorer-page #mapResults .map-conditions{font-size:12px;color:var(--muted);line-height:1.7;margin:12px 0 23px;overflow-wrap:anywhere}
+.explorer-page #mapResults .map-layout{display:grid;grid-template-columns:210px minmax(0,1fr);align-items:start;gap:30px;margin:0;min-height:0}
+.explorer-page #mapResults .topic-panel{min-width:0;width:100%;padding:0}
+.explorer-page #topicDisclosure{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.explorer-page #topicDisclosure>summary{cursor:pointer;padding:12px 0;font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.explorer-page #topicSelection{display:block;font-size:11px;font-weight:400;color:var(--green);margin:4px 0 0 16px;overflow-wrap:anywhere}
+.explorer-page #topicFilters{display:block;max-height:280px;overflow-y:auto;overscroll-behavior:contain;padding:0 8px 4px 0;scrollbar-width:thin;scrollbar-color:#b5bdad transparent}
+.explorer-page #mapResults[data-mode="sphere"] #topicFilters{max-height:460px}
+.explorer-page #mapResults .topic-panel button{font-size:12px;padding:11px 6px;line-height:1.65;overflow-wrap:anywhere;transition:none}
+.explorer-page #mapResults .topic-panel button.active{padding-left:12px}
+.explorer-page #mapResults .topic-panel>.text-button{width:auto;border:0;margin-top:6px;text-align:left}
+.explorer-page #mapResults .map-results-content{min-width:0;width:100%}
+.explorer-page #mapResults .map-notes{display:block;margin:0 0 18px}
+.explorer-page #mapResults .map-notes h3{font-size:16px;font-weight:500;line-height:1.6;margin:0 0 5px;overflow-wrap:anywhere}
+.explorer-page #mapResults .map-notes p{font-size:12px;margin:0;color:var(--muted);line-height:1.8;overflow-wrap:anywhere}
+.explorer-page #mapResults .map-results-body{display:block;min-width:0}
+.explorer-page #mapResults[data-mode="sphere"] .map-results-body{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(235px,.8fr);align-items:start;gap:24px}
+.explorer-page #mapResults #orbitView{grid-row:auto;align-self:start;margin:0 auto;max-width:640px;min-width:0;aspect-ratio:auto;padding:0}
+.explorer-page #mapResults #orbitView[hidden]{display:none!important}
+.explorer-page #mapResults #orbitView .orbit-controls{flex-wrap:wrap;gap:5px}
+.explorer-page #mapResults #orbitView .orbit-controls button{font-size:11px;padding:7px}
+.explorer-page #mapResults #orbitView .map-instruction{margin:12px 0 8px;font-size:10px;line-height:1.8;letter-spacing:0}
+.explorer-page #mapResults #orbitView .legend{font-size:10px;margin:10px 0;gap:6px}
+.explorer-page #mapResults #orbitView>.text-button{font-size:11px}
+.explorer-page #mapResults #peoplePanel{padding:0!important;min-width:0;width:100%;background:transparent;box-shadow:none;border:0}
+.explorer-page #peopleList{display:block;list-style:none;padding:0;margin:0;min-width:0}
+.explorer-page #peopleList .map-person{min-width:0;margin:0;list-style:none}
+.explorer-page #peopleList .people-row{padding:14px 8px;gap:12px;min-height:72px;width:100%;background:transparent;transition:none;border-bottom:1px solid var(--line);line-height:1.6}
+.explorer-page #peopleList .people-row:hover,.explorer-page #peopleList .people-row:focus-visible{background:#e8eddf}
+.explorer-page #peopleList .map-person-copy{display:block;min-width:0;overflow-wrap:anywhere}
+.explorer-page #peopleList .map-person-name{display:block;font-size:15px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.explorer-page #peopleList .tag{display:inline-block;margin-top:5px;font-size:10px;padding:1px 6px;border-radius:3px;color:var(--red)}
+.explorer-page #peopleList .map-person-org{display:block;margin-top:8px;font-size:12px;line-height:1.8;color:var(--muted)}
+.explorer-page #peopleList .map-person-records{display:block;margin-top:5px;color:var(--muted);font-size:11px;white-space:normal}
+.explorer-page #peopleList .map-person-open{flex:none;font-size:11px;color:var(--green);white-space:nowrap;text-decoration:underline;text-underline-offset:4px}
+.explorer-page #mapResults[data-mode="spotlight"] #peopleList{max-width:620px;margin:0 auto}
+.explorer-page #mapResults:is([data-mode="spotlight"],[data-mode="grid"]) .people-row{height:100%;min-height:180px;display:flex;align-items:flex-start;flex-direction:column;justify-content:space-between;padding:25px;background:var(--sheet);border:1px solid #cdd3c3;border-radius:5px;gap:24px}
+.explorer-page #mapResults:is([data-mode="spotlight"],[data-mode="grid"]) .people-row:hover,.explorer-page #mapResults:is([data-mode="spotlight"],[data-mode="grid"]) .people-row:focus-visible{border-color:var(--green);background:#fbfcf4}
+.explorer-page #mapResults[data-mode="spotlight"] .map-person-name{font:500 30px/1.4 Georgia,"Malgun Gothic",serif;letter-spacing:-.7px}
+.explorer-page #mapResults[data-mode="spotlight"] .people-row{padding:30px;min-height:205px;border-top:3px solid var(--green)}
+.explorer-page #mapResults[data-mode="grid"] #peopleList{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.explorer-page #mapResults[data-mode="grid"][data-count="2"] #peopleList{grid-template-columns:repeat(2,minmax(0,1fr))}
+.explorer-page #mapResults[data-mode="grid"] .map-person-name{font-size:20px;line-height:1.5;letter-spacing:-.5px}
+.explorer-page #mapResults[data-mode="list"] #peoplePanel{max-width:860px}
+.explorer-page #mapResults .map-empty{list-style:none;background:#eeefe5;border:1px dashed #bec9b5;border-radius:5px;padding:30px;overflow-wrap:anywhere}
+.explorer-page #mapResults .map-empty h3{font-size:20px;line-height:1.55;font-weight:500;margin:0 0 10px}
+.explorer-page #mapResults .map-empty p{font-size:13px;line-height:1.9;margin:0;color:var(--muted)}
+.explorer-page #peoplePagination{gap:8px;margin-top:12px;font-size:11px}
+.explorer-page #peoplePagination button{font-size:12px;padding:8px}
+.explorer-page #mapResults .map-scope{max-width:75ch;margin:18px 0 0;font-size:11px;line-height:1.85}
+.explorer-page #mapView>.map-lower{grid-template-columns:1fr}
+@media(max-width:1150px){
+ .explorer-page #mapResults .map-layout{grid-template-columns:180px minmax(0,1fr);gap:24px}
+ .explorer-page #mapResults[data-mode="sphere"] .map-results-body{grid-template-columns:minmax(0,1fr)}
+ .explorer-page #mapResults[data-mode="sphere"] #peoplePanel{max-width:640px;margin:0 auto}
+ .explorer-page #mapResults[data-mode="grid"] #peopleList{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .explorer-page #mapResults{margin:24px 0 30px}
+ .explorer-page #mapResults .map-results-heading{align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+ .explorer-page #mapResultsTitle{font-size:22px}
+ .explorer-page #peopleCount{font-size:15px}
+ .explorer-page #mapResults .map-results-heading>.text-button{font-size:12px;padding:4px 0}
+ .explorer-page #mapResults .map-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-height:0}
+ .explorer-page #topicDisclosure>summary{padding:12px 4px}
+ .explorer-page #topicSelection{display:inline;margin:0 0 0 9px;font-size:12px}
+ .explorer-page #mapResults #topicFilters,.explorer-page #mapResults[data-mode="sphere"] #topicFilters{display:block;max-height:280px;padding-right:8px}
+ .explorer-page #mapResults .topic-panel>.text-button{margin:0;font-size:12px}
+ .explorer-page #mapResults .map-conditions{margin-bottom:16px}
+ .explorer-page #mapResults .map-notes{margin-bottom:14px}
+ .explorer-page #mapResults[data-mode="grid"] #peopleList,.explorer-page #mapResults[data-mode="grid"][data-count="2"] #peopleList{grid-template-columns:minmax(0,1fr);gap:12px}
+ .explorer-page #mapResults:is([data-mode="spotlight"],[data-mode="grid"]) .people-row{padding:22px;min-height:165px;gap:22px}
+ .explorer-page #mapResults[data-mode="spotlight"] .map-person-name{font-size:29px}
+ .explorer-page #mapResults[data-mode="grid"] .map-person-name{font-size:22px}
+ .explorer-page #mapResults .map-empty{padding:22px}
+ .explorer-page #mapResults .map-empty h3{font-size:18px}
+}

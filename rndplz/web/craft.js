@@ -72,7 +72,7 @@
     constructor(canvas) {
       this.canvas=canvas;this.ctx=canvas.getContext('2d');this.points=[];this.rendered=[];
       this.yaw=.35;this.pitch=-.16;this.velocity={x:0,y:0};
-      this.frame=0;this.last=0;this.visible=true;this.paused=false;this.hover=null;
+      this.frame=0;this.last=0;this.visible=true;this.suspended=false;this.paused=false;this.hover=null;
       this.drag=null;this.blockClick=false;this.samples=[];this.intervals=[];this.measured=false;
       this.started=performance.now();
       this.controls=canvas.closest('.orbit-container');
@@ -83,13 +83,14 @@
         else this.turn(action==='left'?-.22:.22,0);
       }));
       canvas.addEventListener('pointerdown',e=>{
-        if(e.button!==0||this.drag)return;
+        if(this.suspended||e.button!==0||this.drag)return;
         this.drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};
         this.blockClick=false;this.velocity={x:0,y:0};this.hover=null;
         canvas.setPointerCapture(e.pointerId);
         canvas.classList.add('is-dragging');this.kick();
       });
       canvas.addEventListener('pointermove',e=>{
+        if(this.suspended)return;
         if(this.drag?.id===e.pointerId) {
           const dx=e.clientX-this.drag.x,dy=e.clientY-this.drag.y;
           if(Math.hypot(e.clientX-this.drag.startX,e.clientY-this.drag.startY)>5)this.drag.moved=true;
@@ -113,6 +114,7 @@
       canvas.addEventListener('lostpointercapture',end);
       canvas.addEventListener('pointerleave',()=>{this.hover=null;this.kick();});
       canvas.addEventListener('keydown',e=>{
+        if(this.suspended)return;
         const steps={ArrowLeft:[-.16,0],ArrowRight:[.16,0],ArrowUp:[0,-.16],ArrowDown:[0,.16]};
         if(steps[e.key]){e.preventDefault();this.turn(...steps[e.key]);}
         else if(e.key===' '){e.preventDefault();this.togglePause();}
@@ -134,26 +136,48 @@
         button.disabled=quiet;
       }
     }
-    togglePause(){this.paused=!this.paused;this.velocity={x:0,y:0};this.syncControls();this.kick();}
-    turn(yaw,pitch){this.yaw+=yaw;this.pitch=Math.max(-1.35,Math.min(1.35,this.pitch+pitch));this.hover=null;this.velocity={x:0,y:0};this.kick();}
-    reset(){this.yaw=.35;this.pitch=-.16;this.hover=null;this.velocity={x:0,y:0};this.kick();}
-    consumeClick(){const blocked=this.blockClick;this.blockClick=false;return blocked;}
+    togglePause(){if(this.suspended)return;this.paused=!this.paused;this.velocity={x:0,y:0};this.syncControls();this.kick();}
+    turn(yaw,pitch){if(this.suspended)return;this.yaw+=yaw;this.pitch=Math.max(-1.35,Math.min(1.35,this.pitch+pitch));this.hover=null;this.velocity={x:0,y:0};this.kick();}
+    reset(){if(this.suspended)return;this.yaw=.35;this.pitch=-.16;this.hover=null;this.velocity={x:0,y:0};this.kick();}
+    consumeClick(){const blocked=this.suspended||this.blockClick;this.blockClick=false;return blocked;}
+    clearInteraction(blockClick=false){
+      const drag=this.drag;this.drag=null;this.blockClick=blockClick;
+      if(drag&&this.canvas.hasPointerCapture(drag.id))this.canvas.releasePointerCapture(drag.id);
+      this.canvas.classList.remove('is-dragging');this.canvas.style.cursor='grab';
+      this.hover=null;this.rendered=[];this.velocity={x:0,y:0};
+      const tooltip=this.controls?.querySelector('.map-tooltip');
+      if(tooltip){tooltip.hidden=true;tooltip.textContent='';}
+    }
+    suspend(){
+      this.suspended=true;
+      if(this.frame)cancelAnimationFrame(this.frame);
+      this.frame=0;this.last=0;this.clearInteraction();this.points=[];this.signature=null;
+      if(this.size)this.ctx.clearRect(0,0,this.size,this.size);
+    }
+    resume(nodes,topic=''){
+      const returning=this.suspended;
+      this.suspended=false;
+      if(returning){this.yaw=.35;this.pitch=-.16;this.last=0;}
+      this.setData(nodes,topic);
+      if(returning||!this.size)this.resize();
+    }
     resize(){
-      const b=this.canvas.getBoundingClientRect();this.size=b.width;
-      const d=Math.min(devicePixelRatio||1,2);
-      this.canvas.width=Math.round(b.width*d);this.canvas.height=Math.round(b.width*d);
+      if(this.suspended)return;
+      const b=this.canvas.getBoundingClientRect();
+      const d=Math.min(devicePixelRatio||1,2),width=Math.round(b.width*d);
+      if(this.size===b.width&&this.canvas.width===width)return;
+      this.clearInteraction(Boolean(this.drag));this.size=b.width;
+      this.canvas.width=width;this.canvas.height=width;
       this.ctx.setTransform(d,0,0,d,0,0);this.kick();
     }
     setData(nodes,topic='') {
+      if(this.suspended)return;
       const visibleNodes=topic?nodes.filter(node=>(node.topics||[]).includes(topic)):nodes;
       const signature=topic+'|'+visibleNodes.map(n=>n.id).join(',');
       if(this.signature===signature)return;
       this.signature=signature;this.started=performance.now();this.last=0;
       // Removed people must leave both the drawing and picking buffers immediately.
-      const drag=this.drag;this.drag=null;this.blockClick=Boolean(drag);
-      if(drag&&this.canvas.hasPointerCapture(drag.id))this.canvas.releasePointerCapture(drag.id);
-      this.canvas.classList.remove('is-dragging');this.canvas.style.cursor='grab';
-      this.hover=null;this.rendered=[];this.velocity={x:0,y:0};
+      this.clearInteraction(Boolean(this.drag));
       if(visibleNodes.length===1){this.yaw=0;this.pitch=0;}
       this.points=visibleNodes.map((node,i)=>{
         const position=visibleNodes.length===1?{x:0,y:0,z:1}:TileOrbit.position(i,visibleNodes.length);
@@ -170,9 +194,9 @@
       });
       this.kick();
     }
-    kick(){if(!this.frame&&this.visible&&!document.hidden)this.frame=requestAnimationFrame(t=>this.draw(t));}
+    kick(){if(!this.suspended&&!this.frame&&this.visible&&!document.hidden)this.frame=requestAnimationFrame(t=>this.draw(t));}
     draw(now) {
-      this.frame=0;if(!this.visible||document.hidden||!this.size)return;
+      this.frame=0;if(this.suspended||!this.visible||document.hidden||!this.size)return;
       const moving=this.points.length>1&&!quiet&&!this.paused&&!this.drag&&!this.hover;
       if(moving&&this.last&&now-this.last<28){this.kick();return;}
       const interval=this.last?now-this.last:0,dt=Math.min(interval||16.7,50)/16.7;this.last=now;
@@ -226,7 +250,7 @@
       if(moving)this.kick();
     }
     hit(event) {
-      if(this.drag)return null;
+      if(this.suspended||this.drag)return null;
       const b=this.canvas.getBoundingClientRect(),x=event.clientX-b.left,y=event.clientY-b.top;
       // Front-most selectable paper wins; back faces never intercept a visible profile.
       for(let i=this.rendered.length-1;i>=0;i--) {
