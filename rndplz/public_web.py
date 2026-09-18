@@ -41,6 +41,25 @@ PREVIEW_FILES = {
 
 # Previews use fixed reviewed packages, never filesystem path discovery.
 PREVIEW_PACKAGES = {
+    '/ui-previews/KNOWLEDGE-MAP/r1/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'assets/hinton.png': ('assets/hinton.png', 'image/png'),
+        'dataset.json': ('dataset.json', 'application/json; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'styles.css': ('styles.css', 'text/css; charset=utf-8'),
+        'views/a-desktop.png': ('views/a-desktop.png', 'image/png'),
+        'views/a-desktop.svg': ('views/a-desktop.svg', 'image/svg+xml'),
+        'views/a-mobile-cross.png': ('views/a-mobile-cross.png', 'image/png'),
+        'views/a-mobile-cross.svg': ('views/a-mobile-cross.svg', 'image/svg+xml'),
+        'views/a-mobile-empty.png': ('views/a-mobile-empty.png', 'image/png'),
+        'views/a-mobile-empty.svg': ('views/a-mobile-empty.svg', 'image/svg+xml'),
+        'views/a-mobile-one.png': ('views/a-mobile-one.png', 'image/png'),
+        'views/a-mobile-one.svg': ('views/a-mobile-one.svg', 'image/svg+xml'),
+        'views/b-desktop.png': ('views/b-desktop.png', 'image/png'),
+        'views/b-desktop.svg': ('views/b-desktop.svg', 'image/svg+xml'),
+        'views/c-desktop.png': ('views/c-desktop.png', 'image/png'),
+        'views/c-desktop.svg': ('views/c-desktop.svg', 'image/svg+xml'),
+    },
     PREVIEW_PREFIX: PREVIEW_FILES,
     '/ui-previews/CARD-FLIP/r1/': {
         '': ('index.html', 'text/html; charset=utf-8'),

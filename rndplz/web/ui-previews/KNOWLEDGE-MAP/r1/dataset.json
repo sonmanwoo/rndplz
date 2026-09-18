@@ -1,0 +1,276 @@
+{
+  "id": "KNOWLEDGE-MAP-r1",
+  "created_at": "2026-09-19T08:34:55+09:00",
+  "all_graph_entities_and_sources_are_synthetic": true,
+  "fields": [
+    {
+      "id": "F1",
+      "name": "생명공학",
+      "color": "#d6e2d7"
+    },
+    {
+      "id": "F2",
+      "name": "센서·계측",
+      "color": "#c7d9e3"
+    },
+    {
+      "id": "F3",
+      "name": "데이터 분석",
+      "color": "#ddd3e8"
+    },
+    {
+      "id": "F0",
+      "name": "양자 재료",
+      "color": "#eee0ad"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T1",
+      "name": "생체 센서",
+      "field": "F1"
+    },
+    {
+      "id": "T2",
+      "name": "센서 교정",
+      "field": "F2"
+    },
+    {
+      "id": "T3",
+      "name": "신호 분류",
+      "field": "F3"
+    },
+    {
+      "id": "T4",
+      "name": "실험 조건",
+      "field": "F1"
+    }
+  ],
+  "people": [
+    {
+      "id": "P1",
+      "name": "윤하린"
+    },
+    {
+      "id": "P2",
+      "name": "서지후"
+    },
+    {
+      "id": "P3",
+      "name": "한이든"
+    },
+    {
+      "id": "P4",
+      "name": "박새봄"
+    }
+  ],
+  "records": [
+    {
+      "id": "R1",
+      "title": "생체 센서 조건 비교",
+      "type": "가상 논문",
+      "authors": [
+        "P1",
+        "P2"
+      ],
+      "fields": [
+        "F1",
+        "F2"
+      ],
+      "topics": [
+        "생체 센서",
+        "센서 교정"
+      ],
+      "source_id": "S1"
+    },
+    {
+      "id": "R2",
+      "title": "신호 분류 모델 노트",
+      "type": "가상 논문",
+      "authors": [
+        "P3"
+      ],
+      "fields": [
+        "F3"
+      ],
+      "topics": [
+        "신호 분류"
+      ],
+      "source_id": "S2"
+    },
+    {
+      "id": "R3",
+      "title": "세포 실험 조건 정리",
+      "type": "가상 제공 경력",
+      "person_id": "P4",
+      "fields": [
+        "F1"
+      ],
+      "topics": [
+        "실험 조건"
+      ],
+      "source_id": "S3"
+    }
+  ],
+  "sources": [
+    {
+      "id": "S1",
+      "label": "가상 논문 R1 메타데이터",
+      "date": "2026-09-01(가상)",
+      "excerpt": "저자: 윤하린, 서지후. 분야: 생명공학, 센서·계측. 주제: 생체 센서, 센서 교정.",
+      "limit": "가상 시안 자료. 저자 표기는 직접 실험 수행 확인이 아님."
+    },
+    {
+      "id": "S2",
+      "label": "가상 논문 R2 메타데이터",
+      "date": "2026-09-02(가상)",
+      "excerpt": "저자: 한이든. 분야: 데이터 분석. 주제: 신호 분류.",
+      "limit": "가상 시안 자료. 개인 수행·적합도·연락 가능성 미확인."
+    },
+    {
+      "id": "S3",
+      "label": "가상 본인 제공 경력 R3",
+      "date": "2026-09-03(가상)",
+      "excerpt": "박새봄 제공: 세포 실험 조건 정리. 분야: 생명공학. 주제: 실험 조건.",
+      "limit": "명시적으로 제공한 주장으로 표시하며 독립 인증이 아님."
+    }
+  ],
+  "edges": [
+    {
+      "from": "P1",
+      "to": "R1",
+      "relation": "저자 표기",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "P2",
+      "to": "R1",
+      "relation": "저자 표기",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R1",
+      "to": "T1",
+      "relation": "주제 분류",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R1",
+      "to": "T2",
+      "relation": "주제 분류",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R1",
+      "to": "F1",
+      "relation": "분야 분류",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R1",
+      "to": "F2",
+      "relation": "분야 분류",
+      "source": "S1",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "P3",
+      "to": "R2",
+      "relation": "저자 표기",
+      "source": "S2",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R2",
+      "to": "T3",
+      "relation": "주제 분류",
+      "source": "S2",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R2",
+      "to": "F3",
+      "relation": "분야 분류",
+      "source": "S2",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "P4",
+      "to": "R3",
+      "relation": "명시 제공 경력",
+      "source": "S3",
+      "status": "self_reported_synthetic_claim"
+    },
+    {
+      "from": "R3",
+      "to": "T4",
+      "relation": "주제 분류",
+      "source": "S3",
+      "status": "explicit_in_synthetic_source"
+    },
+    {
+      "from": "R3",
+      "to": "F1",
+      "relation": "분야 분류",
+      "source": "S3",
+      "status": "explicit_in_synthetic_source"
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "H1",
+      "relation": "유사 주제 제안",
+      "from": "생체 센서",
+      "to": "신호 분류",
+      "source": "시안 작성자의 가상 가설",
+      "status": "unverified_proposal_hidden_by_default",
+      "reason": "주제명을 보고 만든 가설 예시. 분야 관계의 사실 근거로 쓰지 않음."
+    }
+  ],
+  "counts": {
+    "total_unique_people": 4,
+    "field_memberships": {
+      "F1": 3,
+      "F2": 2,
+      "F3": 1,
+      "F0": 0
+    },
+    "field_memberships_may_overlap": true
+  },
+  "derived_display_paths": [
+    {
+      "from": "P1",
+      "via": "R1",
+      "to": "F1",
+      "source": "S1",
+      "meaning": "record-based field, not validated expertise"
+    },
+    {
+      "from": "P1",
+      "via": "R1",
+      "to": "F2",
+      "source": "S1",
+      "meaning": "record-based field, not validated expertise"
+    }
+  ],
+  "filter_policy": "Filter first, then expand permitted records and names only. Cross-field tags do not add people.",
+  "same_field_does_not_imply_coauthorship": true,
+  "layout_distance_has_no_similarity_meaning": true,
+  "nobel_marker": "Only award annotation; not used on fictional people",
+  "mobile_cases": {
+    "F1": [
+      "P1",
+      "P2",
+      "P4"
+    ],
+    "F3": [
+      "P3"
+    ],
+    "F0": []
+  }
+}
