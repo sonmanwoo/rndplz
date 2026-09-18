@@ -155,8 +155,9 @@ class Conversation:
             s['asker']='site' if s['mode']=='site_request' else 'lab'
             s['proposal_context']=query[:12000]
             s['slots']['goal']=query[:1600]
-            s['result']=self.service.engine.recommend(query,s['mode'])
-            s['search_context']={'kind':'recommend','query':query,'ids':[c['id'] for c in s['result']['candidates']]}
+            action=self.actions.recommend({},query)
+            s['result']=action['result'];s['search_context']=action['context']
+            s['can_propose']=action['can_propose']
             s['ready']=True;s['updated']=now()
             return copy.deepcopy(s)
         return self.store.transaction(update)

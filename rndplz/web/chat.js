@@ -28,8 +28,8 @@ function render(){
 }
 function renderCandidates(){
  const zone=$("proposalZone");zone.hidden=!session?.ready||busy;if(zone.hidden)return;
- const result=session.result,lookup=result.intent==="person_lookup",choosing=result.intent==="person_choice";
- let html='<div class="collection-heading"><div><span class="micro">PEOPLE / RECORDS</span><h2>'+esc(choosing?'어느 분을 말씀하시나요?':lookup?'이름으로 찾은 기록입니다.':'이 경험에서, 연결을 시작해요.')+'</h2><p>'+esc(lookup?'등록 이력을 보여드립니다. 요청한 일의 적합성을 확정하는 추천은 아닙니다.':choosing?'소속과 이름을 확인해 선택해 주세요.':'먼저 근거를 살펴보고, 조건을 더 알려주시면 함께 좁혀볼게요.')+'</p></div><span class="collection-count">'+String((choosing?(result.choices||[]):result.candidates).length).padStart(2,"0")+'</span></div>';
+ const result=session.result,lookup=result.intent==="person_lookup",choosing=result.intent==="person_choice",profileCount=result.candidates.filter(c=>c.profile_only).length,profileOnly=profileCount>0&&profileCount===result.candidates.length;
+ let html='<div class="collection-heading"><div><span class="micro">PEOPLE / RECORDS</span><h2>'+esc(choosing?'어느 분을 말씀하시나요?':lookup?'이름으로 찾은 기록입니다.':profileOnly?'등록 기술·관심에서 찾았습니다.':profileCount?'기록과 등록 항목에서 찾았습니다.':'이 경험에서, 연결을 시작해요.')+'</h2><p>'+esc(lookup?'등록 이력을 보여드립니다. 요청한 일의 적합성을 확정하는 추천은 아닙니다.':choosing?'소속과 이름을 확인해 선택해 주세요.':profileCount?'등록 기술·관심과 수행 기록을 구분해 표시합니다. 등록 항목만 일치한 분은 이력 조회만 가능합니다.':'먼저 근거를 살펴보고, 조건을 더 알려주시면 함께 좁혀볼게요.')+'</p></div><span class="collection-count">'+String((choosing?(result.choices||[]):result.candidates).length).padStart(2,"0")+'</span></div>';
  if(choosing){
   html+='<div class="candidate-list">'+(result.choices||[]).map(c=>'<article class="candidate"><h3>'+esc(c.name)+'</h3><p>'+esc(c.org)+'</p>'+(c.virtual?'<p>가상 현장 인물</p>':'')+'<button class="primary" data-action="person-select" data-id="'+esc(c.id)+'">이 사람의 이력 보기</button></article>').join('')+'</div>';
  }
@@ -86,8 +86,9 @@ async function upload(list){
 function safeUrl(url){try{return ["https:","http:"].includes(new URL(url).protocol);}catch{return false;}}
 async function showPerson(id,opener=document.activeElement){
  const p=await api("/api/person?id="+encodeURIComponent(id));
- const profile=RndCraft.profileDetails(p);
- $("detailContent").innerHTML=(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+'<p class="small">'+(p.virtual?"시연용 가상 인물":"참여 기록 확인 · 개인 수행·본인 확인·연락 의향 미확인")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+'</section>').join("");
+ const profile=RndCraft.profileDetails(p),candidate=session?.result?.candidates.find(c=>c.id===id);
+ const profileNotice=candidate?.profile_only?'<p class="small">'+esc(candidate.reason)+'</p><p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
+ $("detailContent").innerHTML=profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+'<p class="small">'+(p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+'</section>').join("");
  modal("detailDialog",opener);
 }
 async function openLetter(ids){const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}

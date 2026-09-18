@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from .data import Corpus, matches
 
@@ -16,6 +17,99 @@ class Engine:
         self.public_fields = {t["field"] for t in self.corpus.topics} - {
             "site", "immersion_cooling", "cpn_n2o_oxidation", "crystallization_kinetics",
             "ai_foundations", "process_engineering", "energy_catalysis"}
+
+    @staticmethod
+    def _profile_mentions(text):
+        """Explicit control concepts, with local negation; never record evidence."""
+        value = unicodedata.normalize("NFKC", str(text or ""))
+        patterns = {
+            "process_control": r"공정\s*제어|process\s+control",
+            "apc": r"apc|advanced\s+process\s+control|고급\s*공정\s*제어",
+            "pid": r"pid(?:\s+(?:control|제어))?|proportional[\s-]+integral[\s-]+derivative(?:\s+control)?|비례\s*적분\s*미분(?:\s*제어)?",
+            "mpc": r"mpc(?:\s+(?:control|제어))?|model\s+predictive\s+control|모델\s*예측\s*제어",
+        }
+        found = []
+        for concept, pattern in patterns.items():
+            bounded = r"(?<![a-z0-9])(?:" + pattern + r")(?![a-z0-9])"
+            found.extend({"concept": concept, "start": m.start(), "end": m.end(),
+                          "query_term": m.group(), "negated": False}
+                         for m in re.finditer(bounded, value, re.I))
+        # Advanced process control is APC, not a second broad parent occurrence.
+        found = [m for m in found if not any(n["start"] <= m["start"] and n["end"] >= m["end"]
+                 and n["end"] - n["start"] > m["end"] - m["start"] for n in found)]
+        found.sort(key=lambda m: (m["start"], m["end"]))
+        noun = r"(?:(?:관련(?:된)?|경험|기술|관심|전문가|연구자|사람|분야|제어)\s*)*"
+        particle = r"(?:은|는|을|를|이|가|도)?\s*"
+        negative = r"(?:말고|제외(?!하지\s*(?:말|않))|빼(?:고|줘|주세요)|아니(?:라|고|야|에요)|아닌|필요\s*없|관심\s*없|안\s*(?:찾|원)|(?:not|excluded|unwanted)\b)"
+        suffix = r"^\s*" + noun + particle + r"(?:(?:찾지|추천하지|보여주지|포함하지)\s*)?" + negative
+        connector = r"[\s,·/&]*(?:(?:및|와|과|하고|나|또는|and|or)[\s,·/&]*)?"
+        for i, item in enumerate(found):
+            end = found[i + 1]["start"] if i + 1 < len(found) else len(value)
+            right = value[item["end"]:end]
+            left = value[found[i - 1]["end"] if i else 0:item["start"]]
+            item["negated"] = bool(re.match(suffix, right, re.I) or
+                re.search(r"\b(?:not|without|excluding|exclude|except)\s+(?:(?:a|an|the)\s+)?$", left, re.I))
+            if item["negated"]:
+                # A coordinated list before '말고' is one excluded clause.
+                prior = i - 1
+                while prior >= 0 and re.fullmatch(connector, value[found[prior]["end"]:found[prior + 1]["start"]], re.I):
+                    found[prior]["negated"] = True
+                    prior -= 1
+        return found
+
+    def profile_query_terms(self, text):
+        """Return positive concept IDs in query order, without broadening children."""
+        mentions = self._profile_mentions(text)
+        latest = {m["concept"]: m["negated"] for m in mentions}
+        return list(dict.fromkeys(m["concept"] for m in mentions
+                    if not m["negated"] and not latest[m["concept"]]))
+
+    def profile_matches(self, text, person_ids=None):
+        """Find declared skills/interests in the already-visible corpus only.
+
+        Matches describe profile text, not performance, availability or eligibility.
+        This helper deliberately does not change recommend(), records or their tags.
+        """
+        mentions = self._profile_mentions(text)
+        positive = self.profile_query_terms(text)
+        if not positive:
+            return []
+        latest = {m["concept"]: m["negated"] for m in mentions}
+        excluded = {concept for concept, negated in latest.items() if negated}
+        query_terms = {concept: next(m["query_term"] for m in mentions
+                      if m["concept"] == concept and not m["negated"]) for concept in positive}
+        # A specific PID/MPC/APC request must not match an unrelated sibling
+        # merely because the query also says 'process control'.
+        concepts = [c for c in positive if c != "process_control"] or positive
+        requested = None if person_ids is None else ({person_ids} if isinstance(person_ids, str) else set(person_ids))
+        results = []
+        for pid, person in self.corpus.people.items():
+            if requested is not None and pid not in requested:
+                continue
+            profile = person.profile or {}
+            entries = []
+            for field, basis in (("skills", "등록 기술"), ("interests", "등록 관심")):
+                values = profile.get(field, [])
+                if isinstance(values, list):
+                    entries.extend((field, f"{field}[{i}]", value, basis) for i, value in enumerate(values) if isinstance(value, str))
+            groups = profile.get("skill_groups", [])
+            if isinstance(groups, list):
+                for i, group in enumerate(groups):
+                    items = group.get("items", []) if isinstance(group, dict) else []
+                    if isinstance(items, list):
+                        entries.extend(("skill_groups", f"skill_groups[{i}].items[{j}]", value, "등록 기술")
+                                       for j, value in enumerate(items) if isinstance(value, str))
+            matches_found = []
+            for field, path, value, basis in entries:
+                declared = set(self.profile_query_terms(value)) - excluded
+                for concept in concepts:
+                    supported = bool(declared) if concept == "process_control" else concept in declared
+                    if supported:
+                        matches_found.append({"field": field, "path": path, "value": value,
+                                              "basis": basis, "concept": concept, "query_term": query_terms[concept]})
+            if matches_found:
+                results.append({"person_id": pid, "matches": matches_found})
+        return results
 
     def topics_for(self, text):
         scores = {t["id"]:sum(matches(text,k) for k in t["keywords"]) for t in self.corpus.topics}

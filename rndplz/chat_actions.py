@@ -60,6 +60,24 @@ class ChatActions:
         return {'reply': message, 'result': self.blank('person_choice', message, choices=self.choice_rows(ids)),
                 'context': {'kind': 'person_choice', 'ids': ids, 'query': query}, 'can_propose': False}
 
+    def profile_candidate(self, row):
+        person = self.corpus.people[row['person_id']]
+        facts = row['matches']
+        labels = list(dict.fromkeys(f['basis'] for f in facts))
+        citations = list(dict.fromkeys(f"{f['basis']}에 「{f['value']}」 ({f['query_term']} 일치)" for f in facts))
+        count = len(self.corpus.by_person.get(person.id, []))
+        return {'id': person.id, 'name': person.name, 'org': person.org, 'org_type': person.org_type,
+                'profile': person.profile if person.profile.get('curated') else {},
+                'virtual': person.virtual, 'kind': person.kind, 'role': ' · '.join(labels),
+                'reason': ', '.join(citations) + ' 항목이 있습니다. 이 조건에 직접 연결되는 수행 기록은 확인되지 않았습니다.',
+                'experience': '프로필 등록 항목 · 수행 경험 미확인', 'evidence': [], 'evidence_counts': {},
+                'profile_matches': facts, 'details': {'profile_matches': facts}, 'profile_only': True,
+                'record_count': count, 'works_in_corpus': count, 'works_count': person.profile.get('works_count'),
+                'relevant_records': 0, 'condition_evidence_count': 0, 'condition_checked': True,
+                'topics': [], 'profile_topics': [], 'portfolio': '등록 항목 일치 · 수행 경험 미확인',
+                'record_confirmed': False, 'individual_performance_verified': False,
+                'person_confirmed': False, 'availability': '미확인', 'lookup_only': True}
+
     def profiles(self, ids, text=''):
         # Only an explicitly stated affiliation is checked; it is not current HR verification.
         affiliation = re.search(r'^\s*([^,!?\n]{2,120}?)\s*소속', text) if len(ids) == 1 else None
@@ -67,6 +85,8 @@ class ChatActions:
         topics = self.engine.topics_for(text)
         field = self.engine.field_for(topics, 'advice', text)
         relevant = {r.id for r, score in self.engine.record_scores(text, topics, field, 'advice')} if topics else set()
+        profile_terms = self.engine.profile_query_terms(text)
+        profile_rows = {r['person_id']: r for r in self.engine.profile_matches(text, ids)}
         cards = []
         for pid in ids:
             detail = self.service.person(pid)
@@ -77,21 +97,43 @@ class ChatActions:
             if topics:
                 reason = ('요청 조건과 연결된 참여 기록을 함께 표시했습니다. 개인의 직접 수행 여부는 미확인입니다.'
                           if matched else '이 사람의 등록 기록에서 요청 조건에 맞는 근거는 찾지 못했습니다. 아래는 인물 자체의 기록입니다.')
+            if profile_terms and not matched:
+                reason = '이 사람의 등록 기술·관심과 수행 기록에서 요청 조건을 확인하지 못했습니다.'
+            card = {**detail, 'role': '등록 인물', 'reason': reason,
+                    'evidence': (matched if profile_terms else matched or evidence)[:3],
+                    'condition_evidence_count': len(matched),
+                    'condition_checked': bool(topics or profile_terms or requested_org),
+                    'works_count': self.corpus.people[pid].profile.get('works_count'),
+                    'works_in_corpus': len(own), 'relevant_records': len(matched), 'lookup_only': True}
+            if pid in profile_rows and not matched:
+                card.update(self.profile_candidate(profile_rows[pid]))
             org_matches = bool(requested_org and normalized(requested_org) in normalized(detail['org']))
+            card.update(requested_affiliation=requested_org, affiliation_checked=bool(requested_org),
+                        affiliation_matches=org_matches if requested_org else None)
             if requested_org and not org_matches:
-                reason = ('요청한 소속과 등록 소속이 일치하지 않습니다. 등록 소속: ' + detail['org'] + '. ' + reason)
-            cards.append({**detail, 'role': '등록 인물', 'reason': reason,
-                          'requested_affiliation': requested_org, 'affiliation_checked': bool(requested_org),
-                          'affiliation_matches': org_matches if requested_org else None,
-                          'evidence': (matched or evidence)[:3], 'condition_evidence_count': len(matched),
-                          'condition_checked': bool(topics or requested_org), 'works_count': self.corpus.people[pid].profile.get('works_count'),
-                          'works_in_corpus': len(own), 'relevant_records': len(matched), 'lookup_only': True})
+                card['reason'] = '요청한 소속과 등록 소속이 일치하지 않습니다. 등록 소속: ' + detail['org'] + '. ' + card['reason']
+            cards.append(card)
         names = ' · '.join(card['name'] for card in cards)
         result = self.blank('person_lookup', cards=cards)
         result['record_count'] = sum(card['record_count'] for card in cards)
         result['topic_ids'] = list(topics)
-        return {'reply': names + '의 등록 이력과 근거 기록을 보여드릴게요. 현재 소속·수행 역할·연락 의향은 별도 확인이 필요합니다.',
-                'result': result, 'context': {'kind': 'person_lookup', 'ids': ids, 'query': text}, 'can_propose': False}
+        only_ids = [c['id'] for c in cards if c.get('profile_only')]
+        reply = names + '의 등록 이력과 근거 기록을 보여드릴게요. 현재 소속·수행 역할·연락 의향은 별도 확인이 필요합니다.'
+        if only_ids:
+            reply = names + '의 등록 기술·관심을 확인했습니다. 해당 조건의 수행 기록은 찾지 못했으며, 전체 이력과 구분해 표시합니다.'
+        return {'reply': reply, 'result': result,
+                'context': {'kind': 'person_lookup', 'ids': ids, 'query': text, 'profile_only_ids': only_ids},
+                'can_propose': False}
+
+    def profile_followup(self, context, ids, text):
+        # A request for the same person's evidence retains the original condition.
+        # Their full career remains available in person detail, not as condition evidence.
+        prior = context.get('profile_only_ids', [])
+        fresh = self.engine.profile_query_terms(text) or self.engine.topics_for(text)
+        switch = re.search(r'말고|제외|대신|아니면|새로|다른\s*분야|주제\s*(?:변경|바꿔)', text)
+        if prior and all(pid in prior for pid in ids) and not fresh and not switch:
+            return (context.get('query', '') + '\n' + text).strip()
+        return text
 
     @staticmethod
     def unknown_name(text):
@@ -113,6 +155,10 @@ class ChatActions:
     def cancelled(text):
         return bool(re.fullmatch(r'(?:아니(?:다|야|요)?[,\s]*)?(?:됐어|됐어요|됐습니다|그만(?:해|할게|할래|해주세요)?|취소(?:해|할게|해주세요)?|중단(?:해|할게|해주세요)?|stop|cancel|never\s*mind)[.!…\s]*', normalized(text)))
 
+    @staticmethod
+    def people_request(text):
+        return bool(re.search(r'전문가|연구자|연구원|권위자|인재|누가|추천|명단|목록|사람.*(?:찾|필요|있|보여)|(?:찾|필요).*사람', text))
+
     def query_for(self, session, text):
         # A conversational synonym; it does not change corpus classification or weights.
         text = re.sub(r'전열\s*성능', '열전달 heat transfer 성능', text)
@@ -123,26 +169,55 @@ class ChatActions:
         current_field = self.engine.field_for(current_topics, self.engine.mode_for(text), text)
         prior_field = self.engine.field_for(self.engine.topics_for(previous), self.engine.mode_for(previous), previous)
         changed = bool(re.search(r'아니면|대신|주제\s*(?:바꿔|변경)|새로|다른\s*분야', text))
+        if self.engine.profile_query_terms(previous):
+            refinement = re.search(r'그\s*조건|이\s*조건|거기서|그중|그\s*중|추가로|함께|도\s*(?:포함|가능)', text)
+            # An unknown new field must not inherit the previous control profile match.
+            changed = changed or bool(re.search(r'말고|제외|아닌|빼(?:고|줘)', text))
+            changed = changed or bool(not refinement and (self.people_request(text) or self.engine.profile_query_terms(text)))
         if changed or current_field != 'unknown' and prior_field != current_field:
             return text
         return (previous + '\n' + text).strip() if previous else text
 
+    @staticmethod
+    def requires_performance(text):
+        return bool(re.search(r'(?:실제|직접).{0,16}(?:수행|실험|경험|실적)|(?:수행|실험|경험|실적)\s*(?:근거|기록).{0,12}(?:있는|확인|만)', text))
+
     def recommend(self, session, text, excluded=None):
         query = self.query_for(session, text)
+        # Keep legacy record ranking and its evidence contract untouched.
         result = self.engine.recommend(query)
-        if excluded:
-            result['candidates'] = [c for c in result['candidates'] if c['id'] not in excluded]
+        excluded = set(excluded or ()) | self.excluded(query)
+        result['candidates'] = [c for c in result['candidates'] if c['id'] not in excluded]
+        record_count = len(result['candidates'])
+        if result['mode'] in ('advice', 'member') and not self.requires_performance(query):
+            seen = {c['id'] for c in result['candidates']} | excluded
+            for row in self.engine.profile_matches(query):
+                if len(result['candidates']) >= 7:
+                    break
+                if row['person_id'] not in seen:
+                    result['candidates'].append(self.profile_candidate(row))
+                    seen.add(row['person_id'])
         result['intent'] = 'recommend'
         count = len(result['candidates'])
-        if count:
+        profile_ids = [c['id'] for c in result['candidates'] if c.get('profile_only')]
+        result['record_candidate_count'] = record_count
+        result['profile_match_count'] = len(profile_ids)
+        if profile_ids:
+            result['empty_message'] = ''
+            result['closest_topics'] = []
+            reply = (f'기록과 연결된 인물 {record_count}명, 등록 기술·관심에서 찾은 인물 {len(profile_ids)}명입니다. '
+                     '등록 항목만 일치한 분은 해당 조건의 수행 경험이 미확인이므로 이력 조회만 제공합니다.')
+        elif count:
             reply = f'현재 열람 가능한 기록에서 관련 인물 {count}명을 찾았습니다. 먼저 근거를 살펴보고 필요한 조건을 더 좁힐 수 있어요.'
             if result['field'] == 'ai_foundations':
                 reply += ' AI 분야는 수록된 공개 연구 사례이며 전체 전문가 명단이나 협업 가능 인원은 아닙니다.'
         else:
             reply = '현재 열람 가능한 자료에서는 이 요청과 연결할 근거를 찾지 못했습니다. 자료에 없다는 뜻이며, 해당 분야의 전문가가 없다는 뜻은 아닙니다.'
         return {'reply': reply, 'result': result,
-                'context': {'kind': 'recommend', 'ids': [c['id'] for c in result['candidates']], 'query': query},
-                'can_propose': bool(count), 'query': query, 'mode': result['mode']}
+                'context': {'kind': 'recommend', 'ids': [c['id'] for c in result['candidates']],
+                            'query': query, 'profile_only_ids': profile_ids},
+                'can_propose': any(not c.get('lookup_only') for c in result['candidates']),
+                'query': query, 'mode': result['mode']}
 
     def resolve(self, session, text, selected=None):
         context = session.get('search_context') or {}
@@ -168,6 +243,10 @@ class ChatActions:
         ids = [pid for pid in ids if pid not in excluded]
         if not ids and excluded:
             return self.recommend(session, remaining, excluded)
+        explicit_name = re.search(r'(?:이?라는|이라고\s*하는)\s*(?:사람|연구자|분)|교수|박사|프로필|이력', text)
+        if ids and self.people_request(text) and not explicit_name and all(self.engine.profile_query_terms(self.corpus.people[pid].name) for pid in ids):
+            # An acronym used as a topic ("APC 전문가") does not select its namesake.
+            return self.recommend(session, text, excluded)
         if ids:
             # Affiliation narrows a duplicate-name group, never a distinct named person.
             groups = {}
@@ -185,7 +264,7 @@ class ChatActions:
             ids = resolved
             if ambiguous:
                 return self.clarification(ids, '같은 이름의 기록이 여러 개 있습니다. 소속을 확인해 인물을 골라 주세요.', remaining)
-            return self.profiles(ids, remaining)
+            return self.profiles(ids, self.profile_followup(context, ids, remaining))
         # Follow-up ordinals are resolved only against explicitly displayed choices.
         ordinal = re.search(r'(첫\s*번째|두\s*번째|세\s*번째|[1-9]\s*번)', text)
         if ordinal and context.get('kind') == 'person_choice':
@@ -200,16 +279,21 @@ class ChatActions:
         if re.search(r'그\s*(?:사람|분|연구자)|이\s*(?:사람|분)(?:의|이|은|는|을|를|\s|$)|해당\s*(?:인물|연구자)', text):
             previous = [pid for pid in context.get('ids', []) if pid in self.corpus.people]
             if len(previous) == 1:
-                return self.profiles(previous, text)
+                return self.profiles(previous, self.profile_followup(context, previous, text))
             return self.clarification(previous, '어느 분을 말씀하시는지 이름이나 소속을 알려 주세요.' if not previous
-                                      else '여러 인물을 보여드렸어요. 이력을 볼 사람을 골라 주세요.', text)
+                                      else '여러 인물을 보여드렸어요. 이력을 볼 사람을 골라 주세요.',
+                                      self.profile_followup(context, previous, text))
+        # A registered technical term plus a search request is not an unknown person's name.
+        technical_search = self.engine.profile_query_terms(text) and (self.people_request(text) or re.search(r'찾아\s*(?:줘|주)|보여\s*(?:줘|주)', text))
+        if technical_search and not explicit_name and self.engine.mode_for(text) in ('advice', 'member'):
+            return self.recommend(session, text)
         unknown = self.unknown_name(text)
         if unknown:
             message = f'현재 열람 가능한 자료에서 {unknown} 님을 찾지 못했습니다. 이름의 다른 표기나 소속이 있으면 확인할 수 있어요.'
             return {'reply': message, 'result': self.blank('person_lookup', message),
                     'context': {'kind': 'person_lookup', 'ids': [], 'query': ''}, 'can_propose': False}
-        people_request = re.search(r'전문가|연구자|연구원|권위자|인재|누가|추천|명단|목록|사람.*(?:찾|필요|있|보여)|(?:찾|필요).*사람', text)
-        refine = context.get('kind') == 'recommend' and (self.engine.topics_for(text) or re.search(r'조건|온도|성능|쪽|관련|먼저|중심', text))
+        people_request = self.people_request(text)
+        refine = context.get('kind') == 'recommend' and (self.engine.topics_for(text) or re.search(r'조건|온도|성능|쪽|관련|먼저|중심', text) or context.get('profile_only_ids') and re.search(r'말고|제외|아닌|빼(?:고|줘)', text))
         if people_request or refine:
             return self.recommend(session, text)
         return None
