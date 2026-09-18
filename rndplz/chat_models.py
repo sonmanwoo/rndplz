@@ -67,8 +67,8 @@ class ChatModels:
     def stream(self,identifier,messages):
         option=self.get(identifier);provider=option['provider']
         with self.lock:
-            limit=200 if provider=='ollama' else 20
-            if self.calls.get(identifier,0)>=limit:raise ValueError('이 서버 실행의 모델 호출 한도에 도달했습니다.')
+            # The lifetime budget protects paid APIs; local models can keep serving.
+            if provider!='ollama' and self.calls.get(identifier,0)>=20:raise ValueError('이 서버 실행의 모델 호출 한도에 도달했습니다.')
             self.calls[identifier]=self.calls.get(identifier,0)+1
             config=dict(self.configs.get(provider,{}))
         headers={'Content-Type':'application/json'}

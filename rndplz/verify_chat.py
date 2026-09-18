@@ -120,6 +120,37 @@ class ProviderTests(unittest.TestCase):
         m=ChatModels({});m.refreshed=time.monotonic()
         m.local=[{'id':'ollama:fixture','name':'fixture','provider':'ollama','enabled':True,'local':True,'vision':False}]
         return m
+    def test_ollama_streams_continue_past_200_calls(self):
+        m=self.model()
+        raw=b'{"message":{"content":"hello"},"done":true,"done_reason":"stop"}\n'
+        with patch('rndplz.chat_models.urllib.request.build_opener') as opener:
+            opener.return_value.open.side_effect=lambda *args,**kwargs:io.BytesIO(raw)
+            for call in range(1,202):
+                with self.subTest(call=call):
+                    self.assertEqual(''.join(m.stream('ollama:fixture',[])),'hello')
+            self.assertEqual(opener.return_value.open.call_count,201)
+            self.assertEqual(m.calls['ollama:fixture'],201)
+            request=opener.return_value.open.call_args.args[0]
+            self.assertEqual(json.loads(request.data)['options']['num_predict'],700)
+            self.assertEqual(opener.return_value.open.call_args.kwargs['timeout'],180)
+
+    def test_paid_provider_budgets_remain_limited_to_20_calls(self):
+        streams={
+            'openai':b'data: {"choices":[{"delta":{"content":"hello"},"finish_reason":"stop"}]}\n',
+            'claude':b'data: {"type":"content_block_delta","delta":{"text":"hello"}}\ndata: {"type":"message_stop"}\n'}
+        for provider,raw in streams.items():
+            with self.subTest(provider=provider):
+                m=self.model()
+                m.configure({'provider':provider,'model':'fixture-model','key':'fixture-secret'})
+                with patch('rndplz.chat_models.urllib.request.build_opener') as opener:
+                    opener.return_value.open.side_effect=lambda *args,**kwargs:io.BytesIO(raw)
+                    for _ in range(20):
+                        self.assertEqual(''.join(m.stream(provider,[])),'hello')
+                    with self.assertRaisesRegex(ValueError,'호출 한도'):
+                        list(m.stream(provider,[]))
+                    self.assertEqual(opener.return_value.open.call_count,20)
+                    self.assertEqual(m.calls[provider],20)
+
     def test_stream_contracts_and_secret_boundary(self):
         streams={
             'ollama:fixture':[{'message':{'content':'hello'},'done':False},{'message':{'content':''},'done':True,'done_reason':'stop'}],
