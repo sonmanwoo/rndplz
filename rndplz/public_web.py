@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from .chat_models import ChatModels
+from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
 from .data import Corpus, ROOT
 from .engine import Engine
@@ -27,7 +28,18 @@ WEB = Path(__file__).with_name('web')
 
 class PublicModels(ChatModels):
     """No local Ollama probing or visitor changes to shared API credentials."""
+    def __init__(self, env=None):
+        super().__init__(env)
+        self.bridge=GemmaRelay(self.env.get('RNDPLZ_BRIDGE_TOKEN',''),self.env.get('RNDPLZ_BRIDGE_MODEL','gemma4:e4b'))
+
     def catalog(self, refresh=False):
+        if self.env.get('RNDPLZ_PUBLIC_MODEL')=='bridge':
+            ready=self.bridge.online
+            return {'models':[
+                {'id':'bridge','provider':'bridge','name':self.bridge.model+' · 운영자 PC'+('' if ready else ' · 연결 대기'),
+                 'enabled':ready,'local':False,'vision':False},
+                {'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False}],
+                'default':'bridge' if ready else 'guide','public':True}
         items = [{'id': p, 'provider': p, 'name': label + ' · ' + c['model'],
                   'enabled': True, 'local': False, 'vision': False}
                  for p, label in [('openai', 'OpenAI API'), ('claude', 'Claude API')]
@@ -41,6 +53,9 @@ class PublicModels(ChatModels):
         raise ValueError('공개 서비스 모델은 운영자가 서버에서 설정합니다.')
 
     def stream(self, identifier, messages):
+        if identifier=='bridge':
+            yield from self.bridge.stream(messages)
+            return
         if identifier != 'guide':
             yield from super().stream(identifier, messages)
             return
@@ -74,7 +89,7 @@ class PublicApp:
         self.models = PublicModels(self.env)
         self.contexts = {}
         self.lock = threading.RLock()
-        self.request_slots = threading.BoundedSemaphore(8)
+        self.request_slots = threading.BoundedSemaphore(4)
         self.images = {p.profile['portrait']['path'] for p in corpus.people.values() if p.profile.get('portrait')}
         self.images.update(p.profile['portrait']['background'] for p in corpus.people.values() if p.profile.get('portrait', {}).get('background'))
 
@@ -127,6 +142,19 @@ class PublicApp:
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
             return send(405, {'error': '지원하지 않는 요청입니다.'})
+        if path in ('/api/worker/poll','/api/worker/result'):
+            if method!='POST': return send(405,{'error':'지원하지 않는 요청입니다.'})
+            if not self.models.bridge.authorized(environ.get('HTTP_X_RNDPLZ_BRIDGE','')):
+                return send(403,{'error':'연결 인증이 필요합니다.'})
+            try:
+                length=int(environ.get('CONTENT_LENGTH','0'))
+                if not 0<length<=262144: return send(413,{'error':'요청 범위 초과'})
+                payload=json.loads(environ['wsgi.input'].read(length))
+                if not isinstance(payload,dict): raise ValueError()
+                if path.endswith('/poll'): return send(200,{'job':self.models.bridge.poll()})
+                self.models.bridge.deliver(payload)
+                return send(200,{'ok':True})
+            except (ValueError,KeyError,TypeError): return send(400,{'error':'연결 요청 형식을 확인해 주세요.'})
         try:
             context, cookie = self.visitor(environ)
             headers.append(('Set-Cookie', cookie))
