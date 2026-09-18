@@ -12,4 +12,4 @@ limit_request_fields = 50
 limit_request_field_size = 4096
 
 # This release includes the two explicitly approved profile cards.
-raw_env = ["RNDPLZ_PUBLISH_PERSONAL=1"]
+raw_env = ["RNDPLZ_PUBLISH_PERSONAL=1", "RNDPLZ_BRIDGE_MODELS=gemma4:e4b,gemma3:1b,gemma3:4b,gemma4:e2b,gemma4:26b"]

@@ -11,5 +11,7 @@ services:
         generateValue: true
       - key: RNDPLZ_PUBLISH_PERSONAL
         value: "1"
+      - key: RNDPLZ_BRIDGE_MODELS
+        value: "gemma4:e4b,gemma3:1b,gemma3:4b,gemma4:e2b,gemma4:26b"
       - key: RNDPLZ_STATE_DIR
         value: /tmp/rndplz-public-state

@@ -3,6 +3,7 @@ import argparse
 import collections
 import hmac
 import json
+import re
 import secrets
 import threading
 import time
@@ -13,9 +14,42 @@ from .chat_models import ChatModels
 from .models import NoRedirect
 
 
+def _validated_model_names(values):
+    if not isinstance(values,list) or len(values)>32:
+        raise ValueError('Gemma 모델 목록 형식을 확인해 주세요.')
+    for value in values:
+        if not isinstance(value,str) or not 1<=len(value)<=150 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*(?::[A-Za-z0-9][A-Za-z0-9._-]*)?',value):
+            raise ValueError('Gemma 모델 태그 형식을 확인해 주세요.')
+    return tuple(dict.fromkeys(values))
+
+
+def configured_models(default, additional=None):
+    """Operator-owned exact tags; the existing default always remains permitted."""
+    _validated_model_names([default])
+    if additional is None:additional=[]
+    elif isinstance(additional,str):additional=[part.strip() for part in additional.split(',') if part.strip()]
+    return _validated_model_names([default]+list(_validated_model_names(additional)))
+
+
+def installed_worker_models(config, model_client, refresh=False):
+    additional=config.get('models')
+    if additional is not None and not isinstance(additional,list):
+        raise ValueError('연결기 models 설정은 모델 태그 배열이어야 합니다.')
+    allowed=configured_models(config.get('model','gemma4:e4b'),additional)
+    options=model_client.catalog(refresh=refresh)['models']
+    installed={option.get('name') for option in options
+               if option.get('provider')=='ollama' and option.get('enabled') and
+               option.get('id')=='ollama:'+str(option.get('name','')) and
+               'completion' in option.get('capabilities',['completion'])}
+    return [name for name in allowed if name in installed]
+
+
 class GemmaRelay:
-    def __init__(self, token, model='gemma4:e4b', timeout=150):
+    def __init__(self, token, model='gemma4:e4b', timeout=150, models=None):
+        self.allowed_models=configured_models(model,models)
         self.token, self.model, self.timeout = token, model, timeout
+        self._advertised_models={model}
+        self.draining=False
         self.condition = threading.Condition()
         self.jobs = {}
         self.seen = 0
@@ -26,20 +60,42 @@ class GemmaRelay:
     @property
     def online(self): return bool(self.token) and time.monotonic() - self.seen < 90
 
-    def poll(self):
+    @property
+    def available_models(self):
+        with self.condition:
+            return frozenset(self._advertised_models) if self.online else frozenset()
+
+    def control(self, command):
+        """Authenticated operator control; never a heartbeat or a job claim."""
+        if command not in ('status','drain','resume'):
+            raise ValueError('지원하지 않는 연결기 제어입니다.')
+        with self.condition:
+            if command=='drain':self.draining=True
+            elif command=='resume':self.draining=False
+            return {'active_jobs':len(self.jobs),'draining':self.draining,'models':sorted(self.available_models)}
+
+    def poll(self, models=None):
+        advertised={self.model} if models is None else set(_validated_model_names(models))
+        advertised.intersection_update(self.allowed_models)
         with self.condition:
             self.seen = time.monotonic()
-            for identifier, job in self.jobs.items():
-                if not job['claimed']:
+            self._advertised_models=advertised
+            def claim():
+                for identifier, job in self.jobs.items():
+                    if job['claimed'] or job['done']:continue
+                    if job['model'] not in advertised:
+                        # A changed/legacy worker must not claim a model it cannot run.
+                        job['done']=True;job['error']=True
+                        self.condition.notify_all()
+                        continue
                     job['claimed'] = True
-                    return {'id': identifier, 'lease': job['lease'], 'messages': job['messages'], 'model': self.model}
+                    return {'id': identifier, 'lease': job['lease'], 'messages': job['messages'], 'model': job['model']}
+                return None
+            job=claim()
+            if job:return job
             self.condition.wait(5)
             self.seen = time.monotonic()
-            for identifier, job in self.jobs.items():
-                if not job['claimed']:
-                    job['claimed'] = True
-                    return {'id': identifier, 'lease': job['lease'], 'messages': job['messages'], 'model': self.model}
-            return None
+            return claim()
 
     def deliver(self, payload):
         with self.condition:
@@ -60,12 +116,16 @@ class GemmaRelay:
             job['error'] = bool(payload.get('error'))
             self.condition.notify_all()
 
-    def stream(self, messages):
+    def stream(self, messages, model=None):
+        model=self.model if model is None else model
         with self.condition:
+            if not isinstance(model,str) or model not in self.allowed_models:raise ValueError('허용되지 않은 Gemma 모델입니다.')
+            if self.draining:raise ValueError('Gemma 연결기를 점검 중입니다. 잠시 후 다시 시도해 주세요.')
             if not self.online: raise ValueError('운영자 PC의 Gemma 연결을 기다리고 있습니다.')
+            if model not in self.available_models:raise ValueError('선택한 Gemma 모델을 운영자 PC에서 사용할 수 없습니다.')
             if len(self.jobs)>=2: raise ValueError('Gemma가 다른 질문에 답하고 있습니다. 잠시 후 다시 시도해 주세요.')
             identifier=secrets.token_hex(16)
-            job={'messages':messages,'lease':secrets.token_hex(24),'claimed':False,'chunks':collections.deque(),
+            job={'messages':messages,'model':model,'lease':secrets.token_hex(24),'claimed':False,'chunks':collections.deque(),
                  'sequence':0,'length':0,'done':False,'error':False}
             self.jobs[identifier]=job
             self.condition.notify_all()
@@ -105,22 +165,24 @@ def run_worker(config):
     print('Gemma 연결기 시작 · 공개 서버 요청을 기다립니다.',flush=True)
     while True:
         try:
-            job=post('poll',{}).get('job')
+            job=post('poll',{'models':installed_worker_models(config,model)}).get('job')
             if not job: continue
-            if job.get('model')!=config.get('model','gemma4:e4b'): raise ValueError('모델 설정 불일치')
-            seq=0;buffer='';last=time.monotonic()
+            seq=0;buffer='';last=time.monotonic();accepted_model=None
             try:
-                for chunk in model.stream('ollama:'+job['model'],job['messages']):
+                if job.get('model') not in installed_worker_models(config,model,refresh=True):
+                    raise ValueError('허용되거나 설치된 모델이 아닙니다.')
+                accepted_model=job['model']
+                for chunk in model.stream('ollama:'+accepted_model,job['messages']):
                     buffer+=chunk
                     if len(buffer)>=60 or time.monotonic()-last>=.5:
                         post('result',{'id':job['id'],'lease':job['lease'],'sequence':seq,'text':buffer})
                         seq+=1;buffer='';last=time.monotonic()
                 post('result',{'id':job['id'],'lease':job['lease'],'sequence':seq,'text':buffer,'done':True})
-                print('Gemma 응답 전달 완료',flush=True)
+                print('Gemma 응답 전달 완료 · '+accepted_model,flush=True)
             except Exception:
                 try: post('result',{'id':job['id'],'lease':job['lease'],'sequence':seq,'done':True,'error':True})
                 except Exception: pass
-                print('Gemma 작업 중단 · 요청 본문과 비밀 값은 기록하지 않습니다.',flush=True)
+                print('Gemma 작업 중단'+(' · '+accepted_model if accepted_model else '')+' · 요청 본문과 비밀 값은 기록하지 않습니다.',flush=True)
         except KeyboardInterrupt: return
         except Exception:
             print('연결 재시도 대기',flush=True)

@@ -82,16 +82,21 @@ class PublicModels(ChatModels):
     """No local Ollama probing or visitor changes to shared API credentials."""
     def __init__(self, env=None):
         super().__init__(env)
-        self.bridge=GemmaRelay(self.env.get('RNDPLZ_BRIDGE_TOKEN',''),self.env.get('RNDPLZ_BRIDGE_MODEL','gemma4:e4b'))
+        self.bridge=GemmaRelay(self.env.get('RNDPLZ_BRIDGE_TOKEN',''),self.env.get('RNDPLZ_BRIDGE_MODEL','gemma4:e4b'),
+                               models=self.env.get('RNDPLZ_BRIDGE_MODELS'))
 
     def catalog(self, refresh=False):
         if self.env.get('RNDPLZ_PUBLIC_MODEL')=='bridge':
-            ready=self.bridge.online
-            return {'models':[
-                {'id':'bridge','provider':'bridge','name':self.bridge.model+' · 운영자 PC'+('' if ready else ' · 연결 대기'),
-                 'enabled':ready,'local':False,'vision':False},
-                {'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False}],
-                'default':'bridge' if ready else 'guide','public':True}
+            status=self.bridge.control('status');available=set(status['models'])
+            items=[]
+            for model in self.bridge.allowed_models:
+                ready=model in available and not status['draining']
+                suffix='' if ready else ' · 점검 중' if status['draining'] else ' · 연결 대기'
+                items.append({'id':'bridge' if model==self.bridge.model else 'bridge:'+model,
+                              'provider':'bridge','model':model,'name':model+' · 운영자 PC'+suffix,
+                              'enabled':ready,'local':False,'vision':False})
+            items.append({'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False})
+            return {'models':items,'default':'bridge' if items[0]['enabled'] else 'guide','public':True}
         items = [{'id': p, 'provider': p, 'name': label + ' · ' + c['model'],
                   'enabled': True, 'local': False, 'vision': False}
                  for p, label in [('openai', 'OpenAI API'), ('claude', 'Claude API')]
@@ -105,8 +110,9 @@ class PublicModels(ChatModels):
         raise ValueError('공개 서비스 모델은 운영자가 서버에서 설정합니다.')
 
     def stream(self, identifier, messages):
-        if identifier=='bridge':
-            yield from self.bridge.stream(messages)
+        option=self.get(identifier)
+        if option['provider']=='bridge':
+            yield from self.bridge.stream(messages,model=option['model'])
             return
         if identifier != 'guide':
             yield from super().stream(identifier, messages)
@@ -217,7 +223,10 @@ class PublicApp:
                 if not 0<length<=262144: return send(413,{'error':'요청 범위 초과'})
                 payload=json.loads(environ['wsgi.input'].read(length))
                 if not isinstance(payload,dict): raise ValueError()
-                if path.endswith('/poll'): return send(200,{'job':self.models.bridge.poll()})
+                if path.endswith('/poll'):
+                    if 'control' in payload:return send(200,self.models.bridge.control(payload['control']))
+                    if 'models' in payload and not isinstance(payload['models'],list):raise ValueError()
+                    return send(200,{'job':self.models.bridge.poll(payload.get('models'))})
                 self.models.bridge.deliver(payload)
                 return send(200,{'ok':True})
             except (ValueError,KeyError,TypeError): return send(400,{'error':'연결 요청 형식을 확인해 주세요.'})
