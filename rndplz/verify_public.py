@@ -80,6 +80,37 @@ class PublicTests(unittest.TestCase):
         self.assertEqual(self.a.call('/healthz', host='elsewhere.invalid')['status'], 421)
         self.assertEqual(self.a.call('/healthz')['status'], 200)
 
+    def test_ralph_evidence_routes_and_empty_result(self):
+        engine = self.app.engine
+        results = {}
+        for qid in ('Q00', 'Q01', 'Q09', 'Q10', 'Q06'):
+            q = next(q for q in engine.corpus.questions if q['id'] == qid)
+            text = q['question'] + ' ' + q.get('ai_answer', '')
+            result = engine.recommend(text, q.get('mode'))
+            results[qid] = result
+            for candidate in result['candidates']:
+                self.assertIn(candidate['evidence'][0]['title'], candidate['reason'])
+                self.assertFalse(candidate['individual_performance_verified'])
+                for evidence in candidate['evidence']:
+                    record = engine.corpus.records[evidence['id']]
+                    self.assertIn(candidate['id'], [p.person_id for p in record.people])
+        self.assertGreaterEqual(len(results['Q00']['claims']), 2)
+        self.assertEqual(results['Q06']['candidates'], [])
+        self.assertEqual(len(results['Q06']['closest_topics']), 3)
+        route = results['Q10']['candidates']
+        self.assertEqual([c['route_order'] for c in route], [1, 2, 3])
+        self.assertEqual([c['evidence'][0]['id'] for c in route], ['S001', 'S002', 'S005'])
+        self.assertTrue(all(c['virtual'] and '가상' in c['reason'] for c in route))
+        # Profile prestige fields must not change evidence-based ranking.
+        before = [c['id'] for c in results['Q01']['candidates']]
+        for person in engine.corpus.people.values():
+            person.org = ''; person.org_type = ''
+            for key in ('works_count', 'title', 'position'):
+                person.profile.pop(key, None)
+        q = next(q for q in engine.corpus.questions if q['id'] == 'Q01')
+        after = engine.recommend(q['question'] + ' ' + q.get('ai_answer', ''), q.get('mode'))
+        self.assertEqual(before, [c['id'] for c in after['candidates']])
+
     def test_opt_in_personal_profiles_and_secure_cookie(self):
         app = PublicApp(self.temp.name + '/approved', {}, include_personal=True)
         if 'LOCAL-MANWOO' not in app.engine.corpus.people:

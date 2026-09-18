@@ -108,7 +108,7 @@ class Engine:
             scored.append((record,round(score,6)))
         return sorted(scored,key=lambda pair:(-pair[1],pair[0].id))
 
-    def candidate(self, person, scored, query_topics):
+    def candidate(self, person, scored, query_topics, query_text=""):
         best,best_score=scored[0]
         contribution=next(c for c in best.people if c.person_id==person.id)
         evidence=[self.explain_record(r,next(c for c in r.people if c.person_id==person.id)) for r,_ in scored[:3]]
@@ -118,12 +118,17 @@ class Engine:
         orgs=contribution.institutions
         org=" / ".join(i.get("name","") for i in orgs) or person.org
         org_type="company" if any(i.get("type")=="company" for i in orgs) else orgs[0].get("type","unknown") if orgs else person.org_type
-        reason="관련 문헌의 "+ROLE.get(contribution.role,"저자")+"로 참여한 기록이 있습니다."
+        shared = [self.corpus.topic_by_id[t] for t in query_topics if t in best.tags]
+        question_terms = [k for t in shared for k in t["keywords"] if matches(query_text, k)]
+        # Synonyms share a topic; participation is evidence, not proof of hands-on work.
+        topic_name = shared[0]["name"] if shared else self.corpus.topic_by_id[best.tags[0]]["name"]
+        focus = " · ".join(dict.fromkeys(question_terms[:2])) or topic_name
+        reason = f'요청의 「{focus}」와 연결된 「{best.title}」에 {ROLE.get(contribution.role, "저자")}로 참여한 기록이 있습니다.'
         if best.kind == "career_record":
-            reason="제공된 직무 경력에 관련 연구·개발 경험이 기록되어 있습니다."
-        role=self.corpus.topic_by_id[next((t for t in query_topics if t in best.tags),best.tags[0])]["name"]
+            reason = f'요청의 「{focus}」와 연결된 「{best.title}」 경험이 제공된 직무 경력에 기록되어 있습니다.'
+        role = topic_name
         if person.virtual:
-            reason="가상 기록의 취급 대상·경험이 요청과 연결됩니다."
+            reason = f'요청의 「{focus}」와 연결된 「{best.title}」 경험이 시연용 가상 현장 기록에 있습니다.'
             role=best.details["role"]
         return {"id":person.id,"name":person.name,"profile":person.profile if person.profile.get("curated") else {},"org":org,"org_type":org_type,"role":role,"reason":reason,"experience":best.details["role"] if person.virtual else best.title,"virtual":person.virtual,"kind":person.kind,"evidence":evidence,"topics":sorted({t for r,_ in scored for t in r.tags}),"evidence_counts":dict(Counter(r.evidence_kind for r in own)),"works_count":person.profile.get("works_count"),"works_in_corpus":len(own),"relevant_records":len(scored),"profile_topics":names,"portfolio":"관련 주제 확인" if overlap else "참여 문헌에서 확인 · 전체 이력은 추가 확인","record_confirmed":True,"individual_performance_verified":False,"person_confirmed":False,"availability":"미확인","details":best.details if person.virtual else {},"score_internal":round(best_score+min(sum(s for _,s in scored[1:3])*.06,.2),6)}
 
@@ -142,7 +147,7 @@ class Engine:
                     continue
                 if contribution.person_id and score>=.2:
                     grouped.setdefault(contribution.person_id,[]).append((record,score))
-        candidates=[self.candidate(self.corpus.people[pid],records,topics) for pid,records in grouped.items()]
+        candidates=[self.candidate(self.corpus.people[pid],records,topics,text) for pid,records in grouped.items()]
         candidates.sort(key=lambda c:(-c["score_internal"],c["id"]))
         if mode=="resource_request":
             route=[]
