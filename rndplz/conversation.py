@@ -5,10 +5,12 @@ import json
 import re
 import time
 import uuid
+from dataclasses import asdict
 from .attachments import Attachments
 from .chat_models import ChatModels
 from .chat_actions import ChatActions
 from .service import now, validate_text
+from .diagnostics import capture_scope, event as diagnostic_event, scope as diagnostic_scope
 
 
 class Conversation:
@@ -341,26 +343,78 @@ class Conversation:
             return copy.deepcopy(s)
         return self.store.transaction(save)
 
+    def _diagnostic_retrieval(self, action):
+        result=(action or {}).get('result') or {}
+        candidates=result.get('candidates') or []
+        if not hasattr(self, '_diagnostic_corpus_fingerprint'):
+            corpus=self.service.corpus
+            observed={'people':[asdict(corpus.people[k]) for k in sorted(corpus.people)],
+                      'records':[asdict(corpus.records[k]) for k in sorted(corpus.records)],
+                      'topics':corpus.topics}
+            self._diagnostic_corpus_fingerprint=hashlib.sha256(json.dumps(observed,sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+        return {'corpus_fingerprint':self._diagnostic_corpus_fingerprint,'candidate_ids':[c['id'] for c in candidates],
+                'evidence_ids':list(dict.fromkeys(e['id'] for c in candidates for e in c.get('evidence',[]))),
+                'candidates':[{'id':c['id'],'reason':c.get('reason',''),'evidence':c.get('evidence',[])} for c in candidates]}
+
+    def _diagnostic_started(self, session, payload, option, messages):
+        # Observation only: never call the engine or change the persisted session.
+        captured=capture_scope()
+        if not captured or captured[0] is None:return
+        action=session.get('pending_action');kind=((action or {}).get('context') or {}).get('kind','')
+        route=('cancel' if kind=='stopped' else 'clarify' if kind in ('request_clarification','person_choice') else 'records') if action else ('guide' if option.get('provider')=='guide' else 'model')
+        execution='records' if action else option.get('provider','unknown')
+        if execution in ('openai','claude'):execution='api'
+        try:
+            request=self.request_context(session)
+            if action and action.get('query'):request={**request,'query':action['query']}
+            content={'user_text':payload.get('text',''),'request_context':request,
+                     'attachments':next((m.get('attachments',[]) for m in reversed(session['messages']) if m.get('turn_id')==payload['turn_id'] and m['role']=='user'),[]),
+                     'missing_fields':[] if action and kind=='recommend' else ['request_context_compiled_for_observation_only']}
+            if action:content['retrieval']=self._diagnostic_retrieval(action)
+            else:content['model_messages']=messages
+            reason=(kind or 'records_action') if action else 'guide_selected' if route=='guide' else 'document_question' if any(m.get('attachments') for m in session['messages']) else 'discussion_requested' if self.actions.discussion_request(payload.get('text','')) else 'model_conversation'
+            diagnostic_event('turn_started',session_id=session['id'],turn_id=payload['turn_id'],status='started',
+                             route=route,route_reason=reason,execution_kind=execution,model_selected=option['id'],
+                             model_called=False,input_chars=len(payload.get('text','')),attachment_count=len(payload.get('attachments',[])),
+                             previous_mode=session.get('mode','advice'),content=content)
+        except Exception:
+            # Observation cannot change a successful dialogue or cause a replay.
+            diagnostic_event('capture_failed',error_kind='diagnostic_write_failed',failure_stage='context_capture')
+
     def stream(self,payload):
         session,messages,cached,option=self.begin(payload)
-        if cached:
-            yield {'type':'done','session':session};return
-        reply='';status='cancelled';error='';started=time.monotonic()
-        try:
-            yield {'type':'start','session':session}
-            action=session.get('pending_action')
-            pieces=[action['reply']] if action else self.models.stream(option['id'],messages)
-            for piece in pieces:
-                reply+=piece
-                yield {'type':'delta','text':piece}
-            if not reply.strip():raise ValueError('모델이 빈 응답을 반환했습니다. 다시 시도해 주세요.')
-            status='complete'
-        except GeneratorExit:raise
-        except Exception as exc:
-            status='error';error=str(exc) if isinstance(exc,ValueError) else '응답 생성 중 오류가 발생했습니다. 다시 시도해 주세요.'
-        finally:
-            session=self.finish(session['id'],payload['turn_id'],reply,status,option,error,time.monotonic()-started)
-        yield {'type':'done' if status=='complete' else 'error','session':session,'error':error}
+        captured=capture_scope()
+        store,metadata=captured if captured else (None,{})
+        with diagnostic_scope(store,{**metadata,'session_id':session['id'],'turn_id':payload['turn_id']}):
+            if cached:
+                diagnostic_event('cached_return',status='complete',cached=True,model_called=False,model_selected=option['id'])
+                yield {'type':'done','session':session};return
+            self._diagnostic_started(session,payload,option,messages)
+            reply='';status='cancelled';error='';started=time.monotonic();first=True
+            try:
+                yield {'type':'start','session':session}
+                action=session.get('pending_action')
+                if action:pieces=[action['reply']]
+                else:
+                    if option.get('provider')!='guide':diagnostic_event('model_dispatch_started',model_called=True)
+                    pieces=self.models.stream(option['id'],messages)
+                for piece in pieces:
+                    reply+=piece
+                    if first and piece:
+                        diagnostic_event('first_output',first_delta_ms=round((time.monotonic()-started)*1000));first=False
+                    yield {'type':'delta','text':piece}
+                if not reply.strip():raise ValueError('모델이 빈 응답을 반환했습니다. 다시 시도해 주세요.')
+                status='complete'
+            except GeneratorExit:raise
+            except Exception as exc:
+                status='error';error=str(exc) if isinstance(exc,ValueError) else '응답 생성 중 오류가 발생했습니다. 다시 시도해 주세요.'
+            finally:
+                session=self.finish(session['id'],payload['turn_id'],reply,status,option,error,time.monotonic()-started)
+                diagnostic_event('turn_finished',status=status,output_chars=len(reply),elapsed_ms=round((time.monotonic()-started)*1000),
+                                 partial_output=bool(reply) and status!='complete',next_mode=session.get('mode','advice'),
+                                 error_kind='client_disconnect' if status=='cancelled' else 'generation_error' if status=='error' else None,
+                                 failure_stage='stream' if status!='complete' else None,content={'assistant_text':reply})
+            yield {'type':'done' if status=='complete' else 'error','session':session,'error':error}
 
     def prepare(self,payload):
         sid=payload.get('session_id')
@@ -381,5 +435,12 @@ class Conversation:
             s['result']=action['result'];s['search_context']=action['context']
             s['can_propose']=action['can_propose']
             s['ready']=True;s['updated']=now()
+            captured=capture_scope()
+            if captured and captured[0] is not None:
+                try:
+                    diagnostic_event('prepare_completed',session_id=s['id'],status='complete',route='records',route_reason='explicit_prepare',
+                                     execution_kind='records',model_called=False,content={'request_context':request,'retrieval':self._diagnostic_retrieval(action)})
+                except Exception:
+                    diagnostic_event('capture_failed',session_id=s['id'],error_kind='diagnostic_write_failed',failure_stage='context_capture')
             return copy.deepcopy(s)
         return self.store.transaction(update)

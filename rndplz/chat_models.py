@@ -1,5 +1,6 @@
 """Interchangeable streaming chat providers; credentials stay in this process."""
 import json
+import copy
 import os
 import threading
 import time
@@ -89,6 +90,10 @@ class ChatModels:
         else:
             url='https://api.anthropic.com/v1/messages';headers.update({'x-api-key':config['key'],'anthropic-version':'2023-06-01'})
             payload={'model':config['model'],'system':CHAT_SYSTEM,'messages':messages,'stream':True,'max_tokens':1200}
+        observer=getattr(self,'diagnostic_observer',None)
+        if callable(observer):
+            try:observer(provider,copy.deepcopy(payload))
+            except Exception:pass  # Observation never edits or prevents the actual request.
         request=urllib.request.Request(url,data=json.dumps(payload,ensure_ascii=False).encode(),headers=headers,method='POST')
         complete=False
         try:

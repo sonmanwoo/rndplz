@@ -10,6 +10,7 @@ import re
 import secrets
 import threading
 import time
+import uuid
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -22,6 +23,7 @@ from .data import Corpus, ROOT
 from .engine import Engine
 from .models import ExternalModel
 from .service import Service
+from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 
 WEB = Path(__file__).with_name('web')
 # Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
@@ -152,6 +154,19 @@ class PublicApp:
             corpus.by_person = {k: [r for r in v if r.id in corpus.records] for k, v in corpus.by_person.items() if k not in hidden}
         self.engine = Engine(corpus)
         self.models = PublicModels(self.env)
+        self.diagnostic_auth=DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
+        self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
+        if self.diagnostics is not None:self.diagnostics.mark_interrupted()
+        # A startup file fingerprint is provenance metadata, not a memory attestation.
+        tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','diagnostics.py')
+        fingerprint=hashlib.sha256()
+        for name in tracked:
+            fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
+        revision=self.env.get('RENDER_GIT_COMMIT','')
+        self.diagnostic_runtime={'code_fingerprint':fingerprint.hexdigest(),
+                                 'deployment_revision':revision if re.fullmatch(r'[a-f0-9]{40}',revision) else None,
+                                 'raw_state_retention':'existing_state_unchanged',
+                                 'storage_lifetime':'ephemeral_platform_storage; export_before_deploy'}
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
@@ -186,16 +201,65 @@ class PublicApp:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
                 service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
                 self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models),
-                                      'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': []}
+                                      'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
+                                      'visitor_ref':self.signature('diagnostic:' + sid)}
             context = self.contexts[sid]
             context['used'] = now
         return context, 'rndplz_visitor=' + value + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400' + ('; Secure' if self.secure else '')
+
+    def _diagnostic_observe(self, metadata, content=None):
+        if self.diagnostics is None:return
+        try:self.diagnostics.record(metadata,content)
+        except Exception:
+            try:
+                with self.diagnostics.lock:self.diagnostics._problem('write_errors','diagnostic_callback_failed')
+            except Exception:pass
+
+    def _operator(self,environ,path,method,send):
+        if not self.diagnostic_auth.enabled:return send(404,{'error':'경로를 찾을 수 없습니다.'})
+        if not self.diagnostic_auth.authorized(environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC','')):
+            try:self.diagnostics._audit('authentication_rejected','unauthenticated')
+            except Exception:pass
+            return send(403,{'error':'운영자 인증이 필요합니다.'})
+        origin=environ.get('HTTP_ORIGIN','')
+        expected=self.origin or ('https://' if self.secure else 'http://')+environ.get('HTTP_HOST','')
+        if origin and origin!=expected:return send(403,{'error':'허용되지 않는 요청입니다.'})
+        actor=self.diagnostic_auth.credential_id
+        try:
+            query=parse_qs(environ.get('QUERY_STRING',''),keep_blank_values=True)
+            if any(len(v)!=1 for v in query.values()):raise ValueError()
+            if path=='/api/operator/diagnostics/recent' and method=='GET':
+                if set(query)-{'since','model','status','limit'}:raise ValueError()
+                args={k:v[0] for k,v in query.items()};args['limit']=int(args.get('limit','50'))
+                data=self.diagnostics.recent(**args,actor=actor)
+            elif path=='/api/operator/diagnostics/session' and method=='GET':
+                if set(query)-{'id','turn'} or 'id' not in query:raise ValueError()
+                data=self.diagnostics.session(query['id'][0],turn_id=query.get('turn',[None])[0],actor=actor)
+            elif path=='/api/operator/diagnostics/snapshot' and method=='POST':
+                if query:raise ValueError()
+                length=int(environ.get('CONTENT_LENGTH') or '0')
+                if not 0<length<=16000:return send(413,{'error':'요청 범위 초과'})
+                payload=json.loads(environ['wsgi.input'].read(length))
+                if not isinstance(payload,dict) or set(payload)-{'session_ref','turn_ids','include_content'}:raise ValueError()
+                data=self.diagnostics.snapshot(payload.get('session_ref'),turn_ids=payload.get('turn_ids'),include_content=payload.get('include_content',False),actor=actor)
+            else:return send(404,{'error':'경로를 찾을 수 없습니다.'})
+            response={**data,'runtime':self.diagnostic_runtime}
+            if len(json.dumps(response,ensure_ascii=False).encode())>5*1024*1024:
+                return send(413,{'error':'진단 응답 크기를 넘었습니다. 턴 범위를 줄여 주세요.'})
+            return send(200,response)
+        except (ValueError,TypeError,KeyError):return send(400,{'error':'진단 조회 범위를 확인해 주세요.'})
+        except Exception:return send(503,{'error':'진단 기록을 현재 읽을 수 없습니다.'})
 
     def __call__(self, environ, start_response):
         headers = [('Cache-Control', 'no-store'), ('X-Content-Type-Options', 'nosniff'),
                    ('Referrer-Policy', 'same-origin'),
                    ('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
+        diagnostic_request=None;diagnostic_content=None;diagnostic_error='request_rejected';received=time.monotonic()
         def send(status, value, mime='application/json; charset=utf-8'):
+            if status>=400 and diagnostic_request is not None:
+                self._diagnostic_observe({**diagnostic_request,'event_type':'request_rejected','status':'rejected',
+                    'route':'reject','route_reason':'request_validation','http_status':status,'error_kind':diagnostic_error,
+                    'failure_stage':'request','elapsed_ms':round((time.monotonic()-received)*1000),'model_called':False},diagnostic_content)
             raw = json.dumps(value, ensure_ascii=False).encode() if isinstance(value, (dict, list)) else value
             start_response(f'{status} {HTTPStatus(status).phrase}', headers + [('Content-Type', mime), ('Content-Length', str(len(raw)))])
             return [raw]
@@ -207,6 +271,8 @@ class PublicApp:
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
             return send(405, {'error': '지원하지 않는 요청입니다.'})
+        if path.startswith('/api/operator/diagnostics/'):
+            return self._operator(environ,path,method,send)
         if path.startswith('/ui-previews/'):
             if method != 'GET': return send(405, {'error': '읽기 전용 비교 페이지입니다.'})
             entry = PREVIEW_ROUTES.get(path)
@@ -244,6 +310,13 @@ class PublicApp:
             token = context['token']
             query = parse_qs(environ.get('QUERY_STRING', ''))
             identifier = query.get('id', [''])[0]
+            if method=='POST' and path in ('/api/chat','/api/chat/prepare','/api/attachments'):
+                request_id=uuid.uuid4().hex
+                diagnostic_request={'visitor_ref':context['visitor_ref'],'request_id':request_id,'attempt_id':uuid.uuid4().hex,
+                                    'trace_id':uuid.uuid4().hex,'session_id':'request-'+request_id,
+                                    'code_fingerprint':self.diagnostic_runtime['code_fingerprint']}
+                marker=environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC_RUN','')
+                if isinstance(marker,str) and re.fullmatch(r'[a-f0-9]{32}',marker):diagnostic_request['diagnostic_run']=marker
             if method == 'GET':
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog()})
                 if path == '/api/chat/models': return send(200, self.models.catalog())
@@ -279,19 +352,31 @@ class PublicApp:
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             payload = json.loads(environ['wsgi.input'].read(length).decode('utf-8'))
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
+            if diagnostic_request is not None:
+                for key in ('session_id','turn_id'):
+                    if isinstance(payload.get(key),str) and re.fullmatch(r'[A-Za-z0-9-]{16,80}',payload[key]):diagnostic_request[key]=payload[key]
+                diagnostic_request['model_selected']=payload.get('model_id')
+                if path!='/api/attachments':
+                    text=payload.get('text','')
+                    diagnostic_content={'user_text':text[:16000] if isinstance(text,str) else ''}
+                    diagnostic_request['input_chars']=len(text) if isinstance(text,str) else 0
+                    diagnostic_request['attachment_count']=len(payload.get('attachments',[])) if isinstance(payload.get('attachments'),list) else 0
             with self.lock:
                 now = time.monotonic()
                 context['requests'] = [t for t in context['requests'] if now - t < 60]
                 if len(context['requests']) >= 20:
-                    return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
+                    diagnostic_error='rate_limit';return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
                 context['requests'].append(now)
             if path == '/api/chat':
                 state = service.store.read()
                 if sum(s.get('turns', 0) for s in state['sessions']) >= 40:
-                    return send(429, {'error': '이 방문자의 공개 시연 메시지 한도에 도달했습니다.'})
+                    diagnostic_error='message_limit';return send(429, {'error': '이 방문자의 공개 시연 메시지 한도에 도달했습니다.'})
                 if not self.request_slots.acquire(blocking=False):
-                    return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 시도해 주세요.'})
-                iterator = chat.stream(payload)
+                    diagnostic_error='busy';return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 시도해 주세요.'})
+                def observed_iterator():
+                    with diagnostic_scope(self.diagnostics,diagnostic_request or {}):
+                        yield from chat.stream(payload)
+                iterator = observed_iterator()
                 try:
                     first = next(iterator)
                 except Exception:
@@ -320,6 +405,9 @@ class PublicApp:
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})
+            if diagnostic_request is not None:
+                with diagnostic_scope(self.diagnostics,diagnostic_request):
+                    return send(200,routes[path]())
             return send(200, routes[path]())
         except ValueError as exc:
             # Only fixed, user-actionable validation messages may cross this boundary.
@@ -328,11 +416,14 @@ class PublicApp:
                 '이 대화에는 이미지가 있습니다. 이미지 지원 모델을 선택하거나 새 대화를 시작해 주세요.',
             }
             message = str(exc)
+            diagnostic_error='unsupported_image' if message in safe_messages else 'validation'
             return send(400, {'error': message if message in safe_messages else
                              '요청을 처리하지 못했습니다. 현재 방문자의 대화·첨부를 확인해 주세요.'})
         except (KeyError, TypeError):
+            diagnostic_error='validation'
             return send(400, {'error': '요청을 처리하지 못했습니다. 현재 방문자의 대화·첨부를 확인해 주세요.'})
         except Exception:
+            diagnostic_error='server_error'
             return send(500, {'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'})
 
 
