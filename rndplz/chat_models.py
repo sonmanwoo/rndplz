@@ -8,6 +8,9 @@ from urllib.parse import urlparse
 from .models import NoRedirect
 
 
+DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
+
+
 CHAT_SYSTEM='''당신은 수소문이라는 연구 협업 대화 도우미입니다. 한국어로 자연스럽게 대화하세요.
 처음부터 카드나 양식을 제시하지 말고 사용자가 하려는 일을 함께 이해하세요. 인사에는 짧게 인사하고 무엇이 필요한지 물으세요.
 앞선 대화와 첨부 내용을 기억하고 이미 답한 질문을 되풀이하지 마세요. 한번에 중요한 질문 하나만 하세요.
@@ -30,6 +33,7 @@ class ChatModels:
         for provider,key in [('openai',self.env.get('OPENAI_API_KEY') or self.env.get('RNDPLZ_API_KEY')),('claude',self.env.get('ANTHROPIC_API_KEY'))]:
             model=self.env.get('RNDPLZ_'+provider.upper()+'_MODEL','')
             if not model and self.env.get('RNDPLZ_PROVIDER') in (provider,{'openai':'openai_compatible','claude':'claude'}[provider]):model=self.env.get('RNDPLZ_MODEL','')
+            if provider=='openai' and not model:model=DEFAULT_OPENAI_MODEL
             if key and model:self.configs[provider]={'key':key,'model':model}
 
     def catalog(self,refresh=False):
@@ -44,7 +48,7 @@ class ChatModels:
         for provider,label in [('openai','OpenAI API'),('claude','Claude API')]:
             config=self.configs.get(provider)
             items.append({'id':provider,'provider':provider,'name':label+(' · '+config['model'] if config else ' · 연결 설정'),'enabled':bool(config),'local':False,'vision':False})
-        default=next((m['id'] for m in items if m['enabled']),None)
+        default='openai' if self.configs.get('openai') else next((m['id'] for m in items if m['enabled']),None)
         return {'models':items,'default':default}
 
     def configure(self,payload):
@@ -74,6 +78,8 @@ class ChatModels:
         elif provider=='openai':
             url='https://api.openai.com/v1/chat/completions';headers['Authorization']='Bearer '+config['key']
             payload={'model':config['model'],'messages':[{'role':'system','content':CHAT_SYSTEM}]+messages,'stream':True,'max_completion_tokens':1800}
+            if config['model']==DEFAULT_OPENAI_MODEL:
+                payload.update(reasoning_effort='low',service_tier='default')
         else:
             url='https://api.anthropic.com/v1/messages';headers.update({'x-api-key':config['key'],'anthropic-version':'2023-06-01'})
             payload={'model':config['model'],'system':CHAT_SYSTEM,'messages':messages,'stream':True,'max_tokens':1200}
