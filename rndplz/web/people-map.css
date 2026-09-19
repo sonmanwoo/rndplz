@@ -1,0 +1,340 @@
+/* PEOPLE-MAP r2 adopted into the existing research map. All rules are host-scoped. */
+#peopleMapHost{--paper:#f4f2eb;--sheet:#fffdf7;--ink:#242b28;--muted:#62685f;--line:#dcded3;--green:#315e50;--soft:#e5ebe0;--rust:#9b573f;--blue:#566a80;--gold:#866937}
+#peopleMapHost *{box-sizing:border-box}
+#peopleMapHost{margin:0;background:var(--paper);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;line-height:1.6}
+#peopleMapHost button,#peopleMapHost input,#peopleMapHost textarea{font:inherit;color:inherit}
+#peopleMapHost button,#peopleMapHost a,#peopleMapHost input,#peopleMapHost textarea,#peopleMapHost summary{-webkit-tap-highlight-color:transparent}
+#peopleMapHost button{cursor:pointer}
+#peopleMapHost button:disabled{cursor:default;opacity:.5}
+#peopleMapHost a{color:var(--green);text-underline-offset:4px}
+#peopleMapHost button:focus-visible,#peopleMapHost a:focus-visible,#peopleMapHost input:focus-visible,#peopleMapHost textarea:focus-visible,#peopleMapHost summary:focus-visible,#peopleMapHost [tabindex="-1"]:focus-visible{outline:3px solid var(--rust);outline-offset:4px}
+#peopleMapHost button{border:0}
+#peopleMapHost button,#peopleMapHost input,#peopleMapHost textarea{border-radius:8px}
+#peopleMapHost button{touch-action:manipulation}
+#peopleMapHost h1,#peopleMapHost h2,#peopleMapHost h3,#peopleMapHost p{margin:0}
+#peopleMapHost .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+#peopleMapHost .skip{position:fixed;top:-100px;left:20px;background:white;z-index:10;padding:12px}
+#peopleMapHost .skip:focus{top:12px}
+#peopleMapHost .site-header{min-height:84px;border-bottom:1px solid var(--line);padding:18px max(28px,calc((100vw - 1480px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
+#peopleMapHost .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);white-space:nowrap}
+#peopleMapHost .brand strong{font-size:21px;letter-spacing:-1px}
+#peopleMapHost .brand>span{margin-left:8px;font-size:12px;color:var(--muted);border-left:1px solid #c4c9bc;padding-left:18px}
+#peopleMapHost .preview-badge{display:flex;align-items:center;gap:8px;color:var(--green);font-size:12px}
+#peopleMapHost .preview-badge i,#peopleMapHost .tiny-dot{width:6px;height:6px;background:#71826b;border-radius:50%;display:inline-block}
+#peopleMapHost .page{max-width:1536px;margin:auto;padding:0 28px}
+#peopleMapHost .hero{display:flex;justify-content:space-between;align-items:center;padding:44px 5px 32px;gap:30px}
+#peopleMapHost .eyebrow{font-size:11px;letter-spacing:2px;color:var(--green);font-weight:700}
+#peopleMapHost .hero h1{font-size:clamp(30px,3.1vw,44px);line-height:1.32;letter-spacing:-1.6px;margin:13px 0 18px;font-weight:750}
+#peopleMapHost .hero h1 em{font-style:normal;color:var(--green)}
+#peopleMapHost .hero>div>p{color:var(--muted);font-size:14px;line-height:1.8}
+#peopleMapHost .hero-note{min-width:255px;margin-right:60px}
+#peopleMapHost .note-line{display:block;width:34px;height:2px;background:#70846b;margin-bottom:18px}
+#peopleMapHost .hero .hero-note p{font-size:20px;color:#606957;line-height:1.65;letter-spacing:-.6px}
+#peopleMapHost .hero-note strong{font-weight:500;color:var(--green)}
+#peopleMapHost .hero-note .micro{display:block;margin-top:18px}
+#peopleMapHost .micro{font-size:11px;color:var(--muted)}
+#peopleMapHost .mobile-break{display:none}
+#peopleMapHost .finder{border:1px solid var(--line);background:var(--sheet);border-radius:14px;padding:18px 22px}
+#peopleMapHost .finder-top{display:flex;align-items:center;gap:18px}
+#peopleMapHost .search-field{display:flex;align-items:center;gap:12px;flex:1}
+#peopleMapHost .search-field svg{width:22px;height:22px;fill:none;stroke:var(--green);stroke-width:1.5;flex-shrink:0}
+#peopleMapHost .search-field input{width:100%;height:44px;font-size:16px;border:0;background:transparent;min-width:0;outline-offset:0}
+#peopleMapHost .search-field input::placeholder{color:#747b70}
+#peopleMapHost .text-button{background:transparent;color:var(--green);font-size:12px;padding:10px 8px;white-space:nowrap}
+#peopleMapHost .text-button:hover{background:var(--soft)}
+#peopleMapHost .topic-row{display:flex;align-items:center;gap:20px;margin-top:12px;padding-top:16px;border-top:1px solid #e8e9e0}
+#peopleMapHost .filter-label{font-size:12px;color:var(--muted);white-space:nowrap}
+#peopleMapHost .chips{display:flex;gap:8px;flex-wrap:wrap}
+#peopleMapHost .chips button{border:1px solid var(--line);background:transparent;border-radius:24px;font-size:12px;padding:8px 17px;min-height:38px}
+#peopleMapHost .chips button[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:white}
+#peopleMapHost .chips button:hover{border-color:var(--green)}
+#peopleMapHost .results-bar{display:flex;align-items:center;justify-content:space-between;padding:23px 2px 16px;gap:15px}
+#peopleMapHost .results-bar p{font-size:13px}
+#peopleMapHost .results-bar strong{color:var(--green);font-size:17px;margin-right:3px}
+#peopleMapHost .results-bar>span{font-size:11px;color:var(--muted)}
+#peopleMapHost .workspace{display:grid;grid-template-columns:218px minmax(350px,1fr) 344px;gap:16px;align-items:start}
+#peopleMapHost .panel{background:var(--sheet);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#peopleMapHost .panel-heading{display:flex;justify-content:space-between;align-items:center;padding:20px 18px 16px}
+#peopleMapHost .panel-heading h2{font-size:13px}
+#peopleMapHost .roster #people-list{padding:0 8px 10px}
+#peopleMapHost .person-row{padding:14px 9px;display:flex;text-align:left;width:100%;gap:10px;align-items:center;background:transparent;margin:3px 0;border:1px solid transparent}
+#peopleMapHost .person-row[aria-pressed="true"]{background:var(--soft);border-color:#bccbbb}
+#peopleMapHost .person-row:hover{background:#edf0e6}
+#peopleMapHost .avatar{display:grid;place-items:center;border:1px solid #d2d8cc;background:#e5eade;color:#455e4f;border-radius:50%;font-size:16px;flex-shrink:0;width:38px;height:38px}
+#peopleMapHost .avatar.blue{background:#e6ebef;color:var(--blue);border-color:#d0dbe1}
+#peopleMapHost .avatar.gold{background:#efeadc;color:var(--gold);border-color:#ded6bc}
+#peopleMapHost .avatar.neutral{background:#edede7;color:#70766b;border-color:#d9dcd1}
+#peopleMapHost .row-copy{min-width:0;flex:1}
+#peopleMapHost .row-copy strong{font-size:14px;display:block}
+#peopleMapHost .row-copy small{font-size:10px;color:var(--muted);display:block;margin-top:3px;overflow-wrap:anywhere}
+#peopleMapHost .row-arrow{font-size:13px;color:#73856d}
+#peopleMapHost .roster-foot{border-top:1px solid var(--line);font-size:10px;color:var(--muted);padding:16px 14px;display:flex;align-items:center;gap:6px}
+#peopleMapHost .map-toolbar{padding:20px 22px 10px;display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}
+#peopleMapHost .eyebrow.small{font-size:9px;letter-spacing:1.4px}
+#peopleMapHost .map-toolbar h2{font-size:18px;letter-spacing:-.5px;margin-top:4px}
+#peopleMapHost .view-toggle{background:#eef0e7;padding:3px;border-radius:9px;display:flex;gap:2px}
+#peopleMapHost .view-toggle button{font-size:11px;background:transparent;padding:8px 10px;min-height:36px;white-space:nowrap}
+#peopleMapHost .view-toggle button[aria-pressed="true"]{background:var(--sheet);box-shadow:0 1px 4px #24352815;color:var(--green);font-weight:700}
+#peopleMapHost .map-explanation{font-size:11px;color:var(--muted);margin:0 22px 18px;max-width:510px}
+#peopleMapHost .map-grid{padding:0 18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#peopleMapHost .map-group{min-width:0;background:#eff2e8;border:1px solid #dce4d2;border-radius:12px;padding:16px 14px;position:relative}
+#peopleMapHost .map-group.blue{background:#eff2f4;border-color:#dce3e8}
+#peopleMapHost .map-group.gold{background:#f5f0e4;border-color:#e7dfca}
+#peopleMapHost .map-group.neutral{background:#f3f3ec;border-color:#e2e4d9}
+#peopleMapHost .group-label{font-size:11px;font-weight:700;display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--green)}
+#peopleMapHost .group-label small{font-weight:400;font-size:10px;color:var(--muted)}
+#peopleMapHost .blue .group-label{color:var(--blue)}
+#peopleMapHost .gold .group-label{color:var(--gold)}
+#peopleMapHost .neutral .group-label{color:#70766b}
+#peopleMapHost .relation{height:57px;position:relative;display:flex;justify-content:center;align-items:center;text-align:center}
+#peopleMapHost .relation svg{position:absolute;inset:0;width:100%;height:100%;stroke:#9baa91;stroke-width:1;fill:none;stroke-dasharray:3 3}
+#peopleMapHost .relation span{z-index:1;background:#eff2e8;padding:2px 6px;max-width:96%;font-size:9px;color:#5e6e55}
+#peopleMapHost .blue .relation span{background:#eff2f4;color:var(--blue)}
+#peopleMapHost .gold .relation span{background:#f5f0e4;color:var(--gold)}
+#peopleMapHost .neutral .relation span{background:#f3f3ec}
+#peopleMapHost .map-person{background:var(--sheet);border:1px solid #d7dccd;padding:14px 12px;display:block;width:100%;text-align:left;box-shadow:0 4px 12px #35442e05;min-height:122px}
+#peopleMapHost .map-person[aria-pressed="true"]{border:2px solid var(--green);padding:13px 11px;box-shadow:0 4px 12px #315e5012}
+#peopleMapHost .map-person:hover{border-color:#789271}
+#peopleMapHost .map-person-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+#peopleMapHost .map-person strong{font-size:17px;letter-spacing:-.3px}
+#peopleMapHost .map-person .avatar{width:32px;height:32px;font-size:14px}
+#peopleMapHost .map-person .person-team{font-size:10px;color:var(--muted);display:block;margin-top:1px}
+#peopleMapHost .map-person .experience-title{font-size:11px;display:block;line-height:1.6}
+#peopleMapHost .map-person .period{font-size:10px;color:var(--muted);display:block;margin-top:5px}
+#peopleMapHost .map-legend{border-top:1px solid var(--line);padding:14px 20px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:9px;color:var(--muted)}
+#peopleMapHost .legend-line{display:inline-block;width:16px;border-top:1px dashed var(--green);vertical-align:middle;margin-right:6px}
+#peopleMapHost .single-result{padding:8px 22px 25px}
+#peopleMapHost .single-top{font-size:11px;color:var(--green);margin-bottom:15px}
+#peopleMapHost .single-result .map-person{max-width:360px;margin:auto;min-height:140px}
+#peopleMapHost .single-result .relation{max-width:360px;margin:auto}
+#peopleMapHost .single-evidence{border:1px dashed #bfccb5;background:#eef2e7;padding:15px;max-width:360px;margin:auto;border-radius:10px;font-size:12px}
+#peopleMapHost .single-evidence small{display:block;font-size:10px;color:var(--muted);margin-top:4px}
+#peopleMapHost .empty-result{text-align:center;padding:52px 20px}
+#peopleMapHost .empty-symbol{width:56px;height:56px;background:#eef0e7;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;color:#7e8c74;font-size:25px}
+#peopleMapHost .empty-result h3{font-size:15px}
+#peopleMapHost .empty-result p{font-size:12px;color:var(--muted);margin-top:12px}
+#peopleMapHost .empty-result button{margin-top:18px}
+#peopleMapHost .list-empty{padding:30px 12px;color:var(--muted);font-size:12px}
+#peopleMapHost .detail{scroll-margin-top:20px}
+#peopleMapHost .detail-empty{padding:32px 25px}
+#peopleMapHost .detail-empty .empty-mark{width:62px;height:62px;border:1px solid #cad3be;border-radius:50%;display:grid;place-items:center;font-size:25px;color:var(--green);margin:28px 0}
+#peopleMapHost .detail-empty h2{font-size:20px;line-height:1.65;letter-spacing:-.7px}
+#peopleMapHost .detail-empty>p{font-size:12px;color:var(--muted);margin:16px 0 28px;line-height:1.9}
+#peopleMapHost .journey{border-top:1px solid var(--line);padding-top:10px}
+#peopleMapHost .journey li{list-style:none;padding:15px 0;display:flex;gap:12px;font-size:12px}
+#peopleMapHost .journey ul{padding:0;margin:0}
+#peopleMapHost .journey li span{color:#7b8d73;font-size:10px;min-width:20px}
+#peopleMapHost .detail-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:20px 22px 0}
+#peopleMapHost .close-detail{font-size:11px;color:var(--green);background:transparent;min-height:36px}
+#peopleMapHost .detail-head{padding:13px 22px 22px}
+#peopleMapHost .detail-name{display:flex;align-items:center;gap:12px;margin:8px 0 14px}
+#peopleMapHost .detail-name .avatar{width:50px;height:50px;font-size:22px}
+#peopleMapHost .detail-name h2{font-size:26px;letter-spacing:-1px}
+#peopleMapHost .fiction-tag{font-size:9px;color:var(--muted);font-weight:400;vertical-align:middle;margin-left:8px}
+#peopleMapHost .detail-team{font-size:12px}
+#peopleMapHost .detail-meta{font-size:10px;color:var(--muted);margin-top:6px}
+#peopleMapHost .detail-section{padding:22px;border-top:1px solid var(--line)}
+#peopleMapHost .section-label{font-size:10px;letter-spacing:.6px;color:var(--green);margin-bottom:10px;display:flex;justify-content:space-between}
+#peopleMapHost .detail-section h3{font-size:17px;letter-spacing:-.4px;line-height:1.5;margin-bottom:12px}
+#peopleMapHost .role-line{background:var(--soft);border-radius:6px;padding:10px 12px;font-size:12px;color:var(--green);margin:12px 0}
+#peopleMapHost .facts{display:grid;grid-template-columns:57px 1fr;gap:8px;font-size:11px;margin:14px 0}
+#peopleMapHost .facts dt{color:var(--muted)}
+#peopleMapHost .facts dd{margin:0}
+#peopleMapHost .evidence-card{background:#f3f4ec;border:1px solid var(--line);padding:14px;border-radius:10px;font-size:12px}
+#peopleMapHost .evidence-card .doc-meta{color:var(--green);font-size:10px;margin-bottom:8px}
+#peopleMapHost .evidence-card .evidence-limits{color:var(--muted);font-size:10px;line-height:1.8;margin-top:10px}
+#peopleMapHost .evidence-card details{margin-top:10px;font-size:10px;color:var(--muted)}
+#peopleMapHost .evidence-card summary{cursor:pointer}
+#peopleMapHost .evidence-card details p{margin-top:8px}
+#peopleMapHost .evidence-check{display:flex;align-items:flex-start;gap:9px;font-size:12px;margin-top:15px;cursor:pointer;line-height:1.7}
+#peopleMapHost .evidence-check input{accent-color:var(--green);width:18px;height:18px;flex-shrink:0;margin:2px 0}
+#peopleMapHost .form-label{display:block;font-size:11px;color:#56654e;margin-top:14px;margin-bottom:6px}
+#peopleMapHost .question-form textarea{width:100%;resize:vertical;min-height:76px;padding:11px 12px;border:1px solid #cbd3c0;background:#fffefa;font-size:12px;line-height:1.8}
+#peopleMapHost .question-form .draft-area{min-height:139px}
+#peopleMapHost .question-form details{margin-top:15px}
+#peopleMapHost .question-form summary{font-size:11px;cursor:pointer}
+#peopleMapHost .question-form .ai-explainer{font-size:10px;color:var(--muted);margin:9px 0}
+#peopleMapHost .question-form .draft-foot{border-top:1px solid var(--line);padding-top:13px;margin-top:14px;font-size:10px;color:var(--muted);line-height:1.8}
+#peopleMapHost .gated{padding:14px;border:1px dashed #cbd3c0;border-radius:8px;font-size:11px;color:var(--muted);line-height:1.9}
+#peopleMapHost .zero-record{padding:22px}
+#peopleMapHost .zero-record p{font-size:12px;line-height:1.9;color:var(--muted);margin-top:10px}
+#peopleMapHost .no-script{padding:20px;color:var(--rust)}
+#peopleMapHost footer{padding:28px 0 40px;margin-top:32px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+#peopleMapHost footer>p{margin-bottom:7px}
+#peopleMapHost footer>p:first-child{display:flex;gap:16px;flex-wrap:wrap}
+#peopleMapHost footer strong{font-weight:600}
+#peopleMapHost footer summary{cursor:pointer;display:list-item;margin-top:14px;width:fit-content}
+#peopleMapHost .footer-detail{padding:12px 0;max-width:700px}
+#peopleMapHost .footer-detail a{display:inline-block;margin:9px 20px 12px 0}
+#peopleMapHost .footer-detail p{line-height:1.9}
+@media(min-width:1500px){#peopleMapHost .workspace{grid-template-columns:235px minmax(400px,1fr) 380px}
+#peopleMapHost .map-grid{padding:5px 24px 28px;gap:20px}
+#peopleMapHost .map-person{min-height:148px;padding:20px 16px}
+#peopleMapHost .map-person[aria-pressed="true"]{padding:19px 15px}
+}
+@media(max-width:1180px){#peopleMapHost .workspace{grid-template-columns:210px minmax(360px,1fr)}
+#peopleMapHost .detail{grid-column:1/-1}
+#peopleMapHost .detail:has(.detail-empty){display:none}
+#peopleMapHost .detail-head{padding-bottom:20px}
+#peopleMapHost .detail-section{padding:24px}
+#peopleMapHost .detail .question-form{max-width:740px}
+#peopleMapHost .hero-note{margin-right:10px}
+}
+@media(max-width:720px){#peopleMapHost .site-header{padding:15px 20px;min-height:72px}
+#peopleMapHost .brand>span{display:none}
+#peopleMapHost .brand strong{font-size:19px}
+#peopleMapHost .preview-badge{font-size:9px;gap:5px}
+#peopleMapHost .preview-badge i{width:5px;height:5px}
+#peopleMapHost .page{padding:0 18px}
+#peopleMapHost .hero{padding:29px 1px 26px}
+#peopleMapHost .hero h1{font-size:32px;letter-spacing:-1.2px;margin-top:13px}
+#peopleMapHost .hero>div>p{font-size:12px}
+#peopleMapHost .hero-note{display:none}
+#peopleMapHost .mobile-break{display:block}
+#peopleMapHost .eyebrow{font-size:9px;letter-spacing:1.8px}
+#peopleMapHost .finder{padding:12px 14px}
+#peopleMapHost .finder-top{gap:4px}
+#peopleMapHost .search-field{gap:9px}
+#peopleMapHost .search-field input{font-size:13px}
+#peopleMapHost .search-field svg{width:18px}
+#peopleMapHost .text-button{font-size:10px;padding:9px 4px;min-height:40px}
+#peopleMapHost .topic-row{display:block;padding-top:13px;margin-top:6px}
+#peopleMapHost .filter-label{font-size:10px;display:block;margin-bottom:10px}
+#peopleMapHost .chips{gap:6px}
+#peopleMapHost .chips button{font-size:10px;padding:8px 12px;min-height:38px}
+#peopleMapHost .results-bar{padding:20px 1px 13px;align-items:flex-start;flex-direction:column;gap:3px}
+#peopleMapHost .results-bar p{font-size:12px}
+#peopleMapHost .results-bar>span{font-size:9px}
+#peopleMapHost .workspace{display:flex;flex-direction:column;gap:16px}
+#peopleMapHost .roster,#peopleMapHost .detail{width:100%}
+#peopleMapHost .map-panel{display:none}
+#peopleMapHost .panel-heading{padding:18px 18px 12px}
+#peopleMapHost .panel-heading h2{font-size:14px}
+#peopleMapHost .roster #people-list{padding:0 10px 10px}
+#peopleMapHost .person-row{padding:13px 10px}
+#peopleMapHost .person-row .avatar{width:42px;height:42px;font-size:18px}
+#peopleMapHost .row-copy strong{font-size:15px}
+#peopleMapHost .row-copy small{font-size:11px}
+#peopleMapHost .row-arrow{margin-right:5px}
+#peopleMapHost .roster-foot{padding:13px 18px;font-size:10px}
+#peopleMapHost .detail-topline{padding:17px 19px 0}
+#peopleMapHost .detail-head{padding:9px 19px 19px}
+#peopleMapHost .detail-name h2{font-size:25px}
+#peopleMapHost .detail-section{padding:20px 19px}
+#peopleMapHost .detail-section h3{font-size:18px}
+#peopleMapHost .question-form textarea{font-size:16px;line-height:1.75;padding:12px}
+#peopleMapHost .detail-team,#peopleMapHost .evidence-card,#peopleMapHost .evidence-check,#peopleMapHost .role-line{font-size:13px}
+#peopleMapHost .facts{font-size:12px}
+#peopleMapHost .detail-meta,#peopleMapHost .evidence-card .evidence-limits,#peopleMapHost .evidence-card details{font-size:11px}
+#peopleMapHost .zero-record{padding:20px}
+#peopleMapHost .detail-empty{display:none}
+#peopleMapHost footer{margin-top:25px;padding-top:23px;font-size:10px}
+#peopleMapHost footer>p:first-child{gap:7px}
+#peopleMapHost .detail{scroll-margin-top:12px}
+}
+@media(prefers-reduced-motion:no-preference){#peopleMapHost button{transition:background-color .15s,border-color .15s,box-shadow .15s}
+}
+#peopleMapHost .mobile-view{display:none}
+@media(max-width:720px){#peopleMapHost .mobile-view{display:flex;margin:0 18px 10px;width:fit-content}
+}
+#peopleMapHost .portrait-mini{overflow:hidden;border-radius:10px;background:#e9e9dc}
+#peopleMapHost .portrait-mini img{width:100%;height:100%;object-fit:contain}
+#peopleMapHost .real-person .real-name{display:block;min-height:52px;margin-bottom:10px}
+#peopleMapHost .real-person .real-name strong{font-size:18px;overflow-wrap:anywhere}
+#peopleMapHost .real-person .portrait-frame{display:block;width:100%;height:154px;background:#f2efe3;border-radius:7px;overflow:hidden}
+#peopleMapHost .portrait-frame img{width:100%;height:100%;object-fit:contain}
+#peopleMapHost .portrait-caption{display:block;font-size:9px;color:var(--muted);margin:6px 0 10px}
+#peopleMapHost .portrait-placeholder{height:70px;display:grid;place-items:center}
+#peopleMapHost .award-mark{display:block;width:fit-content;border:1px solid #dcc58e;background:#f8f0dc;color:#765b28;font-size:9px;border-radius:5px;padding:3px 6px;margin:6px 0;line-height:1.5}
+#peopleMapHost .with-award{box-shadow:0 0 0 1px #d6c593}
+#peopleMapHost .actual-small .map-person{height:calc(100% - 74px)}
+#peopleMapHost .actual-small .map-group{display:flex;flex-direction:column}
+#peopleMapHost .actual-small .map-person .experience-title{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.6}
+#peopleMapHost .small-result-label,#peopleMapHost .cluster-help{font-size:11px;color:var(--muted);padding:0 22px 15px}
+#peopleMapHost .cluster-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 18px 18px}
+#peopleMapHost .cluster{border:1px solid #d3ddcb;background:#edf2e8;border-radius:11px;overflow:hidden}
+#peopleMapHost .cluster.blue{background:#eff2f4;border-color:#dce3e8}
+#peopleMapHost .cluster.gold{background:#f5f0e4;border-color:#e7dfca}
+#peopleMapHost .cluster-heading{display:flex;align-items:center;justify-content:space-between;width:100%;background:transparent;padding:20px 17px;min-height:122px;text-align:left;gap:8px}
+#peopleMapHost .cluster-heading>span:first-child{min-width:0}
+#peopleMapHost .cluster-heading strong{font-size:16px;display:block;overflow-wrap:anywhere;line-height:1.55}
+#peopleMapHost .cluster-heading small{display:block;font-size:9px;font-weight:400;color:var(--muted);margin-bottom:8px}
+#peopleMapHost .cluster-count{font-size:26px;line-height:1.2;font-weight:600;color:var(--green)}
+#peopleMapHost .cluster-count small{font-size:9px;text-align:center;margin:6px 0 0}
+#peopleMapHost .cluster-members{border-top:1px solid #d6dfcd;padding:6px}
+#peopleMapHost .cluster-person{display:flex;gap:8px;width:100%;padding:9px 6px;align-items:center;background:transparent;text-align:left;font-size:11px;min-height:51px}
+#peopleMapHost .cluster-person .avatar{width:29px;height:33px;font-size:11px}
+#peopleMapHost .cluster-person>span:nth-child(2){flex:1}
+#peopleMapHost .cluster-person[aria-pressed="true"]{background:#fffdf7;border:1px solid var(--green)}
+#peopleMapHost .cluster-person:hover,#peopleMapHost .cluster-heading:hover{background:#fffdf759}
+#peopleMapHost .cluster-note{font-size:10px;color:var(--muted);padding:0 22px 19px}
+#peopleMapHost .group-more{margin:0 18px 10px}
+#peopleMapHost .detail-name h2{font-size:24px;overflow-wrap:anywhere}
+#peopleMapHost .detail-name .portrait-mini{width:60px;height:75px;flex-shrink:0}
+#peopleMapHost .record-card{padding:17px 0;border-top:1px solid var(--line)}
+#peopleMapHost .record-card:first-of-type{border-top:0}
+#peopleMapHost .record-card h3{font-size:15px;line-height:1.7;overflow-wrap:anywhere}
+#peopleMapHost .record-summary{font-size:11px;color:var(--muted);white-space:pre-line;line-height:1.9}
+#peopleMapHost .evidence-context{font-size:10px;line-height:1.8;color:var(--muted);margin-bottom:10px}
+#peopleMapHost .source-details{font-size:10px;color:var(--muted);line-height:1.85}
+#peopleMapHost .source-details summary{cursor:pointer;margin:10px 0}
+#peopleMapHost .source-details p{white-space:pre-line;overflow-wrap:anywhere;margin:8px 0}
+#peopleMapHost .source-link{overflow-wrap:anywhere}
+#peopleMapHost .record-topics{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}
+#peopleMapHost .record-topics span{font-size:9px;border:1px solid var(--line);border-radius:20px;padding:2px 7px}
+#peopleMapHost .question-target{font-size:12px}
+#peopleMapHost .selected-evidence-list{padding-left:18px;font-size:10px;color:var(--green);line-height:1.8}
+#peopleMapHost .selected-evidence-list li{margin:6px 0}
+#peopleMapHost .context-review{font-size:11px;padding:13px;background:#faf1dd;border:1px solid #deca9c;border-radius:8px;margin:15px 0}
+#peopleMapHost .context-review .text-button{font-size:10px;white-space:normal}
+#peopleMapHost .chips{max-height:130px;overflow-y:auto;padding:3px}
+#peopleMapHost .roster #people-list{max-height:700px;overflow-y:auto}
+#peopleMapHost .roster .row-copy strong{overflow-wrap:anywhere}
+#peopleMapHost .roster .person-row .portrait-mini{width:38px;height:48px}
+@media(max-width:720px){#peopleMapHost .roster #people-list{max-height:470px}
+#peopleMapHost .chips{max-height:120px}
+#peopleMapHost .detail-name h2{font-size:25px}
+#peopleMapHost .record-card h3{font-size:17px}
+#peopleMapHost .record-summary,#peopleMapHost .source-details{font-size:12px}
+#peopleMapHost .record-topics span{font-size:10px}
+#peopleMapHost .evidence-context{font-size:11px}
+#peopleMapHost .selected-evidence-list{font-size:12px}
+#peopleMapHost .context-review{font-size:12px}
+#peopleMapHost .real-person .portrait-frame{height:160px}
+}
+#peopleMapHost .scope-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px}
+#peopleMapHost .scope-bar .view-toggle{border:1px solid var(--line)}
+#peopleMapHost .scope-bar+.results-bar{padding-top:14px}
+#peopleMapHost .virtual-tag{display:inline-block;font-size:9px;color:#836035;border:1px dashed #c9ac80;padding:1px 5px;border-radius:4px;margin:3px 0}
+#peopleMapHost .cluster-person .virtual-tag{display:block;width:fit-content}
+#peopleMapHost .list-range{font-size:9px;color:var(--muted);margin:3px 10px 10px}
+#peopleMapHost .list-pages{display:flex;align-items:center;justify-content:space-between;font-size:10px;padding:14px 4px 4px;gap:6px}
+#peopleMapHost .list-pages button{padding:8px 6px;background:var(--soft);font-size:10px;min-height:36px}
+#peopleMapHost .list-pages button:disabled{opacity:.4}
+#peopleMapHost .detail-full-portrait{max-width:160px;margin:16px auto 4px}
+#peopleMapHost .detail-full-portrait img{width:100%;aspect-ratio:3/4;object-fit:contain;display:block;border-radius:8px}
+#peopleMapHost .profile-info{padding:17px 22px;border-top:1px solid var(--line);font-size:11px}
+#peopleMapHost .profile-info summary{cursor:pointer;color:var(--green)}
+#peopleMapHost .profile-info p{white-space:pre-line;margin-top:10px;line-height:1.9}
+#peopleMapHost .profile-info ul{padding-left:17px}
+#peopleMapHost .profile-info li{margin:5px 0}
+#peopleMapHost .record-boundary{font-size:10px;color:var(--muted);line-height:1.85;border-left:2px solid #cbd3c0;padding-left:10px;margin:10px 0}
+@media(max-width:720px){#peopleMapHost .scope-bar{display:block;margin-top:17px}
+#peopleMapHost .scope-bar .micro{margin-top:9px;font-size:9px}
+#peopleMapHost .scope-toggle{width:fit-content}
+#peopleMapHost .list-range{font-size:10px}
+#peopleMapHost .profile-info,#peopleMapHost .record-boundary{font-size:12px}
+}
+
+#peopleMapHost{min-width:0;margin-top:24px;background:transparent}
+#peopleMapHost [hidden]{display:none!important}
+#peopleMapHost button,#peopleMapHost input,#peopleMapHost textarea{box-shadow:none;letter-spacing:normal;text-transform:none}
+#peopleMapHost button{font-weight:inherit;line-height:inherit}
+#peopleMapHost .workspace{margin:0;padding:0}
+#peopleMapHost .hero{padding-top:12px}
+#peopleMapHost .hero h1{font-family:inherit}
+#peopleMapHost .people-map-load{padding:28px;border:1px solid var(--line);border-radius:14px;background:var(--sheet)}
+#peopleMapHost .people-map-load p{margin-bottom:12px}
+#peopleMapHost .adoption-note{margin:18px 0 30px;font-size:12px;color:var(--muted);line-height:1.8}
+
+#peopleMapHost .detail-profile-link{padding:0 18px 12px}

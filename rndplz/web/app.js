@@ -5,7 +5,7 @@ const nfmt = n => Number(n||0).toLocaleString("ko-KR");
 const stateNames={draft:"초안",sent:"보냄 · 시연",accepted:"수락 · 시연",declined:"거절 · 시연",closed:"종료 · 시연",cancelled:"취소"};
 const modes={advice:"자문",verify:"AI 답 검증",member:"프로젝트 멤버",site_request:"현장 의뢰",resource_request:"자원 요청"};
 const labels=["AI 답 검증","PCB·고무 씰","열전달·유동","전기 절연","AI 분자 탐색","전기차에서 힌트","낯선 분야","CPN·N₂O","결정화 속도","현장 거품","촉매 5kg"];
-let boot, session=null, token="", admin=null, activeTopic="", page=0, mapPoints=[], letter=null, toastTimer, busy=false, exported=null;
+let boot, session=null, token="", admin=null, letter=null, toastTimer, busy=false, exported=null;
 let view="chat", received=null, detailReturn=null, detailTrigger=null, detailPersonId=null;
 const slots=()=>Object.fromEntries(["goal","target","conditions","resources","deadline"].map(k=>[k,$(k).value]));
 async function api(path,body){
@@ -42,7 +42,7 @@ function closeDetail(){
  $("detailDialog").close();
  if(back)showDialog(back);
  const replacement=personId?Array.from(document.querySelectorAll('[data-action="person"]')).find(b=>b.dataset.id===personId&&detailFocusAvailable(b)):null;
- const target=detailFocusAvailable(trigger)?trigger:replacement||[ $("mapResultsTitle"),$("personSearch") ].find(detailFocusAvailable);
+ const target=detailFocusAvailable(trigger)?trigger:replacement||[ $("people-list"),$("name-search") ].find(detailFocusAvailable);
  target?.focus();
 }
 function renderExamples(){
@@ -151,87 +151,15 @@ function renderRecipient(opened=false){
 async function showTab(tab){
  view=tab;$("chatView").hidden=tab!=="chat";$("mapView").hidden=tab!=="map";
  for(const x of ["chat","map"]){$(x+"Tab").classList.toggle("active",x===tab);if(x===tab)$(x+"Tab").setAttribute("aria-current","page");else $(x+"Tab").removeAttribute("aria-current");}
- if(tab==="map"){admin=await api("/api/admin");renderMap();}else craftMap?.suspend();
+ if(tab==="map"){admin=await api("/api/admin");await renderMap();}
 }
-function filteredPeople(){
- const q=$("personSearch").value.trim().toLowerCase();
- return admin.nodes.filter(n=>(!activeTopic||n.topics.includes(activeTopic))&&(!q||[n.name,...(n.aliases||[])].join(" ").toLowerCase().includes(q)));
-}
-function renderMap(){
- const topic=admin.topics.find(t=>t.id===activeTopic);
- $("mapStats").innerHTML=[[boot.stats.researchers,"연구자 프로필"],[admin.nodes.filter(n=>n.virtual).length,"가상 현장 인물"],[admin.requests,"누적 질문"],[admin.proposals,"시연 제안"]].map(([n,label])=>'<div class="stat"><b>'+nfmt(n)+'</b><span>'+label+'</span></div>').join("");
- $("mapTopicTitle").textContent=topic?.name||"모든 연결의 시작";
- $("mapTopicDescription").textContent=topic?("관련 기록 "+topic.records+"건에서 연구자 "+topic.researchers+"명과 가상 현장 인물 "+topic.virtual_people+"명을 연결했습니다."):"이름을 선택해 그 사람과 연결된 기록을 살펴보세요.";
- $("topicFilters").innerHTML='<button class="'+(!activeTopic?"active":"")+'" data-action="topic" data-id="">전체 기록 <span>'+nfmt(admin.nodes.length)+'</span></button>'+admin.topics.map(t=>'<button class="'+(activeTopic===t.id?"active":"")+'" data-action="topic" data-id="'+t.id+'">'+esc(t.name)+'<span>'+nfmt(t.people)+'</span></button>').join("");
+async function renderMap(){
+ $("mapStats").innerHTML=[[admin.nodes.filter(n=>!n.virtual).length,"등록 인물"],[admin.nodes.filter(n=>n.virtual).length,"가상 현장 인물"],[admin.requests,"누적 질문"],[admin.proposals,"시연 제안"]].map(([n,label])=>'<div class="stat"><b>'+nfmt(n)+'</b><span>'+label+'</span></div>').join("");
  $("demandTable").innerHTML='<div class="demand-row header"><span>주제</span><span>질문</span><span>관련 인원</span></div>'+admin.topics.map(t=>'<div class="demand-row"><span>'+esc(t.name)+'</span><span>'+t.demand+'</span><span>'+t.people+'</span></div>').join("")+'<p class="scope-note">개인 수행 확인 0명. 관련 기록이 적으면 추가 자료·본인 확인이 필요합니다.</p>';
  document.querySelector(".collection-count").textContent=String((admin.featured||[]).length).padStart(2,"0");
  document.querySelector(".collection-jump").textContent="별도 인물 카드 "+(admin.featured||[]).length+"장 ↓";
  $("researcherCards").innerHTML=(admin.featured||[]).map((p,i)=>RndCraft.researcherCard(p,i,admin.featured.length)).join("");
- refreshPeople();
-}
-function mapModeForCount(count){
- return count===0?"empty":count===1?"spotlight":count<=6?"grid":count<=24?"list":"sphere";
-}
-function refreshPeople(){
- if(!admin)return;
- const nodes=filteredPeople(),mode=mapModeForCount(nodes.length);
- $("mapResults").dataset.mode=mode;$("mapResults").dataset.count=String(nodes.length);
- // Retire old canvas geometry before rendering the new selectable people.
- drawMap(nodes,mode);renderPeople(nodes,mode);
- const topic=admin.topics.find(t=>t.id===activeTopic),query=$("personSearch").value.trim();
- $("mapConditions").textContent="주제 · "+(topic?.name||"전체 기록")+" / 이름 · "+(query||"전체");
- $("topicSelection").textContent=topic?.name||"전체 기록";
- $("mapResultStatus").textContent=nfmt(nodes.length)+"명 · "+({empty:"조건에 맞는 사람이 없습니다",spotlight:"한 사람의 기록",grid:"모든 결과를 한눈에 보기",list:"이름 목록",sphere:"구형 지도와 이름 목록"}[mode]);
- document.querySelector('[data-action="clear-search"]').disabled=!query;
- document.querySelector('[data-action="clear-topic"]').disabled=!activeTopic;
- document.querySelector('[data-action="clear-all"]').disabled=!query&&!activeTopic;
-}
-function renderPeople(nodes=filteredPeople(),mode=mapModeForCount(nodes.length)){
- page=Math.max(0,Math.min(page,Math.max(0,Math.ceil(nodes.length/10)-1)));
- $("mapResults").dataset.mode=mode;$("mapResults").dataset.count=String(nodes.length);
- $("peopleCount").textContent="· "+nfmt(nodes.length)+"명";
- const visible=nodes.slice(page*10,page*10+10),compact=mode==="list"||mode==="sphere";
- $("peopleList").innerHTML=visible.map(n=>'<li class="map-person"><button class="people-row" data-action="person" data-id="'+esc(n.id)+'" aria-label="'+esc(n.name)+' 기록 보기"><span class="map-person-copy"><strong class="map-person-name">'+esc(n.name)+'</strong>'+(n.virtual?' <span class="tag">가상 현장 인물</span>':'')+(!compact&&n.org?'<span class="map-person-org">'+esc(n.org)+'</span>':'')+'<small class="map-person-records">기록 '+esc(n.record_count)+'건</small></span><span class="map-person-open">기록 보기 <span aria-hidden="true">↗</span></span></button></li>').join("")||'<li class="map-empty"><h3>이 조건에 맞는 사람이 없습니다.</h3><p>위의 현재 조건을 확인하고 검색을 지우거나 주제를 해제해 보세요.</p></li>';
- $("peoplePagination").hidden=nodes.length<=6;
- $("pageLabel").textContent=nodes.length?(page+1)+" / "+Math.ceil(nodes.length/10)+" 페이지":"0 / 0 페이지";
- document.querySelector('[data-action="prev-page"]').disabled=page===0;
- document.querySelector('[data-action="next-page"]').disabled=(page+1)*10>=nodes.length;
-}
-let craftMap=null;
-function drawMap(nodes,mode=mapModeForCount(nodes.length)){
- $("mapTooltip").hidden=true;$("mapTooltip").textContent="";
- const sphere=Boolean(admin&&view==="map"&&mode==="sphere");
- if(!sphere)craftMap?.suspend();
- $("orbitView").hidden=!sphere;$("orbitView").inert=!sphere;
- $("mapCanvas").tabIndex=sphere?0:-1;
- $("orbitCount").textContent=nfmt(nodes.length);
- $("orbitLabel").textContent=$("personSearch").value.trim()?"조건에 맞는 사람":activeTopic?"이 주제와 연결된 사람":"사람의 기록";
- if(!sphere)return;
- if(!craftMap)craftMap=new RndCraft.TileOrbit($("mapCanvas"));
- craftMap.resume(nodes,activeTopic);
-}
-function pickPoint(event){return $("orbitView").hidden?null:craftMap?.hit(event);}
-function mapAction(action,id){
- if(!["topic","clear-search","clear-topic","clear-all","prev-page","next-page","list-focus"].includes(action))return false;
- if(!admin)return true;
- if(action==="list-focus"){
-  const first=$("peopleList").querySelector('[data-action="person"]')||$("mapResultsTitle");
-  first.scrollIntoView({block:"nearest"});first.focus();return true;
- }
- if(action==="prev-page"||action==="next-page"){
-  page+=action==="prev-page"?-1:1;renderPeople();return true;
- }
- if(action==="topic")activeTopic=id;
- if(action==="clear-topic"||action==="clear-all")activeTopic="";
- if(action==="clear-search"||action==="clear-all")$("personSearch").value="";
- page=0;
- if(action==="clear-search")refreshPeople();else renderMap();
- if(action==="topic"){
-  if(matchMedia('(max-width: 700px)').matches){$("topicDisclosure").open=false;$("topicDisclosure").querySelector('summary').focus();}
-  else Array.from($("topicFilters").querySelectorAll('button')).find(b=>b.dataset.id===activeTopic)?.focus();
- }else if(action==="clear-search")$("personSearch").focus();
- else $("mapResultsTitle").focus();
- return true;
+ await RndPeopleMap.ensure($("peopleMapHost"),api);
 }
 function renderSettings(){
  $("settingsContent").innerHTML='<h3>AI 사용</h3><div class="setting-value">'+(boot.model.enabled?esc(boot.model.provider+" · "+boot.model.model):"외부 API 미설정 · 기본 추천 사용")+'</div><p>AI는 질문을 정리하고 제안 문장을 다듬는 데 사용합니다. 후보와 근거는 기록에서 확인합니다. 대화 모델은 첫 화면의 모델 연결 설정에서 선택합니다.</p>'+(boot.model.enabled?'<label class="model-toggle"><input type="checkbox" id="modelConsent" '+(sessionStorage.getItem("rndplz-model-consent")==="yes"?"checked":"")+'>이 시연에서 외부 AI 문장 도우미 사용</label><p class="scope-note">사용 시 질문·조건·선택 후보의 공개 근거·편지 초안이 '+esc(boot.model.provider)+'로 전송됩니다. 현재 시연에 실제 사내 자료를 입력하지 마세요.</p>':'<p class="scope-note">외부 API 연결은 실행 환경에서 설정합니다. 연결 전에도 질문·추천·제안함·맵을 사용할 수 있습니다.</p>')+'<details><summary>AI 실행 현황</summary><p>이 서버 실행에서 '+boot.model.calls+' / '+boot.model.limit+'회 호출</p><p class="scope-note">호출 시간·적용 여부만 로컬에 기록합니다. 질문·편지·API 키는 관측 기록에 남기지 않습니다.</p></details><h3>독립 서비스</h3><p>브라우저에서 직접 접속합니다. 대화와 제안은 이 기기의 저장소에 보관됩니다. Teams·AiU 없이도 사용할 수 있습니다.</p><h3>Obsidian으로 이어보기</h3><p>논문·사람·주제·제안이 연결된 볼트를 만듭니다. 폴더와 그래프에 같은 종류 색을 적용합니다.</p><button class="outline" data-action="export">현재 기록 내보내기 ↗</button>'+(exported?'<div class="export-result"><p>노트 '+exported.note_count+'개 · 연결 오류 '+exported.unresolved.length+'개 · 수동 수정 충돌 '+exported.conflicts.length+'개</p><p>'+esc(exported.path)+'</p><a href="'+esc(exported.uri)+'">Obsidian에서 시작 노트 열기 ↗</a><p>처음에는 Obsidian에서 위 경로를 볼트로 열어주세요.</p></div>':"");
@@ -243,14 +171,15 @@ async function exportVault(){
  toast(exported.conflicts.length?"사용자가 수정한 노트 "+exported.conflicts.length+"개를 보존했어요. 설정에서 결과를 확인하세요.":exported.note_count+"개의 노트를 내보냈어요.");
 }
 document.addEventListener("click",event=>{
- const button=event.target.closest("button[data-action]");if(!button)return;
- const action=button.dataset.action,id=button.dataset.id,value=button.dataset.value;
+ const mapHost=event.target.closest("#peopleMapHost"),mapButton=mapHost&&event.target.closest("button[data-map-open]");
+ if(mapHost&&!mapButton)return;
+ const button=mapButton||event.target.closest("button[data-action]");if(!button)return;
+ const action=mapButton?button.dataset.mapOpen:button.dataset.action,id=button.dataset.id,value=button.dataset.value;
  if(action==="close"){
   const dialog=button.closest("dialog");
   if(dialog.id==="detailDialog")closeDetail();else dialog.close();
   return;
  }
- if(mapAction(action,id))return;
  if(action==="scene-close"){$("sentScene").close();$("askButton").focus();return;}
  task(async()=>{
   if(["person","candidate","record"].includes(action))rememberDetailTrigger(button);
@@ -291,19 +220,11 @@ document.addEventListener("click",event=>{
 });
 $("questionForm").addEventListener("submit",e=>{e.preventDefault();task(()=>ask(),$("askButton"));});
 $("slotsForm").addEventListener("submit",e=>{e.preventDefault();task(async()=>{session=await api("/api/slots",{session_id:session.id,slots:slots(),mode:$("mode").value});admin=null;renderSession();toast("조건을 반영했어요.");},$("applySlots"));});
-$("personSearch").addEventListener("input",()=>{page=0;refreshPeople();});
-const mapMobile=matchMedia('(max-width: 700px)');
-$("topicDisclosure").open=!mapMobile.matches;
-mapMobile.addEventListener('change',()=>{$("topicDisclosure").open=!mapMobile.matches;});
 $("letterBody").addEventListener("input",keepLetter);
 document.addEventListener("change",e=>{
  if(e.target.id==="letterRecipient"){keepLetter();letter.index=Number(e.target.value);renderLetter();}
  if(e.target.id==="modelConsent")sessionStorage.setItem("rndplz-model-consent",e.target.checked?"yes":"no");
 });
-$("mapCanvas").addEventListener("mousemove",e=>{const hit=pickPoint(e);$("mapTooltip").hidden=!hit;$("mapCanvas").style.cursor=craftMap?.drag?"grabbing":hit?"pointer":"grab";$("mapTooltip").textContent=hit?hit.node.name+" · 기록 "+hit.node.record_count+"건"+(hit.node.virtual?" · 가상":""):"";});
-$("mapCanvas").addEventListener("pointerdown",()=>$("mapTooltip").hidden=true);
-$("mapCanvas").addEventListener("mouseleave",()=>$("mapTooltip").hidden=true);
-$("mapCanvas").addEventListener("click",e=>{if(craftMap?.consumeClick())return;const hit=pickPoint(e);if(hit)task(async()=>{rememberDetailTrigger($("mapCanvas"),hit.node.id);showPerson(await api("/api/person?id="+encodeURIComponent(hit.node.id)));});});
 (async()=>{
  try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("peopleCards").scrollIntoView({block:"start"});}
  catch(e){toast(e.message+" 새로고침해 주세요.",true);$("askButton").disabled=true;}

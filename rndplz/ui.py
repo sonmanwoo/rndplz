@@ -12,6 +12,7 @@ from urllib.parse import urlparse, parse_qs
 if __package__ in (None,""):
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from rndplz.service import Service
+from rndplz.people_map import build_people_map
 from rndplz.conversation import Conversation
 from rndplz.build_vault import export_vault
 from rndplz.profiles import Profiles, ProfileError
@@ -70,6 +71,8 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     return self.send(200,{**chat.attachments.public(item),"text":item["text"],"image":item["image"],"mime":item["mime"]})
                 if parsed.path=="/api/bootstrap":
                     return self.send(200,{**service.bootstrap(),"token":token})
+                if parsed.path=="/api/people-map":
+                    return self.send(200,build_people_map(service.engine))
                 if parsed.path=="/api/admin":
                     return self.send(200,service.admin())
                 if parsed.path=="/api/proposals":
@@ -83,6 +86,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     return self.send(200,{**service.engine.explain_record(record),"text":record.text,"details":record.details})
                 static={"/craft.css":("craft.css","text/css; charset=utf-8"),"/craft.js":("craft.js","text/javascript; charset=utf-8"),"/":("index.html","text/html; charset=utf-8"),"/explore":("explore.html","text/html; charset=utf-8"),"/chat.js":("chat.js","text/javascript; charset=utf-8"),"/chat.css":("chat.css","text/css; charset=utf-8"),"/app.js":("app.js","text/javascript; charset=utf-8"),"/style.css":("style.css","text/css; charset=utf-8")}
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
+                static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map.js")})
                 static.update(portraits)
                 if parsed.path in static:
                     name,mime=static[parsed.path]

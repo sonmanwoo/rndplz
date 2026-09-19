@@ -23,6 +23,7 @@ from .data import Corpus, ROOT
 from .engine import Engine
 from .models import ExternalModel
 from .service import Service
+from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 
@@ -369,6 +370,7 @@ class PublicApp:
                 if path == '/api/chat/models': return send(200, self.models.catalog())
                 if path == '/api/chat/session': return send(200, chat.get(identifier))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True})
+                if path == '/api/people-map': return send(200, build_people_map(service.engine))
                 if path == '/api/admin': return send(200, service.admin())
                 if path == '/api/person': return send(200, service.person(identifier))
                 if path == '/api/proposals': return send(200, service.store.read()['proposals'])
@@ -380,7 +382,7 @@ class PublicApp:
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html')}
-                for name in ('craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
