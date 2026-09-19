@@ -133,7 +133,7 @@
   const counts=C.counts||{};
   $("scope-note").textContent="전체 "+C.people.length+"명 중 대표 "+(counts.featured_people||0)+"명 · 기존 가상 "+(counts.virtual_people||0)+"명은 전체 풀에 별도 표시";
   doc.addEventListener("input",e=>{const t=e.target;if(t.id==="name-search"){dispatch({type:"QUERY",value:t.value});return;}const types={problem:"PROBLEM",draft:"DRAFT",aiText:"AI_TEXT"};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
-  doc.addEventListener("change",e=>{const t=e.target;if(t.dataset.evidence){const id=t.id;dispatch({type:"EVIDENCE",id:t.dataset.evidence,checked:t.checked});$(id)?.focus();}if(t.id==="include-ai"){dispatch({type:"INCLUDE_AI",value:t.checked});$("include-ai")?.focus();}});
+  doc.addEventListener("change",e=>{const t=e.target;if(t.dataset.evidence){const id=t.id;dispatch({type:"EVIDENCE",id:t.dataset.evidence,checked:t.checked});$(id)?.focus();}if(t.id==="include-ai"){const aiOpen=t.closest("details")?.open;dispatch({type:"INCLUDE_AI",value:t.checked});const aiInput=$("include-ai");if(aiOpen&&aiInput)aiInput.closest("details").open=true;aiInput?.focus();}});
   doc.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
    if(b.dataset.person){dispatch({type:"SELECT",id:b.dataset.person});$("detail-title")?.focus({preventScroll:true});if(typeof matchMedia==="function"&&matchMedia("(max-width:1180px)").matches)$("person-detail").scrollIntoView({block:"start",behavior:"auto"});}
    else if(b.hasAttribute("data-topic")){dispatch({type:"TOPIC",value:b.dataset.topic});}
