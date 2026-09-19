@@ -4,8 +4,9 @@ const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;
 let token="",catalog=[],history=[],session=null,selectedModel="",files=[],busy=false,uploading=false,controller=null,streamText="",optimistic=null,retryPayload=null,letter=null,toastTimer,autoScroll=true,publicMode=false;
 let profileBusy=false,profileSubmission=null;
 let profileUI=null;
+let prepareBusy=false,prepareTicket=0;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw new Error(data.error||"요청을 처리하지 못했어요.");return data;}
+async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;throw failure;}return data;}
 function error(message=""){$("composerError").textContent=message;$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
 function modal(id,returnFocus=document.activeElement){
@@ -15,17 +16,48 @@ function modal(id,returnFocus=document.activeElement){
 }
 function option(){return catalog.find(m=>m.id===selectedModel);}
 function modelOptions(data,preferred){publicMode=!!data.public;if(publicMode){$("configForm").hidden=true;$("localStatus").closest(".local-status").querySelector("small").textContent="대화와 제안은 방문자별로 분리됩니다. 무료 시연 기록은 서버 재시작 때 사라질 수 있습니다.";$("settingsDialog").querySelector("p.subtle").textContent="운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";$("letterDialog").querySelector("p.subtle").textContent="이 방문자의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.";}catalog=data.models;const previous=preferred||selectedModel;selectedModel=previous&&catalog.some(m=>m.id===previous&&m.enabled)?previous:data.default||"";$("modelSelect").innerHTML=catalog.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===selectedModel?' selected':'')+(!m.enabled&&m.provider==="bridge"?' disabled':'')+'>'+esc(m.provider==="ollama"?m.name+" · 로컬":m.name)+'</option>').join("")||'<option value="">연결할 모델 없음</option>';$("localStatus").textContent=publicMode?"공개 서비스 · 방문자별 대화":catalog.filter(m=>m.local).length?"Ollama · 설치 모델 "+catalog.filter(m=>m.local).length+"개":"Ollama에 연결할 수 없어요";controls();}
-function controls(){const m=option(),locked=busy||profileBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":m?.provider==="guide"?"AI 미연결 · 입력한 내용으로 연구 기록을 탐색합니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";}
+function controls(){const m=option(),locked=busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":m?.provider==="guide"?"AI 미연결 · 입력한 내용으로 연구 기록을 탐색합니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";}
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
 function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
 function scrollBottom(){if(autoScroll)requestAnimationFrame(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:"instant"}));}
+function discoveryReady(s=session){return !!s&&typeof s.id==="string"&&!!s.id&&!s.ready&&!s.pending&&s.discovery?.ready===true&&typeof s.discovery.revision==="string"&&!!s.discovery.revision;}
+function canPrepareDiscovery(){return discoveryReady()&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
+async function prepareDiscovery(button,keyboard=false){
+ if(!canPrepareDiscovery())return;
+ const before=session,sid=before.id,revision=before.discovery.revision,ticket=++prepareTicket;
+ const current=()=>ticket===prepareTicket&&session===before&&session?.id===sid&&session?.discovery?.revision===revision;
+ const returnFocus=keyboard&&document.activeElement===button;let focusMoved=false;
+ const focusElsewhere=e=>{if(e.target!==document.body&&!button.contains(e.target))focusMoved=true;};
+ const pointerElsewhere=e=>{if(!button.contains(e.target))focusMoved=true;};
+ const windowBlur=()=>{focusMoved=true;};
+ document.addEventListener("focusin",focusElsewhere);document.addEventListener("pointerdown",pointerElsewhere);window.addEventListener("blur",windowBlur);
+ let adopted=false,invalidated=false;prepareBusy=true;error();controls();button.disabled=true;button.textContent="관련 기록을 찾고 있어요…";
+ try{
+  const prepared=await api("/api/chat/prepare",{session_id:sid,discovery_revision:revision});
+  if(!current())return;
+  if(prepared?.id!==sid||prepared.discovery?.revision!==revision)throw new Error("대화 조건이 바뀌었습니다. 현재 조건을 확인한 뒤 다시 수소문해 주세요.");
+  session=prepared;adopted=true;autoScroll=false;
+ }catch(e){if(current()){error(e.message);if(e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,ready:false};invalidated=true;}}}
+ finally{
+  document.removeEventListener("focusin",focusElsewhere);document.removeEventListener("pointerdown",pointerElsewhere);window.removeEventListener("blur",windowBlur);
+  if(ticket===prepareTicket){
+   prepareBusy=false;controls();
+   if(adopted){render();if(!$("proposalZone").hidden)$("proposalZone").scrollIntoView({block:"start",behavior:RndCraft.quiet()?"instant":"smooth"});}
+   else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent="현재 정보로 수소문";}else render();}
+   if(returnFocus&&(adopted||current())&&!focusMoved&&document.hasFocus()&&(document.activeElement===document.body||document.activeElement===button)){
+    const target=adopted||invalidated||!button.isConnected?$("message"):button;
+    if(!target.disabled)target.focus({preventScroll:true});
+   }
+  }
+ }
+}
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(m.model||"수소문")+'</span></div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
  if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(option()?.name||"수소문")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
- if(session?.can_propose&&!session.ready&&!busy)$("thread").innerHTML+='<div class="continue-actions"><button class="primary" data-action="prepare" title="대화를 계속하거나 지금까지의 조건으로 사람을 찾아볼 수 있어요.">이 조건으로 사람 찾기 (선택) ↗</button></div>';
+ if(canPrepareDiscovery())$("thread").innerHTML+='<div class="continue-actions"><button type="button" class="primary" data-action="prepare" title="지금까지 대화에서 확인한 조건과 등록 근거로 사람을 찾아봅니다. 실제로 연락하지 않습니다.">현재 정보로 수소문</button></div>';
  renderCandidates();controls();scrollBottom();
 }
 
@@ -59,7 +91,7 @@ function renderCandidates(){
 }
 function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated};history=[row,...history.filter(s=>s.id!==row.id)];}
 async function send(payload){
- if(busy||uploading)return;error();streamText="";busy=true;autoScroll=true;controller=new AbortController();retryPayload=payload;
+ if(busy||uploading||prepareBusy)return;prepareTicket++;error();streamText="";busy=true;autoScroll=true;controller=new AbortController();retryPayload=payload;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
  render();let accepted=false;
  try{
@@ -88,15 +120,15 @@ async function send(payload){
   }
  }finally{busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(busy||profileBusy||uploading)return;profileUI.close();session=null;files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(busy||profileBusy||uploading||prepareBusy)return;prepareTicket++;profileUI.close();session=null;files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했어요."));reader.readAsDataURL(file);});}
 async function upload(list){
- if(busy||profileBusy||uploading)return;error();if(files.length+list.length>4){error("파일은 한 번에 4개까지 첨부할 수 있어요.");return;}
+ if(busy||profileBusy||uploading||prepareBusy)return;error();if(files.length+list.length>4){error("파일은 한 번에 4개까지 첨부할 수 있어요.");return;}
  try{for(const file of list){if(file.size>(publicMode?1024*1024:8*1024*1024))throw new Error(publicMode?"공개 시연은 파일당 1MB까지 첨부할 수 있어요.":"파일당 8MB까지 첨부할 수 있어요.");files.push({id:"pending-"+crypto.randomUUID(),name:file.name,file});}}
  catch(e){error(e.message);}finally{$("fileInput").value="";renderFiles();}
 }
 async function submitComposer(){
- if(busy||profileBusy||uploading)return;
+ if(busy||profileBusy||uploading||prepareBusy)return;
  const text=$("message").value.trim();if(!text&&!files.length)return;
  if(profileUI.shouldHandle(text)){
   if(files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
@@ -136,7 +168,7 @@ profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,ge
   if(profileSubmission){if($("message").value===profileSubmission.text)$("message").value="";files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
   autoScroll=false;render();resizeInput();
  }});
-$ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy)return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
+$ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy)return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
 $ ("message").addEventListener("input",resizeInput);
 $ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!$("sendButton").disabled)$("chatForm").requestSubmit();}});
@@ -151,14 +183,14 @@ $ ("refreshModels").addEventListener("click",async()=>{try{modelOptions(await ap
 $ ("configForm").addEventListener("submit",async e=>{e.preventDefault();$("saveConfig").disabled=true;$("configMessage").textContent="";try{const provider=$("provider").value;const data=await api("/api/chat/configure",{provider,model:$("apiModel").value,key:$("apiKey").value});$("apiKey").value="";modelOptions(data,provider);$("configMessage").textContent="설정을 저장했어요. 다음 메시지부터 선택한 API로 보냅니다.";}catch(e){$("configMessage").textContent=e.message;}finally{$("saveConfig").disabled=false;}});
 $ ("draftButton").addEventListener("click",()=>saveLetter("draft"));
 $ ("proposeButton").addEventListener("click",()=>saveLetter("sent"));
-document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||busy||profileBusy)return;
+document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||busy||profileBusy||prepareBusy)return;
  try{
   if(action==="profile-receipt"){autoScroll=false;if(button.dataset.version)await profileUI.showReceipt(Number(button.dataset.version));else await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});}
   else if(action==="remove-file"){files=files.filter(f=>f.id!==id);renderFiles();}
   else if(action==="preview-file"){const pending=files.find(f=>f.id===id&&f.file);if(pending){$("fileTitle").textContent=pending.name;$("fileInfo").textContent="전송 대기 · 메시지를 보낼 때 일반 대화 또는 프로필 용도로 처리합니다.";$("filePreview").textContent="파일 크기: "+pending.file.size.toLocaleString()+" bytes";modal("fileDialog");return;}const item=await api("/api/attachment?id="+id);$("fileTitle").textContent=item.name;$("fileInfo").textContent=item.kind==="image"?"이미지 지원 모델에서만 대화에 사용할 수 있어요.":"읽은 텍스트 "+item.characters.toLocaleString()+"자"+(item.truncated?" · 길이 제한으로 앞부분만 읽었습니다.":"");$("filePreview").innerHTML=item.image?'<img alt="첨부 이미지" src="data:'+item.mime+';base64,'+item.image+'">':'<pre>'+esc(item.text)+'</pre>';modal("fileDialog");}
-  else if(action==="history"){profileUI.close();session=await api("/api/chat/session?id="+id);if(catalog.some(m=>m.id===session.model_id&&m.enabled)){selectedModel=session.model_id;$("modelSelect").value=selectedModel;}files=[];$("message").value="";renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
+  else if(action==="history"){prepareTicket++;profileUI.close();session=await api("/api/chat/session?id="+id);if(catalog.some(m=>m.id===session.model_id&&m.enabled)){selectedModel=session.model_id;$("modelSelect").value=selectedModel;}files=[];$("message").value="";renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
   else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");selectedModel=assistant?.model_id||session.model_id;$("modelSelect").value=selectedModel;await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:selectedModel,turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});}
-  else if(action==="prepare"){button.disabled=true;button.textContent="관련 기록을 찾고 있어요…";session=await api("/api/chat/prepare",{session_id:session.id});autoScroll=false;render();$("proposalZone").scrollIntoView({block:"start",behavior:RndCraft.quiet()?"instant":"smooth"});}
+  else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,turn_id:crypto.randomUUID()});}
   else if(action==="person")await showPerson(id,button);
   else if(action==="letter")await openLetter([id]);

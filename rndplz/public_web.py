@@ -19,6 +19,7 @@ from urllib.parse import parse_qs
 from .chat_models import ChatModels
 from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
+from .discovery import DiscoveryError
 from .data import Corpus, ROOT
 from .engine import Engine
 from .models import ExternalModel
@@ -175,9 +176,9 @@ class PublicModels(ChatModels):
             return
         users = [m for m in messages if m['role'] == 'user']
         if len(users) == 1:
-            yield '기록 탐색 안내를 선택하셨습니다. 이 모드는 AI 기술 답변을 생성하지 않고 등록된 기록에서 사람을 찾도록 돕습니다. 찾으려는 연구 주제와 필요한 경험·조건을 적은 뒤 «이 내용으로 사람 찾기»를 눌러 주세요.'
+            yield '기록 탐색 안내를 선택하셨습니다. 이 모드는 AI 기술 답변을 생성하지 않고 등록된 기록에서 사람을 찾도록 돕습니다. 찾으려는 사람과 하려는 일을 말씀해 주세요. 등록 기록에서 범위가 좁혀지면 «현재 정보로 수소문»이 나타납니다.'
         else:
-            yield '입력한 내용을 함께 검색할 준비가 됐습니다. 아래 «이 내용으로 사람 찾기»를 누르면 공개된 인물·논문·경력 기록에서 관련 근거를 찾아 보여드립니다.'
+            yield '이 모드는 기술 답변을 생성하지 않는 기록 탐색 안내입니다. 어떤 경험이 있는 사람을 찾는지 말씀해 주세요. 등록 기록에서 범위가 좁혀졌을 때만 «현재 정보로 수소문»으로 이어집니다.'
 
 
 class PublicApp:
@@ -207,7 +208,7 @@ class PublicApp:
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # A startup file fingerprint is provenance metadata, not a memory attestation.
-        tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','diagnostics.py')
+        tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py')
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -466,6 +467,9 @@ class PublicApp:
                 with diagnostic_scope(self.diagnostics,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
+        except DiscoveryError as exc:
+            diagnostic_error='discovery_not_ready'
+            return send(409, {'error':str(exc), 'code':exc.code})
         except ProfileError as exc:
             return send(exc.status, {'error':str(exc), 'code':exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
         except ValueError as exc:

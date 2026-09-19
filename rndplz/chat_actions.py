@@ -228,14 +228,37 @@ class ChatActions:
     def requires_performance(text):
         return bool(re.search(r'(?:실제|직접).{0,16}(?:수행|실험|경험|실적)|(?:수행|실험|경험|실적)\s*(?:근거|기록).{0,12}(?:있는|확인|만)', text))
 
-    def recommend(self, session, text, excluded=None):
+    def recommend(self, session, text, excluded=None, discovery=None):
         query = self.query_for(session, text)
         # Keep legacy record ranking and its evidence contract untouched.
-        result = self.engine.recommend(query)
+        if discovery is None:
+            result = self.engine.recommend(query)
+        else:
+            # Rank only the records that supported readiness, using the existing
+            # engine's votes and reasons. Never filter a truncated top-N list.
+            weighted = self.engine.topics_for(query)
+            accepted = {tid for condition in discovery['conditions'] for tid in condition['topic_ids']}
+            topics = {tid:weighted.get(tid,1) for tid in sorted(accepted)}
+            mode = self.engine.mode_for(query)
+            field = self.engine.field_for(topics, mode, query)
+            allowed = set(discovery['candidate_ids']); records = set(discovery['record_ids'])
+            scores = [(r,score) for r,score in self.engine.record_scores(query,topics,field,mode) if r.id in records]
+            grouped = {}
+            for record,score in scores:
+                for contribution in record.people:
+                    if contribution.person_id in allowed:
+                        grouped.setdefault(contribution.person_id,[]).append((record,score))
+            candidates = [self.engine.candidate(self.corpus.people[pid],rows,topics,query) for pid,rows in grouped.items()]
+            candidates.sort(key=lambda c:(-c['score_internal'],c['id']))
+            for candidate in candidates:
+                candidate.pop('score_internal',None)
+                candidate['unverified_request_conditions'] = discovery.get('unsupported',[])
+            result = self.blank('recommend',cards=candidates[:7])
+            result.update(mode=mode,mode_label='기록에서 찾은 인물',field=field,topic_ids=list(topics),record_count=len(scores),ranking_source='규칙')
         excluded = set(excluded or ()) | self.excluded(query)
         result['candidates'] = [c for c in result['candidates'] if c['id'] not in excluded]
         record_count = len(result['candidates'])
-        if result['mode'] in ('advice', 'member') and not self.requires_performance(query):
+        if discovery is None and result['mode'] in ('advice', 'member') and not self.requires_performance(query):
             seen = {c['id'] for c in result['candidates']} | excluded
             for row in self.engine.profile_matches(query):
                 if len(result['candidates']) >= 7:
@@ -263,13 +286,17 @@ class ChatActions:
             explanations = [f"{c['name']}: {c['reason']}" for c in result['candidates'][:3]]
             reply += '\n\n' + '\n'.join(explanations)
             reply += '\n\n기간·자원·현재 가용성은 요청 조건이며, 해당 인물이 모두 충족한다는 확인은 아닙니다. 근거의 출처와 확인 범위를 카드에서 확인해 주세요.'
+        if discovery and discovery.get('unsupported'):
+            reply += '\n\n추가 확인할 요청: ' + ' · '.join(dict.fromkeys(discovery['unsupported'])) + '. 충족 여부는 아직 확인되지 않았습니다.'
         return {'reply': reply, 'result': result,
                 'context': {'kind': 'recommend', 'ids': [c['id'] for c in result['candidates']],
                             'query': query, 'profile_only_ids': profile_ids},
                 'can_propose': any(not c.get('lookup_only') for c in result['candidates']),
                 'query': query, 'mode': result['mode']}
 
-    def resolve(self, session, text, selected=None):
+    def resolve(self, session, text, selected=None, allow_recommend=True):
+        def route(value, excluded=None):
+            return self.recommend(session,value,excluded) if allow_recommend else {'discovery_request':True}
         context = session.get('search_context') or {}
         if self.cancelled(text):
             return {'reply': '알겠습니다. 여기서 멈출게요.', 'result': None,
@@ -294,11 +321,11 @@ class ChatActions:
         excluded = self.excluded(text)
         ids = [pid for pid in ids if pid not in excluded]
         if not ids and excluded:
-            return self.recommend(session, remaining, excluded)
+            return route(remaining, excluded)
         explicit_name = re.search(r'(?:이?라는|이라고\s*하는)\s*(?:사람|연구자|분)|교수|박사|프로필|이력', text)
         if ids and self.people_request(text) and not explicit_name and all(self.engine.profile_query_terms(self.corpus.people[pid].name) for pid in ids):
             # An acronym used as a topic ("APC 전문가") does not select its namesake.
-            return self.recommend(session, text, excluded)
+            return route(text, excluded)
         if ids:
             # Affiliation narrows a duplicate-name group, never a distinct named person.
             groups = {}
@@ -338,7 +365,7 @@ class ChatActions:
         # A registered technical term plus a search request is not an unknown person's name.
         technical_search = self.engine.profile_query_terms(text) and (self.people_request(text) or re.search(r'찾아\s*(?:줘|주)|보여\s*(?:줘|주)', text))
         if technical_search and not explicit_name and self.engine.mode_for(text) in ('advice', 'member'):
-            return self.recommend(session, text)
+            return route(text)
         unknown = self.unknown_name(text)
         if unknown:
             message = f'현재 열람 가능한 자료에서 {unknown} 님을 찾지 못했습니다. 이름의 다른 표기나 소속이 있으면 확인할 수 있어요.'
@@ -347,5 +374,5 @@ class ChatActions:
         people_request = self.people_request(text)
         refine = self.search_refinement(context, text)
         if people_request or refine:
-            return self.recommend(session, text)
+            return route(text)
         return None
