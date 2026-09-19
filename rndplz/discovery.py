@@ -282,7 +282,7 @@ class Discovery:
         elif not candidate_ids:
             status = 'no_evidence'; question = ''
         elif not ready:
-            status = 'not_narrowed'; question = '현재 기록에서는 아직 후보가 구분되지 않아요. 가장 중요한 반응이나 제품을 알려 주실래요?'
+            status = 'not_narrowed'; question = '현재 기록에서는 아직 후보가 구분되지 않아요. 해결하려는 문제나 목표를 조금 더 알려 주실래요?'
         else:
             status = 'ready'; question = ''
         labels = [c['name'] for c in conditions]
