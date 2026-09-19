@@ -41,6 +41,19 @@ PREVIEW_FILES = {
 
 # Previews use fixed reviewed packages, never filesystem path discovery.
 PREVIEW_PACKAGES = {
+    '/ui-previews/PEOPLE-MAP/r2/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'app.js': ('app.js', 'text/javascript; charset=utf-8'),
+        'data.js': ('data.js', 'text/javascript; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'mark.svg': ('mark.svg', 'image/svg+xml'),
+        'model.js': ('model.js', 'text/javascript; charset=utf-8'),
+        'styles.css': ('styles.css', 'text/css; charset=utf-8'),
+        'views/desktop.png': ('views/desktop.png', 'image/png'),
+        'views/desktop.svg': ('views/desktop.svg', 'image/svg+xml'),
+        'views/mobile.png': ('views/mobile.png', 'image/png'),
+        'views/mobile.svg': ('views/mobile.svg', 'image/svg+xml'),
+    },
     '/ui-previews/PEOPLE-MAP/r1/': {
         '': ('index.html', 'text/html; charset=utf-8'),
         'app.js': ('app.js', 'text/javascript; charset=utf-8'),
