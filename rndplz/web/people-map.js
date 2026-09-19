@@ -10,9 +10,12 @@
  const virtual=p=>p.virtual?'<span class="virtual-tag">기존 가상 사례</span>':"";
  const PAGE_SIZE=25;
  const org=p=>p.organization||"소속 미기재";
+ const orgGroup=p=>p.organizationGroupName||"기관명 미기재";
+ const historical=p=>{const profile=p.sourceProfile||{};return profile.display_type==="historical_researcher"||profile.current_status?.category==="deceased"||profile.affiliation_status==="deceased";};
+ const historicalNotice="역사적 연구 자료 · 실제 자문 가능 대상 아님";
  const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.png$/i.test(p.portrait.path||"")?p.portrait.path:null;
  const awards=p=>(p.awards||[]).filter(a=>a.label).map(a=>'<span class="award-mark">'+esc(a.label)+(a.year&&!String(a.label).includes(String(a.year))?' · '+esc(a.year):'')+'</span>').join("");
- const avatar=p=>portraitPath(p)?'<span class="avatar portrait-mini"><img src="'+esc(portraitPath(p))+'" alt="" loading="lazy"></span>':'<span class="avatar neutral" aria-hidden="true">'+esc(title(p).slice(0,1))+'</span>';
+ const avatar=p=>portraitPath(p)?'<span class="avatar portrait-mini"><img src="'+esc(portraitPath(p))+'" alt="" loading="lazy" decoding="async" width="600" height="800"></span>':'<span class="avatar neutral" aria-hidden="true">'+esc(title(p).slice(0,1))+'</span>';
  const recordType=r=>r.typeLabel||r.type||"기록";
  const recordRole=r=>r.role||"역할 미기재";
  const recordDate=r=>r.recordDate||"자료 날짜 미기재";
@@ -28,13 +31,13 @@
  }
  function personCard(p,s){
   const records=C.visibleEvidence(s,p),hasAward=(p.awards||[]).length>0;
-  return '<button type="button" class="map-person real-person'+(hasAward?' with-award':'')+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-label="'+esc(title(p))+' 연결 근거 보기"><span class="real-name"><strong>'+esc(title(p))+'</strong>'+virtual(p)+'<span class="person-team">'+esc(org(p))+'</span></span>'+(portraitPath(p)?'<span class="portrait-frame"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||"공개 인물 일러스트")+'" loading="lazy"></span><span class="portrait-caption">'+(p.portrait.generated?'AI 생성 일러스트':esc(p.portrait.label||"공개 이미지"))+'</span>':'<span class="portrait-placeholder">'+avatar(p)+'</span>')+awards(p)+'<span class="experience-title">'+esc(records[0]?records[0].title:"연결된 기록 없음")+'</span><span class="period">이 조건의 연결 근거 '+records.length+'개</span></button>';
+  return '<button type="button" class="map-person real-person'+(hasAward?' with-award':'')+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-label="'+esc(title(p))+' 연결 근거 보기"><span class="real-name"><strong>'+esc(title(p))+'</strong>'+virtual(p)+'<span class="person-team">'+esc(org(p))+'</span></span>'+(portraitPath(p)?'<span class="portrait-frame"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||"공개 인물 일러스트")+'" loading="lazy" decoding="async" width="600" height="800"></span><span class="portrait-caption">'+(p.portrait.generated?'AI 생성 일러스트':esc(p.portrait.label||"공개 이미지"))+'</span>':'<span class="portrait-placeholder">'+avatar(p)+'</span>')+awards(p)+'<span class="experience-title">'+esc(records[0]?records[0].title:"연결된 기록 없음")+'</span><span class="period">이 조건의 연결 근거 '+records.length+'개</span></button>';
  }
  function line(label,id){return '<div class="relation" data-relation-person="'+esc(id)+'"><svg viewBox="0 0 180 57" preserveAspectRatio="none" aria-hidden="true"><path d="M90 0V57"/></svg><span>'+esc(label)+'</span></div>';}
  function groups(s){
   const map=new Map();
   for(const p of C.visiblePeople(s)){
-   const keys=s.view==="organization"?[org(p)]:[...new Set(C.visibleEvidence(s,p).flatMap(r=>r.topics||[]))];
+   const keys=s.view==="organization"?[orgGroup(p)]:[...new Set(C.visibleEvidence(s,p).flatMap(r=>r.topics||[]))];
    if(!keys.length)keys.push("주제 미기재");
    for(const key of keys){if(!map.has(key))map.set(key,[]);map.get(key).push(p);}
   }
@@ -43,12 +46,23 @@
  function renderMap(s){
   const people=C.visiblePeople(s);
   if(!people.length)return '<div class="empty-result"><div class="empty-symbol" aria-hidden="true">∅</div><h3>현재 조건에 맞는 인물이 없습니다.</h3><p>이름과 자료 주제 조건을 바꾸어 찾아보세요.</p><button type="button" class="text-button" data-map-action="'+(s.topic?'clear-topic':'clear-all')+'">'+(s.topic?'주제 조건만 해제':'조건 모두 해제')+' →</button></div>';
-  if(people.length<=6)return '<div class="small-result-label">'+people.length+'명 · 같은 조건의 이름과 근거</div><div class="map-grid actual-small">'+people.map(p=>'<section class="map-group '+((p.awards||[]).length?'gold':'')+'"><div class="group-label"><span>'+esc(s.view==="organization"?org(p):(s.topic?topicName(s.topic):"연결된 공개 기록"))+'</span></div>'+line(s.view==="organization"?"자료에 기재된 소속":recordRole(C.visibleEvidence(s,p)[0]||{}),p.id)+personCard(p,s)+'</section>').join("")+'</div>';
+  if(people.length<=6)return '<div class="small-result-label">'+people.length+'명 · 같은 조건의 이름과 근거</div><div class="map-grid actual-small">'+people.map(p=>'<section class="map-group '+((p.awards||[]).length?'gold':'')+'"><div class="group-label"><span>'+esc(s.view==="organization"?orgGroup(p):(s.topic?topicName(s.topic):"연결된 공개 기록"))+'</span></div>'+line(s.view==="organization"?"자료에 기재된 소속":recordRole(C.visibleEvidence(s,p)[0]||{}),p.id)+personCard(p,s)+'</section>').join("")+'</div>';
   const all=groups(s),showAll=(s.expandedGroups||[]).includes("__all_groups__"),shown=showAll?all:all.slice(0,6);
   return '<p class="cluster-help">먼저 묶음을 펼쳐보세요. 모든 이름은 왼쪽 목록에서 바로 찾을 수 있습니다.</p><div class="cluster-grid">'+shown.map(([key,members],i)=>{
    const gid=s.view+":"+key,expanded=(s.expandedGroups||[]).includes(gid),allMembers=(s.expandedGroups||[]).includes(gid+":all"),viewMembers=allMembers?members:members.slice(0,6);
    return '<section class="cluster '+(["","blue","gold"][i%3])+'"><button type="button" class="cluster-heading" data-group="'+esc(gid)+'" aria-expanded="'+expanded+'"><span><small>'+esc(s.view==="organization"?"자료상 소속":"논문·기록 주제")+'</small><strong>'+esc(s.view==="organization"?key:topicName(key))+'</strong></span><span class="cluster-count">'+members.length+'<small>명</small>'+(members.some(p=>p.virtual)?'<small>가상 '+members.filter(p=>p.virtual).length+'명 포함</small>':'')+'</span></button>'+(expanded?'<div class="cluster-members">'+viewMembers.map(p=>'<button type="button" class="cluster-person" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'">'+avatar(p)+'<span>'+esc(title(p))+virtual(p)+'</span><span aria-hidden="true">↗</span></button>').join("")+(members.length>6?'<button type="button" class="text-button" data-group="'+esc(gid+':all')+'">'+(allMembers?'6명만 보기':'이 묶음 '+members.length+'명 모두 보기')+'</button>':'')+'</div>':'')+'</section>';
   }).join("")+'</div>'+(all.length>6?'<button type="button" class="text-button group-more" data-group="__all_groups__">'+(showAll?'주제 묶음 접기':'묶음 '+all.length+'개 모두 보기')+'</button>':'')+'<p class="cluster-note">주제가 여러 개인 사람은 여러 묶음에 나타날 수 있습니다. 전체 인원은 같은 ID를 한 번만 셉니다.</p>';
+ }
+ function additionalRecordSources(raw){
+  const sources=Array.isArray(raw.metadata_sources)?raw.metadata_sources:[];
+  const links=sources.map((source)=>{
+   const item=source&&typeof source==="object"?source:{},url=safeUrl(typeof source==="string"?source:item.url);
+   if(!url)return "";
+   const marker=[item.basis,item.type,item.title,item.label].filter(value=>typeof value==="string").join(" ");
+   const label=/\bcorrection\b|정정/i.test(marker)?"정정 출처":"추가 출처";
+   return '<a class="source-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer"'+(typeof item.title==="string"?' title="'+esc(item.title)+'"':'')+'>'+label+' ↗</a>';
+  }).filter(Boolean);
+  return links.length?'<div class="asset-source-field">'+links.join(" · ")+'</div>':"";
  }
  function recordCard(r,s,index){
   const link=safeUrl(r.sourceUrl),details=[],raw=r.sourceRecord||{};
@@ -57,13 +71,13 @@
   else details.push('<dt>참여 기간</dt><dd>미기재 · 자료 날짜와 구분</dd>');
   if(r.organization)details.push('<dt>자료상 소속</dt><dd>'+esc(r.organization)+'</dd>');
   const source=link?'<a class="source-link" href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(r.sourceLabel||"원 출처 열기")+' ↗</a>':'<span class="micro">'+esc(r.sourceLabel||"원 출처 링크 미기재")+'</span>';
-  return '<article class="record-card" data-record="'+esc(r.id)+'"><div class="section-label"><span>'+esc(recordType(r))+(raw.virtual?' · 기존 가상 기록':'')+'</span><span>'+(raw.kind==="career_record"?'기재 기간 · ':'자료 날짜 · ')+esc(recordDate(r))+'</span></div><h3>'+esc(r.title||"제목 미기재")+'</h3><p class="role-line">'+esc(recordRole(r))+'</p>'+(r.summary?'<p class="record-summary">'+esc(r.summary)+'</p>':'')+(raw.boundary?'<p class="record-boundary">'+esc(raw.boundary)+'</p>':'')+'<dl class="facts">'+details.join("")+'</dl>'+((r.topics||[]).length?'<div class="record-topics">'+r.topics.map(t=>'<span>'+esc(topicName(t))+'</span>').join("")+'</div>':'')+'<details class="source-details"><summary>출처와 표시 범위</summary>'+source+(r.provenance?'<p>'+displayValue(r.provenance)+'</p>':'')+(raw.evidence_label?'<p>자료 분류: '+esc(raw.evidence_label)+'</p>':'')+(raw.classification_basis?'<p>분류 근거: '+esc(raw.classification_basis)+'</p>':'')+(raw.access?'<p>원자료 접근 표기: '+esc(raw.access)+'</p>':'')+(raw.checked_at?'<p>자료 확인 시점: '+esc(raw.checked_at)+'</p>':'')+(raw.corresponding?'<p>교신저자 표기 있음</p>':'')+'<p>기록에 나온 연결과 역할을 보여줍니다. 현재의 수행 역량·자문 가능 여부를 확정하지 않습니다.</p></details><button type="button" class="text-button" data-map-open="record" data-id="'+esc(r.id)+'">기록 원문 상세 보기 ↗</button><label class="evidence-check"><input type="checkbox" id="evidence-'+index+'" data-evidence="'+esc(r.id)+'"'+(s.evidenceIds.includes(r.id)?' checked':'')+'>이 근거를 질문 준비에 포함</label></article>';
+  return '<article class="record-card" data-record="'+esc(r.id)+'"><div class="section-label"><span>'+esc(recordType(r))+(raw.virtual?' · 기존 가상 기록':'')+'</span><span>'+(raw.kind==="career_record"?'기재 기간 · ':'자료 날짜 · ')+esc(recordDate(r))+'</span></div><h3>'+esc(r.title||"제목 미기재")+'</h3><p class="role-line">'+esc(recordRole(r))+'</p>'+(r.summary?'<p class="record-summary">'+esc(r.summary)+'</p>':'')+(raw.boundary?'<p class="record-boundary">'+esc(raw.boundary)+'</p>':'')+'<dl class="facts">'+details.join("")+'</dl>'+((r.topics||[]).length?'<div class="record-topics">'+r.topics.map(t=>'<span>'+esc(topicName(t))+'</span>').join("")+'</div>':'')+'<details class="source-details"><summary>출처와 표시 범위</summary>'+source+additionalRecordSources(raw)+(r.provenance?'<p>'+displayValue(r.provenance)+'</p>':'')+(raw.evidence_label?'<p>자료 분류: '+esc(raw.evidence_label)+'</p>':'')+(raw.classification_basis?'<p>분류 근거: '+esc(raw.classification_basis)+'</p>':'')+(raw.access?'<p>원자료 접근 표기: '+esc(raw.access)+'</p>':'')+(raw.checked_at?'<p>자료 확인 시점: '+esc(raw.checked_at)+'</p>':'')+(raw.corresponding?'<p>교신저자 표기 있음</p>':'')+'<p>기록에 나온 연결과 역할을 보여줍니다. 현재의 수행 역량·자문 가능 여부를 확정하지 않습니다.</p></details><button type="button" class="text-button" data-map-open="record" data-id="'+esc(r.id)+'">기록 원문 상세 보기 ↗</button><label class="evidence-check"><input type="checkbox" id="evidence-'+index+'" data-evidence="'+esc(r.id)+'"'+(s.evidenceIds.includes(r.id)?' checked':'')+'>이 근거를 질문 준비에 포함</label></article>';
  }
  function renderQuestion(s,p){
-  const selected=checked(s,p);
-  let html='<section class="detail-section"><div class="question-form"><div class="section-label"><span>03 · 대화 준비</span><span>첫 15분</span></div><h3>무엇부터 물어볼까요?</h3>';
+  const selected=checked(s,p),isHistorical=historical(p);
+  let html='<section class="detail-section"><div class="question-form"><div class="section-label"><span>'+(isHistorical?'03 · 자료 검토 준비':'03 · 대화 준비')+'</span><span>'+(isHistorical?'역사적 연구 자료':'첫 15분')+'</span></div><h3>'+(isHistorical?'자료에서 무엇을 확인할까요?':'무엇부터 물어볼까요?')+'</h3>'+(isHistorical?'<p class="detail-meta">'+historicalNotice+' · 기존 자료를 바탕으로 질문을 편집하며 실제 요청을 보내지 않습니다.</p>':'');
   if(!selected.length)return html+'<p class="gated">읽어본 근거 중 질문에 포함할 자료를 직접 골라주세요. 여러 자료를 함께 선택할 수 있습니다.</p></div></section>';
-  html+='<p class="question-target">질문 대상 <strong>'+esc(title(p))+'</strong> · 근거 <strong>'+selected.length+'</strong>개</p><ul class="selected-evidence-list">'+selected.map(r=>'<li>'+esc(r.title)+'</li>').join("")+'</ul>';
+  html+='<p class="question-target">'+(isHistorical?'자료의 연구자':'질문 대상')+' <strong>'+esc(title(p))+'</strong> · 근거 <strong>'+selected.length+'</strong>개</p><ul class="selected-evidence-list">'+selected.map(r=>'<li>'+esc(r.title)+'</li>').join("")+'</ul>';
   if(s.draftNeedsReview)html+='<div class="context-review" role="status"><p>선택 근거가 바뀌었습니다. 직접 쓴 초안이 지금 자료와 맞는지 확인해 주세요.</p><button type="button" data-map-action="ack-draft" class="text-button">변경한 근거로 초안 확인</button><button type="button" data-map-action="reset-draft" class="text-button">선택한 근거로 다시 시작</button></div>';
   html+='<label class="form-label" for="problem">지금 확인하고 싶은 문제</label><textarea id="problem" data-field="problem" maxlength="2000" placeholder="나의 상황과 확인할 조건">'+esc(s.problem)+'</textarea><label class="form-label" for="draft">질문 초안 · 직접 수정</label><textarea id="draft" class="draft-area" data-field="draft" maxlength="6000">'+esc(s.draft)+'</textarea><details class="ai-options"'+(s.includeAi?' open':'')+'><summary>AI 자료도 참고하기 · 선택 사항</summary><p class="ai-explainer">AI 자료 없이도 준비할 수 있습니다. 가져온 원답과 확인할 가정을 나누어 적어주세요.</p><label class="evidence-check"><input type="checkbox" id="include-ai"'+(s.includeAi?' checked':'')+'>내가 가진 AI 자료를 함께 검토</label>'+(s.includeAi?'<label class="form-label" for="ai-text">AI 원답 · 내가 가져오는 선택 자료</label><textarea id="ai-text" data-field="aiText" maxlength="10000" placeholder="원답과 출처·버전을 직접 적어주세요.">'+esc(s.aiText)+'</textarea>':'')+'</details><p class="draft-foot">이 페이지 안에서만 편집합니다. 저장되거나 상대에게 전달되지 않습니다.</p></div></section>';
   return html;
@@ -84,6 +98,7 @@
   let body="";
   if(portrait){
    body+='<p><strong>기존 인물 일러스트</strong></p><p>'+esc(portrait.generated_credit||portrait.label||"기존 공개 초상")+'</p>';
+   if(portrait.reference_note)body+='<p>참고 자료 설명: '+esc(portrait.reference_note)+'</p>';
    for(const key of ["reference","reference_url","photo_url","credit","license","generated_license","change_note"]){
     if(portrait[key])body+='<div class="asset-source-field">'+displayValue(portrait[key])+'</div>';
    }
@@ -98,7 +113,7 @@
   return '<details class="profile-info asset-sources"><summary>일러스트·수상 출처</summary>'+body+'</details>';
  }
  function renderProfile(p){
-  const raw=p.sourceProfile||{},keys={tagline:"프로필 한 줄",biography:"소개",skills:"프로필에 기재된 기술",skill_groups:"기술 묶음",interests:"관심 주제",timeline:"제공 이력",projects:"기재 프로젝트",education:"학력",sources:"프로필 출처",portrait_note:"일러스트 참고 정보",profile_note:"프로필 표시 범위",current_role:"기재된 현재 역할",role:"기재 역할",source_type:"정보 제공 방식",checked_at:"자료 확인 시점",limit:"해석 범위",employment_verification:"재직 확인 상태",collaboration_availability:"자문 가능 여부",contact_consent:"연락 동의 상태"};
+  const raw=p.sourceProfile||{},keys={tagline:"프로필 한 줄",biography:"소개",skills:"프로필에 기재된 기술",skill_groups:"기술 묶음",interests:"관심 주제",timeline:"제공 이력",projects:"기재 프로젝트",education:"학력",sources:"프로필 출처",portrait_note:"일러스트 참고 정보",profile_note:"프로필 표시 범위",current_role:"기재된 현재 역할",role:"기재 역할",source_type:"정보 제공 방식",checked_at:"자료 확인 시점",profile_observed_as_of:"공개 프로필 관측일 · 재직 확인 아님",limit:"해석 범위",employment_verification:"재직 확인 상태",collaboration_availability:"자문 가능 여부",contact_consent:"연락 동의 상태"};
   const rows=Object.entries(keys).filter(([key])=>raw[key]!=null&&raw[key]!==""&&(!Array.isArray(raw[key])||raw[key].length));
   if(!rows.length)return "";
   return '<details class="profile-info"><summary>프로필에 제공된 내용과 출처</summary>'+rows.map(([key,label])=>'<p><strong>'+label+'</strong></p>'+displayValue(raw[key])).join("")+'</details>';
@@ -108,7 +123,7 @@
   const p=selectedPerson(s);
   if(!p)return '<div class="detail-empty"><span class="eyebrow small">02 · PERSON & EVIDENCE</span><div class="empty-mark" aria-hidden="true">↗</div><h2>이름과 연결된 기록,<br>함께 읽어보세요.</h2><p>사람을 선택하면 공개된 논문·제공 기록과 그 연결 역할을 볼 수 있습니다.</p><div class="journey"><ul><li><span>01</span>이름·자료 주제로 찾기</li><li><span>02</span>역할과 원 출처 읽기</li><li><span>03</span>선택한 근거로 질문 준비</li></ul></div></div>';
   const records=C.visibleEvidence(s,p);
-  let html='<div class="detail-topline"><span class="eyebrow small">02 · PERSON & EVIDENCE</span><button type="button" class="close-detail" data-map-action="close">목록으로 ↩</button></div><div class="detail-head" data-detail-person="'+esc(p.id)+'"><div class="detail-name">'+avatar(p)+'<h2 id="detail-title" tabindex="-1">'+esc(title(p))+'</h2></div>'+virtual(p)+'<p class="detail-team">'+esc(org(p))+'</p><p class="detail-meta">'+esc(p.organizationNote||"자료에 기재된 소속 · 현재 여부 미확인")+'</p>'+awards(p)+(portraitPath(p)?'<div class="detail-full-portrait"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||'공개 일러스트')+'"></div><p class="detail-meta">'+(p.portrait.generated?'AI 생성 인물 일러스트':esc(p.portrait.label||"기존 공개 이미지"))+'</p>':'')+'</div><div class="detail-profile-link"><button type="button" class="text-button" data-map-open="person" data-id="'+esc(p.id)+'">전체 인물 이력 열기 ↗</button></div>'+renderAssetSources(p)+renderProfile(p);
+  let html='<div class="detail-topline"><span class="eyebrow small">02 · PERSON & EVIDENCE</span><button type="button" class="close-detail" data-map-action="close">목록으로 ↩</button></div><div class="detail-head" data-detail-person="'+esc(p.id)+'"><div class="detail-name">'+avatar(p)+'<h2 id="detail-title" tabindex="-1">'+esc(title(p))+'</h2></div>'+virtual(p)+'<p class="detail-team">'+esc(org(p))+'</p><p class="detail-meta">'+esc(p.organizationNote||"자료에 기재된 소속 · 현재 여부 미확인")+'</p>'+(historical(p)?'<p class="detail-meta">'+historicalNotice+'</p>':'')+awards(p)+(portraitPath(p)?'<div class="detail-full-portrait"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||'공개 일러스트')+'" loading="lazy" decoding="async" width="600" height="800"></div><p class="detail-meta">'+(p.portrait.generated?'AI 생성 인물 일러스트':esc(p.portrait.label||"기존 공개 이미지"))+'</p>':'')+'</div><div class="detail-profile-link"><button type="button" class="text-button" data-map-open="person" data-id="'+esc(p.id)+'">전체 인물 이력 열기 ↗</button></div>'+renderAssetSources(p)+renderProfile(p);
   if(!records.length) return html+'<section class="detail-section zero-record"><h3>현재 조건의 연결 기록 없음</h3><p>이 화면의 자료 범위에서 표시할 기록이 없습니다. 경험이나 역량이 없다는 뜻이 아닙니다.</p></section>';
   html+='<section class="detail-section records-section"><div class="section-label"><span>연결된 근거 '+records.length+'개</span><span>전체 '+p.records.length+'개 중</span></div><p class="evidence-context">논문은 저자 기재, 제공 기록은 그 자료에 명시된 역할로 읽습니다.</p>'+(p.recordCount!==p.records.length?'<p class="evidence-context">원자료 연결 '+p.recordCount+'회 · 고유 근거 '+p.records.length+'개. 같은 인물·기록의 중복 연결은 묶어 표시합니다.</p>':'')+records.map((r,i)=>recordCard(r,s,i)).join("")+'</section>';
   return html+renderQuestion(s,p);

@@ -89,6 +89,7 @@
       id: person.id, name: name, originalName: original(person.name), aliases: aliases,
       initial: Array.from(name)[0] || '',
       organization: original(person.org),
+      organizationGroupName: original(person.org_name),
       organizationNote: [text(person.org_basis), person.org_as_of ? '기준일: ' + person.org_as_of : '소속 기준일 미기재'].filter(Boolean).join(' · '),
       organizationAsOf: original(person.org_as_of),
       currentRole: original(profile.current_role),
@@ -173,7 +174,9 @@
   function neutralDraft(state, person) {
     var records = selectedEvidence(state, person);
     if (!records.length) return '';
-    return '질문 대상: ' + person.name + '\n선택한 근거 ' + records.length + '건:\n' +
+    var profile = person.sourceProfile || {}, status = profile.current_status || {};
+    var historical = profile.display_type === 'historical_researcher' || profile.affiliation_status === 'deceased' || status.category === 'deceased';
+    return (historical ? '자료의 연구자: ' : '질문 대상: ') + person.name + '\n선택한 근거 ' + records.length + '건:\n' +
       records.map(function (record) {
         return '- ' + printable(record.title) + ' [' + record.id + ']' +
           '\n  기재 역할: ' + printable(record.role) +

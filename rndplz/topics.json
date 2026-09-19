@@ -514,5 +514,172 @@
       "globular protein fold"
     ],
     "color": "#847b6e"
+  },
+  {
+    "id": "GS-SURFACE",
+    "name": "표면 반응·촉매",
+    "field": "catalysis_reaction",
+    "color": "#9e8062",
+    "keywords": [
+      "표면 반응",
+      "표면반응",
+      "표면 촉매",
+      "불균일 촉매",
+      "촉매",
+      "촉매 선택성",
+      "reactions at surfaces",
+      "catalyst",
+      "catalytic",
+      "catalysis"
+    ]
+  },
+  {
+    "id": "GS-POLYMER",
+    "name": "중합·메타세시스",
+    "field": "materials_polymers",
+    "color": "#9a82ad",
+    "keywords": [
+      "중합",
+      "고분자",
+      "메타세시스",
+      "복분해 중합",
+      "라디칼 중합",
+      "공중합체",
+      "폴리에틸렌",
+      "폴리프로필렌",
+      "polymerization",
+      "metathesis",
+      "graft copolymer",
+      "polyethylene",
+      "polypropylene",
+      "polyolefin"
+    ]
+  },
+  {
+    "id": "GS-TRIBOLOGY",
+    "name": "마찰·윤활",
+    "field": "tribology_lubricants",
+    "color": "#b9974f",
+    "keywords": [
+      "마찰",
+      "윤활",
+      "윤활유",
+      "윤활제",
+      "마찰조정제",
+      "트라이볼로지",
+      "초윤활",
+      "friction",
+      "lubricant",
+      "tribolog",
+      "superlubricity"
+    ]
+  },
+  {
+    "id": "GS-CIRCULAR",
+    "name": "폐플라스틱·고분자 순환",
+    "field": "polymer_circularity",
+    "color": "#6c9274",
+    "keywords": [
+      "폐플라스틱",
+      "플라스틱 폐기물",
+      "고분자 순환",
+      "플라스틱 재활용",
+      "폴리올레핀 폐기물",
+      "plastic waste",
+      "polyolefin waste"
+    ]
+  },
+  {
+    "id": "GS-ELECTRO",
+    "name": "수소·산소 발생 반응",
+    "field": "electrochemistry",
+    "color": "#558f9e",
+    "keywords": [
+      "수소 발생",
+      "수소발생",
+      "산소 발생",
+      "산소발생",
+      "교환 전류",
+      "전기촉매",
+      "전극 반응",
+      "her",
+      "oer",
+      "hydrogen evolution",
+      "oxygen evolution",
+      "exchange current"
+    ]
+  },
+  {
+    "id": "GS-POROUS",
+    "name": "다공성 구조·분자 흡착",
+    "field": "porous_materials_separation",
+    "color": "#698e88",
+    "keywords": [
+      "다공성",
+      "분자 흡착",
+      "흡착",
+      "제올라이트",
+      "금속 유기 골격체",
+      "금속유기골격체",
+      "공유결합 유기 골격체",
+      "mof",
+      "cof",
+      "porous",
+      "framework",
+      "adsorption",
+      "zeolite",
+      "aminoaluminosilicate nanotube"
+    ]
+  },
+  {
+    "id": "GS-CO2-CAPTURE",
+    "name": "CO₂ 포집·직접 공기 포집",
+    "field": "carbon_capture",
+    "color": "#6c8da2",
+    "keywords": [
+      "co2 포집",
+      "co₂ 포집",
+      "이산화탄소 포집",
+      "탄소 포집",
+      "직접 공기 포집",
+      "대기 중 포집",
+      "dac",
+      "carbon dioxide capture",
+      "direct air capture"
+    ]
+  },
+  {
+    "id": "GS-BIOCAT",
+    "name": "효소 재조합·셀룰라아제",
+    "field": "biocatalysis_enzyme_evolution",
+    "color": "#8c9a5f",
+    "keywords": [
+      "효소",
+      "효소 재조합",
+      "셀룰라아제",
+      "셀룰레이스",
+      "가수분해효소",
+      "생촉매",
+      "구조 기반 재조합",
+      "glycoside hydrolase",
+      "cellulase",
+      "structure-guided recombination"
+    ]
+  },
+  {
+    "id": "GS-PROCESS-AI",
+    "name": "화학공정·AI 방법론",
+    "field": "process_engineering_ai",
+    "color": "#8882a7",
+    "keywords": [
+      "공정 ai",
+      "화학공정 ai",
+      "화학공정 인공지능",
+      "화학공학",
+      "공정 인공지능",
+      "인공지능",
+      "artificial intelligence",
+      "chemical engineering"
+    ]
   }
 ]

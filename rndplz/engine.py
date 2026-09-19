@@ -4,6 +4,7 @@ import re
 import unicodedata
 from collections import Counter
 from .data import Corpus, matches
+from .demo_pool import project_corpus, historical_person
 
 SCOPE = {"public_research_case":"공개 연구 사례","provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
 KIND = {"career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
@@ -13,7 +14,7 @@ ROLE = {"first":"1저자","middle":"공저자","last":"마지막 저자","unknow
 
 class Engine:
     def __init__(self, corpus=None):
-        self.corpus = corpus or Corpus()
+        self.corpus = corpus if corpus is not None else project_corpus(Corpus())
         self.public_fields = {t["field"] for t in self.corpus.topics} - {
             "site", "immersion_cooling", "cpn_n2o_oxidation", "crystallization_kinetics",
             "ai_foundations", "process_engineering", "energy_catalysis"}
@@ -135,6 +136,13 @@ class Engine:
         return "advice"
 
     def field_for(self, topics, mode, text=""):
+        # In the explicit GS selection, topic votes may span several fields.
+        # Only records sharing these current evidence tags are scored below.
+        if getattr(self.corpus, "demo_pool", None):
+            if mode == "resource_request":
+                return "unknown"
+            fields = {self.corpus.topic_by_id[t]["field"] for t in topics}
+            return next(iter(fields)) if len(fields) == 1 else "active_research" if fields else "unknown"
         if "T07" in topics and any(matches(text,k) for k in ("사이클로펜텐","사이클로펜타논","cpn","cyclopentene","cyclopentanone","산화","oxidation")):
             return "cpn_n2o_oxidation"
         if "T08" in topics and any(matches(text,k) for k in ("결정","핵생성","crystall","nucleation")):
@@ -177,7 +185,7 @@ class Engine:
             boundary = "사용자가 제공한 직무 경력입니다. 회사 HR 검증·수행 수준·협업 가능 여부는 별도 확인이 필요합니다."
         if record.kind == "preprint":
             boundary += " 프리프린트이며 심사 완료 논문으로 간주하지 않습니다."
-        return {"id":record.id,"kind":record.kind,"title":record.title,"date":record.date,"url":record.source_url,"scope":SCOPE.get(record.scope,record.scope),"scope_key":record.scope,"evidence_kind":record.evidence_kind,"evidence_label":KIND[record.evidence_kind],"classification_basis":record.classification_basis,"checked_at":record.checked_at,"virtual":record.virtual,"boundary":boundary,"role":ROLE.get(contribution.role,"저자") if contribution else "기록","corresponding":bool(contribution and contribution.corresponding),"access":"제공된 직무 이력" if record.scope == "provided_resume" else "본인 제공 이력·경력 보완" if record.kind == "career_record" else "서지·편집 요약 (초록 원문 아님)" if record.details.get("text_kind") == "editorial_summary" else "가상 기록" if record.virtual else "메타데이터·초록" if record.text else "메타데이터","tags":record.tags}
+        return {"id":record.id,"kind":record.kind,"title":record.title,"date":record.date,"url":record.source_url,"scope":SCOPE.get(record.scope,record.scope),"scope_key":record.scope,"evidence_kind":record.evidence_kind,"evidence_label":KIND[record.evidence_kind],"classification_basis":record.classification_basis,"checked_at":record.checked_at,"virtual":record.virtual,"boundary":boundary,"role":ROLE.get(contribution.role,"저자") if contribution else "기록","corresponding":bool(contribution and contribution.corresponding),"metadata_sources":record.details.get("metadata_sources",[]),"publication_type":record.details.get("publication_type"),"access":"제공된 직무 이력" if record.scope == "provided_resume" else "본인 제공 이력·경력 보완" if record.kind == "career_record" else "서지·편집 요약 (초록 원문 아님)" if record.details.get("text_kind") == "editorial_summary" else "가상 기록" if record.virtual else "메타데이터·초록" if record.text else "메타데이터","tags":record.tags}
 
     def record_scores(self, text, topics, field, mode):
         scored=[]
@@ -185,7 +193,7 @@ class Engine:
             if record.virtual:
                 if mode not in ("site_request","resource_request"):
                     continue
-            elif field != record.field or mode == "resource_request":
+            elif (not getattr(self.corpus, "demo_pool", None) and field != record.field) or mode == "resource_request":
                 continue
             overlap=set(topics)&set(record.tags)
             if not overlap:
@@ -201,7 +209,7 @@ class Engine:
                 if (matches(text,entity) or (entity in aliases and aliases[entity] in text)) and matches(record.title+" "+record.text,entity):
                     score+=.6
             if record.field in self.public_fields or record.field in ("ai_foundations", "process_engineering", "energy_catalysis"):
-                if any(c.person_id and any(matches(text, a) for a in self.corpus.people[c.person_id].profile.get("aliases", [])) for c in record.people):
+                if any(c.person_id in self.corpus.people and any(matches(text, a) for a in self.corpus.people[c.person_id].profile.get("aliases", [])) for c in record.people):
                     score += 2
             if record.scope.startswith("adjacent"):
                 score*=.75
@@ -234,7 +242,7 @@ class Engine:
         if person.virtual:
             reason = f'요청의 「{focus}」와 연결된 「{best.title}」 경험이 시연용 가상 현장 기록에 있습니다.'
             role=best.details["role"]
-        return {"id":person.id,"name":person.name,"profile":person.profile if person.profile.get("curated") else {},"org":org,"org_type":org_type,"role":role,"reason":reason,"experience":best.details["role"] if person.virtual else best.title,"virtual":person.virtual,"kind":person.kind,"evidence":evidence,"topics":sorted({t for r,_ in scored for t in r.tags}),"evidence_counts":dict(Counter(r.evidence_kind for r in own)),"works_count":person.profile.get("works_count"),"works_in_corpus":len(own),"relevant_records":len(scored),"profile_topics":names,"portfolio":"관련 주제 확인" if overlap else "참여 문헌에서 확인 · 전체 이력은 추가 확인","record_confirmed":True,"individual_performance_verified":False,"person_confirmed":False,"availability":"미확인","details":best.details if person.virtual else {},"score_internal":round(best_score+min(sum(s for _,s in scored[1:3])*.06,.2),6)}
+        return {"id":person.id,"name":person.name,"profile":person.profile if person.profile.get("curated") else {},"org":org,"org_type":org_type,"role":role,"reason":reason,"experience":best.details["role"] if person.virtual else best.title,"virtual":person.virtual,"kind":person.kind,"evidence":evidence,"topics":sorted({t for r,_ in scored for t in r.tags}),"evidence_counts":dict(Counter(r.evidence_kind for r in own)),"works_count":person.profile.get("works_count"),"works_in_corpus":len(own),"relevant_records":len(scored),"profile_topics":names,"portfolio":"관련 주제 확인" if overlap else "참여 문헌에서 확인 · 전체 이력은 추가 확인","record_confirmed":True,"individual_performance_verified":False,"person_confirmed":False,"availability":"역사적 연구 자료 · 자문 대상 아님" if historical_person(person) else "미확인","proposal_allowed":not historical_person(person),"proposal_unavailable_reason":"역사적 연구 자료입니다. 실제 자문 수신자로 제안할 수 없습니다." if historical_person(person) else "","details":best.details if person.virtual else {},"score_internal":round(best_score+min(sum(s for _,s in scored[1:3])*.06,.2),6)}
 
     def recommend(self,text,mode=None,limit=7):
         mode=self.mode_for(text,mode)
@@ -247,9 +255,9 @@ class Engine:
         named = {p.id for p in self.corpus.people.values() if p.profile.get("curated") and any(matches(text, a) for a in p.profile.get("aliases", []))}
         for record,score in scores:
             for contribution in record.people:
-                if named and (field in self.public_fields or field in ("ai_foundations", "process_engineering", "energy_catalysis")) and contribution.person_id not in named:
+                if named and (getattr(self.corpus, "demo_pool", None) or field in self.public_fields or field in ("ai_foundations", "process_engineering", "energy_catalysis")) and contribution.person_id not in named:
                     continue
-                if contribution.person_id and score>=.2:
+                if contribution.person_id in self.corpus.people and score>=.2:
                     grouped.setdefault(contribution.person_id,[]).append((record,score))
         candidates=[self.candidate(self.corpus.people[pid],records,topics,text) for pid,records in grouped.items()]
         candidates.sort(key=lambda c:(-c["score_internal"],c["id"]))
@@ -273,8 +281,8 @@ class Engine:
         strip=[]
         if scores and not scores[0][0].virtual:
             for c in scores[0][0].people:
-                strip.append({"name":c.name,"id":c.person_id,"role":ROLE.get(c.role,"저자"),"corresponding":c.corresponding,"profile_status":"프로필 연결" if c.person_id else "프로필 미등록","individual_performance_verified":False})
-        return {"mode":mode,"mode_label":MODE[mode],"field":field,"topic_ids":list(topics),"candidates":candidates,"author_strip":strip,"author_strip_record":self.explain_record(scores[0][0]) if strip else None,"closest_topics":[t["name"] for t in self.corpus.topics[:3]] if not candidates else [],"empty_message":"이 코퍼스에서 충분한 근거를 갖춘 후보를 찾지 못했습니다." if not candidates else "","record_count":len(scores),"model_calls":0,"ranking_source":"규칙","claims":self.claims(text) if mode=="verify" else []}
+                strip.append({"name":c.name,"id":c.person_id,"role":ROLE.get(c.role,"저자"),"corresponding":c.corresponding,"profile_status":"프로필 연결" if c.person_id in self.corpus.people else "현재 시연 범위 밖" if c.person_id else "프로필 미등록","profile_available":c.person_id in self.corpus.people,"individual_performance_verified":False})
+        return {"pool_version":getattr(self.corpus,"demo_pool",{}).get("version"),"mode":mode,"mode_label":MODE[mode],"field":field,"topic_ids":list(topics),"candidates":candidates,"author_strip":strip,"author_strip_record":self.explain_record(scores[0][0]) if strip else None,"closest_topics":[t["name"] for t in self.corpus.topics[:3]] if not candidates else [],"empty_message":("현재 선정한 공개 연구·제공 경력 범위에서 연결 근거를 찾지 못했습니다. 사업장 취급·자원 요청 기록은 현재 시연 명단에 포함되지 않습니다." if getattr(self.corpus,"demo_pool",None) and mode in ("site_request","resource_request") else "현재 자료 범위에서 충분한 연결 근거를 찾지 못했습니다.") if not candidates else "","record_count":len(scores),"model_calls":0,"ranking_source":"규칙","claims":self.claims(text) if mode=="verify" else []}
 
     def clarify(self,text,mode,turns):
         if turns>=2 or not self.topics_for(text):

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .data import ROOT
 from .engine import Engine, MODE
+from .demo_pool import present_session, require_proposal_boundary
 from .storage import StateStore
 from .models import ExternalModel
 
@@ -32,9 +33,12 @@ class Service:
         self.store=StateStore(state_dir or ROOT/"out"/"state")
         self.model=model or ExternalModel(audit_path=self.store.directory/"model-events.jsonl")
 
+    def present_session(self, session):
+        return present_session(session, self.corpus)
+
     def bootstrap(self):
         state=self.store.read()
-        return {"version":"0.1.0","stats":self.corpus.stats(),"questions":self.corpus.questions,"topics":self.corpus.topics,"session":state["sessions"][-1] if state["sessions"] else None,"proposal_count":len(state["proposals"]),"model":self.model.status()}
+        return {"version":"0.1.0","stats":self.corpus.stats(),"questions":self.corpus.questions,"topics":self.corpus.topics,"session":self.present_session(state["sessions"][-1]) if state["sessions"] else None,"proposal_count":len(state["proposals"]),"model":self.model.status()}
 
     def converse(self, payload):
         text=validate_text(payload.get("text",""),empty=bool(payload.get("session_id")))
@@ -82,7 +86,7 @@ class Service:
             response=followup or ("근거가 있는 후보를 살펴보세요. 개인의 수행 역할은 별도 확인이 필요합니다." if session["result"]["candidates"] else session["result"]["empty_message"])
             session["messages"].append({"role":"assistant","text":response})
             session["updated"]=now()
-            return copy.deepcopy(session)
+            return self.present_session(session)
         return self.store.transaction(update)
 
     def refresh(self,session):
@@ -110,14 +114,14 @@ class Service:
             session["ready"]=True
             session["followup"]=None
             session["updated"]=now()
-            return copy.deepcopy(session)
+            return self.present_session(session)
         return self.store.transaction(update)
 
     def session(self,sid):
         session=next((s for s in self.store.read()["sessions"] if s["id"]==sid),None)
         if not session:
             raise ValueError("대화를 찾을 수 없습니다.")
-        return session
+        return self.present_session(session)
 
     def draft(self,sid,cid):
         session=self.session(sid)
@@ -126,6 +130,7 @@ class Service:
             raise ValueError("이 질문의 근거 있는 후보를 선택해 주세요.")
         if c.get("lookup_only"):
             raise ValueError("지금은 인물 이력 조회입니다. 도움받을 일과 조건을 입력해 관련 근거로 사람을 찾아 주세요.")
+        require_proposal_boundary(self.corpus, cid, c.get("evidence"))
         slots=session["slots"]
         request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
         refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
@@ -187,6 +192,8 @@ class Service:
             p=next((p for p in state["proposals"] if p["id"]==pid),None)
             if not p or target not in allowed[p["state"]]:
                 raise ValueError("허용되지 않는 상태 변경입니다.")
+            if p["state"] == "draft" and target == "sent":
+                require_proposal_boundary(self.corpus, p.get("recipient_id"), p.get("evidence"))
             p["state"]=target;p["updated"]=now()
             p["history"].append({"state":target,"at":p["updated"],"simulated":True})
             return p

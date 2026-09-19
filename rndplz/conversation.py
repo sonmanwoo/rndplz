@@ -361,7 +361,7 @@ class Conversation:
             existing=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='user'),None)
             if existing and existing.get('digest')!=digest:raise ValueError('다른 내용으로 이미 사용한 메시지 식별자입니다.')
             completed=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='assistant' and m.get('status')=='complete'),None)
-            if completed:return copy.deepcopy(s),None,True
+            if completed:return self.service.present_session(s),None,True
             if s.get('pending'):raise ValueError('이 대화에 응답 중인 메시지가 있습니다. 완료 후 보내 주세요.')
             if existing and next(m for m in reversed(s['messages']) if m['role']=='user')['turn_id']!=turn_id:
                 raise ValueError('이후 대화가 있어 이 메시지를 다시 생성할 수 없습니다. 새 메시지로 요청해 주세요.')
@@ -394,24 +394,26 @@ class Conversation:
             s['pending_action']=action
             s['pending']=turn_id;s['model_id']=option['id'];s['ready']=False;s['result']=None;s['updated']=now()
             messages=[] if action else self.model_messages(s,option)
-            return copy.deepcopy(s),messages,False
+            return self.service.present_session(s),messages,False
         return (*self.store.transaction(start),option)
 
     def finish(self,sid,turn_id,reply,status,option,error,elapsed):
         def save(state):
             s=next(x for x in state['sessions'] if x['id']==sid)
-            if s.get('pending')!=turn_id:return copy.deepcopy(s)
+            if s.get('pending')!=turn_id:return self.service.present_session(s)
             action=s.pop('pending_action',None)
             label='수소문 · 기록 조회' if action else option['name']
             s['messages'].append({'role':'assistant','text':reply,'status':status,'error':error,'turn_id':turn_id,'model':label,'model_id':option['id'],'elapsed_ms':round(elapsed*1000),'source':'records' if action else 'model'})
             s['pending']=None;s['updated']=now();s['can_propose']=s['turns']>=2 and status=='complete' and (s.get('search_context') or {}).get('kind')!='stopped'
             if action and status=='complete':
                 s['result']=action['result'];s['ready']=action['result'] is not None
+                if s['result'] is not None and getattr(self.service.corpus, 'demo_pool', None):
+                    s['result']['pool_version']=self.service.corpus.demo_pool['version']
                 s['can_propose']=action['can_propose'];s['search_context']=action['context']
                 if action.get('query'):
                     s['proposal_context']=action['query'][:12000];s['slots']['goal']=action['query'][:1600]
                 s['mode']=action.get('mode','advice');s['asker']='site' if s['mode']=='site_request' else 'lab'
-            return copy.deepcopy(s)
+            return self.service.present_session(s)
         return self.store.transaction(save)
 
     def _diagnostic_retrieval(self, action):
@@ -493,7 +495,7 @@ class Conversation:
             s=next((x for x in state['sessions'] if x['id']==sid and x.get('kind')=='chat'),None)
             if not s or s.get('pending'):raise ValueError('응답이 끝난 대화에서 사람 찾기를 시작해 주세요.')
             if (s.get('search_context') or {}).get('kind')=='stopped':raise ValueError('중단한 요청입니다. 새 요청을 입력해 주세요.')
-            if s.get('ready') and s.get('result') is not None:return copy.deepcopy(s)
+            if s.get('ready') and s.get('result') is not None:return self.service.present_session(s)
             request=self.request_context(s,for_prepare=True)
             s['request_context']=request
             if request['unresolved']:raise ValueError(request['unresolved'][0])
@@ -504,6 +506,8 @@ class Conversation:
             s['slots']['goal']=query[:1600]
             action=self.actions.recommend({'_request_query':query},query)
             s['result']=action['result'];s['search_context']=action['context']
+            if getattr(self.service.corpus, 'demo_pool', None):
+                s['result']['pool_version']=self.service.corpus.demo_pool['version']
             s['can_propose']=action['can_propose']
             s['ready']=True;s['updated']=now()
             captured=capture_scope()
@@ -513,5 +517,5 @@ class Conversation:
                                      execution_kind='records',model_called=False,content={'request_context':request,'retrieval':self._diagnostic_retrieval(action)})
                 except Exception:
                     diagnostic_event('capture_failed',session_id=s['id'],error_kind='diagnostic_write_failed',failure_stage='context_capture')
-            return copy.deepcopy(s)
+            return self.service.present_session(s)
         return self.store.transaction(update)

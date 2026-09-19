@@ -198,6 +198,8 @@ class PublicApp:
             corpus.people = {k: p for k, p in corpus.people.items() if k not in hidden}
             corpus.records = {k: r for k, r in corpus.records.items() if not any(c.person_id in hidden for c in r.people)}
             corpus.by_person = {k: [r for r in v if r.id in corpus.records] for k, v in corpus.by_person.items() if k not in hidden}
+        from .demo_pool import project_corpus
+        corpus = project_corpus(corpus, allow_personal_omission=not approved)
         self.engine = Engine(corpus)
         self.models = PublicModels(self.env)
         self.diagnostic_auth=DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))

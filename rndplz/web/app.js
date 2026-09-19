@@ -59,16 +59,27 @@ function renderSession(){
  if(session){$("mode").value=session.mode;for(const k of ["goal","target","conditions","resources","deadline"])$(k).value=session.slots[k]||"";}
  renderResults();
 }
+
+const canPropose=c=>Boolean(c)&&c.proposal_allowed!==false&&!c.lookup_only;
+function checkProposalSelection(ids){
+ if(!Array.isArray(ids)||!ids.length)throw new Error("현재 근거로 제안할 인물을 선택해 주세요.");
+ for(const id of ids){const c=session?.result?.candidates.find(x=>x.id===id);if(!canPropose(c))throw new Error(c?.proposal_unavailable_reason||"현재 시연 범위의 인물과 근거로 다시 찾아 주세요.");}
+}
+function extraRecordSources(e){
+ return (Array.isArray(e.metadata_sources)?e.metadata_sources:[]).filter(x=>safeUrl(x.url)).map(x=>'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.title||x.label||(/correction/i.test(x.basis||x.type||'')?'정정 출처':'추가 확인 출처'))+' ↗</a></p>').join('');
+}
+
 function renderResults(){
  if(!session){$("results").innerHTML="";return;}
  const r=session.result;
  if(!session.ready){$("results").innerHTML='<div class="pending-note">조건을 한 번 더 확인하고 있어요. 답을 적거나, 위의 ‘추가 조건 없이 후보 보기’를 눌러주세요.</div>';return;}
  let html='<div class="results-heading"><div><div class="section-label">03 / 이 경험에서 시작해볼까요?</div><h2>'+(r.candidates.length?'연결해볼 사람 '+r.candidates.length+'명':'아직, 근거가 부족해요.')+'</h2><p>참여 기록은 연결의 출발점입니다. 개인의 수행 역할과 현재 연락 의향은 확인이 필요해요.</p></div><span class="results-label">'+esc(r.mode_label)+' · 관련 기록 '+r.record_count+'건</span></div>';
+ if(r.scope_note)html+='<p class="scope-note">'+esc(r.scope_note)+'</p>';
  if(r.mode==="verify")html+='<div class="claims"><h3>먼저, 이 주장을 확인하려고 해요.</h3><p>검증 대상 · AI 답변의 내용을 사실로 확인한 것이 아닙니다.</p><ul>'+r.claims.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
  if(!r.candidates.length)html+='<div class="empty-state"><span class="symbol">◌</span><h3>이 자료에서 적임자를 찾지 못했습니다.</h3><p>분야의 전문가가 없다는 뜻은 아닙니다.<br>대상을 바꾸거나, 새로운 근거 자료가 필요해요.</p><div class="topic-hints">현재 다루는 주제: '+r.closest_topics.map(esc).join(" · ")+'</div></div>';
- if(r.mode==="resource_request"&&r.candidates.length)html+='<div class="route-bar">'+r.candidates.map(c=>'<span>'+c.route_order+'. '+esc(c.route_role)+'</span>').join('<span aria-hidden="true">→</span>')+'<button class="primary" data-action="route-letter">경로 전체에 제안하기 ↗</button></div>';
- html+='<div class="cards">'+r.candidates.map((c,i)=>'<article class="candidate-card"><div class="card-topline"><span class="number">'+String(i+1).padStart(2,"0")+' / CONNECTION</span><span class="sticker" title="기록으로 확인할 수 있는 프로필 범위">'+(c.virtual?'시연용 가상 인물':c.org_type==="company"?'문헌 당시 산업체 소속':'저자 참여 기록')+'</span></div><h3>'+esc(c.name)+'</h3><p class="org">'+esc(c.org)+'</p><p class="role">'+esc(c.route_role||c.role)+'</p><p class="reason">'+esc(c.reason)+'</p><div class="evidence-title"><small>연결의 근거 · '+esc(c.evidence[0].date)+'</small><button class="record-link" data-action="record" data-id="'+esc(c.evidence[0].id)+'" title="이 후보를 연결한 근거 기록 열기">'+esc(c.evidence[0].title)+'</button></div><div class="tags"><span class="tag">'+esc(c.evidence[0].scope)+'</span><span class="tag">'+esc(c.evidence[0].evidence_label)+'</span><span class="tag">관련 기록 '+c.relevant_records+'건</span></div><p class="card-limit">'+(c.virtual?"가상 작업 기록으로 만든 시연 후보입니다.":"개인 수행 · 본인 확인 · 연락 의향 미확인")+'</p>'+candidateContext(c)+'<div class="card-actions"><button class="text-button" data-action="candidate" data-id="'+esc(c.id)+'">근거 살펴보기</button><button class="primary" data-action="letter" data-id="'+esc(c.id)+'">제안하기 ↗</button></div></article>').join("")+'</div>';
- if(r.author_strip.length)html+='<details class="author-strip"><summary>함께 참여한 저자들 · '+r.author_strip.length+'명</summary><p>'+esc(r.author_strip_record.title)+'</p><div class="authors">'+r.author_strip.map(a=>'<'+(a.id?'button data-action="person" data-id="'+esc(a.id)+'"':'span')+' class="author">'+esc(a.name)+'<small>'+esc(a.role)+(a.corresponding?" · 교신저자":"")+' · '+esc(a.profile_status)+'</small></'+(a.id?"button":"span")+'>').join("")+'</div><p class="scope-note">저자 순서로 개인의 실험 수행 여부를 판정하지 않습니다. 교신 표시는 원본 플래그가 있는 경우에만 표시합니다.</p></details>';
+ if(r.mode==="resource_request"&&r.candidates.some(canPropose))html+='<div class="route-bar">'+r.candidates.map(c=>'<span>'+c.route_order+'. '+esc(c.route_role)+'</span>').join('<span aria-hidden="true">→</span>')+'<button class="primary" data-action="route-letter">경로 전체에 제안하기 ↗</button></div>';
+ html+='<div class="cards">'+r.candidates.map((c,i)=>'<article class="candidate-card"><div class="card-topline"><span class="number">'+String(i+1).padStart(2,"0")+' / CONNECTION</span><span class="sticker" title="기록으로 확인할 수 있는 프로필 범위">'+(c.virtual?'시연용 가상 인물':c.org_type==="company"?'문헌 당시 산업체 소속':'저자 참여 기록')+'</span></div><h3>'+esc(c.name)+'</h3><p class="org">'+esc(c.org)+'</p><p class="role">'+esc(c.route_role||c.role)+'</p><p class="reason">'+esc(c.reason)+'</p><div class="evidence-title"><small>연결의 근거 · '+esc(c.evidence[0].date)+'</small><button class="record-link" data-action="record" data-id="'+esc(c.evidence[0].id)+'" title="이 후보를 연결한 근거 기록 열기"'+(c.evidence[0].in_current_pool===false?' disabled':'')+'>'+esc(c.evidence[0].title)+'</button></div><div class="tags"><span class="tag">'+esc(c.evidence[0].scope)+'</span><span class="tag">'+esc(c.evidence[0].evidence_label)+'</span><span class="tag">관련 기록 '+c.relevant_records+'건</span></div><p class="card-limit">'+(c.virtual?"가상 작업 기록으로 만든 시연 후보입니다.":"개인 수행 · 본인 확인 · 연락 의향 미확인")+'</p>'+candidateContext(c)+(c.proposal_unavailable_reason?'<p class="context-note">'+esc(c.proposal_unavailable_reason)+'</p>':'')+'<div class="card-actions"><button class="text-button" data-action="candidate" data-id="'+esc(c.id)+'">근거 살펴보기</button><button class="primary" data-action="letter" data-id="'+esc(c.id)+'"'+(canPropose(c)?'':' disabled')+'>제안하기 ↗</button></div></article>').join("")+'</div>';
+ if(r.author_strip.length)html+='<details class="author-strip"><summary>함께 참여한 저자들 · '+r.author_strip.length+'명</summary><p>'+esc(r.author_strip_record.title)+'</p><div class="authors">'+r.author_strip.map(a=>'<'+(a.id&&a.profile_available!==false?'button data-action="person" data-id="'+esc(a.id)+'"':'span')+' class="author">'+esc(a.name)+'<small>'+esc(a.role)+(a.corresponding?" · 교신저자":"")+' · '+esc(a.profile_status)+'</small></'+(a.id&&a.profile_available!==false?"button":"span")+'>').join("")+'</div><p class="scope-note">저자 순서로 개인의 실험 수행 여부를 판정하지 않습니다. 교신 표시는 원본 플래그가 있는 경우에만 표시합니다.</p></details>';
  $("results").innerHTML=html;
 }
 
@@ -98,14 +109,15 @@ function newQuestion(){
  renderSession();$("question").focus();
 }
 function evidenceHtml(e){
- return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'">'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl><dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd><dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc(e.classification_basis.join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+'</section>';
+ return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl><dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd><dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc(e.classification_basis.join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+'</section>';
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
 function showPerson(p,candidate=false){
- $("detailContent").innerHTML=RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">코퍼스 안 기록 '+(p.works_in_corpus??p.record_count)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+p.evidence.map(evidenceHtml).join("")+(candidate?'<button class="primary full" data-action="letter" data-id="'+esc(p.id)+'">이 사람에게 제안하기 ↗</button>':"");
+ $("detailContent").innerHTML=RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">코퍼스 안 기록 '+(p.works_in_corpus??p.record_count)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+p.evidence.map(evidenceHtml).join("")+(candidate&&canPropose(p)?'<button class="primary full" data-action="letter" data-id="'+esc(p.id)+'">이 사람에게 제안하기 ↗</button>':"");
  showDialog("detailDialog");
 }
 async function openLetter(ids){
+ checkProposalSelection(ids);
  const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));
  letter={ids,sessionId:session.id,key:crypto.randomUUID(),drafts,index:0,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};
  renderLetter();showDialog("letterDialog");
@@ -191,7 +203,7 @@ document.addEventListener("click",event=>{
   else if(action==="person")showPerson(await api("/api/person?id="+encodeURIComponent(id)));
   else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id));$("detailContent").innerHTML='<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
   else if(action==="letter")await openLetter([id]);
-  else if(action==="route-letter")await openLetter(session.result.candidates.map(c=>c.id));
+  else if(action==="route-letter")await openLetter(session.result.candidates.filter(canPropose).map(c=>c.id));
   else if(action==="draft-save")await saveLetter("draft");
   else if(action==="send")await saveLetter("sent");
   else if(action==="inbox")await openInbox();

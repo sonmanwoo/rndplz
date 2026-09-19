@@ -119,8 +119,8 @@ class Corpus:
             for tag in raw["tags"]:
                 if tag not in self.topic_by_id:
                     self.errors.append("미해결 주제 참조: " + tag)
-            details = {"text_kind": "editorial_summary", "abstract_available": False,
-                       "author_coverage": "selected_curated_profiles", "all_authors": [a["name"] for a in raw["authors"]]}
+            details = {"text_kind": raw.get("text_kind", "editorial_summary"), "abstract_available": False,
+                       "author_coverage": raw.get("author_coverage", "selected_curated_profiles"), "all_authors": [a["name"] for a in raw["authors"]]}
             for key in ("contribution_note", "boundary_note", "metadata_sources", "venue", "doi", "publication_type", "source_access_note"):
                 if key in raw: details[key] = raw[key]
             self.add(self.records, Record(raw["id"], raw["kind"], raw["title"], raw["summary"], raw["date"],

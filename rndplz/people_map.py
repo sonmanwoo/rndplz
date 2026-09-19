@@ -14,6 +14,7 @@ PROFILE_KEYS = {
     'affiliation_as_of', 'current_role', 'role', 'field_label', 'research_field',
     'checked_at', 'limit', 'internal_employee', 'employment_verification',
     'collaboration_availability', 'contact_consent', 'retired_or_emeritus',
+    'current_status', 'affiliation_status', 'display_type', 'profile_observed_as_of',
 }
 
 
@@ -41,7 +42,8 @@ def build_people_map(engine):
             'id': person.id, 'name': person.name,
             'display_name': profile.get('display_name') or person.name,
             'aliases': person.profile.get('aliases', []), 'org': person.org,
-            'org_type': person.org_type, 'org_as_of': profile.get('affiliation_as_of') or None,
+            'org_type': person.org_type, 'org_name': person.profile.get('org_name') or person.org,
+            'org_as_of': profile.get('affiliation_as_of') or None,
             'org_basis': org_basis, 'virtual': person.virtual, 'featured': curated,
             'record_count': len(evidence), 'topic_ids': sorted({tag for record in records for tag in record.tags}),
             'person_confirmed': False, 'profile': profile, 'evidence': evidence,
