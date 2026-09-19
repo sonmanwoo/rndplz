@@ -114,6 +114,39 @@
   html+='<section class="detail-section records-section"><div class="section-label"><span>연결된 근거 '+records.length+'개</span><span>전체 '+p.records.length+'개 중</span></div><p class="evidence-context">논문은 저자 기재, 제공 기록은 그 자료에 명시된 역할로 읽습니다.</p>'+(p.recordCount!==p.records.length?'<p class="evidence-context">원자료 연결 '+p.recordCount+'회 · 고유 근거 '+p.records.length+'개. 같은 인물·기록의 중복 연결은 묶어 표시합니다.</p>':'')+records.map((r,i)=>recordCard(r,s,i)).join("")+'</section>';
   return html+renderQuestion(s,p);
  }
+ function maintainResponsiveViewFocus(doc){
+  const win=doc.defaultView;if(!win?.matchMedia)return;
+  const media=win.matchMedia("(max-width:720px)");let mobile=media.matches,focused=null;
+  const selector=".mobile-view button[data-view], .map-toolbar button[data-view]";
+  const viewButton=el=>el?.matches?.(selector)?el:null;
+  const visible=el=>Boolean(el?.isConnected&&!el.closest("[hidden], [inert]")&&el.getClientRects().length&&win.getComputedStyle(el).visibility==="visible");
+  const clear=()=>{focused=null;};
+  doc.addEventListener("focusin",event=>{
+   const button=viewButton(event.target);
+   focused=button&&visible(button)?{button,mobile:media.matches}:null;
+  });
+  doc.addEventListener("focusout",event=>{
+   if(event.target!==focused?.button)return;
+   // Keep only a blur caused by this pending responsive boundary, never an old focus location.
+   if(event.relatedTarget||media.matches===focused.mobile||!focused.button.isConnected||visible(focused.button))clear();
+  });
+  doc.addEventListener("pointerdown",event=>{if(viewButton(event.target.closest?.("button"))!==focused?.button)clear();});
+  doc.addEventListener("keydown",event=>{if(event.key==="Tab")clear();});
+  doc.addEventListener("visibilitychange",()=>{if(doc.hidden)clear();});
+  win.addEventListener("blur",event=>{if(event.target===win)clear();});
+  media.addEventListener("change",event=>{
+   if(event.matches!==media.matches)return;
+   const next=media.matches;if(next===mobile){clear();return;}
+   mobile=next;const previous=focused;clear();
+   if(!previous||previous.mobile===next||doc.hidden||!doc.hasFocus())return;
+   const from=previous.button,active=doc.activeElement;
+   if(!viewButton(from)||!from.isConnected||from.matches(":disabled")||from.closest("[hidden], [inert]")||visible(from))return;
+   if(active!==from&&active!==doc.body&&active!==doc.documentElement)return;
+   const target=Array.from(doc.querySelectorAll(selector)).find(button=>
+    button!==from&&button.dataset.view===from.dataset.view&&Boolean(button.closest(".mobile-view"))===next&&visible(button)&&!button.matches(":disabled"));
+   target?.focus();
+  });
+ }
  function mount(doc){
   let state=C.initialState();const first=C.visiblePeople(state)[0];if(first)state=C.reduce(state,{type:"SELECT",id:first.id});const $=id=>doc.getElementById(id);
   function render(){
@@ -147,7 +180,7 @@
    else if(b.dataset.action==="ack-draft"){dispatch({type:"ACK_DRAFT_CONTEXT"});$("draft")?.focus();}
    else if(b.dataset.action==="reset-draft"){dispatch({type:"RESET_DRAFT"});$("draft")?.focus();}
   });
-  render();return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]})};
+  render();maintainResponsiveViewFocus(doc);return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]})};
  }
  return {esc,renderProfile,renderTopics,renderRoster,renderMap,renderDetail,renderQuestion,selectedPerson,groups,mount};
 });
