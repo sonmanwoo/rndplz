@@ -40,7 +40,7 @@ class Conversation:
     def model_messages(self,session,option):
         messages=[]
         for m in session['messages']:
-            if m.get('status') in ('error','cancelled'):continue
+            if m.get('kind') == 'self_profile' or m.get('status') in ('error','cancelled'):continue
             content=m['text'];images=[]
             for ref in m.get('attachments',[]):
                 item=self.attachments.load(ref['id'])
@@ -63,7 +63,7 @@ class Conversation:
         returned as questions; callers must resolve them before recommending.
         """
         active = {}; issues = {}; documents = {}; archive = {}; activated = set()
-        messages = session.get('messages', [])
+        messages = [m for m in session.get('messages', []) if m.get('kind') != 'self_profile']
         number = re.compile(r'(?<![\w.])\d+(?:,\d{3})*(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%|초)?|(?<=[가-힣])\d+(?:\.\d+)?\s*(?:만\s*원|원|개월|시간|주|일|도|℃|°C|장|개|건|명|%|초)?')
         labels = re.compile(r'라벨(?:링)?|이미지|사진|데이터|시료|샘플|예산|기간|기한|온도')
         keys = {'라벨':'label_count','라벨링':'label_count','이미지':'image_count','사진':'image_count',

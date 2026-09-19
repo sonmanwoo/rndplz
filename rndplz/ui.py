@@ -16,6 +16,7 @@ from rndplz.people_map import build_people_map
 from rndplz.conversation import Conversation
 from rndplz.build_vault import export_vault
 from rndplz.profiles import Profiles, ProfileError
+from rndplz.profile_chat import ProfileChat
 
 WEB=Path(__file__).with_name("web")
 
@@ -85,6 +86,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                         return self.send(404,{"error":"기록을 찾을 수 없습니다."})
                     return self.send(200,{**service.engine.explain_record(record),"text":record.text,"details":record.details})
                 static={"/craft.css":("craft.css","text/css; charset=utf-8"),"/craft.js":("craft.js","text/javascript; charset=utf-8"),"/":("index.html","text/html; charset=utf-8"),"/explore":("explore.html","text/html; charset=utf-8"),"/chat.js":("chat.js","text/javascript; charset=utf-8"),"/chat.css":("chat.css","text/css; charset=utf-8"),"/app.js":("app.js","text/javascript; charset=utf-8"),"/style.css":("style.css","text/css; charset=utf-8")}
+                static["/profile-chat.js"]=("profile-chat.js","text/javascript; charset=utf-8")
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
                 static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map.js")})
                 static.update(portraits)
@@ -107,7 +109,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
             try:
                 path=urlparse(self.path).path
                 length=int(self.headers.get("Content-Length","0"))
-                if length<1 or length>(12*1024*1024 if path in ("/api/attachments","/api/self-profile/upload") else 200000):
+                if length<1 or length>(12*1024*1024 if path in ("/api/attachments","/api/self-profile/upload","/api/self-profile/chat") else 200000):
                     return self.send(413,{"error":"요청 크기가 허용 범위를 넘었습니다."})
                 payload=json.loads(self.rfile.read(length).decode("utf-8"))
                 if not isinstance(payload,dict):
@@ -131,13 +133,13 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                         iterator.close()
                     return
                 routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:chat.prepare(payload),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
-                routes.update({"/api/self-profile/save":lambda:profiles.save(payload),"/api/self-profile/upload":lambda:profiles.upload(payload),"/api/self-profile/suggest":lambda:profiles.suggest(payload),"/api/self-profile/source-action":lambda:profiles.source_action(payload)})
+                routes.update({"/api/self-profile/chat":lambda:ProfileChat(service,profiles).handle(payload),"/api/self-profile/save":lambda:profiles.save(payload),"/api/self-profile/upload":lambda:profiles.upload(payload),"/api/self-profile/suggest":lambda:profiles.suggest(payload),"/api/self-profile/source-action":lambda:profiles.source_action(payload)})
                 path=urlparse(self.path).path
                 if path not in routes:
                     return self.send(404,{"error":"경로를 찾을 수 없습니다."})
                 self.send(200,routes[path]())
             except ProfileError as exc:
-                self.send(exc.status,{"error":str(exc),"code":exc.code})
+                self.send(exc.status,{"error":str(exc),"code":exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
             except (ValueError,KeyError,TypeError) as exc:
                 self.send(400,{"error":str(exc)})
             except Exception:

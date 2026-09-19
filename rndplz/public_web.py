@@ -26,6 +26,7 @@ from .service import Service
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
+from .profile_chat import ProfileChat
 
 WEB = Path(__file__).with_name('web')
 # Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
@@ -384,7 +385,7 @@ class PublicApp:
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
@@ -399,7 +400,7 @@ class PublicApp:
             if path in ('/api/chat/configure', '/api/export', '/api/ai/structure', '/api/ai/draft'):
                 return send(403, {'error': '공개 시연에서 제공하지 않는 관리 기능입니다.'})
             length = int(environ.get('CONTENT_LENGTH') or '0')
-            if not 0 < length <= (1500000 if path in ('/api/attachments','/api/self-profile/upload') else 200000):
+            if not 0 < length <= (1500000 if path in ('/api/attachments','/api/self-profile/upload','/api/self-profile/chat') else 200000):
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             payload = json.loads(environ['wsgi.input'].read(length).decode('utf-8'))
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
@@ -447,6 +448,7 @@ class PublicApp:
             if path == '/api/attachments' and len(list(chat.attachments.directory.glob('*.json'))) >= 12:
                 return send(429, {'error': '공개 시연의 첨부 개수 한도에 도달했습니다.'})
             routes = {
+                '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),
                 '/api/self-profile/upload': lambda: profile.upload(payload),
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
@@ -465,7 +467,7 @@ class PublicApp:
                     return send(200,routes[path]())
             return send(200, routes[path]())
         except ProfileError as exc:
-            return send(exc.status, {'error':str(exc), 'code':exc.code})
+            return send(exc.status, {'error':str(exc), 'code':exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
         except ValueError as exc:
             # Only fixed, user-actionable validation messages may cross this boundary.
             safe_messages = {

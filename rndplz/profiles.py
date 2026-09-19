@@ -107,6 +107,12 @@ class Profiles:
 
     def _view(self, data):
         result = copy.deepcopy({k: data[k] for k in ('profile', 'sources', 'suggestions', 'history')})
+        for event in result['history']:
+            _, reason, _ = self._undo_event(data, event['version'])
+            event['can_undo'] = not reason
+            event['undo_unavailable_reason'] = reason
+            # Restore metadata is domain-private, not another copy for old UI cards.
+            event.pop('undo_metadata', None)
         for source in result['sources']:
             source['impact'] = {
                 'profile_items': [key for key, value in result['profile']['provenance'].items()
@@ -138,6 +144,63 @@ class Profiles:
     def read(self):
         return self._view(self._state(self.store.read()))
 
+    @staticmethod
+    def _undo_event(data, version):
+        """Describe the narrow single-field undo without mutating the draft."""
+        events = [event for event in data['history'] if event['version'] == version]
+        receipt = next((item for item in data['requests'].values()
+                        if item.get('version') == version), None)
+        if not receipt or receipt.get('action') != 'save' or len(events) != 1:
+            return None, '기본정보 한 항목을 저장한 변경만 되돌릴 수 있습니다.', 'undo_unavailable'
+        event = events[0]
+        field = event.get('field')
+        if field not in FIELDS or event.get('action') != 'edit':
+            return None, '기본정보 한 항목을 저장한 변경만 되돌릴 수 있습니다.', 'undo_unavailable'
+        if event.get('redacted'):
+            return None, '관련 자료가 삭제되어 이전 값으로 되돌릴 수 없습니다.', 'conflict'
+        meta = event.get('undo_metadata')
+        if not isinstance(meta, dict):
+            return None, '이전 변경에는 되돌리기에 필요한 정보가 없습니다.', 'undo_unavailable'
+        if any(item['version'] > version and item.get('field') == field for item in data['history']):
+            return None, '이 항목이 이후에 변경되었습니다. 현재 값과 다시 비교해 주세요.', 'conflict'
+        profile = data['profile']
+        if (profile['fields'][field] != event.get('after') or
+                profile['provenance'].get(field) != meta.get('after_provenance')):
+            return None, '현재 값이나 출처 상태가 달라졌습니다. 다시 비교해 주세요.', 'conflict'
+        sources = {source['id']: source for source in data['sources']}
+        for identifier, original in meta['source_versions'].items():
+            current = sources.get(identifier)
+            if (not current or original.get('status') != 'active' or current['status'] != 'active' or
+                    current['version'] != original.get('version')):
+                return None, '관련 자료가 삭제·연결 해제·교체되어 되돌릴 수 없습니다.', 'conflict'
+        return event, '', None
+
+    def undo(self, payload):
+        """Restore one basic value as a new correction, never a whole draft."""
+        _keys(payload, ('version', 'base_version', 'request_id'))
+        version = payload.get('version')
+        if type(version) is not int or version < 1:
+            raise ProfileError('되돌릴 저장 버전을 확인해 주세요.')
+
+        def restore(data):
+            event, reason, code = self._undo_event(data, version)
+            if reason:
+                raise ProfileError(reason, code=code, status=409 if code == 'conflict' else 400)
+            field = event['field']
+            meta = event['undo_metadata']
+            self._record(data, field, data['profile']['fields'][field], event['before'],
+                         event['source_ids'], 'undo')
+            data['history'][-1]['undo_of_version'] = version
+            data['history'][-1]['undo_of_event_id'] = event['id']
+            data['profile']['fields'][field] = copy.deepcopy(event['before'])
+            if meta['before_provenance_present']:
+                data['profile']['provenance'][field] = copy.deepcopy(meta['before_provenance'])
+            else:
+                data['profile']['provenance'].pop(field, None)
+            return {'undone_version': version, 'field': field}
+
+        return self._mutate(payload, 'undo', restore)
+
     def _mutate(self, payload, action, operation):
         request_id = payload.get('request_id')
         if not isinstance(request_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{8,80}', request_id):
@@ -153,19 +216,42 @@ class Profiles:
             if old:
                 if old['digest'] != fingerprint:
                     raise ProfileError('같은 요청 ID에 다른 변경이 있습니다.', code='request_conflict', status=409)
-                return {**self._view(data), 'operation': {'action': action, 'replayed': True}}
+                event_ids = old.get('event_ids', [event['id'] for event in data['history']
+                                                  if event['version'] == old['version']])
+                return {**self._view(data), 'operation': {'action': action, 'replayed': True,
+                        'version': old['version'], 'request_id': request_id, 'event_ids': list(event_ids)}}
             if data['profile']['version'] != version:
                 raise ProfileError('다른 변경이 저장되었습니다. 현재 값과 다시 비교해 주세요.', code='conflict', status=409)
             if len(data['requests']) >= 2000:
                 raise ProfileError('이 초안의 변경 요청 한도에 도달했습니다.', code='limit', status=429)
+            before_profile = copy.deepcopy(data['profile']) if action == 'save' else None
+            history_start = len(data['history'])
             detail = operation(data) or {}
+            events = data['history'][history_start:]
+            if (action == 'save' and len(events) == 1 and events[0].get('field') in FIELDS
+                    and events[0].get('action') == 'edit'):
+                event = events[0]
+                field = event['field']
+                sources = {source['id']: source for source in data['sources']}
+                event['undo_metadata'] = {
+                    'before_provenance_present': field in before_profile['provenance'],
+                    'before_provenance': copy.deepcopy(before_profile['provenance'].get(field)),
+                    'after_provenance': copy.deepcopy(data['profile']['provenance'].get(field)),
+                    'source_versions': {identifier: {
+                        'version': sources.get(identifier, {}).get('version'),
+                        'status': sources.get(identifier, {}).get('status')}
+                        for identifier in event.get('source_ids', [])},
+                }
             profile = data['profile']
             profile['id'] = profile['id'] or uuid.uuid4().hex
             profile['version'] += 1
             profile['updated_at'] = self._now()
-            data['requests'][request_id] = {'digest': fingerprint, 'action': action, 'version': profile['version']}
+            event_ids = [event['id'] for event in events]
+            data['requests'][request_id] = {'digest': fingerprint, 'action': action,
+                                           'version': profile['version'], 'event_ids': event_ids}
             state['self_profile'] = data
-            return {**self._view(data), 'operation': {'action': action, 'replayed': False, **detail}}
+            return {**self._view(data), 'operation': {'action': action, 'replayed': False, **detail,
+                    'version': profile['version'], 'request_id': request_id, 'event_ids': event_ids}}
 
         return self.store.transaction(change)
 
@@ -429,6 +515,7 @@ class Profiles:
             for event in data['history']:
                 if source_id in event.get('source_ids', []):
                     event.update(before=None, after=None, redacted=True)
+                    event.pop('undo_metadata', None)
         self._record(data, 'source:' + source_id, None, None, [source_id], 'delete_source' if delete else 'unlink_source')
         return impacted
 
