@@ -2,7 +2,6 @@
 (() => {
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   let motionDisabled = false, quiet = preference.matches, activeCard = null;
-  let laureateEffect = 'off'; // Page-session choice survives every card/detail render.
   try { motionDisabled=sessionStorage.getItem('rndplz-motion')==='off'; } catch {}
   const subscribers = new Set();
   function setQuiet(value,remember=false) {
@@ -277,22 +276,11 @@
     return label==='출처'?'':'<span>'+html(label)+'</span>';
   };
   const artPath = value => typeof value==='string' && /^\/portraits\/[a-zA-Z0-9_.-]+\.(?:png|jpe?g|webp)$/.test(value) ? value : '';
-  function effectiveLaureateEffect(){return quiet?'off':laureateEffect;}
-  function effectHint(){return preference.matches?'기기의 움직임 줄이기 설정에 따라 효과가 꺼져 있습니다.':quiet?'화면 움직임이 꺼져 있어 일러스트 효과도 쉬고 있습니다.':'선택한 표현 효과는 연구 역량이나 협업 가능성을 뜻하지 않습니다.';}
-  function effectControls(profile,name) {
-    if(!isLaureate(profile))return '';
-    return '<div class="laureate-effect-controls"><label><span>일러스트 효과</span><select data-laureate-effect-control aria-label="'+html(name)+' 일러스트 효과"'+(quiet?' disabled':'')+' title="'+html(effectHint())+'">'+[['off','끄기'],['gold','금빛'],['prism','분광']].map(([value,label])=>'<option value="'+value+'"'+(laureateEffect===value?' selected':'')+'>'+label+'</option>').join('')+'</select></label><p class="laureate-effect-help" data-laureate-effect-help>'+html(effectHint())+'</p></div>';
-  }
+  function effectiveLaureateEffect(){return 'off';}
+  function effectControls(profile,name) {return '';}
   function syncLaureateEffects(){
     document.querySelectorAll('[data-laureate-card],.laureate-portrait').forEach(node=>node.dataset.laureateEffect=effectiveLaureateEffect());
-    document.querySelectorAll('[data-laureate-effect-control]').forEach(select=>{select.value=laureateEffect;select.disabled=quiet;select.title=effectHint();});
-    document.querySelectorAll('[data-laureate-effect-help]').forEach(node=>node.textContent=effectHint());
   }
-  document.addEventListener('change',event=>{
-    const select=event.target.closest('[data-laureate-effect-control]');
-    if(!select || quiet || !['off','gold','prism'].includes(select.value))return;
-    laureateEffect=select.value;resetCard();syncLaureateEffects();
-  });
   // A single capture listener handles images inserted by either product renderer.
   function portraitState(event){
     const img=event.target;
