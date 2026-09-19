@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "gs-business-r2.1",
+  "version": "gs-business-exp02-ready9-r2",
   "person_ids": [
     "PUB-ERTL",
     "PUB-RYOO",
@@ -20,7 +20,16 @@
     "PUB-GROSSMANN",
     "PUB-VENKAT",
     "LOCAL-MANWOO",
-    "LOCAL-JINHO"
+    "LOCAL-JINHO",
+    "PUB-JOSHI",
+    "PUB-MUDAWAR",
+    "PUB-HEYNE",
+    "PUB-MCCORMICK",
+    "PUB-WILSON-DI",
+    "PUB-MACCHIETTO",
+    "PUB-RAWLINGS",
+    "PUB-MORARI",
+    "PUB-KHATIB"
   ],
   "record_ids": [
     "GS-PAPER-GERHARD-ERTL-2008-1",
@@ -51,7 +60,22 @@
     "CAREER-JO-ENERGY",
     "CAREER-JO-LOHC",
     "CAREER-JO-METHANOL",
-    "CAREER-JO-BIO"
+    "CAREER-JO-BIO",
+    "EXP02-PAPER-YOGENDRA-JOSHI-2012-1",
+    "EXP02-PAPER-YOGENDRA-JOSHI-2025-1",
+    "EXP02-PAPER-ISSAM-MUDAWAR-1989-1",
+    "EXP02-PAPER-ISSAM-MUDAWAR-1994-2",
+    "EXP02-PAPER-HEYNE-2021-1",
+    "EXP02-PAPER-HEYNE-2021-2",
+    "EXP02-PAPER-MCCORMICK-2024-1",
+    "EXP02-PAPER-MCCORMICK-2025-2",
+    "EXP02-PAPER-D-IAN-WILSON-2020-1",
+    "EXP02-PAPER-SANDRO-MACCHIETTO-2011-1",
+    "EXP02-PAPER-SANDRO-MACCHIETTO-2016-2",
+    "EXP02-PAPER-RAWLINGS-1992-1",
+    "EXP02-PAPER-MORARI-1996-1",
+    "EXP02-PAPER-MORARI-1999-2",
+    "EXP02-PAPER-KHATIB-1986-1"
   ],
   "personal_person_ids": [
     "LOCAL-MANWOO",
@@ -71,5 +95,5 @@
   "excluded_person_ids": [
     "PUB-LEE-SANGYUP"
   ],
-  "note": "공개 연구자 17명과 제공 경력의 개인 2명으로 구성한 시연 범위입니다. 사내 인력 명부나 실제 연락 가능한 전문가 명단이 아닙니다. 고인은 역사 연구 자료로만 열람합니다. 가상 기록과 원자료는 보존하되 기본 시연 범위에 포함하지 않습니다."
+  "note": "공개 연구자 26명과 사용자가 제공한 개인 프로필 2명으로 구성한 시연 풀입니다. 활성 근거는 논문 35건과 개인 경력 9건입니다. 사내 인력 명부나 현재 협업 가능성을 확인한 결과가 아닙니다. 이름 조회는 활성 자료로만 제한하며 보관 명단과 원자료는 유지합니다."
 }

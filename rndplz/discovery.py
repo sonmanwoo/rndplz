@@ -13,7 +13,7 @@ FAMILIES = {
         'CE-FAC', 'GS-ELECTRO', 'BIO-ENZYME', 'GS-BIOCAT'}),
     'process': ('공정 개발·해석', {
         'PE-SEP', 'PE-MODEL', 'PE-BIO', 'PE-POLYMER', 'PE-VISION',
-        'PE-OPT', 'GS-PROCESS-AI'}),
+        'PE-OPT', 'GS-PROCESS-AI', 'EXP02-CONTROL'}),
     'materials': ('소재·분리·순환', {
         'GS-POLYMER', 'GS-TRIBOLOGY', 'GS-CIRCULAR', 'GS-POROUS',
         'GS-CO2-CAPTURE', 'PE-POLYMER', 'PE-SEP'}),
@@ -68,7 +68,7 @@ class Discovery:
                  and b-a > row[1]-row[0] for a,b,_,_ in spans)]
         grouped = {}
         for _,_,tid,term in spans:
-            grouped.setdefault(tid, set()).add(term)
+            grouped.setdefault(tid, set()).add(normal(term))
         return grouped
 
     def _links(self, topic_ids):
@@ -78,6 +78,50 @@ class Discovery:
                 for record in self.corpus.records.values()
                 if not record.virtual and wanted.intersection(record.tags)
                 and any(p.person_id in self.corpus.people for p in record.people)}
+
+    def _record_control_concepts(self, record):
+        """Topic evidence with explicit non-use/comparison-only exclusions.
+
+        These bounded text rules do not certify execution or classify papers.
+        An explicit exclusion wins over a bare title mention in the same record.
+        """
+        content = re.sub(r'(?<=[a-zA-Z])[-\u2010\u2011\u2013](?=[a-zA-Z])', ' ',
+                         normal(record.title + '\n' + record.text))
+        mentions = self.engine._profile_mentions(content)
+        positive, denied = set(), set()
+        for mention in mentions:
+            tail = re.split(r'[.!?;\n]', content[mention['end']:], maxsplit=1)[0]
+            non_use = re.match(
+                r'^\s*(?:(?:was|were|is|are|has|have|had)\s+)?(?:not|never)\s+'
+                r'(?:been\s+)?(?:used|applied|implemented|evaluated|employed)\b'
+                r'|^\s*(?:은|는|을|를|이|가)?\s*(?:사용|적용|구현|평가|도입)'
+                r'(?:하지\s*않|되지\s*않|하지\s*못|되지\s*못)', tail)
+            comparison_only = re.match(
+                r'^\s*(?:(?:is|was|are|were)\s+)?(?:only|just|merely)\s+'
+                r'(?:(?:a|an|the|as)\s+)*(?:comparison|reference)\b'
+                r'|^\s*(?:은|는|을|를|이|가)?\s*비교\s*(?:대상|목적|참고)(?:으로|로)?만', tail)
+            if mention['negated'] or non_use or comparison_only:
+                denied.add(mention['concept'])
+            else:
+                positive.add(mention['concept'])
+        return positive - denied
+
+    def _control_links(self, concept):
+        """Actual control records, separately from declared profile interests."""
+        links = {}
+        for record in self.corpus.records.values():
+            if record.virtual or not (record.field == 'process_control' or any(
+                    self.corpus.topic_by_id.get(tid, {}).get('field') == 'process_control'
+                    for tid in record.tags)):
+                continue
+            concepts = self._record_control_concepts(record)
+            supports = bool(concepts) if concept == 'process_control' else concept in concepts
+            people = sorted({p.person_id for p in record.people
+                             if p.person_id in self.corpus.people
+                             and not self.corpus.people[p.person_id].virtual})
+            if supports and people:
+                links[record.id] = people
+        return links
 
     def _conditions(self, request):
         """Use accepted source clauses; never infer facts from assistant prose."""
@@ -145,7 +189,7 @@ class Discovery:
                 if tid not in excluded:
                     matched.setdefault(tid, set()).update(terms)
         family_ids = [key for key,(_,tags) in FAMILIES.items() if set(matched).intersection(tags)]
-        if not family_ids and re.search(r'공정', query):
+        if not family_ids and (re.search(r'공정', query) or self.engine.profile_query_terms(query)):
             family_ids = ['process']
         parent_topics = set().union(*(FAMILIES[key][1] for key in family_ids)) if family_ids else set()
         # Other registered fields remain searchable using their own evidence
@@ -169,8 +213,21 @@ class Discovery:
             for old in overlap:
                 group['topic_ids'].update(old['topic_ids']); group['terms'].update(old['terms']); groups.remove(old)
             groups.append(group)
+        requested_controls = set(self.engine.profile_query_terms(query))
+        requested_controls = requested_controls - {'process_control'} or requested_controls
+        control_records = {rid for concept in requested_controls for rid in self._control_links(concept)}
         for group in groups:
-            links = self._links(group['topic_ids'])
+            control_topics = {tid for tid in group['topic_ids']
+                              if self.corpus.topic_by_id[tid].get('field') == 'process_control'}
+            if requested_controls and control_topics:
+                # Do not reintroduce sibling or unrelated records through a
+                # broad control tag. Separate required methods still retain
+                # the union of their own supporting records below.
+                links = self._links(group['topic_ids'] - control_topics)
+                links.update({rid: people for rid, people in self._links(control_topics).items()
+                              if rid in control_records})
+            else:
+                links = self._links(group['topic_ids'])
             conditions.append({'topic_ids':sorted(group['topic_ids']),
                 'name':' / '.join(self.corpus.topic_by_id[tid]['name'] for tid in sorted(group['topic_ids'])),
                 'terms':sorted(group['terms']), 'candidate_ids':sorted({pid for ids in links.values() for pid in ids}),
@@ -179,10 +236,28 @@ class Discovery:
         # of whether it is numeric or qualitative. They are never evidence.
         for row in active:
             raw=row['text']
-            notes=condition_notes(row,[term for terms in row['tags'].values() for term in terms])
+            concepts = self.engine.profile_query_terms(raw)
+            knownterms = [term for terms in row['tags'].values() for term in terms]
+            knownterms.extend(m['query_term'] for m in self.engine._profile_mentions(raw)
+                              if not m['negated'] and m['concept'] in concepts)
+            notes=condition_notes(row,knownterms)
             unsupported.extend(notes['unverified']); issues.extend(notes['blocking'])
-            if self.engine.profile_query_terms(raw):
-                issues.append('등록 기술·관심은 있지만 이 제어 조건에 연결된 수행 기록은 아직 없어요.')
+            # A specific requested controller must have its own linked records.
+            # Broad process-control records do not establish MPC/APC/PID siblings.
+            labels = {'process_control':'공정 제어', 'mpc':'MPC', 'apc':'APC', 'pid':'PID'}
+            for concept in [c for c in concepts if c != 'process_control'] or concepts:
+                links = self._control_links(concept)
+                if not links:
+                    if self.engine.profile_matches(labels[concept]):
+                        issues.append(f'{labels[concept]}는 등록 기술·관심에서 확인되지만 연결된 연구·경력 기록은 아직 없어요.')
+                    else:
+                        issues.append(f'{labels[concept]} 조건을 뒷받침하는 등록 연구·경력 기록을 찾지 못했어요.')
+                    continue
+                ids = sorted({pid for people in links.values() for pid in people})
+                if not any(c['record_ids'] == sorted(links) and c['candidate_ids'] == ids for c in conditions):
+                    topic_ids = sorted({tid for rid in links for tid in self.corpus.records[rid].tags})
+                    conditions.append({'topic_ids':topic_ids, 'name':labels[concept] + ' 연구 근거',
+                        'terms':[labels[concept]], 'candidate_ids':ids, 'record_ids':sorted(links)})
             if not row['tags'] and not notes['unverified'] and not re.search(r'공정|찾아|수소문|전문가|연구자|사람|모르겠|알겠|좋아',raw):
                 unsupported.append(raw[:100])
         if 'CE-CCU' in matched and not re.search(r'전환|ccu|메탄올|saf|항공연료', normal(query)):

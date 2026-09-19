@@ -4267,6 +4267,1192 @@
       "employment_verification": "외부 공식 소개의 기관 연결이며 실제 고용관계 확인 아님",
       "collaboration_availability": "미확인",
       "contact_consent": "미확인"
+    },
+    {
+      "id": "PUB-JOSHI",
+      "slug": "yogendra-joshi",
+      "name": "Yogendra K. Joshi",
+      "display_name": "요겐드라 조시",
+      "aliases": [
+        "Yogendra K. Joshi",
+        "요겐드라 조시",
+        "Yogendra Joshi",
+        "Yogendra K Joshi",
+        "Yogendra Kumar Joshi",
+        "Y. Joshi",
+        "YK Joshi",
+        "요겐드라 쿠마르 조시"
+      ],
+      "org": "Georgia Institute of Technology",
+      "org_name": "Georgia Institute of Technology",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "액침냉각유·냉각유 분자 설계",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "Georgia Institute of Technology 기계공학 교수 및 John M. McKenney and Warren D. Shiver Distinguished Chair로 공식 대학 페이지에 기재. 2026 ASME 소개에는 DARPA Program Manager 역할도 함께 기재되어 있으므로 단일 전임 고용으로 해석하지 않는다. 직접 액침용 유기규소 냉각유의 후보 선정·물성 평가와 새로운 상변화 냉각 유체 연구를 연결할 수 있다. 냉각유 설계 관점을 보강한다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-IMMERSION",
+          "name": "액침냉각유·직접 액침"
+        }
+      ],
+      "topic_tags": [
+        "직접 액침 냉각유",
+        "유기규소 냉각유",
+        "단상 절연액 냉각",
+        "TPMS"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-yogendra-joshi.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://ece.gatech.edu/directory/yogendra-k-joshi",
+        "photo_url": "https://ece.gatech.edu/sites/default/files/styles/gtcoe_wide/public/profile/2023/02/joshi_1.jpg?itok=ewtTJ1wV",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_new_generation_observed_photo_description",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "8d99412089963d9f6ae1868013227cdbe97f16ab316c23d3085e8cfd3f5b3798",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "Georgia Institute of Technology 기계공학 교수 및 John M. McKenney and Warren D. Shiver Distinguished Chair로 공식 대학 페이지에 기재. 2026 ASME 소개에는 DARPA Program Manager 역할도 함께 기재되어 있으므로 단일 전임 고용으로 해석하지 않는다.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://www.me.gatech.edu/faculty/joshi",
+        "supporting_source_url": "https://event.asme.org/SHTC/Plenary-Speakers"
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2013,
+        "title": "ASME Heat Transfer Memorial Award",
+        "source_url": "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+        "nobel_badge_eligible": false,
+        "note": "ASME 공식 수상자 목록의 2013년 명단에 등재. 학회 수상이며 권위자 순위나 노벨상으로 표시하지 않음."
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://www.me.gatech.edu/faculty/joshi",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1021/ie300664v",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "인접 단상 냉각 연구 · 직접 액침 실증 미확인",
+          "url": "https://doi.org/10.1115/1.4069386",
+          "checked_at": "2026-09-19T20:44:36+09:00"
+        }
+      ],
+      "profile_note": "연구는 주로 실험실 규모의 2상 직접 액침 냉각이다. 현대 데이터센터 단상 탄화수소 냉각유 상용성·장기 재료 호환성·GS 제품 적합성 검증으로 확장하지 않는다. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "Georgia Institute of Technology 기계공학 교수 및 John M. McKenney and Warren D. Shiver Distinguished Chair로 공식 대학 페이지에 기재. 2026 ASME 소개에는 DARPA Program Manager 역할도 함께 기재되어 있으므로 단일 전임 고용으로 해석하지 않는다.",
+      "affiliation": "Georgia Institute of Technology",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "Georgia Institute of Technology",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "immersion_cooling",
+      "field_label": "액침냉각유·냉각유 분자 설계",
+      "featured_work": "EXP02-PAPER-YOGENDRA-JOSHI-2012-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://www.me.gatech.edu/faculty/joshi",
+        "source_urls": [
+          "https://www.me.gatech.edu/faculty/joshi",
+          "https://ece.gatech.edu/directory/yogendra-k-joshi",
+          "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+          "https://event.asme.org/SHTC/Plenary-Speakers",
+          "https://pubs.acs.org/doi/abs/10.1021/ie300664v",
+          "https://www.sciencedirect.com/science/article/pii/S0017931012001263"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "IMMERSION_COOLING",
+        "selection_reason": "직접 액침용 유기규소 냉각유의 후보 선정·물성 평가와 새로운 상변화 냉각 유체 연구를 연결할 수 있다. 냉각유 설계 관점을 보강한다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "현재 소개 페이지의 기관·직함과 논문 발표 당시 소속은 별도 시점의 사실로 유지. 페이지 조회일은 실제 재직 확인일이 아님."
+    },
+    {
+      "id": "PUB-MUDAWAR",
+      "slug": "issam-mudawar",
+      "name": "Issam Mudawar",
+      "display_name": "이삼 무다와르",
+      "aliases": [
+        "Issam Mudawar",
+        "이삼 무다와르",
+        "I. Mudawar"
+      ],
+      "org": "Purdue University",
+      "org_name": "Purdue University",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "액침냉각·절연액 비등 열전달",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "Purdue University 기계공학부 Betty Ruth & Milton B. Hollander Family Professor로 공식 인물 페이지에 기재. 절연성 FC-72 액체에 직접 담근 전자 열원의 비등과 액침 모듈 연구를 함께 제시할 수 있다. 유체를 바꿀 때에도 냉각 구조·비등 조건을 분리해서 검토해야 한다는 관점을 보강한다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-IMMERSION",
+          "name": "액침냉각유·직접 액침"
+        }
+      ],
+      "topic_tags": [
+        "직접 액침",
+        "FC-72",
+        "풀 비등",
+        "항공전자 냉각"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-issam-mudawar.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://engineering.purdue.edu/ME/People/ptProfile?id=29296",
+        "photo_url": "https://engineering.purdue.edu/ResourceDB/ResourceFiles/image135598",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_new_generation_observed_photo_description",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "562410f184a9ecd0ea94552fba361fa11613d387d6b1b99922d518824cb1bb6a",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "Purdue University 기계공학부 Betty Ruth & Milton B. Hollander Family Professor로 공식 인물 페이지에 기재.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://engineering.purdue.edu/ME/People/ptProfile?id=29296"
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2013,
+        "title": "ASME Heat Transfer Memorial Award — Science",
+        "source_url": "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+        "category_source_url": "https://engineering.purdue.edu/ME/People/ptProfile?id=29296",
+        "nobel_badge_eligible": false,
+        "note": "수상 연도/이름은 ASME 공식 목록, Science 부문은 Purdue 공식 프로필에서 확인."
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://engineering.purdue.edu/ME/People/ptProfile?id=29296",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1115/1.3250747",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1115/1.2905689",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "선정 논문은 과거 전자·항공전자 모사 장치의 FC-72 기반 2상 냉각 연구다. 오늘날 단상 광유 데이터센터 운영 실증이나 냉각유 배합 전문가라는 주장으로 대체하지 않는다. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "Purdue University 기계공학부 Betty Ruth & Milton B. Hollander Family Professor로 공식 인물 페이지에 기재.",
+      "affiliation": "Purdue University",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "Purdue University",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "immersion_cooling",
+      "field_label": "액침냉각·절연액 비등 열전달",
+      "featured_work": "EXP02-PAPER-ISSAM-MUDAWAR-1989-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://engineering.purdue.edu/ME/People/ptProfile?id=29296",
+        "source_urls": [
+          "https://engineering.purdue.edu/ME/People/ptProfile?id=29296",
+          "https://www.asme.org/about-asme/honors-awards/achievement-awards/heat-transfer-memorial-award",
+          "https://engineering.purdue.edu/mudawar/articles-all/",
+          "https://engineering.purdue.edu/mudawar/IECA/",
+          "https://engineering.purdue.edu/mudawar/files/articles-all/1989/1989_4.pdf",
+          "https://engineering.purdue.edu/mudawar/files/articles-all/1994/1994_4.pdf"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "IMMERSION_COOLING",
+        "selection_reason": "절연성 FC-72 액체에 직접 담근 전자 열원의 비등과 액침 모듈 연구를 함께 제시할 수 있다. 유체를 바꿀 때에도 냉각 구조·비등 조건을 분리해서 검토해야 한다는 관점을 보강한다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "현재 소개 페이지의 기관·직함과 논문 발표 당시 소속은 별도 시점의 사실로 유지. 페이지 조회일은 실제 재직 확인일이 아님."
+    },
+    {
+      "id": "PUB-HEYNE",
+      "slug": "joshua-s-heyne",
+      "name": "Joshua S. Heyne",
+      "display_name": "조슈아 헤인",
+      "aliases": [
+        "Joshua S. Heyne",
+        "조슈아 헤인",
+        "Joshua Heyne",
+        "Josh Heyne",
+        "Joshua Steven Heyne",
+        "J. S. Heyne",
+        "조슈아 헤이네"
+      ],
+      "org": "Washington State University",
+      "org_name": "Washington State University",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "SAF·지속가능항공유",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "Washington State University Tri-Cities의 Professor. 공식 2025 승진표의 Professor 열에서 확인했으며 현 WSU 명부는 BSEL Director 및 WSU-PNNL Bioproducts Institute Co-director로 소개한다. 검토자 해석: 일반 바이오연료 경력에 기대지 않고 SAF 제조 경로 연구와 항공유 평가 절차를 함께 설명할 수 있는 인물이다. 실제 자문 가능성은 확인하지 않았다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-SAF",
+          "name": "SAF·지속가능항공유"
+        }
+      ],
+      "topic_tags": [
+        "폐기물 유래 SAF",
+        "휘발성 지방산",
+        "SAF 사전 평가"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-joshua-heyne.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://tricities.wsu.edu/heyne-brings-a-passion-for-sustainable-aviation-fuels-and-teaching-to-wsu-tri-cities/",
+        "photo_url": "https://tricities.wsu.edu/wp-content/uploads/Josh-Heyne-300x300.jpg",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_identity_preserve_style_transfer_correction",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "82d9c37a70933cf0b79f0fa16db2014c9f3239bddb74cb943e362b9ed758ab5b",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "Washington State University Tri-Cities의 Professor. 공식 2025 승진표의 Professor 열에서 확인했으며 현 WSU 명부는 BSEL Director 및 WSU-PNNL Bioproducts Institute Co-director로 소개한다.",
+        "as_of": "2026-09-19",
+        "source_url": "https://tricities.wsu.edu/directory",
+        "category": "current_profile_listed",
+        "supporting_source_urls": [
+          "https://showcase.wsu.edu/newly-tenured-and-or-promoted-faculty/"
+        ],
+        "verification_note": "2025 승진표 HTML의 네 번째 열(Promoted to the rank of Professor)에 이름이 있음을 확인. 2022 소개·2024 CV의 Associate Professor 표기를 현재 직함으로 그대로 재사용하지 않음. 명예직·고인으로 소개된 근거는 관측하지 않음."
+      },
+      "recognition": {
+        "kind": "professional_award",
+        "year": 2022,
+        "title": "CAAFI Achievement & Leadership Award",
+        "source_url": "https://tricities.wsu.edu/wp-content/uploads/f7f28a96e0659571d2dd7d19b4270546.pdf",
+        "verification_note": "WSU가 호스팅하는 본인 CV(2024-03-21) 21쪽의 수상 항목을 직접 읽음. 수여기관의 독립 수상자 목록 대조는 미실시. 학회 Fellow나 Nobel로 표시하지 않음.",
+        "nobel_badge_eligible": false
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://tricities.wsu.edu/heyne-brings-a-passion-for-sustainable-aviation-fuels-and-teaching-to-wsu-tri-cities/",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://tricities.wsu.edu/wp-content/uploads/f7f28a96e0659571d2dd7d19b4270546.pdf",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1073/pnas.2023008118",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1016/j.fuel.2020.120004",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "WSU-PNNL 공동기관 직책만으로 PNNL의 현재 고용계약을 추정하지 않는다. 논문 당시 Dayton 소속과 현재 WSU를 구분한다. 수상·기관 직함은 GS 재직·협업 또는 서비스의 자문 응답 약속이 아니다. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "Washington State University Tri-Cities의 Professor. 공식 2025 승진표의 Professor 열에서 확인했으며 현 WSU 명부는 BSEL Director 및 WSU-PNNL Bioproducts Institute Co-director로 소개한다.",
+      "affiliation": "Washington State University",
+      "affiliation_status": "current_profile_listed",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "Washington State University",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "sustainable_aviation_fuel",
+      "field_label": "SAF·지속가능항공유",
+      "featured_work": "EXP02-PAPER-HEYNE-2021-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://tricities.wsu.edu/heyne-brings-a-passion-for-sustainable-aviation-fuels-and-teaching-to-wsu-tri-cities/",
+        "source_urls": [
+          "https://tricities.wsu.edu/heyne-brings-a-passion-for-sustainable-aviation-fuels-and-teaching-to-wsu-tri-cities/",
+          "https://tricities.wsu.edu/directory",
+          "https://showcase.wsu.edu/newly-tenured-and-or-promoted-faculty/",
+          "https://tricities.wsu.edu/wp-content/uploads/f7f28a96e0659571d2dd7d19b4270546.pdf",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC8020759/",
+          "https://rosap.ntl.bts.gov/view/dot/56850/dot_56850_DS1.pdf",
+          "https://elib.dlr.de/140784/"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "BIO_SAF",
+        "selection_reason": "검토자 해석: 일반 바이오연료 경력에 기대지 않고 SAF 제조 경로 연구와 항공유 평가 절차를 함께 설명할 수 있는 인물이다. 실제 자문 가능성은 확인하지 않았다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_saf_expansion_research",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "현재 기관 소개와 논문 당시 소속을 별도 시점의 근거로 보존한다. 기관 연결은 고용관계 또는 연락 가능성 확인이 아니다."
+    },
+    {
+      "id": "PUB-MCCORMICK",
+      "slug": "robert-l-mccormick",
+      "name": "Robert L. McCormick",
+      "display_name": "로버트 맥코믹",
+      "aliases": [
+        "Robert L. McCormick",
+        "로버트 맥코믹",
+        "Robert McCormick",
+        "Bob McCormick",
+        "R. L. McCormick",
+        "밥 맥코믹"
+      ],
+      "org": "National Laboratory of the Rockies",
+      "org_name": "National Laboratory of the Rockies",
+      "org_type": "research",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "SAF·지속가능항공유",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "National Laboratory of the Rockies(NLR)의 Senior Research Fellow이며 fuels and combustion research의 platform leader로 공식 개인 프로필에 기재. 명예 연구원 목록과 구분되는 현 Senior Research Fellows 명단에서도 확인. 검토자 해석: 항공유 제조 경로 연구와 연료·엔진 상호작용 평가를 연결하는 후보다. 2022 ACS 수상 및 국립연구소 Senior Research Fellow 직함으로 권위 근거를 구체적으로 제시할 수 있다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-SAF",
+          "name": "SAF·지속가능항공유"
+        }
+      ],
+      "topic_tags": [
+        "목질계 SAF",
+        "촉매 급속 열분해",
+        "수소처리",
+        "항공유 점화 품질"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-robert-mccormick.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://www.nlr.gov/research/fellows",
+        "photo_url": "https://www.nlr.gov/images/libraries/research-images/robert-mccormick-25759.jpg?sfvrsn=26d486f9_2",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_new_generation_observed_photo_description",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "35cc4d2b23262b0e93c34ce4edfbb898c5c5be198c15dc01f7f1dc243aca8827",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "National Laboratory of the Rockies(NLR)의 Senior Research Fellow이며 fuels and combustion research의 platform leader로 공식 개인 프로필에 기재. 명예 연구원 목록과 구분되는 현 Senior Research Fellows 명단에서도 확인.",
+        "as_of": "2026-09-19",
+        "source_url": "https://research-hub.nlr.gov/en/persons/robert-mccormick/",
+        "category": "current_profile_listed",
+        "supporting_source_urls": [
+          "https://www.nlr.gov/research/fellows",
+          "https://www.energy.gov/cmei/articles/energy-department-renames-nrel-national-lab-rockies"
+        ],
+        "verification_note": "현 공식 인물 페이지와 Fellows 명단을 직접 읽었다. 명예직·고인으로 기재되지 않았다. Senior Research Fellow는 국립연구소 직함이며 학회 Fellow 선출과 혼동하지 않음."
+      },
+      "recognition": {
+        "kind": "academic_award",
+        "year": 2022,
+        "title": "ACS Henry H. Storch Award in Energy Chemistry",
+        "source_url": "https://enfl.aps.anl.gov/sites/enfl-d8.aps.anl.gov/files/enfl/announcements/pdf-docs/ACS%20ENFL%202022%20Spring%20Newsletter.pdf",
+        "verification_note": "ACS Division of Energy & Fuels 2022 Spring Newsletter 3쪽 수상 목록에서 이름·상을 직접 확인. 이 수상은 특정 SAF 경로의 인증을 뜻하지 않음.",
+        "nobel_badge_eligible": false
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://research-hub.nlr.gov/en/persons/robert-mccormick/",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://enfl.aps.anl.gov/sites/enfl-d8.aps.anl.gov/files/enfl/announcements/pdf-docs/ACS%20ENFL%202022%20Spring%20Newsletter.pdf",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1039/D4SE01151A",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1021/acs.energyfuels.5c01350",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "DOE 2025-12-01 공식 발표에 따라 현재 기관명 NLR을 사용하고, 과거 논문의 NREL 명칭은 발표 당시 소속으로 보존한다. 기관명 변경을 이직 또는 고용기간 변경으로 만들지 않는다. GS 적용·연락 가능성·자문 수락은 미확인. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "National Laboratory of the Rockies(NLR)의 Senior Research Fellow이며 fuels and combustion research의 platform leader로 공식 개인 프로필에 기재. 명예 연구원 목록과 구분되는 현 Senior Research Fellows 명단에서도 확인.",
+      "affiliation": "National Laboratory of the Rockies",
+      "affiliation_status": "current_profile_listed",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "national_laboratory",
+      "current_org": "National Laboratory of the Rockies",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "sustainable_aviation_fuel",
+      "field_label": "SAF·지속가능항공유",
+      "featured_work": "EXP02-PAPER-MCCORMICK-2024-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://research-hub.nlr.gov/en/persons/robert-mccormick/",
+        "source_urls": [
+          "https://research-hub.nlr.gov/en/persons/robert-mccormick/",
+          "https://www.nlr.gov/research/fellows",
+          "https://www.energy.gov/cmei/articles/energy-department-renames-nrel-national-lab-rockies",
+          "https://enfl.aps.anl.gov/sites/enfl-d8.aps.anl.gov/files/enfl/announcements/pdf-docs/ACS%20ENFL%202022%20Spring%20Newsletter.pdf",
+          "https://www.nlr.gov/docs/fy25osti/91024.pdf",
+          "https://research-hub.nlr.gov/en/publications/cycloalkane-rich-sustainable-aviation-fuel-production-via-hydrotr/",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC12147154/",
+          "https://www.nlr.gov/transportation/synthetic-aviation-fuels"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "BIO_SAF",
+        "selection_reason": "검토자 해석: 항공유 제조 경로 연구와 연료·엔진 상호작용 평가를 연결하는 후보다. 2022 ACS 수상 및 국립연구소 Senior Research Fellow 직함으로 권위 근거를 구체적으로 제시할 수 있다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_saf_expansion_research",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "현재 기관 소개와 논문 당시 소속을 별도 시점의 근거로 보존한다. 기관 연결은 고용관계 또는 연락 가능성 확인이 아니다."
+    },
+    {
+      "id": "PUB-WILSON-DI",
+      "slug": "d-ian-wilson",
+      "name": "D. Ian Wilson",
+      "display_name": "D. 이언 윌슨",
+      "aliases": [
+        "D. Ian Wilson",
+        "D. 이언 윌슨",
+        "Ian Wilson",
+        "D. I. Wilson",
+        "D.I. Wilson",
+        "DI Wilson",
+        "이언 윌슨"
+      ],
+      "org": "University of Cambridge",
+      "org_name": "University of Cambridge",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "원유 예열계 오염·침적",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "University of Cambridge의 Professor of Soft Solids and Surfaces로 소개되며, Jesus College의 별도 직위는 Emeritus Fellow로 기재되어 있다. 일반 열전달 경력 외에 원유 예열계 fouling과 침전층 노화의 직접 논문이 있다. 열적 손실만으로 침적 상태를 단정하기 어려운 맥락을 제시할 수 있다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-FOULING",
+          "name": "원유 fouling·예열망 침적"
+        }
+      ],
+      "topic_tags": [
+        "원유 예열망",
+        "침전층 노화",
+        "열수력 영향"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-ian-wilson.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://www.jesus.cam.ac.uk/people/ian-wilson-scd-ceng",
+        "photo_url": "https://www.jesus.cam.ac.uk/sites/default/files/styles/person/public/profile/ian_wilson.jpg?h=a9fb58dd&itok=Ne8TrRla",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_photo_style_transfer_with_explicit_references",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "3e5094904bf4696e633018ce556c2c0ee3a9b9d124594cfcf1207bd4e24c4bef",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "University of Cambridge의 Professor of Soft Solids and Surfaces로 소개되며, Jesus College의 별도 직위는 Emeritus Fellow로 기재되어 있다.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://www.jesus.cam.ac.uk/people/ian-wilson-scd-ceng",
+        "appointment_boundary": "College 명예펠로를 대학 명예교수로 바꾸지 않는다. 검색 색인의 과거 Fellow, President와 현재 열린 HTML의 Emeritus Fellow가 달라 열린 HTML을 우선했다."
+      },
+      "recognition": {
+        "kind": "professional_society_fellow",
+        "year": null,
+        "title": "Fellow, Institution of Chemical Engineers (FIChemE)",
+        "source_url": "https://www.ceb.cam.ac.uk/directory/ian-wilson",
+        "nobel_badge_eligible": false,
+        "note": "Cambridge CEB 공식 프로필의 FIChemE 표기를 확인했다. 선임 연도는 미확인; 특정 원유 fouling 수상 경력이나 노벨상으로 바꾸지 않음.",
+        "source_access_note": "공식 페이지 검색 본문 확인. 페이지 직접 open은 이 조사 환경에서 실패했다."
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://www.jesus.cam.ac.uk/people/ian-wilson-scd-ceng",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://www.ceb.cam.ac.uk/directory/ian-wilson",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 소개의 자문 가능성 안내",
+          "url": "https://www.globalfood.cam.ac.uk/memberdirectory/wilson",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1007/s41660-019-00104-8",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "공개 논문과 인물의 연결 시연 후보다. 현재 자문 가능 인력이 아니며 특정 운전 조건의 조언·과학적 방법 유효성 보증은 하지 않는다. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "University of Cambridge의 Professor of Soft Solids and Surfaces로 소개되며, Jesus College의 별도 직위는 Emeritus Fellow로 기재되어 있다.",
+      "affiliation": "University of Cambridge",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "University of Cambridge",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "crude_oil_fouling",
+      "field_label": "원유 예열계 오염·침적",
+      "featured_work": "EXP02-PAPER-D-IAN-WILSON-2020-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://www.jesus.cam.ac.uk/people/ian-wilson-scd-ceng",
+        "source_urls": [
+          "https://www.jesus.cam.ac.uk/people/ian-wilson-scd-ceng",
+          "https://www.ceb.cam.ac.uk/directory/ian-wilson",
+          "https://www.globalfood.cam.ac.uk/memberdirectory/wilson",
+          "https://link.springer.com/article/10.1007/s41660-019-00104-8",
+          "https://link.springer.com/article/10.1007/s41660-020-00127-6"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "CRUDE_FOULING",
+        "selection_reason": "일반 열전달 경력 외에 원유 예열계 fouling과 침전층 노화의 직접 논문이 있다. 열적 손실만으로 침적 상태를 단정하기 어려운 맥락을 제시할 수 있다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "공식 소개에서 자문 불가로 안내",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "source_reported_unavailable_for_consultancy",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "advisory_availability_evidence": {
+        "source_url": "https://www.globalfood.cam.ac.uk/memberdirectory/wilson",
+        "as_of": "2026-09-19",
+        "source_wording": "Not available for consultancy",
+        "source_access_note": "공식 프로필의 검색 색인 본문에서 관측. 직접 open은 실패했고 페이지 갱신일은 미확인.",
+        "boundary": "해당 공식 소개의 consultancy 불가 표시다. 이를 미래의 모든 연구·교류 활동 불가로 일반화하지 않는다."
+      },
+      "affiliation_policy": "공식 페이지가 소개하는 현재 기관 연결과 논문 발표 당시 소속은 별도 시점의 사실로 유지한다. 조회일은 실제 고용 확인일이 아니다."
+    },
+    {
+      "id": "PUB-MACCHIETTO",
+      "slug": "sandro-macchietto",
+      "name": "Sandro Macchietto",
+      "display_name": "산드로 마키에토",
+      "aliases": [
+        "Sandro Macchietto",
+        "산드로 마키에토",
+        "S. Macchietto",
+        "S Macchietto",
+        "산드로 마키에또"
+      ],
+      "org": "Imperial College London",
+      "org_name": "Imperial College London",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "원유 예열계 오염·침적",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "Imperial College London 화학공학과 Professor of Process Systems Engineering으로 공식 프로필에 기재되어 있다. 정유 예열망 fouling 및 침적·세정 주기를 직접 다룬 논문을 연결할 수 있어 원유 공정 경험 탐색의 주제 재료를 보강한다.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-FOULING",
+          "name": "원유 fouling·예열망 침적"
+        }
+      ],
+      "topic_tags": [
+        "원유 예열망",
+        "유기 침적 모델",
+        "오염·세정 주기"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-sandro-macchietto.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://www.imperial.ac.uk/news/204653/royal-academy-engineering-elects-bumper=crop/",
+        "photo_url": "https://www.imperial.ac.uk/newsarchive/images/mainnews2012/macchietto-sandro-3_1600687568049_x2.jpg?r=9992",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_photo_style_transfer_with_explicit_references",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "0c0959dc39b972ad02a4891c50dde8b0d3dd1e8405287bc971bab61f320667fd",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "Imperial College London 화학공학과 Professor of Process Systems Engineering으로 공식 프로필에 기재되어 있다.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://profiles.imperial.ac.uk/s.macchietto",
+        "appointment_boundary": "현재 교수 직함의 공개 소개를 기록한다. 명예교수로 추정하지 않으며 과거 Hexxcell CEO 이력을 현재 직함으로 가져오지 않는다."
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2023,
+        "title": "IChemE Sargent Medal",
+        "source_url": "https://www.icheme.org/media/19658/icheme-medals-and-prizes-2023-list-of-winnners.pdf",
+        "nobel_badge_eligible": false,
+        "note": "IChemE 2023 공식 수상 명단에서 확인. 공정시스템 연구에 관한 상이며 원유 fouling만을 위한 상으로 표시하지 않음."
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://profiles.imperial.ac.uk/s.macchietto",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://www.icheme.org/media/19658/icheme-medals-and-prizes-2023-list-of-winnners.pdf",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1080/01457632.2010.495606",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1002/aic.15036",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "공정시스템 모델링·시뮬레이션 근거를 채택한다. 출판 이력으로 GS 고용·협업·현재 자문 의향 또는 직접 실험 수행을 추정하지 않는다. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "Imperial College London 화학공학과 Professor of Process Systems Engineering으로 공식 프로필에 기재되어 있다.",
+      "affiliation": "Imperial College London",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "Imperial College London",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "crude_oil_fouling",
+      "field_label": "원유 예열계 오염·침적",
+      "featured_work": "EXP02-PAPER-SANDRO-MACCHIETTO-2011-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://profiles.imperial.ac.uk/s.macchietto",
+        "source_urls": [
+          "https://profiles.imperial.ac.uk/s.macchietto",
+          "https://www.imperial.ac.uk/news/204653/royal-academy-engineering-elects-bumper=crop/",
+          "https://www.icheme.org/media/19658/icheme-medals-and-prizes-2023-list-of-winnners.pdf",
+          "https://www.tandfonline.com/doi/abs/10.1080/01457632.2010.495606",
+          "https://aiche.onlinelibrary.wiley.com/doi/abs/10.1002/aic.15036"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "CRUDE_FOULING",
+        "selection_reason": "정유 예열망 fouling 및 침적·세정 주기를 직접 다룬 논문을 연결할 수 있어 원유 공정 경험 탐색의 주제 재료를 보강한다.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "공식 페이지가 소개하는 현재 기관 연결과 논문 발표 당시 소속은 별도 시점의 사실로 유지한다. 조회일은 실제 고용 확인일이 아니다."
+    },
+    {
+      "id": "PUB-RAWLINGS",
+      "slug": "james-b-rawlings",
+      "name": "James B. Rawlings",
+      "display_name": "제임스 B. 롤링스",
+      "aliases": [
+        "James B. Rawlings",
+        "제임스 B. 롤링스",
+        "James Rawlings",
+        "J. B. Rawlings",
+        "제임스 롤링스"
+      ],
+      "org": "University of California, Santa Barbara",
+      "org_name": "University of California, Santa Barbara",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "화학공정 제어·MPC",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "UCSB Chemical Engineering의 Mellichamp Process Control Chair로 공식 소개. 화학공정 제어·MPC의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-CONTROL",
+          "name": "화학공정 제어·MPC"
+        }
+      ],
+      "topic_tags": [
+        "화학공정 MPC",
+        "제약 제어"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-james-rawlings.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://news.ucsb.edu/people/james-b-rawlings",
+        "photo_url": "https://news.ucsb.edu/sites/default/files/styles/large/public/2025-08/rawlings-james-uc-santa-barbara.jpg?itok=AogxVauL",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_photo_style_transfer_with_explicit_references",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "75d33e811c180538d4005d68d0ce495db2d9736eae33c5f600e0f4c63742ea3c",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "UCSB Chemical Engineering의 Mellichamp Process Control Chair로 공식 소개.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://chemengr.ucsb.edu/people/james-b-rawlings",
+        "verification_note": null
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2025,
+        "title": "Richard E. Bellman Control Heritage Award (AACC)",
+        "source_url": "https://chemengr.ucsb.edu/people/james-b-rawlings",
+        "nobel_badge_eligible": false
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://chemengr.ucsb.edu/people/james-b-rawlings",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://chemengr.ucsb.edu/people/james-b-rawlings",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1016/0009-2509(92)80263-C",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "일반 최적화 권위로 대체하지 않고 화학공정 MPC 원논문에 연결. 현재 현업 제어기 운영·자문 가능성 미확인. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "UCSB Chemical Engineering의 Mellichamp Process Control Chair로 공식 소개.",
+      "affiliation": "University of California, Santa Barbara",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "University of California, Santa Barbara",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "process_control",
+      "field_label": "화학공정 제어·MPC",
+      "featured_work": "EXP02-PAPER-RAWLINGS-1992-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://chemengr.ucsb.edu/people/james-b-rawlings",
+        "source_urls": [
+          "https://chemengr.ucsb.edu/people/james-b-rawlings",
+          "https://news.ucsb.edu/people/james-b-rawlings",
+          "https://www.sciencedirect.com/science/article/abs/pii/000925099280263C",
+          "https://sites.engineering.ucsb.edu/~jbraw/publications.html"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "PROCESS_CONTROL",
+        "selection_reason": "화학공정 제어·MPC의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "조회 시점 공식 직함·명예직과 논문 당시 소속을 분리. 고용/연락가능성 확인이 아니며 조회일은 재직 확인일이 아님."
+    },
+    {
+      "id": "PUB-MORARI",
+      "slug": "manfred-morari",
+      "name": "Manfred Morari",
+      "display_name": "만프레트 모라리",
+      "aliases": [
+        "Manfred Morari",
+        "만프레트 모라리",
+        "M. Morari",
+        "만프레드 모라리"
+      ],
+      "org": "ETH Zurich · 명예교수",
+      "org_name": "ETH Zurich",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "화학공정 제어·MPC",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "ETH Zurich 정보기술·전기공학부 Professor Emeritus. 개인 공식 홈페이지에2016년7월 은퇴를 명시. 화학공정 제어·MPC의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-CONTROL",
+          "name": "화학공정 제어·MPC"
+        }
+      ],
+      "topic_tags": [
+        "강인 MPC",
+        "선형행렬부등식",
+        "화학공정 제어 리뷰"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-manfred-morari.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://people.ee.ethz.ch/~morari/",
+        "photo_url": "https://people.ee.ethz.ch/~morari/mm_image.jpg",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_photo_style_transfer_with_explicit_references",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "185a841783e17aad6b781ff28a591055dfb32f69356d634f8f6017af5958ffec",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "ETH Zurich 정보기술·전기공학부 Professor Emeritus. 개인 공식 홈페이지에2016년7월 은퇴를 명시.",
+        "category": "emeritus",
+        "as_of": "2026-09-19",
+        "source_url": "https://control.ee.ethz.ch/people/profile.manfred-morari.html",
+        "verification_note": "ETH현재디렉터리의명예교수공식검색본문과개인공식페이지를대조. 개인홈페이지의Penn역할설명은2016/2018맥락이며현재직함으로승격하지않음."
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2023,
+        "title": "IFAC High Impact Paper Award",
+        "source_url": "https://control.ee.ethz.ch/news-and-events/ifa-news/2023/07/manfred-morari-received-the-ifac-high-impact-paper-award.html",
+        "nobel_badge_eligible": false
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://control.ee.ethz.ch/people/profile.manfred-morari.html",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://control.ee.ethz.ch/news-and-events/ifa-news/2023/07/manfred-morari-received-the-ifac-high-impact-paper-award.html",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1016/0005-1098(96)00063-5",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1016/S0098-1354(98)00301-9",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "MPC 직접 방법론과 화학공정 제어 리뷰를 함께 연결. ETH명예직과과거Penn수락기사를현재전임직함으로합치지않음. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "ETH Zurich 정보기술·전기공학부 Professor Emeritus. 개인 공식 홈페이지에2016년7월 은퇴를 명시.",
+      "affiliation": "ETH Zurich · 명예교수",
+      "affiliation_status": "emeritus",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "ETH Zurich",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "process_control",
+      "field_label": "화학공정 제어·MPC",
+      "featured_work": "EXP02-PAPER-MORARI-1996-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://control.ee.ethz.ch/people/profile.manfred-morari.html",
+        "source_urls": [
+          "https://control.ee.ethz.ch/people/profile.manfred-morari.html",
+          "https://control.ee.ethz.ch/news-and-events/ifa-news/2023/07/manfred-morari-received-the-ifac-high-impact-paper-award.html",
+          "https://people.ee.ethz.ch/~morari/",
+          "https://www.sciencedirect.com/science/article/pii/0005109896000635",
+          "https://www.sciencedirect.com/science/article/abs/pii/S0098135498003019"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "PROCESS_CONTROL",
+        "selection_reason": "화학공정 제어·MPC의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "조회 시점 공식 직함·명예직과 논문 당시 소속을 분리. 고용/연락가능성 확인이 아니며 조회일은 재직 확인일이 아님."
+    },
+    {
+      "id": "PUB-KHATIB",
+      "slug": "oussama-khatib",
+      "name": "Oussama Khatib",
+      "display_name": "오사마 카티브",
+      "aliases": [
+        "Oussama Khatib",
+        "오사마 카티브",
+        "O. Khatib",
+        "우사마 카티브"
+      ],
+      "org": "Stanford University",
+      "org_name": "Stanford University",
+      "org_type": "education",
+      "curated": true,
+      "source_type": "public_research_case",
+      "tagline": "로보틱스·조작 자동화",
+      "tagline_basis": "선정 논문의 직접 주제 근거",
+      "biography": "Stanford University Computer Science Professor 및 Stanford Robotics Laboratory Director로 공식 소개. 로보틱스·조작 자동화의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+      "skills": [],
+      "timeline": [],
+      "topics": [
+        {
+          "id": "EXP02-ROBOTICS",
+          "name": "로보틱스·조작 자동화"
+        }
+      ],
+      "topic_tags": [
+        "로봇 장애물 회피",
+        "로봇 팔",
+        "이동 로봇",
+        "인공 퍼텐셜 필드"
+      ],
+      "portrait": {
+        "path": "/portraits/pool-oussama-khatib.png",
+        "generated": true,
+        "label": "AI 생성 일러스트",
+        "reference_url": "https://khatib.stanford.edu/",
+        "photo_url": "https://khatib.stanford.edu/images-ok/thumbnail_Khatib-O.jpg",
+        "reference_note": "공식 인물 소개와 사진을 참고한 AI 생성 일러스트. 얼굴 묘사는 근사치입니다.",
+        "generation_mode": "native_photo_style_transfer_with_explicit_references",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "bbdd0e1faeb95854ca7e15296280b536e16a3294b6638b499090b7a9bfb2767c",
+        "width": 1086,
+        "height": 1448
+      },
+      "current_status": {
+        "text": "Stanford University Computer Science Professor 및 Stanford Robotics Laboratory Director로 공식 소개.",
+        "category": "faculty_role_listed_on_official_page",
+        "as_of": "2026-09-19",
+        "source_url": "https://khatib.stanford.edu/ok-bio.html",
+        "verification_note": null
+      },
+      "recognition": {
+        "kind": "professional_society_award",
+        "year": 2022,
+        "title": "Engelberger Robotics Award for Education (A3)",
+        "source_url": "https://www.automate.org/robotics/engelberger/past-engelberger-winners",
+        "verification_note": "수여기관A3공식2022기준. Stanford학년도수상표의2023표기와구분.",
+        "nobel_badge_eligible": false
+      },
+      "sources": [
+        {
+          "title": "공식 인물 소개 · 조회 기준일의 표기",
+          "url": "https://khatib.stanford.edu/ok-bio.html",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "공식 학회·기관 인정 기록",
+          "url": "https://www.automate.org/robotics/engelberger/past-engelberger-winners",
+          "checked_at": "2026-09-19"
+        },
+        {
+          "title": "직접 관련 연구 · 개인 수행 역할은 미확인",
+          "url": "https://doi.org/10.1177/027836498600500106",
+          "checked_at": "2026-09-19"
+        }
+      ],
+      "profile_note": "실제조작기의제어·장애물회피직접논문을연결. 일반AI전문가카드와분리하고산업현장안전성확인으로승격하지않음. 외부 공개 연구 사례이며 사내 인력·가용 시간·협업 약속을 뜻하지 않습니다.",
+      "current_role": "Stanford University Computer Science Professor 및 Stanford Robotics Laboratory Director로 공식 소개.",
+      "affiliation": "Stanford University",
+      "affiliation_status": "faculty_role_listed_on_official_page",
+      "affiliation_as_of": "2026-09-19",
+      "profile_observed_as_of": "2026-09-19",
+      "profile_observed_as_of_semantics": "공식 자료를 읽은 조회 기준일이며 현재 재직 확인일이 아닙니다.",
+      "institution_kind": "university",
+      "current_org": "Stanford University",
+      "current_org_semantics": "공식 소개의 기관 표기이며 고용·연락 가능성 확인이 아닙니다.",
+      "research_field": "robotics",
+      "field_label": "로보틱스·조작 자동화",
+      "featured_work": "EXP02-PAPER-KHATIB-1986-1",
+      "checked_at": "2026-09-19",
+      "source_profile": {
+        "official_profile_url": "https://khatib.stanford.edu/ok-bio.html",
+        "source_urls": [
+          "https://khatib.stanford.edu/ok-bio.html",
+          "https://www.automate.org/robotics/engelberger/past-engelberger-winners",
+          "https://khatib.stanford.edu/",
+          "https://journals.sagepub.com/doi/10.1177/027836498600500106",
+          "https://khatib.stanford.edu/publications/pdfs/Khatib_1986_IJRR.pdf"
+        ]
+      },
+      "business_fit": {
+        "primary_axis": "ROBOTICS",
+        "selection_reason": "로보틱스·조작 자동화의 직접 원논문을 제공하는 공개 연구 시연 후보.",
+        "fit_is_inference": true
+      },
+      "internal_employee": false,
+      "employment_verification": "외부 공식 소개의 기록이며 현재 고용관계 확인 아님",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "current_employment_verified": false,
+      "publication_time_affiliation_not_inferred": true,
+      "selection_status": "selected_for_business_research_demo",
+      "display_type": "external_public_researcher",
+      "fit_is_inference": true,
+      "gs_employment_claimed": false,
+      "gs_collaboration_claimed": false,
+      "alias_matching_policy": "search_only_no_automatic_identity_merge",
+      "korean_name_status": "editorial_transliteration",
+      "advisory_availability": "unverified",
+      "real_contact_enabled": false,
+      "eligible_for_real_advice_request": false,
+      "affiliation_policy": "조회 시점 공식 직함·명예직과 논문 당시 소속을 분리. 고용/연락가능성 확인이 아니며 조회일은 재직 확인일이 아님."
     }
   ],
   "papers": [
@@ -6261,6 +7447,886 @@
         "출판사에서 단독 저자와 Perspective 유형을 확인했습니다. 2019 권호와 2018 온라인 선공개를 구분하며 성능 비교 실험으로 표현하지 않습니다."
       ],
       "date_basis": "2019 권호 기준; 온라인 선공개 2018-12-02와 구분"
+    },
+    {
+      "id": "EXP02-PAPER-YOGENDRA-JOSHI-2012-1",
+      "kind": "paper",
+      "title": "Selection and Evaluation of Organosilicon Coolants for Direct Immersion Cooling of Electronic Systems",
+      "summary": "액침 냉각용 유기규소 화합물을 분자 설계로 선별하고 후보 물성을 측정했으며, dimethoxydimethylsilane/HFE-7200 혼합물의 풀비등을 비교했다.",
+      "date": "2012",
+      "authors": [
+        {
+          "name": "Pramod Warrier",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Aravind Sathyanarayana",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Sara Bazdar",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Yogendra Joshi",
+          "person_id": "PUB-JOSHI",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Amyn S. Teja",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-IMMERSION"
+      ],
+      "field": "immersion_cooling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1021/ie300664v",
+      "boundary_note": "칩 시험면·특정 혼합 조성의 연구 결과. 단상 오일 냉각유나 장기 침지 수명, 모든 장비에서의 성능 우위는 입증하지 않는다.",
+      "source_access_note": "ACS 공식 검색 본문에서 제목·전체 저자·초록·DOI 확인. 직접 open은 403. Crossref API의 ACS 등록 제목·저자·연도는 별도로 직접 읽어 대조.",
+      "author_coverage": "full_list_from_publisher_deposited_metadata",
+      "url": "https://doi.org/10.1021/ie300664v",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 표기를 확인했다. 개인별 직접 실험 수행 분담은 확인하지 않았다.",
+      "metadata_sources": [
+        {
+          "url": "https://pubs.acs.org/doi/abs/10.1021/ie300664v",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://api.crossref.org/works/10.1021/ie300664v",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-YOGENDRA-JOSHI-2025-1",
+      "kind": "paper",
+      "title": "Thermal Performance of Triply Periodic Minimal Surface Lattice Structures in Single-Phase Dielectric Fluid Cooling of Power Electronics",
+      "summary": "단상 절연액 AmpCool AC-110을 사용하는 TPMS 격자의 열전달·유동 방향을 수치해석한 연구. 기존 실험 연구로 모델을 검증했으며 전체 장치 직접 액침 실증 여부는 미확인이다.",
+      "date": "2025-09-15",
+      "authors": [
+        {
+          "name": "U. Kemerli",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "G. Moreno",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "R. Chaudhary",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "S. Narumanchi",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Y. Joshi",
+          "person_id": "PUB-JOSHI",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-IMMERSION"
+      ],
+      "field": "immersion_cooling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19T20:44:36+09:00",
+      "doi": "10.1115/1.4069386",
+      "boundary_note": "인접 단상 절연액 냉각 연구이며 전체 장치 직접 액침 실증은 미확인입니다. 단상 냉각과 실제 유체명은 확인됨. 이 원논문의 전체 전자장치 침지·개방 탱크 액침·데이터센터 장기 운전 실증은 초록만으로 확인되지 않음. 기존 실험으로 모델 검증했다는 내용을 이 연구의 새 완성장치 실험으로 바꾸지 않음. 냉각유 조성·상용 안전성·GS 제품 적용성은 추정하지 않음.",
+      "source_access_note": "공식 NLR 저장소 본문과 Crossref API의 ASME 등록 제목·저자·날짜·초록 직접 읽음. Georgia Tech 교수 페이지의 동일 논문 목록 확인. DOI resolver는 InternalError, ASME 원문 PDF는 403으로 전체 본문 미열람. 2024 NREL 자료는 맥락 확인만 하며 2025 원논문 방법·결과로 대체하지 않음.",
+      "author_coverage": "full_list_from_official_institution_and_publisher_metadata",
+      "url": "https://doi.org/10.1115/1.4069386",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "Joshi가 포함된 공동저자 연구는 AmpCool AC-110 조건에서 gyroid TPMS 구조의 열전달과 마찰 특성을 수치적으로 비교한다. 공식 초록은 유사 치수의 기존 실험 연구로 수치모델을 검증했다고 설명한다. Joshi 개인이 실험을 수행했다는 기여는 확인되지 않음.",
+      "metadata_sources": [
+        {
+          "url": "https://research-hub.nlr.gov/en/publications/thermal-performance-of-triply-periodic-minimal-surface-lattice-st/",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://api.crossref.org/works/10.1115/1.4069386",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "day",
+      "date_semantics": "published-online, ASME publisher deposit in Crossref; print issue date is separate",
+      "topic_relation": "adjacent_single_phase_dielectric_cooling",
+      "direct_topic_evidence": false
+    },
+    {
+      "id": "EXP02-PAPER-ISSAM-MUDAWAR-1989-1",
+      "kind": "paper",
+      "title": "Microelectronic Cooling by Enhanced Pool Boiling of a Dielectric Fluorocarbon Liquid",
+      "summary": "FC-72 절연액에 담근 전자 부품 모사 열원을 대상으로 표면 형상과 비등 개시·열전달을 연구했다.",
+      "date": "1989",
+      "authors": [
+        {
+          "name": "T. M. Anderson",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "I. Mudawar",
+          "person_id": "PUB-MUDAWAR",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-IMMERSION"
+      ],
+      "field": "immersion_cooling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1115/1.3250747",
+      "boundary_note": "실제 연구 대상은 모사 열원과 특정 FC-72 시험 조건이다. 소재·장비별 장기 침지 적합성이나 현재 상용 시스템 전반의 성능 증거가 아니다.",
+      "source_access_note": "Purdue 공식 원논문 PDF 검색 본문에서 제목·저자·FC-72 시험 맥락 확인. Purdue 공식 저작목록 및 Crossref의 ASME 등록 DOI·제목·저자·1989년을 대조.",
+      "author_coverage": "full_list_from_publisher_deposited_metadata",
+      "url": "https://doi.org/10.1115/1.3250747",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 표기를 확인했다. 개인별 직접 실험 수행 분담은 확인하지 않았다.",
+      "metadata_sources": [
+        {
+          "url": "https://engineering.purdue.edu/mudawar/files/articles-all/1989/1989_4.pdf",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://api.crossref.org/works/10.1115/1.3250747",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://engineering.purdue.edu/mudawar/articles-all/",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-ISSAM-MUDAWAR-1994-2",
+      "kind": "paper",
+      "title": "A Multi-Kilowatt Immersion-Cooled Standard Electronic Clamshell Module for Future Aircraft Avionics",
+      "summary": "항공전자용 모듈의 직접 액침 냉각과 좁은 채널 유동을 검토하고 임계 열유속 예측과 시험을 연결했다.",
+      "date": "1994",
+      "authors": [
+        {
+          "name": "Peter E. Jimenez",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Issam Mudawar",
+          "person_id": "PUB-MUDAWAR",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-IMMERSION"
+      ],
+      "field": "immersion_cooling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1115/1.2905689",
+      "boundary_note": "항공전자 모듈 형상과 FC-72 실험 조건의 연구다. 현재 데이터센터 랙에서의 배치·운영·안전 인증을 뜻하지 않는다.",
+      "source_access_note": "Purdue 공식 PDF 검색 본문에서 직접 액침/FC-72 맥락 확인. 공식 저작목록과 Crossref의 ASME 등록 제목·전체 저자·1994년 대조. PDF 직접 open과 DOI resolver는 InternalError라 전체 본문 직접 열람 완료로 표시하지 않는다.",
+      "author_coverage": "full_list_from_publisher_deposited_metadata",
+      "url": "https://doi.org/10.1115/1.2905689",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 표기를 확인했다. 개인별 직접 실험 수행 분담은 확인하지 않았다.",
+      "metadata_sources": [
+        {
+          "url": "https://engineering.purdue.edu/mudawar/files/articles-all/1994/1994_4.pdf",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://api.crossref.org/works/10.1115/1.2905689",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://engineering.purdue.edu/mudawar/articles-all/",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-HEYNE-2021-1",
+      "kind": "paper",
+      "title": "Toward net-zero sustainable aviation fuel with wet waste-derived volatile fatty acids",
+      "summary": "습식 폐기물의 휘발성 지방산을 촉매 전환해 항공유 탄화수소와 혼합물을 평가한 직접 SAF 연구.",
+      "date": "2021",
+      "authors": [
+        {
+          "name": "Joshua S. Heyne",
+          "person_id": "PUB-HEYNE",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-SAF"
+      ],
+      "field": "sustainable_aviation_fuel",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1073/pnas.2023008118",
+      "boundary_note": "논문의 경로·물성·전과정 분석은 해당 연구 조건의 결과다. 현재 항공기 운항 허가, 모든 ASTM 항목 통과, 상업 생산 또는 GS 공정 채택을 뜻하지 않는다.",
+      "source_access_note": "PMC 공개 출판 원문 직접 열람: 메타데이터·저자·초록·선정 관련 본문·기여 확인. 실험 재현 또는 부록 전체 검증은 하지 않음.",
+      "author_coverage": "selected_author_only_full_list_not_collected",
+      "url": "https://doi.org/10.1073/pnas.2023008118",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자. 원문 기여에 연구 설계, 새 시약/분석 도구 기여, 집필이 명시됨. performed research 목록에 J.S.H.가 없으므로 실험 전담 수행으로 표현하지 않음.",
+      "metadata_sources": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8020759/",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://research-hub.nlr.gov/en/publications/towards-net-zero-sustainable-aviation-fuel-with-wet-waste-derived/",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "GS-PAPER-JOSHUA-S-HEYNE-2021-1",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-HEYNE-2021-2",
+      "kind": "paper",
+      "title": "Sustainable aviation fuel prescreening tools and procedures",
+      "summary": "소량의 SAF 후보를 정식 평가 전에 점검할 물성·운전성·예측 절차를 제시한다.",
+      "date": "2021",
+      "authors": [
+        {
+          "name": "Joshua S. Heyne",
+          "person_id": "PUB-HEYNE",
+          "role": "first",
+          "corresponding": true,
+          "corresponding_status": "confirmed_by_original_paper"
+        }
+      ],
+      "tags": [
+        "EXP02-SAF"
+      ],
+      "field": "sustainable_aviation_fuel",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1016/j.fuel.2020.120004",
+      "boundary_note": "사전 평가는 정식 인증을 대체하지 않는다. 2021 논문의 당시 승인 경로 수·혼합 한도를 현재 규정으로 재사용하지 않는다.",
+      "source_access_note": "미국 교통부 ROSA P 출판 원문 PDF의 논문 첫 페이지 초록과 CRediT 직접 확인. DLR 기관 서지도 대조. 논문의 과거 규격 현황은 현재 규정 확인 자료로 사용하지 않음.",
+      "author_coverage": "selected_author_only_full_list_not_collected",
+      "url": "https://doi.org/10.1016/j.fuel.2020.120004",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "첫 번째 저자·교신저자. CRediT에 연구 구상·방법론·소프트웨어·분석·집필·지도 등 기재. 개인의 모든 실험 수행을 뜻하지 않음.",
+      "metadata_sources": [
+        {
+          "url": "https://rosap.ntl.bts.gov/view/dot/56850/dot_56850_DS1.pdf",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://elib.dlr.de/140784/",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "GS-PAPER-JOSHUA-S-HEYNE-2021-2",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-MCCORMICK-2024-1",
+      "kind": "paper",
+      "title": "Cycloalkane-rich sustainable aviation fuel production via hydrotreating lignocellulosic biomass-derived catalytic fast pyrolysis oils",
+      "summary": "목질계 원료의 촉매 급속 열분해 오일을 수소처리하여 사이클로알케인이 풍부한 항공유 분획을 생산하고 물성을 평가한 직접 경로 연구.",
+      "date": "2024",
+      "authors": [
+        {
+          "name": "Robert L. McCormick",
+          "person_id": "PUB-MCCORMICK",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-SAF"
+      ],
+      "field": "sustainable_aviation_fuel",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1039/D4SE01151A",
+      "boundary_note": "일부 물성의 규격 적합 보고는 전체 인증·운항 승인·상용 생산의 증명이 아니다. 논문도 수율 개선 및 더 넓은 성능 평가가 필요하다고 명시한다. GS 코프로세싱과 동일 공정으로 단정하지 않는다.",
+      "source_access_note": "RSC 자체 사이트 HTML/PDF 접근은 도구 오류였으나 NLR 공식 저장소의 동일 DOI 출판 원문 PDF를 직접 열람. 메타데이터만 확인한 상태가 아님. 개인별 CRediT는 확보하지 않음.",
+      "author_coverage": "selected_author_only_full_list_not_collected",
+      "url": "https://doi.org/10.1039/D4SE01151A",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자. 개인별 실험 수행 분담을 확인하지 않았으므로 전체 공정 실험 수행자로 표시하지 않음. 교신저자는 Kristiina Iisa로 원문에 기재.",
+      "metadata_sources": [
+        {
+          "url": "https://www.nlr.gov/docs/fy25osti/91024.pdf",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://research-hub.nlr.gov/en/publications/cycloalkane-rich-sustainable-aviation-fuel-production-via-hydrotr/",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://pubs.rsc.org/en/content/articlehtml/2024/se/d4se01151a",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "GS-PAPER-ROBERT-L-MCCORMICK-2024-1",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-MCCORMICK-2025-2",
+      "kind": "paper",
+      "title": "Measurement of Spray Chamber Ignition Delay and Cetane Numbers for Aviation Turbine Fuels",
+      "summary": "항공 터빈 연료와 합성 혼합 성분의 점화 품질을 소량 시료로 평가하는 방법을 비교한 직접 항공유 연구.",
+      "date": "2025",
+      "authors": [
+        {
+          "name": "Jon Luecke",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Nimal Naser",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Zhibin Yang",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Joshua Heyne",
+          "person_id": "PUB-HEYNE",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Robert L. McCormick",
+          "person_id": "PUB-MCCORMICK",
+          "role": "last",
+          "corresponding": true,
+          "corresponding_status": "confirmed_by_original_paper"
+        }
+      ],
+      "tags": [
+        "EXP02-SAF"
+      ],
+      "field": "sustainable_aviation_fuel",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1021/acs.energyfuels.5c01350",
+      "boundary_note": "점화·소염 관련 지표는 전체 항공 엔진 성능·안전 인증 또는 모든 SAF 경로의 적합성을 대체하지 않는다.",
+      "source_access_note": "PMC 공개 출판 원문의 서지·저자·초록·선정 관련 본문·교신 표시 직접 열람. 개인별 실험 분담을 확인한 것으로 표시하지 않음.",
+      "author_coverage": "full_list_from_original_paper_root_spotcheck",
+      "url": "https://doi.org/10.1021/acs.energyfuels.5c01350",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "마지막 저자·교신저자. 개인별 실험 수행 분담은 미확인. Heyne도 공동저자이지만 이 기록 때문에 별도의 새 인물을 생성하지 않음.",
+      "metadata_sources": [
+        {
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12147154/",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://pubs.acs.org/doi/abs/10.1021/acs.energyfuels.5c01350",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "GS-PAPER-ROBERT-L-MCCORMICK-2025-2",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-D-IAN-WILSON-2020-1",
+      "kind": "paper",
+      "title": "Incorporating Deposit Ageing into Visualisation of Crude Oil Preheat Train Fouling",
+      "summary": "침전층 노화에 따른 예열계의 열부하·압력손실 변화를 함께 살피는 사례를 연결한다.",
+      "date": "2020-02-07",
+      "authors": [
+        {
+          "name": "E.M. Ishiyama",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "S.J. Pugh",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "D.I. Wilson",
+          "person_id": "PUB-WILSON-DI",
+          "role": "last",
+          "corresponding": true,
+          "corresponding_status": "confirmed_by_original_paper"
+        }
+      ],
+      "tags": [
+        "EXP02-FOULING"
+      ],
+      "field": "crude_oil_fouling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1007/s41660-019-00104-8",
+      "boundary_note": "단순 예열망 모델 사례다. GS 설비 성능이나 개별 연구자의 현장 실행 능력을 검증한 자료가 아니다. 아스팔텐 침전 기전 실험의 직접 증거로 분류하지 않는다. 출판사 정정 공지(10.1007/s41660-020-00127-6)가 연결되어 있으나 정정 내용은 미확인이다. 정정 공지의 존재·일자·원논문 연결은 확인. 공지 본문은 구독 미리보기에 없어 수정 내용은 미확인.",
+      "source_access_note": "출판사 공개 HTML에서 제목·저자·초록·날짜·DOI 및 교신저자 확인. 본문은 관련 구간만 읽었고 계산·실험 재현은 하지 않았다.",
+      "author_coverage": "full_list_from_publisher_metadata",
+      "url": "https://doi.org/10.1007/s41660-019-00104-8",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "논문 전체의 공동 연구 주제를 요약한다. Wilson의 개별 실험·코드 작성 분담은 확인하지 않았다.",
+      "metadata_sources": [
+        {
+          "url": "https://link.springer.com/article/10.1007/s41660-019-00104-8",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://link.springer.com/article/10.1007/s41660-020-00127-6",
+          "title": "정정 공지 · 수정 내용 미확인",
+          "type": "correction",
+          "basis": "정정 공지의 존재·일자·원논문 연결은 확인. 공지 본문은 구독 미리보기에 없어 수정 내용은 미확인."
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "EXP02-PAPER-D-IAN-WILSON-2020-1",
+      "date_precision": "day",
+      "date_semantics": "publisher first publication",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-SANDRO-MACCHIETTO-2011-1",
+      "kind": "paper",
+      "title": "Refinery Pre-Heat Train Network Simulation Undergoing Fouling: Assessment of Energy Efficiency and Carbon Emissions",
+      "summary": "원유 예열망의 오염 성장을 동적 모델로 연결하고 망 전체 에너지·처리량 영향의 해석 사례를 제공한다.",
+      "date": "2011-02-05",
+      "authors": [
+        {
+          "name": "F. Coletti",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "S. Macchietto",
+          "person_id": "PUB-MACCHIETTO",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-FOULING"
+      ],
+      "field": "crude_oil_fouling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1080/01457632.2010.495606",
+      "boundary_note": "모델·시뮬레이션 연구의 주제 연결이다. GS 운영 자료·성능 검증이나 아스팔텐 기전의 직접 실험으로 확장하지 않는다.",
+      "source_access_note": "출판사 공식 검색 본문에서 제목·저자·초록·DOI·온라인 출판일 확인. 직접 open 실패; 구독 원문 전체는 읽지 않았다.",
+      "author_coverage": "full_list_from_publisher_metadata",
+      "url": "https://doi.org/10.1080/01457632.2010.495606",
+      "evidence_kind": "simulation",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "simulation"
+      ],
+      "contribution_note": "공동 저자이며 개인별 모델 작성·현장 수행 분담은 확인하지 않았다.",
+      "metadata_sources": [
+        {
+          "url": "https://www.tandfonline.com/doi/abs/10.1080/01457632.2010.495606",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "EXP02-PAPER-SANDRO-MACCHIETTO-2011-1",
+      "date_precision": "day",
+      "date_semantics": "publisher online publication",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-SANDRO-MACCHIETTO-2016-2",
+      "kind": "paper",
+      "title": "A new dynamic model of crude oil fouling deposits and its application to the simulation of fouling-cleaning cycles",
+      "summary": "층 두께·조성·노화가 달라지는 원유 침적 모델과 오염 뒤 세정·재침적 주기를 다룬다.",
+      "date": "2016",
+      "authors": [
+        {
+          "name": "Emilio Diaz-Bejarano",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Francesco Coletti",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Sandro Macchietto",
+          "person_id": "PUB-MACCHIETTO",
+          "role": "last",
+          "corresponding": true,
+          "corresponding_status": "confirmed_by_original_paper"
+        }
+      ],
+      "tags": [
+        "EXP02-FOULING"
+      ],
+      "field": "crude_oil_fouling",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1002/aic.15036",
+      "boundary_note": "선정 근거는 단일 관 모델의 시뮬레이션 사례다. 모든 원유·장치의 운전 결과나 실험 수행 이력을 보증하지 않는다.",
+      "source_access_note": "출판사 공개 HTML의 메타데이터와 초록 확인. 저널 연도 2016과 최초 온라인 공개일 2015-09-09를 분리했다. 원문 전체 미검토.",
+      "author_coverage": "full_list_from_publisher_metadata",
+      "url": "https://doi.org/10.1002/aic.15036",
+      "evidence_kind": "simulation",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "simulation"
+      ],
+      "contribution_note": "공동 연구의 교신저자 표기를 기록한다. 개별 실험 담당이나 저자별 기여율을 뜻하지 않는다.",
+      "metadata_sources": [
+        {
+          "url": "https://aiche.onlinelibrary.wiley.com/doi/abs/10.1002/aic.15036",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "source_record_id": "EXP02-PAPER-SANDRO-MACCHIETTO-2016-2",
+      "date_precision": "year",
+      "date_semantics": "journal volume publication year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-RAWLINGS-1992-1",
+      "kind": "paper",
+      "title": "Model-Predictive Control of Chemical Processes",
+      "summary": "이동하는 유한 예측 구간에서 목적함수를 최적화하는 화학공정 MPC를 다루며 입력 제약·불안정 선형계·복수 정상상태 비선형계의 제어 문제를 검토한다.",
+      "date": "1992",
+      "authors": [
+        {
+          "name": "John W. Eaton",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "James B. Rawlings",
+          "person_id": "PUB-RAWLINGS",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-CONTROL"
+      ],
+      "field": "process_control",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1016/0009-2509(92)80263-C",
+      "boundary_note": "제어 방법과 논문 예제의 근거다. 특정 GS 공정의 폐루프 성능·배포·운전 안전 검증이 아니다.",
+      "source_access_note": "저자/제목/1992년은 UCSB 공식 연구실 논문목록에서 직접 확인. DOI·연구개요는 Elsevier 공식 검색 본문 확인. 출판사 직접 열기는403, 전문 직접열람 미완료.",
+      "author_coverage": "full_list_from_official_paper_or_author_institution_metadata",
+      "url": "https://doi.org/10.1016/0009-2509(92)80263-C",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 목록·순서 확인. 개인별 직접 실험 수행은 미확인.",
+      "metadata_sources": [
+        {
+          "url": "https://www.sciencedirect.com/science/article/abs/pii/000925099280263C",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://sites.engineering.ucsb.edu/~jbraw/publications.html",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-MORARI-1996-1",
+      "kind": "paper",
+      "title": "Robust constrained model predictive control using linear matrix inequalities",
+      "summary": "모델 불확실성과 입력·출력 제약을 포함하는 강인 MPC를 선형행렬부등식 최적화 문제로 다룬다.",
+      "date": "1996",
+      "authors": [
+        {
+          "name": "M. V. Kothare",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "V. Balakrishnan",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "M. Morari",
+          "person_id": "PUB-MORARI",
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-CONTROL"
+      ],
+      "field": "process_control",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1016/0005-1098(96)00063-5",
+      "boundary_note": "논문의 조건부 안정성 결과와 예제가 임의의 화학 설비에 대한 성능·운전 허가를 보장하지 않는다.",
+      "source_access_note": "ETH 공식2023수상 원문에서 논문제목·3저자·1996서지 확인. Elsevier 공식 검색 본문에서 DOI·초록 확인. 출판사 직접열기오류; 전문 미확인.",
+      "author_coverage": "full_list_from_official_paper_or_author_institution_metadata",
+      "url": "https://doi.org/10.1016/0005-1098(96)00063-5",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 목록·순서 확인. 개인별 직접 실험 수행은 미확인.",
+      "metadata_sources": [
+        {
+          "url": "https://www.sciencedirect.com/science/article/pii/0005109896000635",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://control.ee.ethz.ch/news-and-events/ifa-news/2023/07/manfred-morari-received-the-ifac-high-impact-paper-award.html",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-MORARI-1999-2",
+      "kind": "paper",
+      "title": "Model predictive control: past, present and future",
+      "summary": "화학공학의 다변수·제약 제어에서 MPC의 발전과 모델 불확실성·비선형 계산·공정 진단 과제를 정리한다.",
+      "date": "1999",
+      "authors": [
+        {
+          "name": "Manfred Morari",
+          "person_id": "PUB-MORARI",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Jay H. Lee",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-CONTROL"
+      ],
+      "field": "process_control",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1016/S0098-1354(98)00301-9",
+      "boundary_note": "리뷰 성격의 문헌이며 모든 산업 적용을 두 저자의 직접 구현 경력으로 만들지 않는다.",
+      "source_access_note": "Elsevier 공식 검색 본문에서 제목·2저자·1999년·DOI·초록 확인. 직접열기403; 전문 직접열람 미완료.",
+      "author_coverage": "full_list_from_official_paper_or_author_institution_metadata",
+      "url": "https://doi.org/10.1016/S0098-1354(98)00301-9",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "공동저자 목록·순서 확인. 개인별 직접 실험 수행은 미확인.",
+      "metadata_sources": [
+        {
+          "url": "https://www.sciencedirect.com/science/article/abs/pii/S0098135498003019",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "review",
+      "date_precision": "year",
+      "direct_topic_evidence": true
+    },
+    {
+      "id": "EXP02-PAPER-KHATIB-1986-1",
+      "kind": "paper",
+      "title": "Real-Time Obstacle Avoidance for Manipulators and Mobile Robots",
+      "summary": "인공 포텐셜 필드를 이용한 로봇 팔·이동 로봇의 실시간 장애물 회피를 다루고 PUMA560에 적용한 시연을 제시한다.",
+      "date": "1986",
+      "authors": [
+        {
+          "name": "Oussama Khatib",
+          "person_id": "PUB-KHATIB",
+          "role": "sole",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "EXP02-ROBOTICS"
+      ],
+      "field": "robotics",
+      "scope": "public_research_case",
+      "checked_at": "2026-09-19",
+      "doi": "10.1177/027836498600500106",
+      "boundary_note": "해당 로봇·시험 조건의 알고리즘 연구다. 오늘날 산업 로봇/위험시설 점검의 안전 인증이나 GS 현장 배포 근거는 아니다.",
+      "source_access_note": "Stanford연구실 원논문 PDF의저자/제목/본문과SAGE공식검색본문의1986년·DOI·PUMA560적용을대조. SAGE직접열기는시간초과.",
+      "author_coverage": "full_list_from_official_paper_or_author_institution_metadata",
+      "url": "https://doi.org/10.1177/027836498600500106",
+      "evidence_kind": "unknown",
+      "text_kind": "editorial_summary",
+      "classification_basis": [
+        "제목 키워드 규칙만 적용; 편집 요약은 논문 유형 분류에 사용하지 않음",
+        "유형 단서 없음: unknown"
+      ],
+      "contribution_note": "단독 저자. 알고리즘·논문 작성자로 확인하며 모든 장치 작업을 개인이 직접 수행했다고 확대하지 않음.",
+      "metadata_sources": [
+        {
+          "url": "https://journals.sagepub.com/doi/10.1177/027836498600500106",
+          "title": "추가 확인 출처"
+        },
+        {
+          "url": "https://khatib.stanford.edu/publications/pdfs/Khatib_1986_IJRR.pdf",
+          "title": "추가 확인 출처"
+        }
+      ],
+      "publication_type": "research_article",
+      "date_precision": "year",
+      "direct_topic_evidence": true
     }
   ],
   "experience_records": [

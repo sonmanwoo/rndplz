@@ -681,5 +681,123 @@
       "artificial intelligence",
       "chemical engineering"
     ]
+  },
+  {
+    "id": "EXP02-IMMERSION",
+    "name": "액침냉각유·직접 액침",
+    "field": "immersion_cooling",
+    "keywords": [
+      "액침냉각유",
+      "액침 냉각",
+      "직접 액침",
+      "immersion cooling",
+      "dielectric coolant",
+      "dielectric fluid",
+      "direct immersion",
+      "FC-72",
+      "액침냉각",
+      "단상 절연액 냉각",
+      "단상절연액냉각",
+      "single-phase dielectric fluid",
+      "dielectric fluorocarbon liquid",
+      "immersion-cooled"
+    ],
+    "scope": "public_research_case",
+    "classification_basis": [
+      "선정 논문의 직접 액침·절연액/냉각유 설계·풀비등 근거"
+    ],
+    "boundary_note": "직접 액침·2상 냉각유 근거와 보완 단상 절연액 수치연구를 구분. Joshi2025는 전체 장치 직접 액침 실증 미확인. 상용 수명·GS제품 적합성은 미검증.",
+    "color": "#6e9788"
+  },
+  {
+    "id": "EXP02-SAF",
+    "name": "SAF·지속가능항공유",
+    "field": "sustainable_aviation_fuel",
+    "scope": "public_research_case",
+    "keywords": [
+      "SAF",
+      "지속가능항공유",
+      "지속가능 항공유",
+      "지속가능 항공 연료",
+      "항공유",
+      "sustainable aviation fuel",
+      "aviation turbine fuels"
+    ],
+    "classification_basis": [
+      "항공유 제조·사전 평가·점화 품질의 직접 원논문"
+    ],
+    "boundary_note": "일반 바이오연료 또는 효소 연구만으로 SAF 전문성을 부여하지 않는다. 인증·운항 허가·상용 성과와 분리.",
+    "color": "#b69358"
+  },
+  {
+    "id": "EXP02-FOULING",
+    "name": "원유 fouling·예열망 침적",
+    "field": "crude_oil_fouling",
+    "scope": "public_research_case",
+    "keywords": [
+      "원유 fouling",
+      "원유 파울링",
+      "원유파울링",
+      "원유 오염",
+      "원유 침적",
+      "crude oil fouling",
+      "crude oil preheat train",
+      "refinery pre-heat train",
+      "fouling deposits",
+      "fouling-cleaning cycles"
+    ],
+    "classification_basis": [
+      "원유 예열망 침전층 노화·열수력 영향·오염/세정 주기를 다룬 직접 원논문"
+    ],
+    "boundary_note": "일반 열전달 또는 촉매 경력을 원유 fouling 실적으로 대신하지 않는다. 모델 결과와 현장 수행을 구분.",
+    "color": "#9a7869"
+  },
+  {
+    "id": "EXP02-CONTROL",
+    "name": "화학공정 제어·MPC",
+    "field": "process_control",
+    "scope": "public_research_case",
+    "keywords": [
+      "공정 제어",
+      "공정제어",
+      "MPC",
+      "model predictive control",
+      "chemical process control",
+      "폐루프 제어",
+      "예측 제어",
+      "model-predictive control",
+      "control of chemical processes"
+    ],
+    "classification_basis": [
+      "화학공정의 모델 예측 제어 원논문 및 제약/불확실성 제어 연구"
+    ],
+    "boundary_note": "일반 공정 최적화/MINLP/AI 전망만으로 제어 실적을 부여하지 않음.",
+    "color": "#738ea1"
+  },
+  {
+    "id": "EXP02-ROBOTICS",
+    "name": "로보틱스·조작 자동화",
+    "field": "robotics",
+    "scope": "public_research_case",
+    "keywords": [
+      "로보틱스",
+      "로봇 조작",
+      "robot manipulation",
+      "robotics",
+      "로봇 팔",
+      "산업 로봇",
+      "로봇조작",
+      "로봇팔",
+      "장애물 회피",
+      "장애물회피",
+      "obstacle avoidance",
+      "mobile robots",
+      "manipulators"
+    ],
+    "classification_basis": [
+      "로봇 팔·이동 로봇의 실시간 장애물 회피 원논문"
+    ],
+    "boundary_note": "일반 AI·영상인식만으로 산업/검사 로봇 운용 실적으로 확대하지 않음. 이번 활성 자료는 장애물 회피 근거이며 그리퍼 물체 집기 연구는 포함하지 않는다.",
+    "color": "#8882a7"
   }
 ]
