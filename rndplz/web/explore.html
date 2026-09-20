@@ -35,39 +35,26 @@
 <section id="results" class="results" aria-live="polite"></section>
 </section>
 <section id="mapView" hidden aria-labelledby="people-map-title">
-<div class="map-header"><a class="collection-jump" href="#peopleCards">인물 카드 보기 ↓</a><button class="outline" data-action="export">Obsidian으로 내보내기 ↗</button></div><div id="peopleMapHost" aria-label="사람과 근거로 탐색하는 연구맵"><div id="people-map-load" class="people-map-load" role="status"><p>등록된 인물과 근거 자료를 불러오고 있습니다.</p><button type="button" hidden>자료 다시 불러오기</button></div><div id="people-map-content" hidden>
- <section class="hero" aria-labelledby="people-map-title">
-  <div><div class="eyebrow">PEOPLE &amp; EXPERIENCE</div><h1 id="people-map-title">누구에게 무엇을<br><em>물어볼까요?</em></h1>
-  <p>이름을 찾고, 연결된 기록을 읽고.<br class="mobile-break"> 대화를 시작할 작은 질문을 준비하세요.</p></div>
-  <div class="hero-note"><span class="note-line"></span><p>한 사람의 이름 뒤에<br><strong>질문으로 이어지는 기록.</strong></p><span class="micro">이름에서 찾기 → 기록으로 이해하기</span></div>
- </section>
- <section class="finder" aria-label="사람 찾기 조건">
-  <div class="finder-top"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="sr-only">이름 검색</span><input id="name-search" type="search" placeholder="이름 또는 별칭으로 찾기" autocomplete="off" maxlength="80"></label><button type="button" id="clear-filters" class="text-button">조건 모두 해제 ↺</button></div>
-  <div class="topic-row"><span class="filter-label">자료 주제</span><div class="chips" id="topic-controls" role="group" aria-label="자료 주제">
-
-  </div></div>
- </section>
- <div class="scope-bar"><div class="scope-toggle view-toggle" role="group" aria-label="인물 탐색 범위"><button type="button" data-scope="featured" aria-pressed="true">대표 모음</button><button type="button" data-scope="all" aria-pressed="false">전체 인물 풀</button></div><p id="scope-note" class="micro"></p></div>
- <div class="results-bar"><p id="results-summary" role="status" aria-live="polite">공개 자료를 준비하고 있습니다.</p><span>공개 논문·제공 경력·가상 현장 기록을 연결합니다.</span></div>
- <section class="workspace" aria-label="사람과 경험 탐색">
-  <aside class="roster panel" aria-label="같은 조건의 이름 목록">
-   <div class="panel-heading"><h2>이름 목록</h2><span class="micro" id="list-order">공개 모음 순서</span></div>
-   <div class="mobile-view view-toggle" role="group" aria-label="이름 목록 보기 방식"><button type="button" data-view="experience" aria-pressed="true">근거 주제별</button><button type="button" data-view="organization" aria-pressed="false">자료상 소속별</button></div><div id="people-list" tabindex="-1"></div>
-   <div class="roster-foot"><span class="tiny-dot"></span> 연결 기록이 없는 등록 인물도 전체 목록에 남습니다.</div>
-  </aside>
-  <section class="map-panel panel" aria-labelledby="map-title">
-   <div class="map-toolbar"><div><span class="eyebrow small">01 · OVERVIEW</span><h2 id="map-title">기록으로 만나는 사람</h2></div>
-    <div class="view-toggle" role="group" aria-label="지도 묶는 방식"><button type="button" data-view="experience" aria-pressed="true">근거 주제별</button><button type="button" data-view="organization" aria-pressed="false">자료상 소속별</button></div>
-   </div>
-   <p id="map-explanation" class="map-explanation"></p>
-   <div id="people-map"></div>
-   <div class="map-legend"><span><i class="legend-line"></i> 선 옆 문구가 관계의 뜻입니다.</span><span>소속·주제 연결은 협업 관계가 아닙니다.</span></div>
+<div class="map-header"><button class="outline" data-action="export">Obsidian으로 내보내기 ↗</button></div>
+<div id="peopleMapHost" aria-label="역량별 인물과 연결 근거">
+ <div id="people-map-load" class="people-map-load" role="status"><p>등록된 인물과 근거 자료를 불러오고 있습니다.</p><button type="button" hidden>자료 다시 불러오기</button></div>
+ <div id="people-map-content" class="mp-map" hidden>
+  <header class="mp-intro"><div><p class="mp-eyebrow">CAPABILITIES &amp; PEOPLE</p><h1 id="people-map-title" class="mp-title">어떤 경험과 연결될까요?</h1></div><p class="mp-intro-note">찾고 있는 역량을 골라<br>사람과 연결된 근거를 살펴보세요.</p></header>
+  <section class="mp-filters" aria-label="인물 찾기 조건">
+   <label>이름 검색<input id="name-search" type="search" placeholder="이름 또는 별칭" autocomplete="off" maxlength="80"></label>
+   <label>자료 주제<select id="topic-controls" aria-label="자료 주제"></select></label>
+   <label>보기 방식<select id="view-control"><option value="experience">역량과 기록으로</option><option value="organization">자료상 소속으로</option></select></label>
+   <button type="button" id="clear-filters">조건 모두 해제</button>
   </section>
-  <aside class="detail panel" id="person-detail" aria-label="선택한 사람의 상세"></aside>
- </section>
-<p class="adoption-note">전체 인물에는 논문 저자와 제공 경력의 인물이 포함됩니다. 사내 실명부나 현재 가용 인원 수가 아닙니다. 자료에 기재된 역할·소속과 현재 역량을 구분해 확인하세요. 질문 초안은 이 페이지에서만 편집되며 저장·발송되지 않습니다.</p></div></div>
-<details class="map-statistics"><summary>등록 자료와 시연 요청 현황</summary><div id="mapStats" class="stats-row"></div></details><section id="peopleCards" class="researcher-collection" aria-labelledby="peopleCardsTitle"><div class="collection-heading"><div><span class="micro">THE RESEARCHERS / SPECIAL COLLECTION</span><h2 id="peopleCardsTitle">별도로 소개하는 인물 카드.</h2><p>현재 필터 결과와 별개인 대표 모음입니다. 사람들의 연구 여정을 한 장의 카드에서 펼쳐보세요.</p></div><span class="collection-count"></span></div><p class="collection-note">공개 연구 사례와 본인 제공 경력 · 사진·AI 일러스트는 카드에 표시</p><div id="researcherCards" class="researcher-grid"></div></section><div class="map-lower">
-<section class="paper demand-panel"><div class="section-label">03 / 요청과 관련 기록</div><h2>다음 연결이 필요한 곳</h2><p class="muted">요청 수는 대화 단위로 중복을 제거합니다. 관련 인원은 주제 사이에 중복될 수 있어요.</p><div id="demandTable"></div></section></div>
+  <p id="results-summary" class="mp-results" role="status" aria-live="polite"></p>
+  <div class="mp-layout">
+   <nav class="mp-navigation" aria-labelledby="capability-heading"><h2 id="capability-heading" class="mp-section-label">찾고 있는 역량</h2><div id="capability-controls" class="mp-capability-list"></div><p class="mp-pool-note">역량을 고르면 관련 자료가 있는 인물로 좁혀집니다.</p></nav>
+   <section class="mp-stage" aria-labelledby="map-title"><header class="mp-stage-header"><p class="mp-section-label">자료로 연결된 사람</p><h2 id="map-title" class="mp-stage-title"></h2><p id="map-explanation" class="mp-stage-description"></p><p id="map-count" class="mp-stage-count"></p></header><div id="people-map"></div><p class="mp-connection-note">연결선은 해당 분류와 관련된 자료가 있음을 나타냅니다.</p></section>
+   <aside id="person-detail" class="mp-evidence" aria-label="선택한 사람의 연결 근거"></aside>
+  </div>
+  <footer class="mp-footer"><p>자료에 나타난 주제를 연결했습니다. 숙련도·직접 수행 범위·현재 협업 가능성을 평가한 결과는 아닙니다.</p><p id="scope-note"></p></footer>
+ </div>
+</div>
 </section>
 </main>
 <footer class="craft-footer"><span><b>H:문</b> — A QUESTION BECOMES A CONNECTION.</span><span class="footer-note">공개 연구 기록에서, 사람의 경험으로.</span><button type="button" class="motion-control" data-motion-toggle aria-label="움직임 줄이기" aria-pressed="false">움직임 켜짐</button></footer><span id="modelStatus" hidden></span>

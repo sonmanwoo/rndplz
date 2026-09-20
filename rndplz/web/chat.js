@@ -33,19 +33,14 @@ function discoveryCompletion(s=session){
 }
 function canPrepareDiscovery(){return discoveryReady()&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
 function syncDiscoveryControls(){
- const button=$("currentScoutButton");if(!button)return;
- button.disabled=!canPrepareDiscovery();button.textContent=prepareBusy?"관련 기록을 찾고 있어요…":"현재 정보로 수소문";
+ const button=$("currentScoutButton"),scout=$("currentScout");if(!button||!scout)return;
+ const available=canPrepareDiscovery();scout.hidden=!available;
+ button.disabled=!available;button.textContent="이 정보로 수소문하기";
  button.setAttribute("aria-busy",String(prepareBusy));
- const progress=$("currentScoutProgress"),waiting=busy||!!session?.pending;
- if(progress){const text=prepareBusy?"등록된 인물과 근거를 조회하고 있어요.":waiting?"답변이 끝나면 수소문 조건을 확인할 수 있어요.":profileBusy?"프로필 작업을 마치면 수소문할 수 있어요.":uploading?"첨부파일 전송이 끝나면 수소문할 수 있어요.":$("composerError").hidden?discoveryCompletion():"";if(progress.textContent!==text)progress.textContent=text;progress.hidden=!text;}
- const label=$("currentScoutConditionLabel");if(label)label.textContent=waiting?"마지막으로 확인한 조건":"현재 찾을 조건";
 }
 function currentScout(){
- const discovery=currentDiscovery();if(!discovery)return "";
- const summary=typeof discovery.summary==="string"?discovery.summary.trim():"";
- const question=discovery.lookup_ready?"":typeof discovery.lookup_reason==="string"&&discovery.lookup_reason.trim()?discovery.lookup_reason.trim():"어떤 분야에서 어떤 문제를 해결할 사람을 찾고 계신가요?";
- const description="currentScoutSummary currentScoutActionDescription"+(question?" currentScoutQuestion":"");
- return '<section class="continue-actions inline-scout" aria-labelledby="currentScoutTitle"><p class="inline-scout-source" id="currentScoutTitle">수소문 안내</p><p class="inline-scout-summary" id="currentScoutSummary"><strong id="currentScoutConditionLabel">현재 찾을 조건</strong> '+esc(summary||"아직 정리된 조건이 없습니다.")+'</p>'+(question?'<p class="inline-scout-question" id="currentScoutQuestion">'+esc(question)+'</p>':"")+'<p class="subtle small" id="currentScoutActionDescription">현재 조건으로 등록된 인물과 근거를 조회해요. 연락이나 협업 제안을 보내지 않아요.</p><button type="button" class="primary" id="currentScoutButton" data-action="prepare" aria-describedby="'+description+'" title="현재 조건으로 등록된 인물과 근거를 조회합니다."'+(!canPrepareDiscovery()?' disabled':"")+'>현재 정보로 수소문</button><p class="inline-scout-progress" id="currentScoutProgress" role="status" aria-live="polite" hidden></p></section>';
+ const available=canPrepareDiscovery();
+ return '<div class="continue-actions" id="currentScout"'+(available?'':' hidden')+'><button type="button" class="primary" id="currentScoutButton" data-action="prepare" title="등록된 인물과 근거를 조회합니다."'+(available?'':' disabled')+'>이 정보로 수소문하기</button></div>';
 }
 async function prepareDiscovery(button,keyboard=false){
  if(!canPrepareDiscovery())return;
@@ -68,7 +63,7 @@ async function prepareDiscovery(button,keyboard=false){
   if(ticket===prepareTicket){
    prepareBusy=false;controls();
    if(adopted){render();if(!$("proposalZone").hidden)$("proposalZone").scrollIntoView({block:"start",behavior:RndCraft.quiet()?"instant":"smooth"});}
-   else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent="현재 정보로 수소문";}else render();}
+   else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent="이 정보로 수소문하기";}else render();}
    if(returnFocus&&(adopted||current())&&!focusMoved&&document.hasFocus()&&(document.activeElement===document.body||document.activeElement===button)){
     const target=adopted||invalidated||!button.isConnected?$("message"):button;
     if(!target.disabled)target.focus({preventScroll:true});
@@ -77,15 +72,11 @@ async function prepareDiscovery(button,keyboard=false){
  }
 }
 function render(){
- const scoutProgress=$("currentScoutProgress");
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(m.model||"수소문")+'</span></div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
  if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(option()?.name||"수소문")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
  $("thread").innerHTML+=currentScout();
- // Retain live-region text across render() instead of writing the same
- // completion again. Native announcement on DOM reinsertion still needs QA.
- const progressPlaceholder=$("currentScoutProgress");if(scoutProgress&&progressPlaceholder&&scoutProgress!==progressPlaceholder)progressPlaceholder.replaceWith(scoutProgress);
  renderCandidates();controls();scrollBottom();
 }
 

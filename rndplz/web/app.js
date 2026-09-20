@@ -163,14 +163,9 @@ function renderRecipient(opened=false){
 async function showTab(tab){
  view=tab;$("chatView").hidden=tab!=="chat";$("mapView").hidden=tab!=="map";
  for(const x of ["chat","map"]){$(x+"Tab").classList.toggle("active",x===tab);if(x===tab)$(x+"Tab").setAttribute("aria-current","page");else $(x+"Tab").removeAttribute("aria-current");}
- if(tab==="map"){admin=await api("/api/admin");await renderMap();}
+ if(tab==="map")await renderMap();
 }
 async function renderMap(){
- $("mapStats").innerHTML=[[admin.nodes.filter(n=>!n.virtual).length,"등록 인물"],[admin.nodes.filter(n=>n.virtual).length,"가상 현장 인물"],[admin.requests,"누적 질문"],[admin.proposals,"시연 제안"]].map(([n,label])=>'<div class="stat"><b>'+nfmt(n)+'</b><span>'+label+'</span></div>').join("");
- $("demandTable").innerHTML='<div class="demand-row header"><span>주제</span><span>질문</span><span>관련 인원</span></div>'+admin.topics.map(t=>'<div class="demand-row"><span>'+esc(t.name)+'</span><span>'+t.demand+'</span><span>'+t.people+'</span></div>').join("")+'<p class="scope-note">개인 수행 확인 0명. 관련 기록이 적으면 추가 자료·본인 확인이 필요합니다.</p>';
- document.querySelector(".collection-count").textContent=String((admin.featured||[]).length).padStart(2,"0");
- document.querySelector(".collection-jump").textContent="별도 인물 카드 "+(admin.featured||[]).length+"장 ↓";
- $("researcherCards").innerHTML=(admin.featured||[]).map((p,i)=>RndCraft.researcherCard(p,i,admin.featured.length)).join("");
  await RndPeopleMap.ensure($("peopleMapHost"),api);
 }
 function renderSettings(){
@@ -238,7 +233,7 @@ document.addEventListener("change",e=>{
  if(e.target.id==="modelConsent")sessionStorage.setItem("rndplz-model-consent",e.target.checked?"yes":"no");
 });
 (async()=>{
- try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("peopleCards").scrollIntoView({block:"start"});}
+ try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("people-map")?.scrollIntoView({block:"start"});}
  catch(e){toast(e.message+" 새로고침해 주세요.",true);$("askButton").disabled=true;}
 })();
 

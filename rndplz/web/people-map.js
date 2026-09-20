@@ -7,53 +7,18 @@
  const selectedPerson=s=>C.visiblePeople(s).find(p=>p.id===s.selectedId)||null;
  const title=p=>p.name||"이름 미기재";
  const topicName=id=>(C.topics.find(t=>t.id===id)||{}).name||id;
- const virtual=p=>p.virtual?'<span class="virtual-tag">기존 가상 사례</span>':"";
- const PAGE_SIZE=25;
- const org=p=>p.organization||"소속 미기재";
- const orgGroup=p=>p.organizationGroupName||"기관명 미기재";
  const historical=p=>{const profile=p.sourceProfile||{};return profile.display_type==="historical_researcher"||profile.current_status?.category==="deceased"||profile.affiliation_status==="deceased";};
  const historicalNotice="역사적 연구 자료 · 실제 자문 가능 대상 아님";
- const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.png$/i.test(p.portrait.path||"")?p.portrait.path:null;
- const awards=p=>(p.awards||[]).filter(a=>a.label).map(a=>'<span class="award-mark">'+esc(a.label)+(a.year&&!String(a.label).includes(String(a.year))?' · '+esc(a.year):'')+'</span>').join("");
- const avatar=p=>portraitPath(p)?'<span class="avatar portrait-mini"><img src="'+esc(portraitPath(p))+'" alt="" loading="lazy" decoding="async" width="600" height="800"></span>':'<span class="avatar neutral" aria-hidden="true">'+esc(title(p).slice(0,1))+'</span>';
+ const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.(png|jpg|jpeg)$/i.test(p.portrait.path||"")?p.portrait.path:null;
  const recordType=r=>r.typeLabel||r.type||"기록";
  const recordRole=r=>r.role||"역할 미기재";
  const recordDate=r=>r.recordDate||"자료 날짜 미기재";
  const checked=(s,p)=>C.selectedEvidence(s,p);
- function renderTopics(s){
-   return '<button type="button" data-topic="" aria-pressed="'+(!s.topic)+'">전체 주제</button>'+C.topics.map(t=>'<button type="button" data-topic="'+esc(t.id)+'" aria-pressed="'+(s.topic===t.id)+'">'+esc(t.name)+'</button>').join("");
- }
- function renderRoster(s){
-  const people=C.visiblePeople(s);
-  if(!people.length)return '<div class="list-empty">현재 조건에 맞는 인물이 없습니다.<br><button type="button" class="text-button" data-map-action="clear-all">조건 모두 해제 →</button></div>';
-  const page=Math.min(s.page||0,Math.max(0,Math.ceil(people.length/PAGE_SIZE)-1)),shown=people.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
-  return '<p class="list-range">'+(page*PAGE_SIZE+1)+'–'+Math.min((page+1)*PAGE_SIZE,people.length)+'번째 / 조건 결과 '+people.length+'명</p>'+shown.map(p=>'<button type="button" class="person-row" data-person="'+esc(p.id)+'" id="row-'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'">'+avatar(p)+'<span class="row-copy"><strong>'+esc(title(p))+'</strong>'+virtual(p)+'<small>'+esc(s.view==="organization"?org(p):((C.visibleEvidence(s,p)[0]||{}).typeLabel||"연결된 기록 없음"))+'</small></span><span class="row-arrow" aria-hidden="true">↗</span></button>').join("")+(people.length>PAGE_SIZE?'<div class="list-pages"><button type="button" data-page="'+(page-1)+'"'+(page===0?' disabled':'')+'>← 이전</button><span>'+(page+1)+' / '+Math.ceil(people.length/PAGE_SIZE)+'</span><button type="button" data-page="'+(page+1)+'"'+((page+1)*PAGE_SIZE>=people.length?' disabled':'')+'>다음 →</button></div>':'');
- }
- function personCard(p,s){
-  const records=C.visibleEvidence(s,p),hasAward=(p.awards||[]).length>0;
-  return '<button type="button" class="map-person real-person'+(hasAward?' with-award':'')+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-label="'+esc(title(p))+' 연결 근거 보기"><span class="real-name"><strong>'+esc(title(p))+'</strong>'+virtual(p)+'<span class="person-team">'+esc(org(p))+'</span></span>'+(portraitPath(p)?'<span class="portrait-frame"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||"공개 인물 일러스트")+'" loading="lazy" decoding="async" width="600" height="800"></span><span class="portrait-caption">'+(p.portrait.generated?'AI 생성 일러스트':esc(p.portrait.label||"공개 이미지"))+'</span>':'<span class="portrait-placeholder">'+avatar(p)+'</span>')+awards(p)+'<span class="experience-title">'+esc(records[0]?records[0].title:"연결된 기록 없음")+'</span><span class="period">이 조건의 연결 근거 '+records.length+'개</span></button>';
- }
- function line(label,id){return '<div class="relation" data-relation-person="'+esc(id)+'"><svg viewBox="0 0 180 57" preserveAspectRatio="none" aria-hidden="true"><path d="M90 0V57"/></svg><span>'+esc(label)+'</span></div>';}
- function groups(s){
-  const map=new Map();
-  for(const p of C.visiblePeople(s)){
-   const keys=s.view==="organization"?[orgGroup(p)]:[...new Set(C.visibleEvidence(s,p).flatMap(r=>r.topics||[]))];
-   if(!keys.length)keys.push("주제 미기재");
-   for(const key of keys){if(!map.has(key))map.set(key,[]);map.get(key).push(p);}
-  }
-  return [...map].sort((a,b)=>a[0].localeCompare(b[0],"ko"));
- }
- function renderMap(s){
-  const people=C.visiblePeople(s);
-  if(!people.length)return '<div class="empty-result"><div class="empty-symbol" aria-hidden="true">∅</div><h3>현재 조건에 맞는 인물이 없습니다.</h3><p>이름과 자료 주제 조건을 바꾸어 찾아보세요.</p><button type="button" class="text-button" data-map-action="'+(s.topic?'clear-topic':'clear-all')+'">'+(s.topic?'주제 조건만 해제':'조건 모두 해제')+' →</button></div>';
-  if(people.length<=6)return '<div class="small-result-label">'+people.length+'명 · 같은 조건의 이름과 근거</div><div class="map-grid actual-small">'+people.map(p=>'<section class="map-group '+((p.awards||[]).length?'gold':'')+'"><div class="group-label"><span>'+esc(s.view==="organization"?orgGroup(p):(s.topic?topicName(s.topic):"연결된 공개 기록"))+'</span></div>'+line(s.view==="organization"?"자료에 기재된 소속":recordRole(C.visibleEvidence(s,p)[0]||{}),p.id)+personCard(p,s)+'</section>').join("")+'</div>';
-  const all=groups(s),showAll=(s.expandedGroups||[]).includes("__all_groups__"),shown=showAll?all:all.slice(0,6);
-  return '<p class="cluster-help">먼저 묶음을 펼쳐보세요. 모든 이름은 왼쪽 목록에서 바로 찾을 수 있습니다.</p><div class="cluster-grid">'+shown.map(([key,members],i)=>{
-   const gid=s.view+":"+key,expanded=(s.expandedGroups||[]).includes(gid),allMembers=(s.expandedGroups||[]).includes(gid+":all"),viewMembers=allMembers?members:members.slice(0,6);
-   return '<section class="cluster '+(["","blue","gold"][i%3])+'"><button type="button" class="cluster-heading" data-group="'+esc(gid)+'" aria-expanded="'+expanded+'"><span><small>'+esc(s.view==="organization"?"자료상 소속":"논문·기록 주제")+'</small><strong>'+esc(s.view==="organization"?key:topicName(key))+'</strong></span><span class="cluster-count">'+members.length+'<small>명</small>'+(members.some(p=>p.virtual)?'<small>가상 '+members.filter(p=>p.virtual).length+'명 포함</small>':'')+'</span></button>'+(expanded?'<div class="cluster-members">'+viewMembers.map(p=>'<button type="button" class="cluster-person" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'">'+avatar(p)+'<span>'+esc(title(p))+virtual(p)+'</span><span aria-hidden="true">↗</span></button>').join("")+(members.length>6?'<button type="button" class="text-button" data-group="'+esc(gid+':all')+'">'+(allMembers?'6명만 보기':'이 묶음 '+members.length+'명 모두 보기')+'</button>':'')+'</div>':'')+'</section>';
-  }).join("")+'</div>'+(all.length>6?'<button type="button" class="text-button group-more" data-group="__all_groups__">'+(showAll?'주제 묶음 접기':'묶음 '+all.length+'개 모두 보기')+'</button>':'')+'<p class="cluster-note">주제가 여러 개인 사람은 여러 묶음에 나타날 수 있습니다. 전체 인원은 같은 ID를 한 번만 셉니다.</p>';
- }
- function additionalRecordSources(raw){
+ const currentCapability=s=>C.capabilities.find(c=>c.id===s.capability)||null;
+ const shortScope=(s,p)=>C.capabilityLink(s,p)?.scope||p.sourceProfile?.tagline||C.visibleEvidence(s,p)[0]?.title||"연결된 근거를 확인해 주세요";
+ const PAGE_SIZE=25;
+
+  function additionalRecordSources(raw){
   const sources=Array.isArray(raw.metadata_sources)?raw.metadata_sources:[];
   const links=sources.map((source)=>{
    const item=source&&typeof source==="object"?source:{},url=safeUrl(typeof source==="string"?source:item.url);
@@ -119,89 +84,91 @@
   return '<details class="profile-info"><summary>프로필에 제공된 내용과 출처</summary>'+rows.map(([key,label])=>'<p><strong>'+label+'</strong></p>'+displayValue(raw[key])).join("")+'</details>';
  }
 
+
+
+ function renderCapabilities(s){
+  return C.capabilities.map((c,index)=>'<button type="button" class="mp-capability" data-capability="'+esc(c.id)+'" aria-pressed="'+(s.capability===c.id)+'" aria-controls="people-map person-detail"><span class="mp-capability-index">'+String(index+1).padStart(2,"0")+'</span><span class="mp-capability-label">'+esc(c.label)+'</span><span class="mp-capability-count">'+C.visiblePeople({...s,capability:c.id}).length+'명</span></button>').join("");
+ }
+ function personCard(p,s){
+  const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=active&&portraitPath(p);
+  return '<button type="button" class="mp-person" data-person="'+esc(p.id)+'" aria-pressed="'+active+'" aria-controls="person-detail"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(shortScope(s,p))+'</span><span class="mp-person-records">근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
+ }
+ function renderMap(s){
+  const people=C.visiblePeople(s),capability=currentCapability(s),page=Math.min(s.page||0,Math.max(0,Math.ceil(people.length/PAGE_SIZE)-1)),shown=people.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
+  if(!people.length)return '<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>';
+  let cards=shown.map(p=>personCard(p,s)).join('');
+  if(s.view==='organization'){
+   const groups=new Map();shown.forEach(p=>{const org=p.organizationGroupName||p.organization||'소속 미기재';if(!groups.has(org))groups.set(org,[]);groups.get(org).push(p);});
+   cards=[...groups].map(([org,group])=>'<section class="mp-org-group"><h3>자료상 '+esc(org)+'</h3>'+group.map(p=>personCard(p,s)).join('')+'</section>').join('');
+  }
+  let html='<div class="mp-graph"><svg class="mp-lines" aria-hidden="true" focusable="false"></svg><div class="mp-capability-node"><span class="mp-node-mark">↗</span><span class="mp-node-eyebrow">'+(capability?'선택한 역량':'등록 자료')+'</span><strong class="mp-node-title">'+esc(capability?.label||"등록된 연구 경험")+'</strong><span class="mp-node-count">'+people.length+'명의 연결 기록</span></div><div class="mp-people">'+cards+'</div></div>';
+  if(people.length>PAGE_SIZE)html+='<div class="mp-pager"><button type="button" data-page="'+(page-1)+'"'+(!page?' disabled':'')+'>이전</button><span>'+(page*PAGE_SIZE+1)+'–'+Math.min(people.length,(page+1)*PAGE_SIZE)+' / '+people.length+'명</span><button type="button" data-page="'+(page+1)+'"'+((page+1)*PAGE_SIZE>=people.length?' disabled':'')+'>다음</button></div>';
+  return html;
+ }
  function renderDetail(s){
   const p=selectedPerson(s);
-  if(!p)return '<div class="detail-empty"><span class="eyebrow small">02 · PERSON & EVIDENCE</span><div class="empty-mark" aria-hidden="true">↗</div><h2>이름과 연결된 기록,<br>함께 읽어보세요.</h2><p>사람을 선택하면 공개된 논문·제공 기록과 그 연결 역할을 볼 수 있습니다.</p><div class="journey"><ul><li><span>01</span>이름·자료 주제로 찾기</li><li><span>02</span>역할과 원 출처 읽기</li><li><span>03</span>선택한 근거로 질문 준비</li></ul></div></div>';
+  if(!p)return '<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 class="mp-evidence-title">인물을 선택해 주세요</h2><p class="mp-empty">연결된 기록과 그 자료의 범위를 살펴볼 수 있어요.</p>';
   const records=C.visibleEvidence(s,p);
-  let html='<div class="detail-topline"><span class="eyebrow small">02 · PERSON & EVIDENCE</span><button type="button" class="close-detail" data-map-action="close">목록으로 ↩</button></div><div class="detail-head" data-detail-person="'+esc(p.id)+'"><div class="detail-name"><h2 id="detail-title" tabindex="-1">'+esc(title(p))+'</h2></div>'+virtual(p)+'<p class="detail-team">'+esc(org(p))+'</p><p class="detail-meta">'+esc(p.organizationNote||"자료에 기재된 소속 · 현재 여부 미확인")+'</p>'+(historical(p)?'<p class="detail-meta">'+historicalNotice+'</p>':'')+awards(p)+(portraitPath(p)?'<div class="detail-full-portrait"><img src="'+esc(portraitPath(p))+'" alt="'+esc(title(p))+' '+esc(p.portrait.label||'공개 일러스트')+'" loading="lazy" decoding="async" width="600" height="800"><p class="detail-meta" data-portrait-fallback role="status" hidden>초상을 불러오지 못했습니다. 아래 이력과 근거를 확인해 주세요.</p></div><p class="detail-meta">'+(p.portrait.generated?'AI 생성 인물 일러스트':esc(p.portrait.label||"기존 공개 이미지"))+'</p>':'')+'</div><div class="detail-profile-link"><button type="button" class="text-button" data-map-open="person" data-id="'+esc(p.id)+'">전체 인물 이력 열기 ↗</button></div>'+renderAssetSources(p)+renderProfile(p);
-  if(!records.length) return html+'<section class="detail-section zero-record"><h3>현재 조건의 연결 기록 없음</h3><p>이 화면의 자료 범위에서 표시할 기록이 없습니다. 경험이나 역량이 없다는 뜻이 아닙니다.</p></section>';
-  html+='<section class="detail-section records-section"><div class="section-label"><span>연결된 근거 '+records.length+'개</span><span>전체 '+p.records.length+'개 중</span></div><p class="evidence-context">논문은 저자 기재, 제공 기록은 그 자료에 명시된 역할로 읽습니다.</p>'+(p.recordCount!==p.records.length?'<p class="evidence-context">원자료 연결 '+p.recordCount+'회 · 고유 근거 '+p.records.length+'개. 같은 인물·기록의 중복 연결은 묶어 표시합니다.</p>':'')+records.map((r,i)=>recordCard(r,s,i)).join("")+'</section>';
-  return html+renderQuestion(s,p);
- }
- function maintainResponsiveViewFocus(doc,host){
-  const win=doc.defaultView;if(!win?.matchMedia)return;
-  const media=win.matchMedia("(max-width:720px)");let mobile=media.matches,focused=null;
-  const selector=".mobile-view button[data-view], .map-toolbar button[data-view]";
-  const viewButton=el=>host.contains(el)&&el?.matches?.(selector)?el:null;
-  const visible=el=>Boolean(el?.isConnected&&!el.closest("[hidden], [inert]")&&el.getClientRects().length&&win.getComputedStyle(el).visibility==="visible");
-  const clear=()=>{focused=null;};
-  doc.addEventListener("focusin",event=>{
-   const button=viewButton(event.target);
-   focused=button&&visible(button)?{button,mobile:media.matches}:null;
-  });
-  doc.addEventListener("focusout",event=>{
-   if(event.target!==focused?.button)return;
-   // Keep only a blur caused by this pending responsive boundary, never an old focus location.
-   if(event.relatedTarget||media.matches===focused.mobile||!focused.button.isConnected||visible(focused.button))clear();
-  });
-  doc.addEventListener("pointerdown",event=>{if(viewButton(event.target.closest?.("button"))!==focused?.button)clear();});
-  doc.addEventListener("keydown",event=>{if(event.key==="Tab")clear();});
-  doc.addEventListener("visibilitychange",()=>{if(doc.hidden)clear();});
-  win.addEventListener("blur",event=>{if(event.target===win)clear();});
-  media.addEventListener("change",event=>{
-   if(event.matches!==media.matches)return;
-   const next=media.matches;if(next===mobile){clear();return;}
-   mobile=next;const previous=focused;clear();
-   if(!previous||previous.mobile===next||doc.hidden||!doc.hasFocus())return;
-   const from=previous.button,active=doc.activeElement;
-   if(!viewButton(from)||!from.isConnected||from.matches(":disabled")||from.closest("[hidden], [inert]")||visible(from))return;
-   if(active!==from&&active!==doc.body&&active!==doc.documentElement)return;
-   const target=Array.from(host.querySelectorAll(selector)).find(button=>
-    button!==from&&button.dataset.view===from.dataset.view&&Boolean(button.closest(".mobile-view"))===next&&visible(button)&&!button.matches(":disabled"));
-   target?.focus();
-  });
+  let html='<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 id="detail-title" class="mp-evidence-title" tabindex="-1">'+esc(title(p))+'</h2><p class="mp-evidence-scope">'+esc(shortScope(s,p))+'</p><div class="mp-detail-links"><button type="button" data-map-open="person" data-id="'+esc(p.id)+'">인물 상세 보기 ↗</button><button type="button" data-map-action="close">선택 닫기</button></div>';
+  if(historical(p))html+='<p class="mp-record-limit">'+historicalNotice+'</p>';
+  if(!records.length)return html+'<p class="mp-empty">현재 조건에 연결된 기록이 없습니다. 경험이 없다는 뜻은 아닙니다.</p>';
+  html+='<div class="mp-evidence-list">'+records.map((r,i)=>'<details class="mp-record"'+(!i?' open':'')+'><summary class="mp-record-summary"><span class="mp-record-meta">'+esc(recordType(r))+' · '+esc(recordDate(r))+'</span><strong class="mp-record-title">'+esc(r.title||"제목 미기재")+'</strong><span class="mp-record-toggle">근거 읽기</span></summary><div class="mp-record-body">'+recordCard(r,s,i)+'</div></details>').join("")+'</div>';
+  return html+renderQuestion(s,p)+renderAssetSources(p)+renderProfile(p);
  }
  function mount(doc,host){
-  let state=C.initialState();const first=C.visiblePeople(state)[0];if(first)state=C.reduce(state,{type:"SELECT",id:first.id});const $=id=>Array.from(host.querySelectorAll("[id]")).find(el=>el.id===id)||null;
-  function render(){
-   const visible=C.visiblePeople(state);
-   $("people-list").innerHTML=renderRoster(state);$("people-map").innerHTML=renderMap(state);$("person-detail").innerHTML=renderDetail(state);
-   $("results-summary").innerHTML='<strong>'+visible.length+'</strong>명 · '+(state.scope==="all"?'전체 풀':'대표 모음')+' 조건 결과'+(state.topic?' · '+esc(topicName(state.topic)):'')+(state.query?' · 이름 “'+esc(state.query)+'”':'');
-   $("map-title").textContent=state.view==="organization"?"자료에 나온 소속으로":"기록 주제로 이어지는 사람";
-   $("map-explanation").textContent=state.view==="organization"?"원 자료에 기재된 소속으로 묶습니다. 현재 소속 확인이나 협업 관계를 뜻하지 않습니다.":"논문·제공 기록의 주제로 묶습니다. 주제 연결은 업무 수행이나 실력 순위가 아닙니다.";
-   $("list-order").textContent=state.scope==="all"?"원자료 순서":"공개 모음 순서";
-   host.querySelectorAll("[data-scope]").forEach(e=>e.setAttribute("aria-pressed",String(e.dataset.scope===state.scope)));
-   host.querySelectorAll("[data-topic]").forEach(e=>e.setAttribute("aria-pressed",String(e.dataset.topic===state.topic)));
-   host.querySelectorAll("[data-view]").forEach(e=>e.setAttribute("aria-pressed",String(e.dataset.view===state.view)));
-   if($("name-search").value!==state.query)$("name-search").value=state.query;
+  const win=doc.defaultView,$=id=>host.querySelector('#'+id);
+  let state=C.initialState(),frame=0;
+  const first=C.visiblePeople(state)[0];if(first)state=C.reduce(state,{type:"SELECT",id:first.id});
+  function drawLines(){
+   const graph=host.querySelector('.mp-graph'),node=graph?.querySelector('.mp-capability-node'),svg=graph?.querySelector('.mp-lines');
+   if(!graph||!node||!svg)return;
+   const bounds=graph.getBoundingClientRect(),from=node.getBoundingClientRect();if(!bounds.width||!bounds.height)return;
+   svg.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);svg.replaceChildren();
+   graph.querySelectorAll('[data-person]').forEach(button=>{
+    const to=button.getBoundingClientRect(),path=doc.createElementNS('http://www.w3.org/2000/svg','path'),y=to.top+to.height/2-bounds.top,x=to.left-bounds.left;
+    if(from.right<=to.left){const sx=from.right-bounds.left,sy=from.top+from.height/2-bounds.top,mid=sx+(x-sx)/2;path.setAttribute('d',`M ${sx} ${sy} C ${mid} ${sy}, ${mid} ${y}, ${x} ${y}`);}
+    else{const sx=from.left+12-bounds.left,sy=from.bottom-bounds.top;path.setAttribute('d',`M ${sx} ${sy} V ${y} H ${x}`);}
+    path.setAttribute('class',button.dataset.person===state.selectedId?'mp-line-active':'mp-line');svg.append(path);
+   });
   }
-  function dispatch(action){state=C.reduce(state,action);render();}
-  $("topic-controls").innerHTML=renderTopics(state);
-  const counts=C.counts||{};
-  $("scope-note").textContent="전체 "+C.people.length+"명 중 대표 "+(counts.featured_people||0)+"명 · 기존 가상 "+(counts.virtual_people||0)+"명은 전체 풀에 별도 표시";
-  host.addEventListener("error",event=>{
-   const img=event.target;if(!img.matches?.(".detail-full-portrait > img"))return;
-   const frame=img.parentElement;frame.dataset.asset="error";img.hidden=true;
-   frame.querySelector("[data-portrait-fallback]").hidden=false;
-  },true);
-  host.addEventListener("input",e=>{const t=e.target;if(t.id==="name-search"){dispatch({type:"QUERY",value:t.value});return;}const types={problem:"PROBLEM",draft:"DRAFT",aiText:"AI_TEXT"};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
-  host.addEventListener("change",e=>{const t=e.target;if(t.dataset.evidence){const id=t.id;dispatch({type:"EVIDENCE",id:t.dataset.evidence,checked:t.checked});$(id)?.focus();}if(t.id==="include-ai"){const aiOpen=t.closest("details")?.open;dispatch({type:"INCLUDE_AI",value:t.checked});const aiInput=$("include-ai");if(aiOpen&&aiInput)aiInput.closest("details").open=true;aiInput?.focus();}});
-  host.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-   if(b.dataset.person){dispatch({type:"SELECT",id:b.dataset.person});$("detail-title")?.focus({preventScroll:true});if(typeof matchMedia==="function"&&matchMedia("(max-width:1180px)").matches)$("person-detail").scrollIntoView({block:"start",behavior:"auto"});}
-   else if(b.hasAttribute("data-topic")){dispatch({type:"TOPIC",value:b.dataset.topic});}
-   else if(b.dataset.scope){dispatch({type:"SCOPE",value:b.dataset.scope});}
-   else if(b.hasAttribute("data-page")){dispatch({type:"PAGE",value:Number(b.dataset.page)});$("people-list").scrollTop=0;$("people-list").focus();}
-   else if(b.dataset.view){dispatch({type:"VIEW",value:b.dataset.view});}
-   else if(b.dataset.group){const gid=b.dataset.group;dispatch({type:"TOGGLE_GROUP",id:gid});[...host.querySelectorAll("[data-group]")].find(el=>el.dataset.group===gid)?.focus();}
-   else if(b.id==="clear-filters"||b.dataset.mapAction==="clear-all"){dispatch({type:"CLEAR_FILTERS"});$("name-search").focus();}
-   else if(b.dataset.mapAction==="clear-topic"){dispatch({type:"CLEAR_TOPIC"});$("name-search").focus();}
-   else if(b.dataset.mapAction==="close"){const id=state.selectedId;dispatch({type:"CLOSE_DETAIL"});($("row-"+id)||$("people-list")).focus();}
-   else if(b.dataset.mapAction==="ack-draft"){dispatch({type:"ACK_DRAFT_CONTEXT"});$("draft")?.focus();}
-   else if(b.dataset.mapAction==="reset-draft"){dispatch({type:"RESET_DRAFT"});$("draft")?.focus();}
+  function schedule(){if(!frame)frame=win.requestAnimationFrame(()=>{frame=0;drawLines();});}
+  function render(){
+   const people=C.visiblePeople(state),capability=currentCapability(state),ids=new Set(people.flatMap(p=>C.visibleEvidence(state,p).map(r=>r.id)));
+   $('capability-controls').innerHTML=renderCapabilities(state);$('people-map').innerHTML=renderMap(state);$('person-detail').innerHTML=renderDetail(state);
+   $('people-map-content').dataset.mpCount=String(people.length);
+   $('map-title').textContent=capability?.label||'등록된 연구 경험';$('map-explanation').textContent=(capability?.description||'이름과 자료 주제로 찾거나 왼쪽에서 역량을 골라보세요.')+(state.view==='organization'?' 자료에 기재된 소속으로 묶으며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
+   $('map-count').textContent=people.length+'명 · 연결 기록 '+ids.size+'개';
+   $('results-summary').textContent=people.length+'명'+(capability?' · '+capability.label:'')+(state.query?' · 이름 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
+   $('view-control').value=state.view;$('topic-controls').value=state.topic;if($('name-search').value!==state.query)$('name-search').value=state.query;
+   schedule();
+  }
+  function dispatch(action){
+   state=C.reduce(state,action);
+   if(['QUERY','TOPIC','SCOPE','CAPABILITY','CLEAR_FILTERS','PAGE'].includes(action.type)){
+    const visible=C.visiblePeople(state),page=state.page||0;
+    if(!state.selectedId||!visible.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).some(p=>p.id===state.selectedId)){const next=visible[page*PAGE_SIZE];if(next)state=C.reduce(state,{type:'SELECT',id:next.id});}
+   }
+   render();
+  }
+  $('topic-controls').innerHTML='<option value="">전체 주제</option>'+C.topics.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
+  $('scope-note').textContent='전체 등록 '+C.people.length+'명 · '+C.counts.records+'개 기록을 유지합니다.';
+  host.addEventListener('error',event=>{if(event.target.matches?.('.mp-portrait img'))event.target.remove();},true);
+  host.addEventListener('input',event=>{const t=event.target;if(t.id==='name-search'){dispatch({type:'QUERY',value:t.value});return;}const types={problem:'PROBLEM',draft:'DRAFT',aiText:'AI_TEXT'};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
+  host.addEventListener('change',event=>{const t=event.target;if(t.id==='topic-controls')dispatch({type:'TOPIC',value:t.value});else if(t.id==='view-control')dispatch({type:'VIEW',value:t.value});else if(t.dataset.evidence){const id=t.id;dispatch({type:'EVIDENCE',id:t.dataset.evidence,checked:t.checked});$(id)?.focus();}else if(t.id==='include-ai'){dispatch({type:'INCLUDE_AI',value:t.checked});$('include-ai')?.focus();}});
+  host.addEventListener('click',event=>{
+   const button=event.target.closest('button');if(!button||!host.contains(button))return;
+   if(button.hasAttribute('data-capability')){const id=button.dataset.capability;dispatch({type:'CAPABILITY',value:state.capability===id?'':id});[...host.querySelectorAll('[data-capability]')].find(b=>b.dataset.capability===id)?.focus();}
+   else if(button.dataset.person){dispatch({type:'SELECT',id:button.dataset.person});$('detail-title')?.focus({preventScroll:true});}
+   else if(button.hasAttribute('data-page')){dispatch({type:'PAGE',value:Number(button.dataset.page)});$('map-title').scrollIntoView({block:'start',behavior:'auto'});}
+   else if(button.id==='clear-filters'||button.dataset.mapAction==='clear-all'){dispatch({type:'CLEAR_FILTERS'});$('name-search').focus();}
+   else if(button.dataset.mapAction==='close'){const id=state.selectedId;dispatch({type:'CLOSE_DETAIL'});[...host.querySelectorAll('[data-person]')].find(b=>b.dataset.person===id)?.focus();}
+   else if(button.dataset.mapAction==='ack-draft'){dispatch({type:'ACK_DRAFT_CONTEXT'});$('draft')?.focus();}
+   else if(button.dataset.mapAction==='reset-draft'){dispatch({type:'RESET_DRAFT'});$('draft')?.focus();}
   });
-  render();maintainResponsiveViewFocus(doc,host);return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]})};
+  win.addEventListener('resize',schedule);const observer=win.ResizeObserver?new win.ResizeObserver(schedule):null;observer?.observe($('people-map-content'));
+  render();return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]})};
  }
- return {esc,renderProfile,renderTopics,renderRoster,renderMap,renderDetail,renderQuestion,selectedPerson,groups,mount};
+ return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};
 });
 
 (function(root){

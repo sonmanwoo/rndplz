@@ -120,6 +120,24 @@
   var people = data.people.map(normalizePerson);
   var peopleById = new Map(people.map(function (person) { return [person.id, person]; }));
   if (peopleById.size !== people.length) throw new TypeError('Person IDs must be unique.');
+
+  // Source-linked presentation categories from approved CAPABILITY-PROPOSALS r1.
+  // Each link is intersected with the same person's current records at runtime.
+  var capabilityDefinitions = [{"id":"catalyst","label":"촉매 설계·반응 평가","description":"촉매를 설계하고, 어떤 조건에서 반응하는지 살피는 일.","people":[{"id":"LOCAL-JINHO","scope":"CO₂ 전환 촉매 설계·제법 개발과 반응 활성 평가","recordIds":["CAREER-JO-CO2J","CAREER-JO-CO2L","CAREER-JO-ENERGY"]},{"id":"PUB-NORSKOV","scope":"표면 반응 계산을 통한 고체 촉매 설계","recordIds":["PUB-PAPER-NORSKOV"]},{"id":"PUB-ERTL","scope":"표면화학·촉매 관련 연구 자료","recordIds":["GS-PAPER-GERHARD-ERTL-2008-1"]},{"id":"PUB-RYOO","scope":"표면화학·촉매 관련 연구 자료","recordIds":["GS-PAPER-RYONG-RYOO-2009-1"]},{"id":"PUB-PARK-JY","scope":"표면화학·촉매 관련 연구 자료","recordIds":["GS-PAPER-JEONG-YOUNG-PARK-2025-1"]},{"id":"PUB-HARTWIG","scope":"표면화학·촉매 관련 연구 자료","recordIds":["GS-PAPER-JOHN-F-HARTWIG-2024-1"]},{"id":"PUB-SHAO-HORN","scope":"표면화학·촉매 관련 연구 자료","recordIds":["GS-PAPER-YANG-SHAO-HORN-2011-1"]}]},{"id":"separation","label":"분리·정제와 품질 개선","description":"혼합물에서 필요한 성분을 분리하고 제품 품질을 개선하는 일.","people":[{"id":"LOCAL-MANWOO","scope":"증류·흡착·수소화 기반 탈색·탈취, 증류·추출 실험","recordIds":["CAREER-MW-BIO","CAREER-MW-MONOMER"]},{"id":"PUB-NAIR","scope":"나노튜브의 분자 흡착 선택성 연구","recordIds":["GS-PAPER-SANKAR-NAIR-2014-1"]},{"id":"PUB-YAGHI","scope":"이산화탄소 포집·분리 관련 연구 자료","recordIds":["GS-PAPER-OMAR-M-YAGHI-2024-1"]}]},{"id":"process","label":"공정 모델링·최적화","description":"공정을 모델로 이해하고, 더 나은 운전 조건을 찾는 일.","people":[{"id":"LOCAL-MANWOO","scope":"모노머 공정 모델링·최적화와 실험 데이터 분석","recordIds":["CAREER-MW-MONOMER","CAREER-MW-BIO"]},{"id":"PUB-GROSSMANN","scope":"혼합정수 비선형·논리 분기 최적화","recordIds":["PUB-PAPER-GROSSMANN"]},{"id":"PUB-MACCHIETTO","scope":"원유 예열망·침적·세정 주기의 동적 모델","recordIds":["EXP02-PAPER-SANDRO-MACCHIETTO-2011-1","EXP02-PAPER-SANDRO-MACCHIETTO-2016-2"]}]},{"id":"control","label":"예측 제어·운전 안정화","description":"제약과 불확실성을 고려해 공정을 제어하는 일.","people":[{"id":"PUB-RAWLINGS","scope":"화학공정의 모델 예측 제어와 입력 제약","recordIds":["EXP02-PAPER-RAWLINGS-1992-1"]},{"id":"PUB-MORARI","scope":"불확실성과 입출력 제약을 고려한 강인 MPC","recordIds":["EXP02-PAPER-MORARI-1996-1","EXP02-PAPER-MORARI-1999-2"]}]},{"id":"cooling","label":"냉각 유체 선별·열성능 평가","description":"냉각 유체와 구조가 열을 어떻게 전달하는지 평가하는 일.","people":[{"id":"PUB-JOSHI","scope":"유기규소 냉각유 선별·풀비등 평가와 단상 열성능 수치해석","recordIds":["EXP02-PAPER-YOGENDRA-JOSHI-2012-1","EXP02-PAPER-YOGENDRA-JOSHI-2025-1"]},{"id":"PUB-MUDAWAR","scope":"절연액 비등과 액침 냉각 모듈 연구","recordIds":["EXP02-PAPER-ISSAM-MUDAWAR-1989-1","EXP02-PAPER-ISSAM-MUDAWAR-1994-2"]}]},{"id":"saf","label":"SAF 생산·연료 평가","description":"대체 원료의 항공유 전환 경로와 연료 특성을 살피는 일.","people":[{"id":"LOCAL-JINHO","scope":"Lab 규모 CO₂ 전환 SAF 촉매 공정 개발","recordIds":["CAREER-JO-CO2J"]},{"id":"PUB-HEYNE","scope":"폐기물 유래 원료 전환과 SAF 사전 평가","recordIds":["EXP02-PAPER-HEYNE-2021-1","EXP02-PAPER-HEYNE-2021-2"]},{"id":"PUB-MCCORMICK","scope":"수소처리 기반 항공유 생산과 점화 품질 평가","recordIds":["EXP02-PAPER-MCCORMICK-2024-1","EXP02-PAPER-MCCORMICK-2025-2"]}]},{"id":"fouling","label":"파울링 진단·세정 주기 해석","description":"침적이 운전에 미치는 영향을 읽고 세정 주기를 해석하는 일.","people":[{"id":"PUB-WILSON-DI","scope":"침전층 노화와 열부하·압력손실의 관계","recordIds":["EXP02-PAPER-D-IAN-WILSON-2020-1"]},{"id":"PUB-MACCHIETTO","scope":"원유 침적층 변화와 세정·재침적 주기의 모델링","recordIds":["EXP02-PAPER-SANDRO-MACCHIETTO-2016-2"]}]},{"id":"robotics","label":"로봇 동작·장애물 회피","description":"로봇팔과 이동 로봇이 장애물을 피하도록 움직임을 설계하는 일.","people":[{"id":"PUB-KHATIB","scope":"인공 포텐셜 필드를 이용한 실시간 장애물 회피","recordIds":["EXP02-PAPER-KHATIB-1986-1"]}]}];
+  var capabilities = capabilityDefinitions.map(function (definition) {
+    return {id: definition.id, label: definition.label, description: definition.description,
+      people: definition.people.map(function (link) {
+        var person = peopleById.get(link.id);
+        var available = new Set(person ? person.records.map(function (r) { return r.id; }) : []);
+        return {id: link.id, scope: link.scope, recordIds: link.recordIds.filter(function (id) { return available.has(id); })};
+      }).filter(function (link) { return link.recordIds.length; })};
+  });
+  freeze(capabilities);
+  function capabilityLink(state, person) {
+    var capability = capabilities.find(function (item) { return item.id === state.capability; });
+    return capability && capability.people.find(function (link) { return link.id === person.id; });
+  }
+
   freeze(people);
   freeze(topics);
   freeze(data.source);
@@ -128,7 +146,7 @@
 
   function initialState() {
     return {
-      query: '', topic: '', view: 'experience', scope: 'featured',
+      query: '', topic: '', capability: '', view: 'experience', scope: 'all',
       selectedId: null, evidenceIds: [], problem: '', draft: '',
       includeAi: false, aiText: '', draftEdited: false, draftNeedsReview: false,
       expandedGroups: [], page: 0, pageSize: 25
@@ -136,16 +154,17 @@
   }
   function matches(state, person) {
     var query = key(state.query);
-    return (state.scope === 'all' || person.featured) &&
+    return true &&
       (!query || [person.name].concat(person.aliases).some(function (name) { return key(name).indexOf(query) !== -1; })) &&
-      (!state.topic || person.topicIds.indexOf(state.topic) !== -1);
+      (!state.capability || Boolean(capabilityLink(state, person))) &&
+      (!state.topic || person.records.some(function (record) {
+        var link = capabilityLink(state, person);
+        return record.topics.indexOf(state.topic) !== -1 && (!state.capability || link && link.recordIds.indexOf(record.id) !== -1);
+      }));
   }
   function visiblePeople(state) {
     state = state || initialState();
-    if (state.scope === 'all') return people.filter(function (person) { return matches(state, person); });
-    return featuredIds.map(function (id) { return peopleById.get(id); }).filter(function (person) {
-      return person && matches(state, person);
-    });
+    return people.filter(function (person) { return matches(state, person); });
   }
   function getPerson(state, person) {
     var id = typeof person === 'string' ? person : person && person.id;
@@ -157,7 +176,9 @@
     var found = getPerson(state, person);
     if (!found) return [];
     return found.records.filter(function (record) {
-      return !state.topic || record.topics.indexOf(state.topic) !== -1;
+      var link = capabilityLink(state, found);
+      return (!state.capability || link && link.recordIds.indexOf(record.id) !== -1) &&
+        (!state.topic || record.topics.indexOf(state.topic) !== -1);
     });
   }
   function selectedEvidence(state, person) {
@@ -217,8 +238,9 @@
   function sanitize(input) {
     var state = {
       query: text(input.query), topic: text(input.topic),
+      capability: capabilities.some(function (item) { return item.id === input.capability; }) ? input.capability : '',
       view: input.view === 'organization' ? 'organization' : 'experience',
-      scope: input.scope === 'all' ? 'all' : 'featured',
+      scope: 'all',
       selectedId: text(input.selectedId) || null,
       evidenceIds: unique(Array.isArray(input.evidenceIds) ? input.evidenceIds.filter(function (id) { return typeof id === 'string'; }) : []),
       problem: text(input.problem), draft: text(input.draft),
@@ -245,6 +267,8 @@
     switch (action.type) {
       case 'QUERY':
         state.query = text(action.value); resetPage(state); break;
+      case 'CAPABILITY':
+        state.capability = text(action.value); resetPage(state); break;
       case 'TOPIC':
         state.topic = text(action.value); resetPage(state); break;
       case 'SCOPE':
@@ -302,7 +326,7 @@
         if (person && state.evidenceIds.length && state.includeAi) state.aiText = text(action.value);
         break;
       case 'CLEAR_FILTERS':
-        state.query = ''; state.topic = ''; resetPage(state); break;
+        state.query = ''; state.topic = ''; state.capability = ''; state.scope = 'all'; resetPage(state); break;
       case 'CLEAR_TOPIC':
         state.topic = ''; resetPage(state); break;
       case 'CLOSE_DETAIL':
@@ -321,7 +345,7 @@
     return sanitize(state);
   }
   return Object.freeze({
-    people: people, topics: topics, counts: data.counts, source: data.source,
+    people: people, topics: topics, capabilities: capabilities, capabilityLink: capabilityLink, counts: data.counts, source: data.source,
     featuredIds: featuredIds, initialState: initialState, visiblePeople: visiblePeople,
     visibleEvidence: visibleEvidence, selectedEvidence: selectedEvidence, reduce: reduce
   });
