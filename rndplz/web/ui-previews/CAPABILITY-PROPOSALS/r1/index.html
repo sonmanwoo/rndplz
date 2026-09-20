@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f3e9">
+  <meta name="description" content="수소문 역량 맵과 보낸 제안함의 인터랙티브 디자인 시안">
+  <title>수소문 — 역량에서 시작하는 연결</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23243b32'/%3E%3Ctext x='24' y='34' text-anchor='middle' font-size='32' fill='%23f6f3e9'%3EH%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./map.css">
+  <link rel="stylesheet" href="./proposals.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 이동</a>
+  <header class="site-header">
+    <a class="brand" href="#map" aria-label="수소문 역량 맵"><span class="brand-mark">H:</span><span>수소문<small>RESEARCH CORRESPONDENCE</small></span></a>
+    <nav aria-label="시안 화면" class="main-tabs" role="tablist">
+      <button type="button" role="tab" id="tab-map" aria-controls="map-panel" aria-selected="true" data-screen="map">역량 맵 <span>01</span></button>
+      <button type="button" role="tab" id="tab-proposals" aria-controls="proposals-panel" aria-selected="false" tabindex="-1" data-screen="proposals">보낸 제안함 <span>02</span></button>
+    </nav>
+    <span class="edition">DESIGN STUDY <b>R1</b></span>
+  </header>
+  <main id="main-content">
+    <section id="map-panel" role="tabpanel" aria-labelledby="tab-map">
+      <div class="page-intro"><div><p class="eyebrow">THE CAPABILITY ATLAS</p><h1>필요한 역량에서,<br class="mobile-break"> 함께할 사람으로.</h1><p class="intro-copy">해결하려는 일과 닿아 있는 사람, 그 연결의 근거를 따라가 보세요.</p></div><div class="atlas-note"><span>08</span><p>업무 역량<br><b>근거로 연결한 지도</b></p></div></div>
+      <div id="map-root"></div>
+    </section>
+    <section id="proposals-panel" role="tabpanel" aria-labelledby="tab-proposals" hidden>
+      <div class="page-intro"><div><p class="eyebrow">LETTERS & CONNECTIONS</p><h1>보낸 마음의,<br class="mobile-break"> 다음 장면.</h1><p class="intro-copy">한 통의 제안부터 그 뒤의 소식까지, 한 곳에 차곡차곡.</p></div><div class="atlas-note"><span>04</span><p>가상 제안<br><b>상태와 이력 시안</b></p></div></div>
+      <div id="proposals-root"></div>
+    </section>
+  </main>
+  <footer class="site-footer"><p><strong>살펴보는 시안 · R1</strong> <span>2026.09.20 공개 자료 기준 · 제품 미반영</span></p><p>역량 맵: 현재 공개 28명·44기록 중 14명과 관련 근거만 연결. 초상은 기존 AI 일러스트입니다.</p><p>제안 내용·상태·이력은 모두 가상 예시이며 실제 발송이나 상대의 응답을 뜻하지 않습니다.</p><a href="https://recent.design/i/g7fstvk-app-review-state-animations" target="_blank" rel="noopener noreferrer">모션 참고: App Review State Animations ↗</a></footer>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
