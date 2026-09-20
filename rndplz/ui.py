@@ -35,6 +35,11 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
             asset=person.profile.get('portrait',{}).get(key)
             if isinstance(asset,str) and re.fullmatch(r'/portraits/[A-Za-z0-9_.-]+\.(?:png|jpe?g|webp)',asset):
                 portraits[asset]=(asset.lstrip('/'),image_mimes[Path(asset).suffix])
+                if key == 'path':
+                    stem = asset.rsplit('.', 1)[0]
+                    for size in ('thumb', 'detail'):
+                        derived = stem + '-' + size + '.webp'
+                        portraits[derived] = (derived.lstrip('/'), image_mimes['.webp'])
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,format,*args):
             # Avoid logging arbitrary question text or environment values.
@@ -95,7 +100,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 static["/draw.js"]=("draw.js","text/javascript; charset=utf-8")
                 static["/draw.css"]=("draw.css","text/css; charset=utf-8")
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
-                static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map.js")})
+                static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map-layout.js","people-map-graph.js","people-map.js")})
                 static.update(portraits)
                 if parsed.path in static:
                     name,mime=static[parsed.path]

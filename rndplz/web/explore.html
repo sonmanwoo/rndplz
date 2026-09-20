@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f5f3eb"><title>수소문 · 경험이 있는 사람에게</title>
-<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/craft.css"><script src="/craft.js" defer></script><link rel="stylesheet" href="/people-map.css"><script src="/people-map-model.js" defer></script><script src="/people-map.js" defer></script><script src="/app.js" defer></script>
+<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/craft.css"><script src="/craft.js" defer></script><link rel="stylesheet" href="/people-map.css"><script src="/people-map-model.js" defer></script><script src="/people-map-layout.js" defer></script><script src="/people-map-graph.js" defer></script><script src="/people-map.js" defer></script><script src="/app.js" defer></script>
 <script src="/account-menu.js" defer></script></head>
 <body class="crafted explorer-page">
 <header class="craft-header"><a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a><nav class="craft-nav" aria-label="서비스 메뉴"><button id="chatTab" data-action="tab" data-value="chat">대화</button><button id="mapTab" class="active" aria-current="page" data-action="tab" data-value="map">연구 맵</button><button data-action="inbox">제안함 <span id="inboxCount">0</span></button></nav><div class="craft-actions"><a href="/?settings=1" aria-label="모델 연결 설정">모델 설정 ↗</a><div class="account-control"><button type="button" id="accountToggle" class="icon-button account-toggle" aria-label="내 프로필 관리 메뉴" aria-expanded="false" aria-controls="accountMenu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div id="accountMenu" class="account-menu" hidden><a href="/profile">프로필 변경</a><button type="button" data-action="inbox">제안함</button><button type="button" id="logoutButton" disabled>로그아웃</button><p id="accountSessionNote" class="account-note"></p><p id="accountError" class="account-note" role="alert"></p></div></div></div></header>
@@ -39,7 +39,7 @@
 <div id="peopleMapHost" aria-label="역량별 인물과 연결 근거">
  <div id="people-map-load" class="people-map-load" role="status"><p>등록된 인물과 근거 자료를 불러오고 있습니다.</p><button type="button" hidden>자료 다시 불러오기</button></div>
  <div id="people-map-content" class="mp-map" hidden>
-  <header class="mp-intro"><div><p class="mp-eyebrow">CAPABILITIES &amp; PEOPLE</p><h1 id="people-map-title" class="mp-title">어떤 경험과 연결될까요?</h1></div><p class="mp-intro-note">찾고 있는 역량을 골라<br>사람과 연결된 근거를 살펴보세요.</p></header>
+  <header class="mp-intro"><div><p class="mp-eyebrow">CAPABILITIES &amp; PEOPLE</p><h1 id="people-map-title" class="mp-title">연구 맵</h1></div><p class="mp-intro-note">찾고 있는 역량을 골라<br>사람과 연결된 근거를 살펴보세요.</p></header>
   <section class="mp-filters" aria-label="인물 찾기 조건">
    <label>이름 검색<input id="name-search" type="search" placeholder="이름 또는 별칭" autocomplete="off" maxlength="80"></label>
    <label>자료 주제<select id="topic-controls" aria-label="자료 주제"></select></label>
@@ -50,8 +50,8 @@
   <div class="mp-layout">
    <nav class="mp-navigation" aria-labelledby="capability-heading"><h2 id="capability-heading" class="mp-section-label">찾고 있는 역량</h2><div id="capability-controls" class="mp-capability-list"></div><p class="mp-pool-note">역량을 고르면 관련 자료가 있는 인물로 좁혀집니다.</p></nav>
    <section class="mp-stage" aria-labelledby="map-title"><header class="mp-stage-header"><p class="mp-section-label">자료로 연결된 사람</p><h2 id="map-title" class="mp-stage-title"></h2><p id="map-explanation" class="mp-stage-description"></p><p id="map-count" class="mp-stage-count"></p></header><div id="people-map"></div><p class="mp-connection-note">연결선은 해당 분류와 관련된 자료가 있음을 나타냅니다.</p></section>
-   <aside id="person-detail" class="mp-evidence" aria-label="선택한 사람의 연결 근거"></aside>
   </div>
+  <aside id="person-detail" class="mp-evidence" aria-label="선택한 사람의 연결 근거"></aside>
   <footer class="mp-footer"><p>자료에 나타난 주제를 연결했습니다. 숙련도·직접 수행 범위·현재 협업 가능성을 평가한 결과는 아닙니다.</p><p id="scope-note"></p></footer>
  </div>
 </div>
