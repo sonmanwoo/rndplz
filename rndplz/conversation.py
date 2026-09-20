@@ -755,7 +755,7 @@ class Conversation(ModelConversation):
     def prepare(self,payload):
         sid=payload.get('session_id')
         current=self.get(sid)
-        if current.get('model_plan_version') in ('dialogue_plan.v1','dialogue_decision.v1','dialogue_decision.v2'):
+        if current.get('model_plan_version') in ('dialogue_plan.v1','dialogue_decision.v1','dialogue_decision.v2','dialogue_decision.v3'):
             return self.prepare_model_turn(payload)
         def update(state):
             s=next((x for x in state['sessions'] if x['id']==sid and x.get('kind')=='chat'),None)

@@ -22,8 +22,11 @@ PLAN_SYSTEM = _STYLE + (
     "결과를 바꿀 중요한 정보가 부족하면 질문할 수 있습니다. 설명 질문을 조회 요청으로 바꾸지 마세요.\n"
     "scope는 현재 해석한 조회 범위이며 없으면 null입니다. lookup에는 유효한 scope가 필요하고 stop은 null입니다. "
     "answer/clarify에 scope를 붙이면 지금 검색하지 않고 그 범위를 선택 사항으로 제시합니다. "
-    "target=records는 연구 기록, person은 사용자가 지칭한 이름 조회입니다. "
-    "person_names에 인물·이력을 창작하지 말고 현재 지칭한 이름만 쓰세요.\n"
+    "사람을 찾는 목적도 경험·연구 주제로 기록을 검색합니다. 분야·경험은 interpretations에 쓰세요. "
+    "person_names는 사용자가 특정 이름으로 지칭한 인물에만 제한하는 선택 필터입니다. "
+    "이름이 지정되지 않은 경험자 탐색에서는 person_names=[]로 두세요. 역할·직업·분야는 이름이 아닙니다. "
+    "이름만 주어지면 interpretations=[]로 그 이름의 기록을, 이름과 경험이 함께 주어지면 두 범위를 함께 사용합니다. "
+    "필드를 채우려고 인물 이름이나 이력을 만들지 마세요.\n"
     "interpretations는 가능한 의미별 OR 분기(최대3), groups는 모두 필요한 경험의 AND(최대3)입니다. "
     "한 group의 topic_ids와 queries는 같은 의미의 OR 대안(각 최대5)입니다. "
     "검색 도구의 실제 일치 규칙에 맞게 표현을 선택하되 요청의 중요한 부분을 버리거나 다른 분야로 넓히지 마세요. "
@@ -33,7 +36,8 @@ PLAN_SYSTEM = _STYLE + (
     "source_turn_id와 source_quote는 제공된 사용자 발화 또는 읽힌 첨부의 정확한 출처입니다. "
     "단순 조회 분야를 조건으로 중복하지 말고, 최신 정정·철회와 유효한 기존 조건을 반영하세요. "
     "모델의 답변·제안·오류 피드백은 사용자 조건이 아닙니다.\n"
-    "reply는 현재 필요한 답변이나 질문 1~2문장, summary는 짧은 해석 요약입니다. "
+    "reply는 현재 필요한 답변이나 질문 1~2문장입니다. summary는 화면에 그대로 표시되는 사용자의 목적·범위 요약입니다. "
+    "summary에 계획 작성 과정, 검증 오류, 필드 제약을 맞춘 방법을 설명하지 마세요. "
     "조회 전에는 인물·기록을 찾았다고 말하지 마세요. 실제 이전 결과는 그 범위에서 설명할 수 있습니다. "
     "모든 필드를 반환하고 빈 배열은 []로 쓰세요."
 )
@@ -70,7 +74,7 @@ _INTERNAL_PLAN_SCHEMA = _object({
     "reply": _text(4000, minimum=1),
     "intent": {"type": "string", "enum": ["chat", "search", "person", "stop"]},
     "lookup_action": {"type": "string", "enum": ["none", "offer", "execute"]},
-    "summary": _text(400),
+    "summary": {**_text(400), "description": "User-visible summary of the current user purpose and scope. Not planning steps, validation feedback or field-filling rationale."},
     "interpretations": _array(_object({
         "label": _text(120, minimum=1),
         "groups": _array(_object({
@@ -79,7 +83,8 @@ _INTERNAL_PLAN_SCHEMA = _object({
                         "description": "Alternatives for ONE concept. ALL whitespace-separated terms must match the SAME record title/body; exact phrases rank higher. No term is dropped. Use short record concepts, not a request/person description. AND groups may use different records."},
         }), 3, minimum=1),
     }), 3),
-    "person_names": _array(_text(160, minimum=1), 5),
+    "person_names": {**_array(_text(160, minimum=1), 5),
+                     "description": "Optional explicit personal names referenced by the user or established conversation. Use [] when discovering people by experience. Occupations, roles and research subjects are queries, not personal names. Do not invent a name to satisfy a field."},
     "conditions": {**_array(_object({
         "kind": {"type": "string", "enum": ["required", "preference"]},
         "text": _text(500, minimum=1),
@@ -90,17 +95,21 @@ _INTERNAL_PLAN_SCHEMA = _object({
 
 
 _INTERPRETATIONS_SCHEMA = _INTERNAL_PLAN_SCHEMA["properties"]["interpretations"]
-def _scope_schema(target):
+def _scope_schema(*, names_only=False):
+    # One search scope: record expressions, optionally restricted to actual
+    # referenced names. No second semantic target decision can force a name.
+    interpretations = {**_INTERPRETATIONS_SCHEMA, "minItems": 0 if names_only else 1}
+    if names_only:
+        interpretations["maxItems"] = 0
     return _object({
-        "target": {"type": "string", "enum": [target]},
-        "interpretations": {**_INTERPRETATIONS_SCHEMA, "minItems": 1 if target == "records" else 0},
+        "interpretations": interpretations,
         "person_names": {**_INTERNAL_PLAN_SCHEMA["properties"]["person_names"],
-                         "minItems": 1 if target == "person" else 0},
+                         "minItems": 1 if names_only else 0},
         "conditions": _INTERNAL_PLAN_SCHEMA["properties"]["conditions"],
     })
 
 
-_SCOPE_SCHEMA = {"anyOf": [_scope_schema("records"), _scope_schema("person")]}
+_SCOPE_SCHEMA = {"anyOf": [_scope_schema(), _scope_schema(names_only=True)]}
 
 
 def _decision_schema(decisions, scope):
@@ -161,8 +170,9 @@ ASSESSMENT_SYSTEM = _STYLE + (
     "direct나 adjacent인 인물이 있으면 empty_reply는 반드시 빈 문자열입니다. "
     "자료는 있으나 모든 인물이 insufficient이면 empty_reply에 관련 자료는 조회됐지만 "
     "현재 목적을 뒷받침할 근거가 부족하다는 짧고 자연스러운 답변을 쓰세요. "
-    "자료가 없으면 assessments=[]로 하고 empty_reply에 이번 공개 조회 범위에서 "
-    "연결 근거를 찾지 못했다는 자연스러운 답변을 쓰세요. 두 경우를 구분하세요. "
+    "자료가 없으면 assessments=[]로 하고 empty_reply에 실제 조회 결과의 이유를 자연스럽게 설명하세요. "
+    "등록 이름을 찾지 못한 경우는 그 이름과의 연결을 확인하지 못한 것이며, 요청한 분야의 기록이 없다는 뜻이 아닙니다. "
+    "기록 조회가 0건인 경우와 이름 확인 실패, 관련 자료는 있으나 목적 근거가 부족한 경우를 구분하세요. "
     "분야 전체에 전문가가 없다고 단정하지 마세요. 모든 필드를 반환하세요."
 )
 
@@ -311,9 +321,9 @@ def plan_repair_feedback(error):
         raise TypeError("plan_validation_error_required")
     constraints = {
         "search_scope_missing": ("$.scope", {"constraint": "lookup needs a non-null valid scope; records needs at least one interpretation"}),
-        "person_name_missing": ("$.scope.person_names", {"type": "array", "minItems": 1}),
+        "person_name_missing": ("$.scope", {"constraint": "use research expressions, optional user-referenced names, or ask for genuinely missing information; never fabricate a name"}),
         "stop_with_active_lookup_scope": ("$.scope", {"type": "null"}),
-        "offer_scope_missing_or_mixed": ("$.scope", {"constraint": "answer/clarify scope needs exactly one nonempty interpretations or person_names array"}),
+        "offer_scope_missing_or_mixed": ("$.scope", {"constraint": "scope needs research interpretations or explicit personal names; both may be present"}),
         "group_term_limit": ("$.scope.interpretations[*].groups[*]", {"constraint": "one to ten total topic_ids and queries; at most five each"}),
         "duplicate_group_term": ("$.scope.interpretations[*].groups[*]", {"constraint": "no duplicate values within topic_ids or queries"}),
         "unknown_active_topic": ("$.scope.interpretations[*].groups[*].topic_ids", {"constraint": "only IDs in the supplied active topic set"}),
@@ -380,13 +390,9 @@ def _parse_json(raw, schema):
                     reason = "search_scope_missing"
                 elif decision == "stop" and scope is not None:
                     reason = "stop_with_active_lookup_scope"
-            elif isinstance(scope, dict):
-                if (exc.field == "$.scope.interpretations" and scope.get("target") == "records"
-                        and scope.get("interpretations") == []):
-                    reason = "search_scope_missing"
-                elif (exc.field == "$.scope.person_names" and scope.get("target") == "person"
-                        and scope.get("person_names") == []):
-                    reason = "person_name_missing"
+            elif (isinstance(scope, dict) and scope.get("interpretations") == []
+                  and scope.get("person_names") == []):
+                reason = "search_scope_missing"
             if reason:
                 raise PlanValidationError(reason, field=exc.field, expected=exc.expected) from exc
         raise
@@ -415,8 +421,9 @@ def parse_plan(raw, *, user_messages, allowed_topic_ids):
     else:
         plan.update({key: copy.deepcopy(scope[key]) for key in
                      ("interpretations", "person_names", "conditions")})
-        # Validate the explicit scope target before normalizing optional offers.
-        plan["intent"] = "search" if scope["target"] == "records" else "person"
+        # Preserve the seven internal fields using structure only. Searching
+        # for experienced people never requires an invented identity filter.
+        plan["intent"] = "search" if plan["interpretations"] else "person"
         plan["lookup_action"] = "execute"
         _validate_internal_plan(plan, user_messages=user_messages, allowed_topic_ids=allowed_topic_ids)
         if decision in ("answer", "clarify"):
@@ -586,7 +593,7 @@ def _validate_internal_plan(plan, *, user_messages, allowed_topic_ids):
     if intent == "stop" and (plan["interpretations"] or plan["person_names"]):
         raise PlanValidationError("stop_with_active_lookup_scope")
     if action in ("offer", "execute"):
-        if intent == "chat" and not (bool(plan["interpretations"]) ^ bool(plan["person_names"])):
+        if intent == "chat" and not (plan["interpretations"] or plan["person_names"]):
             raise PlanValidationError("offer_scope_missing_or_mixed")
         if intent == "search" and not plan["interpretations"]:
             raise PlanValidationError("search_scope_missing")

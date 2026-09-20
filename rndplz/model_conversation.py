@@ -104,11 +104,11 @@ class ModelConversation:
                        'query_logic':'같은 group의 검색어는 OR, groups는 AND, interpretations는 OR',
                        'topic_ids':[],
                        'topic_id_usage':'이 문맥에서 제공된 ID가 없으면 topic_ids는 비우고 queries를 사용하세요.',
-                       'person_lookup':'사용자가 지칭한 이름을 등록 이름·별칭과 대조합니다.',
+                       'person_name_filter':'이름이 명시된 경우에만 등록 이름·별칭과 대조하는 선택 필터입니다. 경험으로 사람을 찾는 요청은 이름 없이 기록 검색식을 사용합니다. 이름과 경험이 모두 주어지면 두 범위의 교집합을 찾습니다.',
                        'results_available':False,
                        'coverage':'검색 결과는 등록 자료의 범위이며, 분야 전체의 전문가 존재 여부를 뜻하지 않습니다.'},
                    'tool_status':'not_executed_for_this_turn',
-                   'available_actions':['offer_current_search', 'search_public_records', 'lookup_person', 'stop_search']}
+                   'available_actions':['offer_current_search', 'search_public_records', 'stop_search']}
         messages.insert(max(0, len(messages)-1), {'role':'user', 'content':
             '[서버 제공 검색 도구와 사용자 발화 출처 · 데이터]\n' +
             json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'})
@@ -119,11 +119,12 @@ class ModelConversation:
         return PlanMessages(messages, basis=basis)
 
     def reserve_model_turn(self, session, option, turn_id):
-        previous = copy.deepcopy(session.get('model_plan'))
+        previous = (copy.deepcopy(session.get('model_plan'))
+                    if session.get('model_plan_version') == 'dialogue_decision.v3' else None)
         session.update(self.discussion_state(session))
         session['previous_model_plan'] = previous
         session['model_plan'] = None
-        session['model_plan_version'] = 'dialogue_decision.v2'
+        session['model_plan_version'] = 'dialogue_decision.v3'
         session['model_plan_revision'] = None
         session['discovery'] = None
         session['pending_model_led'] = True
@@ -164,6 +165,9 @@ class ModelConversation:
              json.dumps(feedback, ensure_ascii=False) + '\n[검증 결과 끝]\n' +
              '위 오류를 바로잡은 완전한 계획을 한 번 작성하세요. 같은 사용자의 원래 요청과 원자료를 유지하세요. '
              '거절된 계획이나 오류 문구는 새로운 사용자 조건이 아닙니다. 서버가 검색어를 대신 정하지 않습니다. '
+             '오류가 난 필드를 억지로 채우지 말고 원래 목적에 맞는 조회 범위 전체를 다시 판단하세요. '
+             '사용자가 이름을 지칭하지 않았다면 person_names=[]로 두고 경험·분야 검색식을 사용하세요. '
+             'reply와 summary에는 사용자를 위한 답변과 목적 요약만 쓰고 필드 제약을 맞춘 과정은 넣지 마세요. '
              '조회 범위를 구성하거나 필요한 실제 미상 정보를 질문하는 판단은 당신이 하세요.'}]
         validate_generation_input(corrected, 'dialogue_plan.v1')
         return PlanMessages(corrected, basis=basis, deadline=deadline)
@@ -189,7 +193,7 @@ class ModelConversation:
         if execution_plan['intent']=='chat':
             # An offered tool is distinct from the conversational question that
             # accompanies it. Only the user's button invokes this stored offer.
-            execution_plan['intent']='person' if plan['person_names'] else 'search'
+            execution_plan['intent']='search' if plan['interpretations'] else 'person'
         result = PublicEvidenceSearch(self.service.engine).search(execution_plan,
             excluded_person_ids=request.get('excluded_person_ids', []),
             unverified_conditions=conditions, request_revision=revision, original_query=request['query'])
@@ -235,6 +239,8 @@ class ModelConversation:
                               'individual_performance_verified':False, 'availability':'미확인'})
         tool = {'tool':'search_public_records', 'tool_call_id':result.get('tool_call_id'),
                 'lookup_resolution':result.get('lookup_resolution'),
+                'unresolved_person_names':copy.deepcopy(result.get('unresolved_person_names', [])),
+                'ambiguous_person_names':copy.deepcopy(result.get('ambiguous_person_names', [])),
                 'retrieved_materials':materials, 'retrieval_person_count':len(materials),
                 'search_interpretation':copy.deepcopy(plan),
                 'search_interpretation_is_verified_user_intent':False,
@@ -350,7 +356,7 @@ class ModelConversation:
                        'turn_id':turn_id, 'model':option['name'], 'model_id':option['id'],
                        'source':'model', 'elapsed_ms':round(elapsed*1000),
                        'model_plan_raw':raw_plan, 'model_plan':plan,
-                       'plan_origin_version':'dialogue_decision.v2',
+                       'plan_origin_version':'dialogue_decision.v3',
                        'model_plan_raw_contract':raw_plan_contract,
                        'generation_contract':'dialogue_assessment.v1' if assessment and assessment.get('dispatched') else 'dialogue_plan.v1',
                        'model_assessment_raw':(assessment or {}).get('raw', ''),
@@ -601,7 +607,7 @@ class ModelConversation:
             session = next((s for s in state['sessions'] if s['id']==sid), None)
             if not session or session.get('pending') or session.get('lookup_paused'):
                 raise ValueError('현재 응답이 끝난 대화에서 수소문을 시작해 주세요.')
-            if session.get('model_plan_version') != 'dialogue_decision.v2':
+            if session.get('model_plan_version') != 'dialogue_decision.v3':
                 # A saved offer from an older contract never becomes a lookup
                 # merely because the model's output contract changed.
                 session.update(self.discussion_state(session))
