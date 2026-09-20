@@ -166,14 +166,16 @@ class PublicModels(ChatModels):
     def configure(self, payload):
         raise ValueError('공개 서비스 모델은 운영자가 서버에서 설정합니다.')
 
-    def stream(self, identifier, messages):
+    def stream(self, identifier, messages, *, contract=None):
         option=self.get(identifier)
+        stream_options={} if contract is None else {'contract':contract}
         if option['provider']=='bridge':
-            yield from self.bridge.stream(messages,model=option['model'])
+            yield from self.bridge.stream(messages,model=option['model'],**stream_options)
             return
         if identifier != 'guide':
-            yield from super().stream(identifier, messages)
+            yield from super().stream(identifier, messages,**stream_options)
             return
+        if contract is not None:raise ValueError('기록 탐색 안내는 모델 대화 생성 계약을 지원하지 않습니다.')
         users = [m for m in messages if m['role'] == 'user']
         if len(users) == 1:
             yield '기록 탐색 안내를 선택하셨습니다. 이 모드는 AI 기술 답변을 생성하지 않고 등록된 기록에서 사람을 찾도록 돕습니다. 찾으려는 사람과 하려는 일을 말씀해 주세요. 등록 기록에서 범위가 좁혀지면 «현재 정보로 수소문»이 나타납니다.'
@@ -208,7 +210,8 @@ class PublicApp:
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # A startup file fingerprint is provenance metadata, not a memory attestation.
-        tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py')
+        tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
+                 'model_dialogue.py','evidence_search.py','model_conversation.py')
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -349,7 +352,8 @@ class PublicApp:
                 if path.endswith('/poll'):
                     if 'control' in payload:return send(200,self.models.bridge.control(payload['control']))
                     if 'models' in payload and not isinstance(payload['models'],list):raise ValueError()
-                    return send(200,{'job':self.models.bridge.poll(payload.get('models'))})
+                    if 'capabilities' in payload and not isinstance(payload['capabilities'],list):raise ValueError()
+                    return send(200,{'job':self.models.bridge.poll(payload.get('models'),capabilities=payload.get('capabilities'))})
                 self.models.bridge.deliver(payload)
                 return send(200,{'ok':True})
             except (ValueError,KeyError,TypeError): return send(400,{'error':'연결 요청 형식을 확인해 주세요.'})
@@ -446,6 +450,19 @@ class PublicApp:
                         self.request_slots.release()
                 start_response('200 OK', headers + [('Content-Type', 'application/x-ndjson; charset=utf-8')])
                 return stream()
+            if path == '/api/chat/prepare':
+                # Preparing may now generate an answer, so it shares chat admission.
+                if not self.request_slots.acquire(blocking=False):
+                    diagnostic_error='busy';return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 시도해 주세요.'})
+                with self.lock:context['active']+=1
+                try:
+                    if diagnostic_request is not None:
+                        with diagnostic_scope(self.diagnostics,diagnostic_request):
+                            return send(200,chat.prepare(payload))
+                    return send(200,chat.prepare(payload))
+                finally:
+                    with self.lock:context['active']-=1
+                    self.request_slots.release()
             if path == '/api/attachments' and len(list(chat.attachments.directory.glob('*.json'))) >= 12:
                 return send(429, {'error': '공개 시연의 첨부 개수 한도에 도달했습니다.'})
             routes = {
@@ -455,7 +472,6 @@ class PublicApp:
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
                 '/api/attachments': lambda: chat.attachments.upload(payload),
-                '/api/chat/prepare': lambda: chat.prepare(payload),
                 '/api/converse': lambda: service.converse(payload),
                 '/api/slots': lambda: service.update_slots(payload),
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id')),

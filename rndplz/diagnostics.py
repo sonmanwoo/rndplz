@@ -33,7 +33,8 @@ _EXECUTIONS = {'records','guide','bridge','ollama','api','unknown'}
 _STATUSES = {'started','complete','error','cancelled','rejected','pending'}
 _ID_FIELDS = {'diagnostic_run','visitor_ref','session_id','turn_id','attempt_id','request_id','trace_id','job_id','event_id',
               'route_reason','error_kind','failure_stage','code_fingerprint','prompt_sha256',
-              'worker_source_fingerprint','worker_input_fingerprint','worker_instance','credential_id','event_type','previous_mode','next_mode'}
+              'worker_source_fingerprint','worker_input_fingerprint','worker_instance','credential_id','event_type','previous_mode','next_mode',
+              'generation_contract','model_phase','plan_sha256','tool_call_id'}
 _MODEL_FIELDS = {'model_selected','model_job','provider_model_observed'}
 _NUMBER_FIELDS = {'input_chars','output_chars','attachment_count','elapsed_ms','queue_ms','first_delta_ms',
                   'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict'}
@@ -116,11 +117,190 @@ def _metadata(values):
     return result
 
 
+def _assessment_text(value, limit):
+    # Redaction can expand a short secret to a marker; enforce the final cap too.
+    return redact_text(value, limit)[:limit]
+
+
+def _assessment_id(value):
+    # Keep the existing stricter ID alphabet/100-character bound, not free text.
+    return value if isinstance(value,str) and _ID.fullmatch(value) and redact_text(value)==value else None
+
+
+def _assessment_list(value, limit):
+    return value[:limit] if isinstance(value,list) else []
+
+
+def _assessment_ids(value, limit):
+    return [item for item in _assessment_list(value,limit) if _assessment_id(item) is not None]
+
+
+def _assessment_fields(value):
+    return [item for item in _assessment_list(value,2) if item in ('title','text')]
+
+
+def _assessment_matching(value):
+    """Literal search observations, not an assessment of professional ability."""
+    branches=[]
+    for branch in _assessment_list(value,3):
+        if not isinstance(branch,dict):continue
+        row={'groups':[]}
+        if type(branch.get('index')) is int and 0<=branch['index']<=2:row['index']=branch['index']
+        if isinstance(branch.get('label'),str):row['label']=_assessment_text(branch['label'],120)
+        if branch.get('source')=='model_interpretation':row['source']='model_interpretation'
+        for group in _assessment_list(branch.get('groups'),3):
+            if not isinstance(group,dict):continue
+            clean={'record_ids':_assessment_ids(group.get('record_ids'),3),'matches':[]}
+            if type(group.get('index')) is int and 0<=group['index']<=2:clean['index']=group['index']
+            for match in _assessment_list(group.get('matches'),3):
+                if not isinstance(match,dict):continue
+                hit={'topic_ids':_assessment_ids(match.get('topic_ids'),5),'queries':[]}
+                if _assessment_id(match.get('record_id')) is not None:hit['record_id']=match['record_id']
+                score=match.get('score')
+                if type(score) in (int,float) and 0<=score<=10**10 and math.isfinite(score):hit['score']=score
+                for query in _assessment_list(match.get('queries'),5):
+                    if not isinstance(query,dict):continue
+                    detail={'fields':_assessment_fields(query.get('fields'))}
+                    if isinstance(query.get('query'),str):detail['query']=_assessment_text(query['query'],200)
+                    if query.get('match_mode') in ('exact_phrase','all_terms'):detail['match_mode']=query['match_mode']
+                    # A 200-character query has at most 100 whitespace-separated
+                    # terms. Bound both the item count and aggregate copied text.
+                    detail['terms']=[];remaining=200
+                    for term in _assessment_list(query.get('terms'),100):
+                        if not isinstance(term,str):continue
+                        if len(term)>remaining:break
+                        cleaned=_assessment_text(term,remaining)
+                        detail['terms'].append(cleaned);remaining-=len(cleaned)
+                    detail['term_fields']=[];remaining=200
+                    for term in _assessment_list(query.get('term_fields'),100):
+                        if not isinstance(term,dict) or not isinstance(term.get('term'),str):continue
+                        if len(term['term'])>remaining:break
+                        cleaned=_assessment_text(term['term'],remaining)
+                        detail['term_fields'].append({'term':cleaned,'fields':_assessment_fields(term.get('fields'))})
+                        remaining-=len(cleaned)
+                    hit['queries'].append(detail)
+                clean['matches'].append(hit)
+            row['groups'].append(clean)
+        branches.append(row)
+    return branches
+
+
+def _clean_assessment(value):
+    clean={'assessments':[]}
+    if isinstance(value.get('empty_reply'),str):clean['empty_reply']=_assessment_text(value['empty_reply'],800)
+    for assessment in _assessment_list(value.get('assessments'),7):
+        if not isinstance(assessment,dict):continue
+        row={'evidence':[]}
+        if _assessment_id(assessment.get('person_id')) is not None:row['person_id']=assessment['person_id']
+        if assessment.get('relation') in ('direct','adjacent','insufficient'):row['relation']=assessment['relation']
+        for key,limit in (('text',400),('missing',300)):
+            if isinstance(assessment.get(key),str):row[key]=_assessment_text(assessment[key],limit)
+        for evidence in _assessment_list(assessment.get('evidence'),3):
+            if not isinstance(evidence,dict):continue
+            item={}
+            if _assessment_id(evidence.get('record_id')) is not None:item['record_id']=evidence['record_id']
+            if isinstance(evidence.get('quote'),str):item['quote']=_assessment_text(evidence['quote'],240)
+            row['evidence'].append(item)
+        clean['assessments'].append(row)
+    return clean
+
+
+def _clean_assessment_materials(value):
+    materials=[]
+    for person in value[:7]:
+        if not isinstance(person,dict):continue
+        row={'evidence':[]}
+        if _assessment_id(person.get('id')) is not None:row['id']=person['id']
+        if isinstance(person.get('name'),str):row['name']=_assessment_text(person['name'],200)
+        if isinstance(person.get('unverified_conditions'),list):
+            row['unverified_conditions']=[_assessment_text(item,1000) for item in person['unverified_conditions'][:100] if isinstance(item,str)]
+        if type(person.get('individual_performance_verified')) is bool:
+            row['individual_performance_verified']=person['individual_performance_verified']
+        if isinstance(person.get('availability'),str):row['availability']=_assessment_text(person['availability'],100)
+        if isinstance(person.get('matching_interpretations'),list):
+            row['matching_interpretations']=_assessment_matching(person['matching_interpretations'])
+        for record in _assessment_list(person.get('evidence'),3):
+            if not isinstance(record,dict):continue
+            item={}
+            if _assessment_id(record.get('id')) is not None:item['id']=record['id']
+            for key,limit in (('title',400),('excerpt',800),('scope_label',200),('source',200),
+                              ('scope',100),('kind',100),('url',2000)):
+                if isinstance(record.get(key),str):item[key]=_assessment_text(record[key],limit)
+            if isinstance(record.get('record_subject'),dict):
+                subject=record['record_subject'];item['record_subject']={}
+                if _assessment_id(subject.get('id')) is not None:item['record_subject']['id']=subject['id']
+                if isinstance(subject.get('name'),str):item['record_subject']['name']=_assessment_text(subject['name'],200)
+            if record.get('source_channel')=='registered_corpus':item['source_channel']='registered_corpus'
+            key='retrieved_from_current_conversation_attachment'
+            if type(record.get(key)) is bool:item[key]=record[key]
+            for key in ('submitter_identity','current_conversation_user_relation'):
+                if record.get(key)=='not_established':item[key]='not_established'
+            row['evidence'].append(item)
+        materials.append(row)
+    return materials
+
+
 def _clean_content(value):
     if not isinstance(value,dict) or _bytes_present(value):raise ValueError('진단 상세 형식을 확인해 주세요.')
     result={}
-    for key in ('user_text','assistant_text'):
+    for key in ('user_text','assistant_text','model_plan_raw'):
         if key in value:result[key]=redact_text(value[key])
+    if isinstance(value.get('model_assessment_raw'),str):
+        result['model_assessment_raw']=_assessment_text(value['model_assessment_raw'],24000)
+    if isinstance(value.get('model_assessment'),dict):
+        result['model_assessment']=_clean_assessment(value['model_assessment'])
+    if isinstance(value.get('model_assessment_materials'),list):
+        result['model_assessment_materials']=_clean_assessment_materials(value['model_assessment_materials'])
+    if isinstance(value.get('model_plan'),dict):
+        plan=value['model_plan'];clean={}
+        for key in ('reply','intent','lookup_action','summary'):
+            if isinstance(plan.get(key),str):clean[key]=redact_text(plan[key],4000)
+        clean['person_names']=[redact_text(x,200) for x in plan.get('person_names',[])[:10] if isinstance(x,str)]
+        clean['conditions']=[]
+        for row in plan.get('conditions',[])[:20]:
+            if not isinstance(row,dict):continue
+            item={k:redact_text(row[k],4000) for k in ('kind','text','source_quote') if isinstance(row.get(k),str)}
+            if isinstance(row.get('source_turn_id'),str) and _ID.fullmatch(row['source_turn_id']):item['source_turn_id']=row['source_turn_id']
+            clean['conditions'].append(item)
+        clean['interpretations']=[]
+        for branch in plan.get('interpretations',[])[:3]:
+            if not isinstance(branch,dict):continue
+            item={'label':redact_text(branch.get('label',''),1000),'groups':[]}
+            for group in branch.get('groups',[])[:3]:
+                if not isinstance(group,dict):continue
+                item['groups'].append({'topic_ids':[t for t in group.get('topic_ids',[])[:8] if isinstance(t,str) and _ID.fullmatch(t)],
+                                       'queries':[redact_text(q,500) for q in group.get('queries',[])[:6] if isinstance(q,str)]})
+            clean['interpretations'].append(item)
+        result['model_plan']=clean
+    if isinstance(value.get('model_plan_base'),dict):
+        result['model_plan_base']=_clean_content({'model_plan':value['model_plan_base']})['model_plan']
+    if isinstance(value.get('model_plan_attempts'),list):
+        attempts=[]
+        for row in value['model_plan_attempts'][:2]:
+            if not isinstance(row,dict):continue
+            item={}
+            if type(row.get('attempt')) is int and 1<=row['attempt']<=2:item['attempt']=row['attempt']
+            if row.get('phase') in ('interpret','repair','refine'):item['phase']=row['phase']
+            if isinstance(row.get('raw'),str):item['raw']=redact_text(row['raw'],24000)
+            for key in ('origin_turn_id','reason'):
+                if isinstance(row.get(key),str) and _ID.fullmatch(row[key]):item[key]=row[key]
+            for key in ('provider_completed','adopted'):
+                if type(row.get(key)) is bool:item[key]=row[key]
+            if row.get('validation') in (None,'accepted','rejected'):item['validation']=row.get('validation')
+            if row.get('decision') in ('search_again','no_further_search'):item['decision']=row['decision']
+            attempts.append(item)
+        result['model_plan_attempts']=attempts
+    if isinstance(value.get('model_search_attempts'),list):
+        searches=[]
+        for row in value['model_search_attempts'][:2]:
+            if not isinstance(row,dict):continue
+            item={}
+            for key in ('tool_call_id','plan_sha256','revision','lookup_resolution'):
+                if isinstance(row.get(key),str) and _ID.fullmatch(row[key]):item[key]=row[key]
+            for key in ('attempt','candidate_count'):
+                if type(row.get(key)) is int and 0<=row[key]<=7:item[key]=row[key]
+            searches.append(item)
+        result['model_search_attempts']=searches
     if isinstance(value.get('request_context'),dict):
         item=value['request_context'];ctx={}
         if isinstance(item.get('query'),str):ctx['query']=redact_text(item['query'],16000)

@@ -14,7 +14,7 @@ import time
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
-from .chat_models import ChatModels
+from .chat_models import ChatModels, GENERATION_CONTRACT_NAMES, generation_spec, validate_generation_input
 from .models import NoRedirect
 from . import chat_models as _chat_models
 from . import models as _models
@@ -54,7 +54,7 @@ def installed_worker_models(config, model_client, refresh=False):
 
 _TRACE = re.compile(r'[A-Za-z0-9_.:-]{1,100}\Z')
 _SHA = re.compile(r'[a-f0-9]{64}\Z')
-_WORKER_ERRORS = {'worker_model_unavailable','worker_trace_invalid','provider_error','result_delivery_error'}
+_WORKER_ERRORS = {'worker_model_unavailable','worker_contract_unavailable','worker_trace_invalid','provider_error','result_delivery_error'}
 _WORKER_STAGES = {'validation','generation','result_delivery'}
 
 
@@ -104,10 +104,30 @@ def _validated_observation(payload, job):
     return {key:value for key,value in data.items() if key!='version'}
 
 
-def _worker_identity():
+def _validated_capabilities(values):
+    if values is None:return ()
+    if (not isinstance(values,list) or len(values)>len(GENERATION_CONTRACT_NAMES)
+            or any(not isinstance(value,str) or value not in GENERATION_CONTRACT_NAMES for value in values)):
+        raise ValueError('연결기 대화 계약 목록 형식을 확인해 주세요.')
+    return tuple(dict.fromkeys(values))
+
+
+def _worker_capabilities():
+    supported=[]
+    for name in GENERATION_CONTRACT_NAMES:
+        try:generation_spec(name)
+        except ValueError:continue
+        supported.append(name)
+    return supported
+
+
+def _worker_identity(capabilities=()):
     """Startup source-file fingerprint, not a claim about weights or process memory."""
     modules={'__init__.py':sys.modules[__package__], 'gemma_bridge.py':sys.modules[__name__],
              'chat_models.py':_chat_models,'models.py':_models,'diagnostics.py':_diagnostics}
+    if capabilities:
+        from . import model_dialogue
+        modules['model_dialogue.py']=model_dialogue
     fingerprints={name:hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest() for name,module in modules.items()}
     return {'version':1,'worker_instance':uuid.uuid4().hex,
             'worker_source_fingerprint':hashlib.sha256(json.dumps(fingerprints,sort_keys=True,separators=(',',':')).encode()).hexdigest(),
@@ -141,6 +161,7 @@ class GemmaRelay:
         self.allowed_models=configured_models(model,models)
         self.token, self.model, self.timeout = token, model, timeout
         self._advertised_models={model}
+        self._advertised_capabilities=set()
         self.draining=False
         self.condition = threading.Condition()
         self.jobs = {}
@@ -157,6 +178,11 @@ class GemmaRelay:
         with self.condition:
             return frozenset(self._advertised_models) if self.online else frozenset()
 
+    @property
+    def available_capabilities(self):
+        with self.condition:
+            return frozenset(self._advertised_capabilities) if self.online else frozenset()
+
     def control(self, command):
         """Authenticated operator control; never a heartbeat or a job claim."""
         if command not in ('status','drain','resume'):
@@ -164,23 +190,29 @@ class GemmaRelay:
         with self.condition:
             if command=='drain':self.draining=True
             elif command=='resume':self.draining=False
-            return {'active_jobs':len(self.jobs),'draining':self.draining,'models':sorted(self.available_models)}
+            return {'active_jobs':len(self.jobs),'draining':self.draining,'models':sorted(self.available_models),
+                    'capabilities':sorted(self.available_capabilities)}
 
     def _event(self, identifier, job, kind, **metadata):
         values={'trace_id':job['trace_id'],'job_id':identifier,'model_job':job['model'],
+                'generation_contract':job.get('contract'),
                 'worker_instance':None,'worker_source_fingerprint':None,'worker_input_fingerprint':None,'prompt_sha256':None,
                 **job.get('worker_observation',{}),**metadata}
         return _relay_event(job.get('captured'),kind,**values)
 
-    def poll(self, models=None):
+    def poll(self, models=None, *, capabilities=None):
         advertised={self.model} if models is None else set(_validated_model_names(models))
         advertised.intersection_update(self.allowed_models)
+        supported=set(_validated_capabilities(capabilities))
         with self.condition:
             self.seen = time.monotonic()
             self._advertised_models=advertised
+            self._advertised_capabilities=supported
             def claim():
                 for identifier, job in self.jobs.items():
                     if job['claimed'] or job['done']:continue
+                    # A legacy poll can neither consume nor fail a new-contract job.
+                    if job.get('contract') is not None and job['contract'] not in supported:continue
                     if job['model'] not in advertised:
                         job['done']=True;job['error']=True
                         self._event(identifier,job,'relay_error',error_kind='worker_model_unavailable',failure_stage='claim')
@@ -188,7 +220,9 @@ class GemmaRelay:
                         continue
                     job['claimed'] = True
                     self._event(identifier,job,'relay_claimed',queue_ms=round((time.monotonic()-job['created'])*1000,3))
-                    return {'id': identifier, 'lease': job['lease'], 'messages': job['messages'], 'model': job['model'],'trace_id':job['trace_id']}
+                    claimed={'id': identifier, 'lease': job['lease'], 'messages': job['messages'], 'model': job['model'],'trace_id':job['trace_id']}
+                    if job.get('contract') is not None:claimed['contract']=job['contract']
+                    return claimed
                 return None
             job=claim()
             if job:return job
@@ -228,7 +262,8 @@ class GemmaRelay:
                 self._event(payload['id'],job,'relay_done',output_chars=job['length'])
             self.condition.notify_all()
 
-    def stream(self, messages, model=None):
+    def stream(self, messages, model=None, *, contract=None):
+        if contract is not None:validate_generation_input(messages,contract)
         captured=_capture_relay_scope()
         model=self.model if model is None else model
         def reject(message,reason):
@@ -239,17 +274,24 @@ class GemmaRelay:
             if self.draining:reject('Gemma 연결기를 점검 중입니다. 잠시 후 다시 시도해 주세요.','bridge_draining')
             if not self.online:reject('운영자 PC의 Gemma 연결을 기다리고 있습니다.','bridge_offline')
             if model not in self.available_models:reject('선택한 Gemma 모델을 운영자 PC에서 사용할 수 없습니다.','worker_model_unavailable')
+            if contract is not None and contract not in self.available_capabilities:
+                reject('운영자 PC의 연결기가 이 대화 생성 계약을 지원하지 않습니다.','worker_contract_unavailable')
             if len(self.jobs)>=2:reject('Gemma가 다른 질문에 답하고 있습니다. 잠시 후 다시 시도해 주세요.','bridge_busy')
+            requested_deadline=getattr(messages,'generation_deadline',None)
+            if requested_deadline is not None and requested_deadline<=time.monotonic():
+                reject('이번 대화의 모델 처리 시간을 초과했습니다.','dialogue_deadline')
             identifier=secrets.token_hex(16)
             trace=captured[1].get('trace_id') if captured else None
             if not isinstance(trace,str) or not _TRACE.fullmatch(trace):trace=uuid.uuid4().hex
             job={'messages':messages,'model':model,'lease':secrets.token_hex(24),'claimed':False,'chunks':collections.deque(),
                  'sequence':0,'length':0,'done':False,'error':False,'captured':captured,'trace_id':trace,
                  'created':time.monotonic(),'first_delta':False,'worker_observation':{}}
+            if contract is not None:job['contract']=contract
             self.jobs[identifier]=job
             self._event(identifier,job,'relay_queued')
             self.condition.notify_all()
         deadline=time.monotonic()+self.timeout
+        if requested_deadline is not None:deadline=min(deadline,requested_deadline)
         try:
             while True:
                 with self.condition:
@@ -278,7 +320,8 @@ def run_worker(config):
     if parsed.username or parsed.password or parsed.query or parsed.fragment: raise ValueError('서버 주소 형식 오류')
     token=config['token'];opener=urllib.request.build_opener(NoRedirect())
     model=ChatModels({})
-    try:identity=_worker_identity()
+    capabilities=_worker_capabilities()
+    try:identity=_worker_identity(capabilities)
     except Exception:identity=None  # Observation unavailable; inference behavior is unchanged.
     def post(route, payload):
         req=urllib.request.Request(base+'/api/worker/'+route,data=json.dumps(payload,ensure_ascii=False).encode(),
@@ -292,12 +335,13 @@ def run_worker(config):
     print('Gemma 연결기 시작 · 공개 서버 요청을 기다립니다.',flush=True)
     while True:
         try:
-            job=post('poll',{'models':installed_worker_models(config,model)}).get('job')
+            job=post('poll',{'models':installed_worker_models(config,model),'capabilities':capabilities}).get('job')
             if not job: continue
             seq=0;buffer='';last=time.monotonic();accepted_model=None
             observation=dict(identity or {})
             trace=job.get('trace_id');valid_trace=isinstance(trace,str) and bool(_TRACE.fullmatch(trace))
             stage='validation';generation_started=None
+            contract=job.get('contract');contract_valid=contract is None or (isinstance(contract,str) and contract in capabilities)
             def observed_payload(provider,payload):
                 try:_observe_worker_payload(provider,payload,observation)
                 except Exception:pass
@@ -315,10 +359,12 @@ def run_worker(config):
             try:
                 if 'trace_id' in job and not valid_trace:
                     raise ValueError('작업 추적 정보 형식을 확인해 주세요.')
+                if not contract_valid:raise ValueError('지원하지 않는 대화 생성 계약입니다.')
                 if job.get('model') not in installed_worker_models(config,model,refresh=True):
                     raise ValueError('허용되거나 설치된 모델이 아닙니다.')
                 accepted_model=job['model'];stage='generation';generation_started=time.monotonic()
-                for chunk in model.stream('ollama:'+accepted_model,job['messages']):
+                stream_options={} if contract is None else {'contract':contract}
+                for chunk in model.stream('ollama:'+accepted_model,job['messages'],**stream_options):
                     buffer+=chunk
                     if len(buffer)>=60 or time.monotonic()-last>=.5:
                         stage='result_delivery'
@@ -328,7 +374,7 @@ def run_worker(config):
                 post('result',{'id':job['id'],'lease':job['lease'],'sequence':seq,'text':buffer,'done':True,**result_metadata()})
                 print('Gemma 응답 전달 완료 · '+accepted_model,flush=True)
             except Exception:
-                kind='worker_trace_invalid' if not valid_trace and 'trace_id' in job else 'worker_model_unavailable' if accepted_model is None else 'result_delivery_error' if stage=='result_delivery' else 'provider_error'
+                kind='worker_trace_invalid' if not valid_trace and 'trace_id' in job else 'worker_contract_unavailable' if not contract_valid else 'worker_model_unavailable' if accepted_model is None else 'result_delivery_error' if stage=='result_delivery' else 'provider_error'
                 try: post('result',{'id':job['id'],'lease':job['lease'],'sequence':seq,'done':True,'error':True,**result_metadata(kind)})
                 except Exception: pass
                 print('Gemma 작업 중단'+(' · '+accepted_model if accepted_model else '')+' · 요청 본문과 비밀 값은 기록하지 않습니다.',flush=True)

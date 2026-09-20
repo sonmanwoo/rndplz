@@ -10,6 +10,36 @@ from .models import NoRedirect
 
 
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
+GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1')
+
+
+def generation_spec(name):
+    """Resolve only a server-owned registry entry; never accept caller prompts/schema."""
+    if not isinstance(name,str) or name not in GENERATION_CONTRACT_NAMES:
+        raise ValueError('지원하지 않는 대화 생성 계약입니다.')
+    try:
+        from .model_dialogue import generation_contract
+        spec=copy.deepcopy(generation_contract(name))
+    except Exception:
+        raise ValueError('대화 생성 계약을 불러오지 못했습니다.') from None
+    if (not isinstance(spec,dict) or not isinstance(spec.get('system'),str) or not spec['system'].strip()
+            or type(spec.get('max_tokens')) is not int or not 1<=spec['max_tokens']<=8192
+            or (name in ('dialogue_plan.v1','dialogue_refine.v1','dialogue_assessment.v1') and not isinstance(spec.get('format'),dict))
+            or (name=='dialogue_answer.v1' and spec.get('format') is not None)):
+        raise ValueError('대화 생성 계약 형식이 올바르지 않습니다.')
+    return spec
+
+
+def validate_generation_input(messages, contract):
+    """Admit the complete, untrimmed model-visible input before any dispatch."""
+    spec = generation_spec(contract)
+    if not isinstance(messages, list) or any(
+            not isinstance(row, dict) or row.get('role') not in ('user', 'assistant')
+            or not isinstance(row.get('content'), str) for row in messages):
+        raise ValueError('대화 생성 메시지 형식이 올바르지 않습니다.')
+    if len(spec['system']) + sum(len(row['content']) for row in messages) > 42000:
+        raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
+    return spec
 
 
 CHAT_SYSTEM='''당신은 수소문이라는 연구 협업 대화 도우미입니다. 한국어로 자연스럽게 대화하세요.
@@ -75,7 +105,16 @@ class ChatModels:
         if not option or not option['enabled']:raise ValueError('사용할 모델을 연결하거나 다른 모델을 선택해 주세요.')
         return option
 
-    def stream(self,identifier,messages):
+    def stream(self,identifier,messages,*,contract=None):
+        deadline=getattr(messages,'generation_deadline',None)
+        def remaining():
+            value=180 if deadline is None else min(180,deadline-time.monotonic())
+            if value<=0:raise ValueError('이번 대화의 모델 처리 시간을 초과했습니다.')
+            return value
+        remaining()
+        spec=validate_generation_input(messages,contract) if contract is not None else None
+        system=spec['system'] if spec is not None else CHAT_SYSTEM
+        schema=spec.get('format') if spec is not None else None
         option=self.get(identifier);provider=option['provider']
         with self.lock:
             # The lifetime budget protects paid APIs; local models can keep serving.
@@ -85,24 +124,38 @@ class ChatModels:
         headers={'Content-Type':'application/json'}
         if provider=='ollama':
             url=self.local_base+'/api/chat'
-            payload={'model':option['name'],'messages':[{'role':'system','content':CHAT_SYSTEM}]+messages,'stream':True,'think':False,'options':{'num_predict':700,'num_ctx':16384},'keep_alive':'10m'}
+            payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':16384},'keep_alive':'10m'}
+            # New dialogue contracts need semantic interpretation. Allow the
+            # model's default reasoning behavior instead of disabling thinking.
+            if spec is not None:payload.pop('think',None)
+            if schema is not None:payload['format']=schema
         elif provider=='openai':
             url='https://api.openai.com/v1/chat/completions';headers['Authorization']='Bearer '+config['key']
-            payload={'model':config['model'],'messages':[{'role':'system','content':CHAT_SYSTEM}]+messages,'stream':True,'max_completion_tokens':1800}
+            payload={'model':config['model'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'max_completion_tokens':spec['max_tokens'] if spec is not None else 1800}
+            if schema is not None:
+                if 'anyOf' in schema or 'oneOf' in schema:
+                    # OpenAI strict structured output does not support a root union.
+                    # The model-visible full schema and server parser still apply.
+                    payload['response_format']={'type':'json_object'}
+                else:
+                    payload['response_format']={'type':'json_schema','json_schema':{'name':contract.replace('.','_'),'strict':True,'schema':schema}}
             if config['model']==DEFAULT_OPENAI_MODEL:
                 payload.update(reasoning_effort='low',service_tier='default')
         else:
             url='https://api.anthropic.com/v1/messages';headers.update({'x-api-key':config['key'],'anthropic-version':'2023-06-01'})
-            payload={'model':config['model'],'system':CHAT_SYSTEM,'messages':messages,'stream':True,'max_tokens':1200}
+            # Registry systems already include the exact structured schema once.
+            # Anthropic remains prompt-constrained; the server validates its output.
+            payload={'model':config['model'],'system':system,'messages':messages,'stream':True,'max_tokens':spec['max_tokens'] if spec is not None else 1200}
         observer=getattr(self,'diagnostic_observer',None)
         if callable(observer):
             try:observer(provider,copy.deepcopy(payload))
             except Exception:pass  # Observation never edits or prevents the actual request.
         request=urllib.request.Request(url,data=json.dumps(payload,ensure_ascii=False).encode(),headers=headers,method='POST')
-        complete=False
+        complete=False;structured_text=''
         try:
-            with urllib.request.build_opener(NoRedirect()).open(request,timeout=180) as response:
+            with urllib.request.build_opener(NoRedirect()).open(request,timeout=remaining()) as response:
                 for raw in response:
+                    remaining()
                     line=raw.decode('utf-8').strip()
                     if not line:continue
                     if provider!='ollama':
@@ -118,8 +171,12 @@ class ChatModels:
                     text=''
                     if provider=='ollama':
                         text=data.get('message',{}).get('content','')
+                        if spec is not None and 'done' in data and type(data['done']) is not bool:
+                            raise ValueError('모델의 종료 상태 형식을 확인하지 못했습니다.')
                         if data.get('done'):
                             if data.get('done_reason')=='length':raise ValueError('응답 길이 한도에 도달했습니다. 질문을 나누어 주세요.')
+                            if spec is not None and data.get('done_reason')!='stop':
+                                raise ValueError('모델 응답의 정상 종료를 확인하지 못했습니다.')
                             complete=True
                     elif provider=='openai':
                         choices=data.get('choices',[])
@@ -134,8 +191,23 @@ class ChatModels:
                         if data.get('type')=='content_block_delta':text=data.get('delta',{}).get('text','')
                         if data.get('type')=='message_delta' and data.get('delta',{}).get('stop_reason') not in (None,'end_turn'):raise ValueError('모델 응답이 끝까지 생성되지 않았습니다.')
                         if data.get('type')=='message_stop':complete=True
-                    if text:yield text
+                    if text:
+                        if schema is None:yield text
+                        else:
+                            structured_text+=text
+                            if len(structured_text)>24000:raise ValueError('대화 계획 응답이 허용 범위를 넘었습니다.')
+                            # Internal chunks permit phase heartbeats. Conversation must
+                            # buffer them, never render or apply an unfinished plan.
+                            yield text
                 if not complete:raise ValueError('모델 연결이 중간에 끝났습니다. 다시 시도해 주세요.')
+                if schema is not None:
+                    try:
+                        def invalid_constant(value):raise ValueError('Invalid JSON constant')
+                        parsed=json.loads(structured_text,parse_constant=invalid_constant)
+                        if not isinstance(parsed,dict):raise ValueError('Expected JSON object')
+                    except (ValueError,TypeError):
+                        raise ValueError('모델이 유효한 대화 계획 JSON을 반환하지 않았습니다.') from None
+                    # The caller validates the full schema/evidence after normal exhaustion.
         except ValueError:raise
         except Exception:
             raise ValueError('모델 연결에 실패했습니다. 연결 상태·모델 ID를 확인한 뒤 다시 시도해 주세요.') from None

@@ -12,9 +12,10 @@ from .chat_actions import ChatActions
 from .discovery import Discovery, DiscoveryError, DEFER_SEARCH, CONTROL_ONLY, FAMILIES
 from .service import now, validate_text
 from .diagnostics import capture_scope, event as diagnostic_event, scope as diagnostic_scope
+from .model_conversation import ModelConversation
 
 
-class Conversation:
+class Conversation(ModelConversation):
     def __init__(self,service,models=None):
         self.service=service;self.store=service.store
         self.models=models or ChatModels()
@@ -27,6 +28,10 @@ class Conversation:
                 for s in state['sessions']:
                     if s.get('pending'):
                         s['messages'].append({'role':'assistant','text':'서버가 재시작되어 응답이 중단됐어요. 다시 시도할 수 있습니다.','status':'error','turn_id':s['pending']})
+                        if s.pop('pending_model_led',False):
+                            s.update(self.discussion_state(s))
+                            s.update(model_plan=None,model_plan_revision=None,discovery=None,can_propose=False)
+                            s.pop('prepared_discovery_revision',None)
                         s['pending']=None
             self.store.transaction(recover)
 
@@ -482,8 +487,15 @@ class Conversation:
         if not isinstance(ids,list) or len(ids)>4 or any(not isinstance(x,str) for x in ids) or len(set(ids))!=len(ids):raise ValueError('첨부는 한 번에 4개까지 선택해 주세요.')
         items=[self.attachments.load(x) for x in ids]
         if not text and not items:raise ValueError('메시지를 입력하거나 파일을 첨부해 주세요.')
-        option=self.models.get(payload.get('model_id'))
-        if any(x['image'] for x in items) and not option['vision']:
+        stopping=self.actions.cancelled(text)
+        identifier=payload.get('model_id')
+        if stopping and isinstance(identifier,str) and 1<=len(identifier)<=150:
+            # A server stop requires no provider connection. Preserve the user's
+            # selected model identity without consulting its availability.
+            option={'id':identifier,'name':'수소문 · 중단','provider':'records','vision':False}
+        else:
+            option=self.models.get(identifier)
+        if not stopping and any(x['image'] for x in items) and not option['vision']:
             raise ValueError('선택한 모델은 이미지를 읽지 못합니다. 이미지 지원 모델을 선택하거나 문서로 첨부해 주세요.')
         turn_id=payload.get('turn_id','')
         if not isinstance(turn_id,str) or not re.fullmatch(r'[a-zA-Z0-9-]{16,80}',turn_id):raise ValueError('메시지 식별자를 확인해 주세요.')
@@ -513,6 +525,16 @@ class Conversation:
                 s['messages'].append({'role':'user','input_text':text,'text':text or '첨부한 자료를 함께 검토해 주세요.','turn_id':turn_id,'digest':digest,'attachments':[self.attachments.public(x) for x in items]})
                 s['turns']+=1
                 if selected:s['messages'][-1]['person_id']=selected
+            # Selected models interpret natural language before any topic or
+            # people-request regex can consume it. Explicit UI identity clicks
+            # and the existing immediate stop control retain server handling.
+            if option.get('provider')!='guide' and selected is None and not self.actions.cancelled(text):
+                messages=self.reserve_model_turn(s,option,turn_id)
+                return self.service.present_session(s),messages,False
+            s.pop('model_plan_version',None)
+            s.pop('pending_model_led',None)
+            s.pop('model_plan',None)
+            s.pop('model_plan_revision',None)
             # Name lookup and cancellation stay separate. A people-search intent
             # requests discovery first; only an explicit, ready action publishes.
             attached_context=any(m.get('attachments') for m in s['messages'] if m['role']=='user')
@@ -697,6 +719,9 @@ class Conversation:
                 diagnostic_event('cached_return',status='complete',cached=True,model_called=False,model_selected=option['id'])
                 yield {'type':'done','session':session};return
             self._diagnostic_started(session,payload,option,messages)
+            if session.get('pending_model_led'):
+                yield from self.stream_model_turn(session,payload,option,messages)
+                return
             reply='';status='cancelled';error='';started=time.monotonic();first=True
             # Adapter dispatch is separate from provider delivery or completion.
             model_dispatched=False
@@ -729,6 +754,9 @@ class Conversation:
 
     def prepare(self,payload):
         sid=payload.get('session_id')
+        current=self.get(sid)
+        if current.get('model_plan_version') in ('dialogue_plan.v1','dialogue_decision.v1','dialogue_decision.v2'):
+            return self.prepare_model_turn(payload)
         def update(state):
             s=next((x for x in state['sessions'] if x['id']==sid and x.get('kind')=='chat'),None)
             if not s or s.get('pending'):raise ValueError('응답이 끝난 대화에서 사람 찾기를 시작해 주세요.')
