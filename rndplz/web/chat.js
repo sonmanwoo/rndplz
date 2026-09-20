@@ -56,7 +56,7 @@ function controls(){syncModelSelection();const m=option(),locked=busy||profileBu
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
 function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
-function scrollBottom(){if(autoScroll)requestAnimationFrame(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:"instant"}));}
+function scrollBottom(){if(autoScroll)requestAnimationFrame(()=>{if(autoScroll&&!briefEditor)window.scrollTo({top:document.documentElement.scrollHeight,behavior:"instant"});});}
 // lookup_ready and summary/question describe server-compiled search clues.
 // They do not assert that a candidate exists or that a proposal is ready.
 function currentDiscovery(s=session){return !!s&&typeof s.id==="string"&&!!s.id&&s.search_context?.kind!=="stopped"&&typeof s.discovery?.lookup_ready==="boolean"&&typeof s.discovery.revision==="string"&&!!s.discovery.revision?s.discovery:null;}
@@ -201,6 +201,20 @@ function renderBrief(){
  }
  updateBriefNotice();syncDiscoveryControls();
 }
+// Called only by explicit edit opening, never by brief refresh or input events.
+function revealBriefEditorField(field){
+ const rect=field.getBoundingClientRect(),viewport=window.visualViewport;
+ const top=(viewport?.offsetTop||0)+16;
+ let bottom=(viewport?.offsetTop||0)+(viewport?.height||window.innerHeight);
+ const dock=document.querySelector(".composer-dock");
+ if(dock){
+  const position=getComputedStyle(dock).position,cover=dock.getBoundingClientRect();
+  if((position==="sticky"||position==="fixed")&&cover.bottom>top&&cover.top<bottom&&cover.right>rect.left&&cover.left<rect.right)bottom=Math.min(bottom,cover.top);
+ }
+ bottom-=16;if(bottom<=top)return;
+ const delta=rect.top<top||rect.height>bottom-top?rect.top-top:rect.bottom>bottom?rect.bottom-bottom:0;
+ if(delta)window.scrollBy({top:delta,behavior:"instant"});
+}
 function openBriefEditor(){
  if(!session?.id||busy||profileBusy||prepareBusy||uploading||session.pending)return;
  const values=briefFields(session.request_spec);
@@ -208,7 +222,7 @@ function openBriefEditor(){
  const host=ensureBriefHost(),editor=document.createElement("div");editor.id="consultBriefEditor";editor.className="consult-brief-editor";
  editor.innerHTML='<label for="consultBriefField">고칠 항목</label><select id="consultBriefField">'+Object.entries(briefLabels).map(([key,label])=>'<option value="'+key+'"'+(key===briefEditor.field?' selected':'')+'>'+esc(label)+'</option>').join("")+'</select><label id="consultBriefValueLabel" for="consultBriefValue">'+esc(briefLabels[briefEditor.field])+'</label><textarea id="consultBriefValue" rows="3" maxlength="6000" aria-describedby="consultBriefEditHelp"></textarea><p id="consultBriefEditHelp">바꿀 항목만 고쳐 주세요. 내용을 비우면 그 항목을 지우는 요청으로 전달합니다. 조건의 필수·선호 구분도 함께 확인해 주세요.</p><div class="consult-brief-actions"><button type="button" class="secondary" data-brief-action="stage">입력창에 수정문 넣기</button><button type="button" class="text-button" data-brief-action="cancel">취소</button></div><p id="consultBriefEditError" role="alert" hidden></p>';
  host.querySelector('[data-brief-action="edit"]').hidden=true;host.insertBefore(editor,host.querySelector("#currentScout"));
- $("consultBriefValue").value=briefEditor.values[briefEditor.field];updateBriefNotice();syncDiscoveryControls();$("consultBriefValue").focus({preventScroll:true});
+ $("consultBriefValue").value=briefEditor.values[briefEditor.field];updateBriefNotice();syncDiscoveryControls();const field=$("consultBriefValue");field.focus({preventScroll:true});revealBriefEditorField(field);
 }
 function stageBriefCorrection(){
  const edit=briefEditor;if(!edit||edit.sessionId!==session?.id||busy||profileBusy||prepareBusy||uploading||session.pending||profileUI?.isOpen())return;
