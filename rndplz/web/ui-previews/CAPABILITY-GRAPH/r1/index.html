@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>분야에서 사람으로 · 수소문 역량 그래프</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="data.js" defer></script>
+  <script src="model.js" defer></script>
+  <script src="graph.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">탐색 영역으로 건너뛰기</a>
+  <header class="page-header">
+    <a class="wordmark" href="#workspace" aria-label="수소문 역량 그래프 탐색">수소문 <span>연구 맵</span></a>
+    <span class="preview-tag">독립 시안 · 공개 등록 자료</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">CAPABILITY → PEOPLE → EVIDENCE</p><h1 id="page-title">분야에서 <em>사람으로.</em></h1><p class="intro-copy">관심 분야를 펼치고, 그 안의 사람과 연결된 자료를 살펴보세요.</p></div>
+      <p class="dataset-count"><strong id="person-total">—</strong>명 <span>·</span> <strong id="record-total">—</strong>개 기록<small>전체 공개 모음 · 시안의 고정 시점</small></p>
+    </section>
+    <section class="workspace" id="workspace" aria-label="분야와 인물 탐색">
+      <aside class="explorer" aria-label="검색과 분야 목록">
+        <label class="search-label" for="search">이름·분야 검색</label>
+        <div class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" autocomplete="off" placeholder="이름이나 관심 분야"><button id="clear-search" type="button" aria-label="검색어 지우기" hidden>×</button></div>
+        <div class="section-heading"><h2>분야</h2><button id="overview" class="text-button" type="button">분야 개요</button></div>
+        <p class="small-copy">숫자는 자료로 연결된 인원입니다.</p>
+        <div id="capabilities" class="capability-list"></div>
+        <details class="people-details" open>
+          <summary><span>인물 목록</span><span id="list-count" class="count">0</span></summary>
+          <p id="list-context" class="small-copy"></p>
+          <div id="people-list" class="people-list"></div>
+        </details>
+      </aside>
+      <section class="graph-panel" aria-labelledby="graph-title">
+        <div class="graph-heading"><div><p id="graph-step" class="eyebrow">01 · 분야를 고르세요</p><h2 id="graph-title">관심 분야의 연결</h2></div><button id="back" class="back-button" type="button" hidden>← 분야의 사람들</button></div>
+        <div id="breadcrumbs" class="breadcrumbs" aria-label="현재 탐색 위치"></div>
+        <p id="graph-context" class="graph-context"></p>
+        <div class="graph-stage" id="graph-stage">
+          <svg id="graph" tabindex="0" role="group" aria-labelledby="graph-title" aria-describedby="graph-help"><g id="graph-camera"><g id="graph-edges"></g><g id="graph-nodes"></g></g></svg>
+          <p id="graph-empty" class="graph-empty" hidden></p>
+          <div class="graph-controls" aria-label="그래프 화면 조절"><button id="zoom-in" type="button" aria-label="확대">+</button><button id="zoom-out" type="button" aria-label="축소">−</button><button id="fit" type="button">전체 맞춤</button><output id="zoom-level" aria-label="확대 비율">100%</output></div>
+        </div>
+        <div class="graph-foot"><p class="legend"><span class="legend-field">분야</span><span class="legend-person">인물</span><span class="legend-record">근거</span></p><button id="go-detail" class="text-button" type="button" hidden>선택 카드 보기 ↓</button></div>
+        <p id="graph-help" class="graph-help">드래그로 이동 · 휠 또는 + / − 키로 확대 · 방향키로 이동 · Home으로 전체 맞춤. 같은 항목을 왼쪽 목록에서도 고를 수 있습니다.</p>
+        <p class="meaning-note">선은 등록 자료의 연결입니다. 거리·위치·인물 크기는 숙련도나 적합도를 뜻하지 않습니다.</p>
+      </section>
+      <aside id="inspector" class="inspector" tabindex="-1" aria-label="선택한 인물과 근거"><div class="inspector-empty"><div class="empty-symbol" aria-hidden="true">↗</div><p class="eyebrow">한 사람, 그 뒤의 근거</p><h2>사람을 고르면<br>자료가 이어집니다.</h2><p>이름과 역량을 먼저 보고,<br>역할·원문·자료의 한계를 확인하세요.</p><ol><li>분야를 펼칩니다.</li><li>관심 인물을 고릅니다.</li><li>연결된 근거를 읽습니다.</li></ol></div></aside>
+    </section>
+    <p id="live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div id="data-error" class="data-error" role="alert" hidden></div>
+  </main>
+  <footer class="page-footer"><p>등록된 자료를 탐색하는 정적 시안입니다. 실제 조회·연락·제안 발송은 실행하지 않습니다.</p><p>본인 제공 경력과 공개 연구 자료를 구분합니다. 참여 범위·현재 가용성·수행 가능성을 새로 확인한 자료는 아닙니다.</p><p><a href="https://obsidian.md/help/plugins/graph" target="_blank" rel="noopener noreferrer">참고: Obsidian 공식 Graph view</a> · 탐색 방식만 참고한 독립 구현</p></footer>
+</body>
+</html>
