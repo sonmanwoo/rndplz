@@ -156,6 +156,26 @@ class ChatActions:
         return bool(re.fullmatch(r'(?:아니(?:다|야|요)?[,\s]*)?(?:됐어|됐어요|됐습니다|그만(?:해|할게|할래|해주세요)?|취소(?:해|할게|해주세요)?|중단(?:해|할게|해주세요)?|stop|cancel|never\s*mind)[.!…\s]*', normalized(text)))
 
     @staticmethod
+    def explicit_lookup(text):
+        """A pure lookup command, never a new topical condition or named lookup."""
+        value = normalized(text)
+        prefix = r'(?:(?:아니|그래도|그럼|그러면|좋아|좋아요|네|응|일단|지금|바로)[,.\s]*)*'
+        context = r'(?P<context>(?:현재|지금|그|이)\s*(?:정보|조건|내용)(?:으로|로)\s*)?'
+        person = r'(?P<person>(?:사람|인물|전문가|연구자|연구원|후보)(?:들)?(?:을|를|은|는)?\s*)?'
+        ask = r'(?:줘|주세요|줄래(?:요)?|주겠니|주시겠어요|주실래요|달라(?:고)?)'
+        command = (r'(?P<command>찾아(?:\s*' + ask + r')?|'
+                   r'(?:추천|검색|조회)\s*해(?:\s*' + ask + r')?|'
+                   r'수소문(?:\s*해(?:\s*' + ask + r')?)?)')
+        match = re.fullmatch(prefix + context + person + command + r'[.!?…\s]*', value)
+        if not match:
+            return False
+        # Bare "recommend it" may refer to a technical method. A person object
+        # or an explicit reference to current search conditions is required.
+        if re.match(r'추천|검색|조회', match.group('command')):
+            return bool(match.group('context') or match.group('person'))
+        return True
+
+    @staticmethod
     def people_request(text):
         # Match the requested object, not the word "recommend" by itself.
         if re.search(r'(?:찾는|찾을|추천하는|검색하는|필요한지|연결하는).{0,18}(?:방법|기준|이유|원리)', text):
@@ -178,6 +198,22 @@ class ChatActions:
     @classmethod
     def discussion_request(cls, text):
         value = normalized(text)
+        # Recognize deferral/negation only when the remainder is itself a pure
+        # control. Do not let people_request override "인물은 나중에 찾아줘".
+        deferred_control = re.sub(r'지금은\s*(?:말고|아니고)|아직|나중(?:에)?|다음에|안\s*(?=찾아|추천|검색|조회|수소문|해)', ' ', value)
+        if deferred_control != value and cls.explicit_lookup(deferred_control):
+            return True
+        # Quoted/reported pure commands and questions about their UI wording
+        # are discussion. A quoted topical object plus an outside command is
+        # not swallowed, nor is the direct insistence "수소문 해달라고".
+        quoted = re.fullmatch(r"""["'“‘「«](.+?)["'”’」»][.!?\s]*""", value)
+        reported = re.fullmatch(r'(.+?(?:줘|주세요|달라))\s*(?:라고|고)\s*(?:했어|했어요|말했어|말했어요)[.!?\s]*', value)
+        if any(match and cls.explicit_lookup(match.group(1)) for match in (quoted, reported)):
+            return True
+        wording = re.search(r'(?:수소문|찾아|추천|검색|조회).{0,35}(?:버튼|문구|표현|라는|라고).{0,35}(?:뜻|의미|뭐|무엇|설명)', value)
+        question = re.search(r'(?:[?？]|알려\s*(?:줘|주세요)|설명해\s*(?:줘|주세요)|뭐야|무슨\s*뜻이야|무슨\s*뜻이에요)[.!?\s]*$', value)
+        if wording and question:
+            return True
         if re.search(r'(?:이력|프로필|경력)(?:들)?(?:을|를)?\s*비교', value):
             return False
         person = r'(?:전문가|사람|연구자|인물|검색|추천)'
@@ -230,6 +266,9 @@ class ChatActions:
 
     def recommend(self, session, text, excluded=None, discovery=None):
         query = self.query_for(session, text)
+        # A lookup may execute with broad/empty evidence. Proposal authority
+        # still requires the independently computed narrowed-evidence gate.
+        lookup_only = discovery is not None and discovery.get('ready') is not True
         # Keep legacy record ranking and its evidence contract untouched.
         if discovery is None:
             result = self.engine.recommend(query)
@@ -237,7 +276,7 @@ class ChatActions:
             # Rank only the records that supported readiness, using the existing
             # engine's votes and reasons. Never filter a truncated top-N list.
             weighted = self.engine.topics_for(query)
-            accepted = {tid for condition in discovery['conditions'] for tid in condition['topic_ids']}
+            accepted = {tid for condition in discovery.get('lookup_conditions', discovery['conditions']) for tid in condition['topic_ids']}
             topics = {tid:weighted.get(tid,1) for tid in sorted(accepted)}
             mode = self.engine.mode_for(query)
             field = self.engine.field_for(topics, mode, query)
@@ -256,6 +295,7 @@ class ChatActions:
             result = self.blank('recommend',cards=candidates[:7])
             result.update(mode=mode,mode_label='기록에서 찾은 인물',field=field,topic_ids=list(topics),record_count=len(scores),ranking_source='규칙')
         excluded = set(excluded or ()) | self.excluded(query)
+        before_exclusion = len(result['candidates'])
         result['candidates'] = [c for c in result['candidates'] if c['id'] not in excluded]
         record_count = len(result['candidates'])
         if discovery is None and result['mode'] in ('advice', 'member') and not self.requires_performance(query):
@@ -268,6 +308,10 @@ class ChatActions:
                     seen.add(row['person_id'])
         result['intent'] = 'recommend'
         count = len(result['candidates'])
+        if lookup_only:
+            for candidate in result['candidates']:
+                candidate['lookup_only'] = True
+                candidate['proposal_allowed'] = False
         profile_ids = [c['id'] for c in result['candidates'] if c.get('profile_only')]
         result['record_candidate_count'] = record_count
         result['profile_match_count'] = len(profile_ids)
@@ -281,17 +325,24 @@ class ChatActions:
             if result['field'] == 'ai_foundations':
                 reply += ' AI 분야는 수록된 공개 연구 사례이며 전체 전문가 명단이나 협업 가능 인원은 아닙니다.'
         else:
-            reply = '현재 열람 가능한 자료에서는 이 요청과 연결할 근거를 찾지 못했습니다. 자료에 없다는 뜻이며, 해당 분야의 전문가가 없다는 뜻은 아닙니다.'
+            excluded_all = bool(discovery and discovery.get('excluded_all_candidates'))
+            if excluded_all or (before_exclusion and excluded):
+                reply = '요청하신 인물을 제외하면 이번 조회에서 표시할 후보는 0명입니다. 제외한 인물은 결과에 포함하지 않았습니다.'
+            else:
+                reply = '현재 열람 가능한 자료에서는 이 요청과 연결할 근거를 찾지 못했습니다. 자료에 없다는 뜻이며, 해당 분야의 전문가가 없다는 뜻은 아닙니다.'
+            result['empty_message'] = reply
         if count:
+            if lookup_only:
+                reply += ' 제안 대상의 조건 충족을 확인한 것은 아니므로 이력 조회만 제공합니다.'
             explanations = [f"{c['name']}: {c['reason']}" for c in result['candidates'][:3]]
             reply += '\n\n' + '\n'.join(explanations)
-            reply += '\n\n기간·자원·현재 가용성은 요청 조건이며, 해당 인물이 모두 충족한다는 확인은 아닙니다. 근거의 출처와 확인 범위를 카드에서 확인해 주세요.'
+            reply += '\n\n이 기록만으로 개인의 실제 수행 범위와 현재 협업 가능성을 확인할 수는 없어요. 근거의 출처와 확인 범위를 카드에서 확인해 주세요.'
         if discovery and discovery.get('unsupported'):
             reply += '\n\n추가 확인할 요청: ' + ' · '.join(dict.fromkeys(discovery['unsupported'])) + '. 충족 여부는 아직 확인되지 않았습니다.'
         return {'reply': reply, 'result': result,
                 'context': {'kind': 'recommend', 'ids': [c['id'] for c in result['candidates']],
                             'query': query, 'profile_only_ids': profile_ids},
-                'can_propose': any(not c.get('lookup_only') for c in result['candidates']),
+                'can_propose': not lookup_only and any(not c.get('lookup_only') for c in result['candidates']),
                 'query': query, 'mode': result['mode']}
 
     def resolve(self, session, text, selected=None, allow_recommend=True):
@@ -366,6 +417,10 @@ class ChatActions:
         technical_search = self.engine.profile_query_terms(text) and (self.people_request(text) or re.search(r'찾아\s*(?:줘|주)|보여\s*(?:줘|주)', text))
         if technical_search and not explicit_name and self.engine.mode_for(text) in ('advice', 'member'):
             return route(text)
+        if self.explicit_lookup(text):
+            # Keep this control utterance out of the compiled search conditions.
+            # Conversation compiles the live request and decides lookup readiness.
+            return {'discovery_request': True}
         unknown = self.unknown_name(text)
         if unknown:
             message = f'현재 열람 가능한 자료에서 {unknown} 님을 찾지 못했습니다. 이름의 다른 표기나 소속이 있으면 확인할 수 있어요.'

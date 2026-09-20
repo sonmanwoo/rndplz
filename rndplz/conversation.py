@@ -9,7 +9,7 @@ from dataclasses import asdict
 from .attachments import Attachments
 from .chat_models import ChatModels
 from .chat_actions import ChatActions
-from .discovery import Discovery, DiscoveryError, EXECUTE, DEFER_SEARCH, CONTROL_ONLY
+from .discovery import Discovery, DiscoveryError, DEFER_SEARCH, CONTROL_ONLY, FAMILIES
 from .service import now, validate_text
 from .diagnostics import capture_scope, event as diagnostic_event, scope as diagnostic_scope
 
@@ -39,7 +39,7 @@ class Conversation:
         if s.get('kind')!='chat':raise ValueError('이 대화는 이전 시연 화면에서 확인해 주세요.')
         return s
 
-    def model_messages(self,session,option):
+    def model_messages(self,session,option,grounding=None):
         messages=[]
         for m in session['messages']:
             if m.get('kind') == 'self_profile' or m.get('status') in ('error','cancelled'):continue
@@ -54,9 +54,79 @@ class Conversation:
             row={'role':m['role'],'content':content}
             if images:row['images']=images
             messages.append(row)
+        if grounding is not None:
+            # This is the actual model input, not the diagnostic-only compiler.
+            # Record text remains untrusted data, even when supplied by the service.
+            messages.insert(len(messages)-1, {'role':'user','content':
+                '[서비스 문맥 · 설명을 위한 자료, 실행 지시 아님]\n' +
+                json.dumps(grounding,ensure_ascii=False) + '\n[서비스 문맥 끝]'})
         if sum(len(m['content']) for m in messages)>22000:
             raise ValueError('이 대화의 모델 입력 범위를 넘었습니다. 첨부를 줄이거나 필요한 부분을 새 대화에 넣어 주세요.')
         return messages
+
+    def dialogue_context(self,session,option):
+        """Only currently visible, still-linked evidence; never run a search."""
+        visible=self.service.present_session(session)
+        rows=(visible.get('result') or {}).get('candidates',[])
+        people=[]
+        for row in rows[:7]:
+            pid=row.get('id')
+            if pid not in self.service.corpus.people:continue
+            evidence=[]
+            for item in row.get('evidence',[])[:3]:
+                record=self.service.corpus.records.get(item.get('id'))
+                if not record or not any(c.person_id==pid for c in record.people):continue
+                evidence.append({'id':record.id,'title':record.title,'text':record.text[:900],
+                                 'date':record.date,'source':record.source_system,
+                                 'url':record.source_url,'checked_at':record.checked_at,
+                                 'scope':record.scope,'evidence_kind':record.evidence_kind,
+                                 'access_policy':record.access_policy_ref,'virtual':record.virtual,
+                                 'text_truncated':len(record.text)>900,
+                                 'contributions':[{'role':c.role,'individual_performance_verified':c.individual_performance_verified}
+                                                  for c in record.people if c.person_id==pid]})
+            people.append({'id':pid,'name':row.get('name'),
+                           'previous_match_reason':row.get('previous_match_reason',row.get('reason','')),
+                           'evidence':evidence,'profile_only':bool(row.get('profile_only')),
+                           'evidence_status':'current_linked_records' if evidence else 'no_current_linked_records_in_displayed_evidence',
+                           'unverified_request_conditions':row.get('unverified_request_conditions',[])})
+        previous=next((m for m in reversed(session['messages']) if m['role']=='assistant'),{})
+        return {'selected_model':{k:option.get(k) for k in ('id','name','provider')},
+                'model_weights_independently_verified':False,
+                'current_planned_route':'model',
+                'previous_response':{k:previous.get(k) for k in ('source','model_id','status')},
+                'current_question_turn':session['messages'][-1].get('turn_id'),
+                'previous_search':session.get('search_context') or {},
+                'previous_search_scope':'직전 서버 검색 상태이며 최신 대화의 확정 조건을 뜻하지 않습니다.',
+                'previous_discovery':session.get('discovery') or {},
+                'visible_people':people,'visible_people_count':len(rows),
+                'referent_status':'none_displayed' if not rows else 'multiple_displayed' if len(rows)>1 else 'one_displayed',
+                'people_omitted_from_current_scope':len(rows)-len(people),
+                'result_pool_version':(visible.get('result') or {}).get('pool_version'),
+                'current_pool_version':getattr(self.service.corpus,'demo_pool',{}).get('version'),
+                'empty_reason':'아직 표시된 인물이 없습니다. 검색 결과나 특정 인물의 역량을 만들지 마세요.' if not rows else '',
+                'scope':'이전 표시 근거입니다. 새 목표·조건 충족이나 직접 수행·현재 가용성은 확인되지 않았습니다.',
+                'execution_authorized_by_this_context':False}
+
+    @staticmethod
+    def discussion_state(session):
+        """Preserve reading context, revoke stale action eligibility on free text."""
+        context=copy.deepcopy(session.get('search_context') or {})
+        discovery=copy.deepcopy(session.get('discovery'))
+        result=copy.deepcopy(session.get('result'))
+        if discovery:
+            discovery['ready']=False
+            discovery['reason']='대화에서 나온 요청을 확인한 뒤 명시적으로 사람 찾기를 시작해 주세요.'
+        if result:
+            result['inspection_only']=True
+            for row in result.get('candidates',[]):
+                row['lookup_only']=True
+                row['proposal_allowed']=False
+                old_reason=row.get('previous_match_reason',row.get('reason',''))
+                row['previous_match_reason']=old_reason
+                row.pop('route_role',None)  # Historical reason must win in the existing card renderer.
+                row['reason']='이전 요청에서 표시된 근거입니다. 최신 조건의 적합성을 확인한 추천이 아닙니다. '+old_reason
+        return {'search_context':context,'discovery':discovery,'result':result,
+                'ready':result is not None,'can_propose':False}
 
     def request_context(self, session, for_prepare=False):
         """Compile current user requirements, with replacements and quoted origins.
@@ -84,6 +154,14 @@ class Conversation:
                 return
             if source['kind'] != 'user_document':
                 issues.pop(key, None)
+            source = dict(source)
+            if value is not None and key != 'goal' and not key.startswith('exclude_person:'):
+                quote = source.get('quote', text)
+                relaxed = bool(re.search(r'필수(?:는|가)?\s*(?:아니|아님|없|해제|철회)|선호\s*사항|후보에게\s*확인', quote))
+                explicit_required = bool(re.search(r'필수|반드시|검증된|확인된|충족해야|꼭', quote))
+                previous_source = (prior or {}).get('source', {})
+                previous_required = previous_source.get('required') or bool(re.search(r'필수|반드시|검증된|확인된|충족해야|꼭', previous_source.get('quote','')))
+                source['required'] = bool(not relaxed and (explicit_required or previous_required))
             active[key] = {'text':text, 'source':source, 'position':position, 'value':value}
 
         interval_label = re.compile(r'기록\s*(?:간격|주기)')
@@ -173,6 +251,33 @@ class Conversation:
             if source['kind'] == 'user_document' and re.search(r'<\s*/?system|시스템\s*지시|지시.*무시|person_confirmed|individual_performance_verified', clause, re.I):
                 return
             origin = {**source, 'quote':source.get('quote',clause)}
+            if self.actions.discussion_request(clause) and re.search(r'문구|버튼|표현|라는|라고|^["\'“‘「«]', clause):
+                return
+            # Execution controls refer to the current request; they are not new
+            # topic clauses. Keep a topic-bearing request in its original words.
+            if re.fullmatch(r'(?:(?:아니|그래도|그럼|그러면|좋아|네|응)[,!. ]*)?(?:(?:지금|현재|이|그)\s*(?:정보|조건|내용)(?:으로|로)\s*)?(?:(?:관련\s*)?(?:후보|인물|사람|전문가|연구자)(?:을|를)?\s*)?(?:찾아\s*(?:줘|주세요)|추천해\s*(?:줘|주세요)|수소문\s*(?:해줘|해주세요|해달라고))[.!?\s]*', clause):
+                return
+            if re.fullmatch(r'(?:관련\s*)?후보(?:는|가)?\s*(?:있니|있어|있나요)[?!\s]*', clause):
+                return
+            if DEFER_SEARCH.search(clause) or re.fullmatch(r'(?:조건을\s*더\s*)?생각해\s*볼게[.!\s]*', clause):
+                return
+            if re.fullmatch(r'(?:뭘|무엇을)\s*도와줄\s*수\s*있어[?!\s]*|내\s*프로필\s*수정도?\s*가능해[?!\s]*|이\s*논문의\s*문제\s*잘\s*풀\s*수\s*있니[?!\s]*', clause):
+                return
+            excluded = self.actions.excluded(clause)
+            if excluded:
+                # Only a separate, registered-name exclusion receives this
+                # purpose. Mixed technical conditions still pass normal checks.
+                _, remainder = self.actions.matches(clause)
+                if re.fullmatch(r'\s*(?:님|씨|교수님?|박사님?)?\s*(?:는|은|을|를|이|가)?\s*(?:제외해\s*(?:줘|주세요)|빼\s*(?:줘|주세요)|제외)[.!\s]*', remainder):
+                    origin['purpose'] = 'exclude_person'
+                    put('exclude_person:'+','.join(sorted(excluded)), clause, origin, position, sorted(excluded))
+                    return
+            aspiration = re.sub(r'[ㅠㅜ]+', '', clause)
+            if (re.search(r'(?:개선|높이|높여|줄이|줄여|해결|전환|만들|개발).*(?:싶|하려|려고|목표)', aspiration)
+                    and not re.search(r'필수|반드시|검증된|확인된|충족해야|꼭', aspiration)):
+                origin['purpose'] = 'goal'
+                put('goal', clause, origin, position)
+                return
             if consume_interval(clause,origin,position):
                 return
             found = list(number.finditer(clause)); accepted = []; previous_key = None; previous_end = 0; ambiguous_quantity = False
@@ -221,7 +326,9 @@ class Conversation:
             if controls and re.search(r'어떨|할까|비교|어느|둘\s*중', clause):
                 return
             if controls:
-                if len(set(x.upper() for x in controls)) == 1 or correction.search(clause):
+                if len(set(x.upper() for x in controls)) > 1 and re.search(r'모두|둘\s*다|함께', clause) and re.search(r'필수|필요|요구', clause):
+                    put('control_method', clause, origin, position)
+                elif len(set(x.upper() for x in controls)) == 1 or correction.search(clause):
                     if not re.search(r'어떨|할까|비교|어느|둘\s*중', clause):
                         rendered = '제어 방법 '+controls[-1].upper() if correction.search(clause) else clause
                         put('control_method', rendered, origin, position)
@@ -283,6 +390,17 @@ class Conversation:
             if self.actions.cancelled(text):
                 active.clear(); issues.clear(); activated.clear(); documents.clear()
                 continue
+            if (active and self.actions.people_request(text) and not self.actions.explicit_lookup(text)
+                    and not self.actions.discussion_request(text)
+                    and not self.actions.matches(text)[0]
+                    and not re.search(r'추가|함께|모두|그중|그\s*조건', text)):
+                incoming=set(self.discovery.matches(text))
+                previous_topics=set().union(*(set(self.discovery.matches(entry['text']))
+                    for entry in active.values() if entry['source'].get('purpose') not in ('goal','exclude_person')))
+                same_family=any(incoming.intersection(tags) and previous_topics.intersection(tags)
+                                for _,tags in FAMILIES.values())
+                if not incoming or (not same_family and not incoming.intersection(previous_topics)):
+                    active.clear(); issues.clear(); activated.clear(); documents.clear()
             if re.search(r'^아니면\s+|(?:완전히\s*)?(?:다른|새로운|새)\s*(?:주제|문제|과제)|(?:주제|문제|과제)(?:를|을)?\s*(?:바꿔|변경)|(?:앞|이전|기존).{0,6}(?:조건|대화|요청).{0,6}(?:잊|버리|초기화)', text):
                 active.clear(); issues.clear(); activated.clear(); documents.clear()
             current_docs=[]
@@ -323,7 +441,15 @@ class Conversation:
                         use_document(identifier,turn_id)
                 else:
                     issues['document_choice']='이 요청에서 사용할 첨부를 다시 지정해 주세요.'
-            for clause in re.split(r'[\n;]+|(?<=[.!?])\s+|(?<!\d),(?!\d)|\s*/\s*|(?:이고|이며|인데)\s+',text):
+            # Registered display names can include initials ("K. Joshi").
+            # Sentence punctuation inside such a name is not a clause boundary.
+            name_spans=[m.span() for _,pattern,_ in self.actions.names
+                        for m in re.finditer(pattern.pattern,text,re.I)]
+            boundaries=[m for m in re.finditer(r'[\n;]+|(?<=[.!?])\s+|(?<!\d),(?!\d)|\s*/\s*|(?<![가-힣])(?:이고|이며|인데)\s+',text)
+                        if not any(start < m.start() < end for start,end in name_spans)]
+            starts=[0]+[m.end() for m in boundaries]
+            ends=[m.start() for m in boundaries]+[len(text)]
+            for clause in (text[start:end] for start,end in zip(starts,ends)):
                 consume(clause,{'turn_id':turn_id,'kind':'user_text'},index)
         if for_prepare:
             for identifier in documents:
@@ -333,7 +459,22 @@ class Conversation:
         if len(query)>12000:
             issues['size']='검색 조건이 길어요. 이번에 사용할 대상과 중요한 조건만 짧게 정리해 주세요.'
             query=''
-        return {'query':query,'sources':sources,'unresolved':list(dict.fromkeys(issues.values()))}
+        fields = []
+        for entry in active.values():
+            if entry['source'].get('purpose') in ('goal', 'exclude_person'):
+                continue
+            value = entry['text']
+            topic = self.discovery.matches(value) or self.service.engine.profile_query_terms(value)
+            named_scope = re.search(r'(.{2,}?)\s*(?:전문가|연구자|연구원|사람|인물)', value)
+            if topic or named_scope:
+                fields.append(value)
+        goal = active.get('goal', {}).get('text', '')
+        exclusions = sorted({pid for entry in active.values()
+                             if entry['source'].get('purpose') == 'exclude_person'
+                             for pid in entry.get('value', [])})
+        return {'query':query,'sources':sources,'unresolved':list(dict.fromkeys(issues.values())),
+                'lookup_scope':{'field':' · '.join(fields), 'problem':goal},
+                'excluded_person_ids':exclusions}
 
     def begin(self,payload):
         text=validate_text(payload.get('text',''),16000,True)
@@ -381,7 +522,7 @@ class Conversation:
             previous_discovery=s.get('discovery') or {}
             discussing=self.actions.discussion_request(text)
             correcting=bool(re.search(r'말고|아니라|대신|정정|바꿔|변경|철회|빼고|제외|아니야',text))
-            explicit=bool(EXECUTE.search(text)) and not DEFER_SEARCH.search(text) and not re.search(r'라는|라고|문구|버튼|의미',text)
+            explicit=self.actions.explicit_lookup(text)
             deferred=bool(re.search(r'(?:사람|전문가|검색|추천).{0,25}(?:찾지|추천하지|검색하지|하지\s*마|아직|나중|안\s*찾)',text))
             deferred=deferred or bool(DEFER_SEARCH.search(text))
             recommendation_reason=bool(re.search(r'(?:왜|어째서).{0,40}(?:추천|제안|선정|연결)(?:했|됐|되었|된|한|하셨|하신)|(?:추천|제안|선정)(?:한|된|했던)?\s*(?:이유|근거)',text))
@@ -390,6 +531,8 @@ class Conversation:
             followup=followup or bool(correcting and context.get('kind')=='discussion' and s.get('ready') and s.get('result') is not None)
             direct_action=selected is not None or not attached_context or self.actions.cancelled(text) or (people and not document_facts)
             action=self.actions.resolve(s,text,selected,allow_recommend=False) if direct_action and (text or selected) else None
+            if correcting and self.actions.excluded(text) and not explicit and not selected:
+                action=None
             if (deferred or explaining) and action and action.get('discovery_request'):
                 action=None
             if explaining and not selected and action:
@@ -398,20 +541,53 @@ class Conversation:
                     action=None
             if explicit and not selected and CONTROL_ONLY.fullmatch(text.strip()) and not self.actions.matches(text)[0]:
                 action={'discovery_request':True}
+            if option.get('provider')!='guide':
+                # Positive lookup/control intents still use the server. An active
+                # search alone does not authorize it to consume every later utterance.
+                followup=False
+                if action and action.get('discovery_request') and not (people or explicit):
+                    action=None
+                if action and (action.get('context') or {}).get('kind') in ('person_lookup','person_choice'):
+                    if not (selected or self.actions.matches(text)[0] or self.actions.unknown_name(text)
+                            or context.get('kind')=='person_choice'):
+                        # Referent explanation uses the visible evidence envelope;
+                        # explicit names and displayed disambiguation stay deterministic.
+                        action=None
             search=not (deferred or explaining) and (bool(action and action.get('discovery_request')) or (action is None and not document_facts and (explicit or followup)))
+            model_dialogue=option.get('provider')!='guide' and action is None and not search
+            grounding=self.dialogue_context(s,option) if model_dialogue else None
+            dialogue_state=self.discussion_state(s) if model_dialogue else None
+            if model_dialogue:
+                request=self.request_context(s)
+                prior_request=s.get('request_context') or {}
+                s['request_context']=request
+                compiled=self.discovery.evaluate(request,previous_discovery,text)
+                changed_scope=request['query']!=prior_request.get('query','')
+                s['lookup_paused']=bool(deferred or (s.get('lookup_paused') and not changed_scope))
+                if s['lookup_paused']:
+                    compiled.update(lookup_ready=False,lookup_status='deferred',
+                                    lookup_reason='수소문을 보류했어요. 다시 찾으려면 수소문해 달라고 말씀해 주세요.')
+                # Evaluate clues without publishing candidates or running a
+                # recommendation. Ordinary model text never grants execution.
+                if previous_discovery or any(request['lookup_scope'].values()):
+                    dialogue_state['discovery']=self.discovery.public(compiled)
+                s.pop('prepared_discovery_revision',None)
             s['discovery']=None
             s.pop('pending_discovery',None)
             s.pop('pending_result_restore',None)
+            s.pop('pending_dialogue_state',None)
             if search:
+                s['lookup_paused']=False
                 request=self.request_context(s)
                 s['request_context']=request
                 discovery=self.discovery.evaluate(request,previous_discovery,text)
                 public_discovery=self.discovery.public(discovery)
-                if explicit and discovery['ready']:
+                if explicit and discovery['lookup_ready']:
                     action=self.actions.recommend({'_request_query':discovery['query']},discovery['query'],discovery=discovery)
                 else:
                     action={'reply':discovery['reply'],'result':None,'context':{'kind':'discovery','ids':[],'query':discovery['query']},'can_propose':False}
                 action['discovery']=public_discovery
+                s.pop('prepared_discovery_revision',None)
             elif action is None and context.get('kind') in ('recommend','discussion') and (not people or explaining) and not correcting:
                 # A question about displayed evidence does not rerun a search.
                 if s.get('ready') and s.get('result') is not None:
@@ -434,7 +610,12 @@ class Conversation:
                 s['search_context']={**context,'kind':'discussion'}
             s['pending_action']=action
             s['pending']=turn_id;s['model_id']=option['id'];s['ready']=False;s['result']=None;s['updated']=now()
-            messages=[] if action else self.model_messages(s,option)
+            if dialogue_state is not None:
+                # Errors and cancellation must not erase the user's reading context
+                # or restore authority for conditions that may have changed.
+                s.update(dialogue_state)
+                s['pending_dialogue_state']=dialogue_state
+            messages=[] if action else self.model_messages(s,option,grounding)
             return self.service.present_session(s),messages,False
         return (*self.store.transaction(start),option)
 
@@ -449,12 +630,20 @@ class Conversation:
             prior_result=s.pop('pending_result_restore',None)
             if not action and status=='complete' and prior_result is not None:
                 s['result']=prior_result;s['ready']=True
+            dialogue_state=s.pop('pending_dialogue_state',None)
+            if not action and dialogue_state is not None:
+                s.update(dialogue_state)
             if action and status=='complete':
                 s['discovery']=action.get('discovery')
                 s['result']=action['result'];s['ready']=action['result'] is not None
                 if s['result'] is not None and getattr(self.service.corpus, 'demo_pool', None):
                     s['result']['pool_version']=self.service.corpus.demo_pool['version']
                 s['can_propose']=action['can_propose'];s['search_context']=action['context']
+                if action['context'].get('kind')=='stopped':
+                    s['lookup_paused']=True
+                    s.pop('prepared_discovery_revision',None)
+                if action['context'].get('kind')=='recommend' and s.get('discovery'):
+                    s['prepared_discovery_revision']=s['discovery']['revision']
                 if action.get('query'):
                     s['proposal_context']=action['query'][:12000];s['slots']['goal']=action['query'][:1600]
                 s['mode']=action.get('mode','advice');s['asker']='site' if s['mode']=='site_request' else 'lab'
@@ -509,12 +698,16 @@ class Conversation:
                 yield {'type':'done','session':session};return
             self._diagnostic_started(session,payload,option,messages)
             reply='';status='cancelled';error='';started=time.monotonic();first=True
+            # Adapter dispatch is separate from provider delivery or completion.
+            model_dispatched=False
             try:
                 yield {'type':'start','session':session}
                 action=session.get('pending_action')
                 if action:pieces=[action['reply']]
                 else:
-                    if option.get('provider')!='guide':diagnostic_event('model_dispatch_started',model_called=True)
+                    if option.get('provider')!='guide':
+                        model_dispatched=True
+                        diagnostic_event('model_dispatch_started',model_called=True)
                     pieces=self.models.stream(option['id'],messages)
                 for piece in pieces:
                     reply+=piece
@@ -528,7 +721,7 @@ class Conversation:
                 status='error';error=str(exc) if isinstance(exc,ValueError) else '응답 생성 중 오류가 발생했습니다. 다시 시도해 주세요.'
             finally:
                 session=self.finish(session['id'],payload['turn_id'],reply,status,option,error,time.monotonic()-started)
-                diagnostic_event('turn_finished',status=status,output_chars=len(reply),elapsed_ms=round((time.monotonic()-started)*1000),
+                diagnostic_event('turn_finished',status=status,model_called=model_dispatched,output_chars=len(reply),elapsed_ms=round((time.monotonic()-started)*1000),
                                  partial_output=bool(reply) and status!='complete',next_mode=session.get('mode','advice'),
                                  error_kind='client_disconnect' if status=='cancelled' else 'generation_error' if status=='error' else None,
                                  failure_stage='stream' if status!='complete' else None,content={'assistant_text':reply})
@@ -541,14 +734,14 @@ class Conversation:
             if not s or s.get('pending'):raise ValueError('응답이 끝난 대화에서 사람 찾기를 시작해 주세요.')
             if (s.get('search_context') or {}).get('kind')=='stopped':raise ValueError('중단한 요청입니다. 새 요청을 입력해 주세요.')
             previous=s.get('discovery') or {}
-            if not previous.get('ready') or payload.get('discovery_revision')!=previous.get('revision'):
+            if not previous.get('lookup_ready') or payload.get('discovery_revision')!=previous.get('revision'):
                 raise DiscoveryError()
-            if s.get('ready') and s.get('result') is not None:return self.service.present_session(s)
+            if s.get('prepared_discovery_revision')==previous['revision'] and s.get('result') is not None:return self.service.present_session(s)
             request=self.request_context(s)
             s['request_context']=request
             if request['unresolved']:raise ValueError(request['unresolved'][0])
             discovery=self.discovery.evaluate(request,previous)
-            if not discovery['ready'] or discovery['revision']!=previous['revision']:
+            if not discovery['lookup_ready'] or discovery['revision']!=previous['revision']:
                 raise DiscoveryError()
             query=self.actions.query_for({'_request_query':discovery['query']},'')
             s['mode']=self.service.engine.mode_for(query)
@@ -557,6 +750,8 @@ class Conversation:
             s['slots']['goal']=query[:1600]
             action=self.actions.recommend({'_request_query':query},query,discovery=discovery)
             s['result']=action['result'];s['search_context']=action['context']
+            s['discovery']=self.discovery.public(discovery)
+            s['prepared_discovery_revision']=discovery['revision']
             s['messages'].append({'role':'assistant','kind':'recommendation','text':action['reply'],
                 'status':'complete','turn_id':uuid.uuid4().hex,'source':'records','model':'수소문 · 기록 조회'})
             if getattr(self.service.corpus, 'demo_pool', None):

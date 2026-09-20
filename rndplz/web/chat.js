@@ -16,13 +16,37 @@ function modal(id,returnFocus=document.activeElement){
 }
 function option(){return catalog.find(m=>m.id===selectedModel);}
 function modelOptions(data,preferred){publicMode=!!data.public;if(publicMode){$("configForm").hidden=true;$("localStatus").closest(".local-status").querySelector("small").textContent="대화와 제안은 방문자별로 분리됩니다. 무료 시연 기록은 서버 재시작 때 사라질 수 있습니다.";$("settingsDialog").querySelector("p.subtle").textContent="운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";$("letterDialog").querySelector("p.subtle").textContent="이 방문자의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.";}catalog=data.models;const previous=preferred||selectedModel;selectedModel=previous&&catalog.some(m=>m.id===previous&&m.enabled)?previous:data.default||"";$("modelSelect").innerHTML=catalog.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===selectedModel?' selected':'')+(!m.enabled&&m.provider==="bridge"?' disabled':'')+'>'+esc(m.provider==="ollama"?m.name+" · 로컬":m.name)+'</option>').join("")||'<option value="">연결할 모델 없음</option>';$("localStatus").textContent=publicMode?"공개 서비스 · 방문자별 대화":catalog.filter(m=>m.local).length?"Ollama · 설치 모델 "+catalog.filter(m=>m.local).length+"개":"Ollama에 연결할 수 없어요";controls();}
-function controls(){const m=option(),locked=busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":m?.provider==="guide"?"AI 미연결 · 입력한 내용으로 연구 기록을 탐색합니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";}
+function controls(){const m=option(),locked=busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":m?.provider==="guide"?"AI 미연결 · 입력한 내용으로 연구 기록을 탐색합니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();}
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
 function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
 function scrollBottom(){if(autoScroll)requestAnimationFrame(()=>window.scrollTo({top:document.documentElement.scrollHeight,behavior:"instant"}));}
-function discoveryReady(s=session){return !!s&&typeof s.id==="string"&&!!s.id&&!s.ready&&!s.pending&&s.discovery?.ready===true&&typeof s.discovery.revision==="string"&&!!s.discovery.revision;}
+// lookup_ready and summary/question describe server-compiled search clues.
+// They do not assert that a candidate exists or that a proposal is ready.
+function currentDiscovery(s=session){return !!s&&typeof s.id==="string"&&!!s.id&&s.search_context?.kind!=="stopped"&&typeof s.discovery?.lookup_ready==="boolean"&&typeof s.discovery.revision==="string"&&!!s.discovery.revision?s.discovery:null;}
+function discoveryReady(s=session){return currentDiscovery(s)?.lookup_ready===true&&!s.pending;}
+function discoveryCompletion(s=session){
+ const discovery=currentDiscovery(s),result=s?.result;
+ if(!discovery?.lookup_ready||s.pending||!s.ready||s.prepared_discovery_revision!==discovery.revision||s.search_context?.kind!=="recommend"||result?.intent!=="recommend"||result.inspection_only||result.historical_result||!Array.isArray(result.candidates))return "";
+ const count=result.candidates.length;
+ return count?"조회가 완료됐어요. 현재 조건으로 찾은 인물은 "+count+"명이에요.":"조회가 완료됐어요. 현재 조건으로 찾은 인물은 0명이에요.";
+}
 function canPrepareDiscovery(){return discoveryReady()&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
+function syncDiscoveryControls(){
+ const button=$("currentScoutButton");if(!button)return;
+ button.disabled=!canPrepareDiscovery();button.textContent=prepareBusy?"관련 기록을 찾고 있어요…":"현재 정보로 수소문";
+ button.setAttribute("aria-busy",String(prepareBusy));
+ const progress=$("currentScoutProgress"),waiting=busy||!!session?.pending;
+ if(progress){const text=prepareBusy?"등록된 인물과 근거를 조회하고 있어요.":waiting?"답변이 끝나면 수소문 조건을 확인할 수 있어요.":profileBusy?"프로필 작업을 마치면 수소문할 수 있어요.":uploading?"첨부파일 전송이 끝나면 수소문할 수 있어요.":$("composerError").hidden?discoveryCompletion():"";if(progress.textContent!==text)progress.textContent=text;progress.hidden=!text;}
+ const label=$("currentScoutConditionLabel");if(label)label.textContent=waiting?"마지막으로 확인한 조건":"현재 찾을 조건";
+}
+function currentScout(){
+ const discovery=currentDiscovery();if(!discovery)return "";
+ const summary=typeof discovery.summary==="string"?discovery.summary.trim():"";
+ const question=discovery.lookup_ready?"":typeof discovery.lookup_reason==="string"&&discovery.lookup_reason.trim()?discovery.lookup_reason.trim():"어떤 분야에서 어떤 문제를 해결할 사람을 찾고 계신가요?";
+ const description="currentScoutSummary currentScoutActionDescription"+(question?" currentScoutQuestion":"");
+ return '<section class="continue-actions inline-scout" aria-labelledby="currentScoutTitle"><p class="inline-scout-source" id="currentScoutTitle">수소문 안내</p><p class="inline-scout-summary" id="currentScoutSummary"><strong id="currentScoutConditionLabel">현재 찾을 조건</strong> '+esc(summary||"아직 정리된 조건이 없습니다.")+'</p>'+(question?'<p class="inline-scout-question" id="currentScoutQuestion">'+esc(question)+'</p>':"")+'<p class="subtle small" id="currentScoutActionDescription">현재 조건으로 등록된 인물과 근거를 조회해요. 연락이나 협업 제안을 보내지 않아요.</p><button type="button" class="primary" id="currentScoutButton" data-action="prepare" aria-describedby="'+description+'" title="현재 조건으로 등록된 인물과 근거를 조회합니다."'+(!canPrepareDiscovery()?' disabled':"")+'>현재 정보로 수소문</button><p class="inline-scout-progress" id="currentScoutProgress" role="status" aria-live="polite" hidden></p></section>';
+}
 async function prepareDiscovery(button,keyboard=false){
  if(!canPrepareDiscovery())return;
  const before=session,sid=before.id,revision=before.discovery.revision,ticket=++prepareTicket;
@@ -38,7 +62,7 @@ async function prepareDiscovery(button,keyboard=false){
   if(!current())return;
   if(prepared?.id!==sid||prepared.discovery?.revision!==revision)throw new Error("대화 조건이 바뀌었습니다. 현재 조건을 확인한 뒤 다시 수소문해 주세요.");
   session=prepared;adopted=true;autoScroll=false;
- }catch(e){if(current()){error(e.message);if(e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,ready:false};invalidated=true;}}}
+ }catch(e){if(current()){error(e.message);if(e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};invalidated=true;}}}
  finally{
   document.removeEventListener("focusin",focusElsewhere);document.removeEventListener("pointerdown",pointerElsewhere);window.removeEventListener("blur",windowBlur);
   if(ticket===prepareTicket){
@@ -53,11 +77,15 @@ async function prepareDiscovery(button,keyboard=false){
  }
 }
 function render(){
+ const scoutProgress=$("currentScoutProgress");
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(m.model||"수소문")+'</span></div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
  if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(option()?.name||"수소문")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
- if(canPrepareDiscovery())$("thread").innerHTML+='<div class="continue-actions"><button type="button" class="primary" data-action="prepare" title="지금까지 대화에서 확인한 조건과 등록 근거로 사람을 찾아봅니다. 실제로 연락하지 않습니다.">현재 정보로 수소문</button></div>';
+ $("thread").innerHTML+=currentScout();
+ // Retain live-region text across render() instead of writing the same
+ // completion again. Native announcement on DOM reinsertion still needs QA.
+ const progressPlaceholder=$("currentScoutProgress");if(scoutProgress&&progressPlaceholder&&scoutProgress!==progressPlaceholder)progressPlaceholder.replaceWith(scoutProgress);
  renderCandidates();controls();scrollBottom();
 }
 

@@ -131,6 +131,12 @@ class Discovery:
             text = source.get('text','').strip()
             if not text or DEFER_SEARCH.search(text) or CONTROL_ONLY.fullmatch(text):
                 continue
+            if source.get('purpose') == 'exclude_person':
+                # The compiler resolved this separate clause to registered IDs.
+                # Retain its original query wording without treating a person's
+                # name as a technical topic or an unresolved topic replacement.
+                active.append({'text':text, 'tags':{}, 'source':source})
+                continue
             if re.fullmatch(r'(?:좋아|네|응|알겠어|모르겠어|아직\s*몰라|괜찮아|현재\s*정보로\s*수소문|바로\s*찾아줘)[.!\s]*', text):
                 continue
             if re.fullmatch(r'(?:(?:조건|요청|방향)(?:을|를)?\s*)?(?:(?:조금|좀|더)\s*)*생각(?:해\s*볼게|할게|하겠어)(?:요)?[.!?\s]*', text):
@@ -182,14 +188,32 @@ class Discovery:
     def evaluate(self, request, previous=None, text=''):
         active, issues, excluded = self._conditions(request)
         issues = list(request.get('unresolved') or []) + issues
+        raw_excluded_people = request.get('excluded_person_ids', [])
+        valid_excluded_people = isinstance(raw_excluded_people, list) and all(
+            isinstance(pid, str) and pid in self.corpus.people for pid in raw_excluded_people)
+        excluded_person_ids = set(raw_excluded_people) if valid_excluded_people else set()
+        if not valid_excluded_people or (any(row['source'].get('purpose') == 'exclude_person'
+                                              for row in active) and not excluded_person_ids):
+            issues.append('제외할 인물을 현재 등록 자료에서 다시 확인해 주세요.')
+        # Conversation supplies current, user-accepted scope, never assistant
+        # suggestions or old rejected clauses. Scope is a lookup clue, not proof.
+        raw_scope = request.get('lookup_scope') or {}
+        lookup_scope = {key: raw_scope.get(key, '').strip()
+                        if isinstance(raw_scope.get(key), str) else ''
+                        for key in ('field', 'problem')} if isinstance(raw_scope, dict) else {'field':'', 'problem':''}
+        lookup_blockers = list(issues)
+        proposal_blockers = []
+        evidence_notices = []
         query = '\n'.join(row['text'] for row in active)
+        topic_query = '\n'.join(row['text'] for row in active
+                               if row['source'].get('purpose') != 'exclude_person')
         matched = {}
         for row in active:
             for tid,terms in row['tags'].items():
                 if tid not in excluded:
                     matched.setdefault(tid, set()).update(terms)
         family_ids = [key for key,(_,tags) in FAMILIES.items() if set(matched).intersection(tags)]
-        if not family_ids and (re.search(r'공정', query) or self.engine.profile_query_terms(query)):
+        if not family_ids and (re.search(r'공정', topic_query) or self.engine.profile_query_terms(topic_query)):
             family_ids = ['process']
         parent_topics = set().union(*(FAMILIES[key][1] for key in family_ids)) if family_ids else set()
         # Other registered fields remain searchable using their own evidence
@@ -213,7 +237,7 @@ class Discovery:
             for old in overlap:
                 group['topic_ids'].update(old['topic_ids']); group['terms'].update(old['terms']); groups.remove(old)
             groups.append(group)
-        requested_controls = set(self.engine.profile_query_terms(query))
+        requested_controls = set(self.engine.profile_query_terms(topic_query))
         requested_controls = requested_controls - {'process_control'} or requested_controls
         control_records = {rid for concept in requested_controls for rid in self._control_links(concept)}
         for group in groups:
@@ -235,6 +259,8 @@ class Discovery:
         # User qualifiers apply to their own current condition, irrespective
         # of whether it is numeric or qualitative. They are never evidence.
         for row in active:
+            if row['source'].get('purpose') == 'exclude_person':
+                continue
             raw=row['text']
             concepts = self.engine.profile_query_terms(raw)
             knownterms = [term for terms in row['tags'].values() for term in terms]
@@ -242,6 +268,8 @@ class Discovery:
                               if not m['negated'] and m['concept'] in concepts)
             notes=condition_notes(row,knownterms)
             unsupported.extend(notes['unverified']); issues.extend(notes['blocking'])
+            lookup_blockers.extend(notes['blocking'])
+            proposal_blockers.extend(notes['proposal_blocking'])
             # A specific requested controller must have its own linked records.
             # Broad process-control records do not establish MPC/APC/PID siblings.
             labels = {'process_control':'공정 제어', 'mpc':'MPC', 'apc':'APC', 'pid':'PID'}
@@ -249,9 +277,12 @@ class Discovery:
                 links = self._control_links(concept)
                 if not links:
                     if self.engine.profile_matches(labels[concept]):
-                        issues.append(f'{labels[concept]}는 등록 기술·관심에서 확인되지만 연결된 연구·경력 기록은 아직 없어요.')
+                        notice = f'{labels[concept]}는 등록 기술·관심에서 확인되지만 연결된 연구·경력 기록은 아직 없어요.'
                     else:
-                        issues.append(f'{labels[concept]} 조건을 뒷받침하는 등록 연구·경력 기록을 찾지 못했어요.')
+                        notice = f'{labels[concept]} 조건을 뒷받침하는 등록 연구·경력 기록을 찾지 못했어요.'
+                    # Missing evidence still blocks the legacy proposal gate,
+                    # but is a truthful zero-result lookup, not an ambiguity.
+                    issues.append(notice); evidence_notices.append(notice)
                     continue
                 ids = sorted({pid for people in links.values() for pid in people})
                 if not any(c['record_ids'] == sorted(links) and c['candidate_ids'] == ids for c in conditions):
@@ -260,19 +291,47 @@ class Discovery:
                         'terms':[labels[concept]], 'candidate_ids':ids, 'record_ids':sorted(links)})
             if not row['tags'] and not notes['unverified'] and not re.search(r'공정|찾아|수소문|전문가|연구자|사람|모르겠|알겠|좋아',raw):
                 unsupported.append(raw[:100])
-        if 'CE-CCU' in matched and not re.search(r'전환|ccu|메탄올|saf|항공연료', normal(query)):
-            issues.append('CO₂ 포집과 화학적 전환 중 어느 쪽을 찾고 계신가요?')
+        if 'CE-CCU' in matched and not re.search(r'전환|ccu|메탄올|saf|항공연료', normal(topic_query)):
+            issue = 'CO₂ 포집과 화학적 전환 중 어느 쪽을 찾고 계신가요?'
+            issues.append(issue); lookup_blockers.append(issue)
+        # A broad accepted field still has searchable parent records. Keep this
+        # retrieval scope separate from the narrower proposal conditions.
+        lookup_conditions = list(conditions)
+        if not lookup_conditions and parent_links:
+            lookup_conditions = [{'topic_ids':sorted(parent_topics),
+                'name':' / '.join(FAMILIES[key][0] for key in family_ids) or '현재 분야',
+                'terms':[], 'candidate_ids':sorted(parent_ids), 'record_ids':sorted(parent_links)}]
         candidate_ids = set(parent_ids)
-        for condition in conditions:
+        for condition in lookup_conditions:
             candidate_ids.intersection_update(condition['candidate_ids'])
-        if not conditions:
+        if not lookup_conditions or evidence_notices:
+            # Every accepted control condition needs its own records. A missing
+            # conjunct cannot silently become a partial-match recommendation.
             candidate_ids.clear()
-        candidate_ids.difference_update(self.actions.excluded(query))
-        record_ids = {rid for condition in conditions for rid in condition['record_ids']
+        person_exclusions = excluded_person_ids | set(self.actions.excluded(query))
+        excluded_all_candidates = bool(candidate_ids and candidate_ids <= person_exclusions)
+        candidate_ids.difference_update(person_exclusions)
+        # Keep a shared record when at least one remaining allowed person is
+        # linked to it; excluding one coauthor does not exclude the whole record.
+        record_ids = {rid for condition in lookup_conditions for rid in condition['record_ids']
                       if candidate_ids.intersection(self._links(condition['topic_ids']).get(rid, []))}
-        ready = bool(conditions and candidate_ids and candidate_ids < parent_ids and not issues)
+        ready = bool(conditions and candidate_ids and candidate_ids < parent_ids and not issues and not proposal_blockers)
+        # Keep readiness for narrowed evidence/proposals separate from permission
+        # to perform a lookup. No candidates or proper-subset proof is required.
+        lookup_ready = bool(topic_query.strip() and
+                            (conditions or requested_controls or any(lookup_scope.values()))
+                            and not lookup_blockers)
+        lookup_status = 'blocked' if lookup_blockers else 'ready' if lookup_ready else 'needs_scope'
+        lookup_reason = (lookup_blockers[0] if lookup_blockers else
+                         '현재 조건으로 등록 자료를 조회할 수 있어요. 결과가 0명일 수 있으며, 조건 충족이나 현재 협업 가능성이 확인된 것은 아니에요.'
+                         if lookup_ready else
+                         '찾아볼 분야나 해결하려는 문제를 한 가지 알려 주세요.')
+        if lookup_ready and excluded_all_candidates:
+            lookup_reason = '요청하신 인물을 제외하면 현재 조건과 연결된 후보는 0명이에요. 제외 조건을 유지한 채 등록 자료를 조회할 수 있어요.'
         if issues:
             status = 'unresolved'; question = issues[0]
+        elif proposal_blockers:
+            status = 'unverified_mandatory'; question = ''
         elif conditions and not candidate_ids:
             status = 'no_evidence'; question = ''
         elif not parent_topics:
@@ -287,43 +346,57 @@ class Discovery:
             status = 'ready'; question = ''
         labels = [c['name'] for c in conditions]
         summary = ' · '.join(labels) or ' · '.join(FAMILIES[key][0] for key in family_ids) or query[:120]
+        if lookup_scope['problem'] and lookup_scope['problem'] not in summary:
+            summary += ' · 목표: '+lookup_scope['problem'][:240]
         reasons = {
             'ready':'말씀하신 주제와 연결된 기록을 기준으로 찾아볼 범위가 좁혀졌어요. 개인의 실제 수행 범위와 현재 협업 가능성은 추가 확인이 필요해요.',
             'broad':'지금은 분야가 넓어서 하려는 일을 조금 더 이해하고 싶어요.',
-            'no_evidence':'현재 등록 자료에서 이 조건들을 함께 뒷받침하는 인물을 찾지 못했어요. 조건을 풀거나 다른 주제로 바꾸면 다시 살펴볼 수 있어요.',
+            'no_evidence':('요청하신 인물을 제외하면 현재 조건과 연결된 후보는 0명이에요. 제외한 인물은 결과에 포함하지 않아요.' if excluded_all_candidates else '현재 등록 자료에서 이 조건들을 함께 뒷받침하는 인물을 찾지 못했어요. 조건을 풀거나 다른 주제로 바꾸면 다시 살펴볼 수 있어요.'),
             'unsupported_scope':'현재 등록 자료로는 이 요청을 충분히 구분할 수 없어요. 확인할 수 없는 조건을 남긴 채 인물을 제안하지 않겠습니다.',
             'not_narrowed':'등록 기록에 조건을 적용했지만 아직 범위를 구분하기 어려워요.',
             'unresolved':'확정되지 않았거나 기록으로 확인할 수 없는 조건이 남아 있어요.',
+            'unverified_mandatory':'명시한 필수조건을 등록 근거로 확인하지 못했어요. 자료 조회는 가능하지만 제안 준비는 할 수 없어요.',
         }
         basis = {'query':query, 'sources':request.get('sources',[]), 'unresolved':issues,
-                 'conditions':conditions, 'unsupported':unsupported, 'parent':sorted(parent_ids),
+                 'excluded_person_ids':sorted(excluded_person_ids),
+                 'lookup_scope':lookup_scope, 'lookup_blockers':lookup_blockers, 'proposal_blockers':proposal_blockers,
+                 'conditions':conditions, 'lookup_conditions':lookup_conditions, 'unsupported':unsupported, 'parent':sorted(parent_ids),
                  'records':sorted(record_ids), 'evidence':{rid:asdict(self.corpus.records[rid]) for rid in sorted(parent_links)},
                  'pool':getattr(self.corpus,'demo_pool',{}).get('version')}
         revision = fingerprint(basis)
         repeated = bool(previous and previous.get('status') == status and previous.get('summary') == summary and previous.get('question') == question)
-        show_question = bool(question and not (repeated and not ready))
-        reply = (f'「{summary}」 경험이 있는 분을 찾으시는 것으로 이해했어요.\n\n' if summary else '') + reasons[status]
+        show_question = bool(question and not lookup_ready and not (repeated and not ready))
+        reply = (f'「{summary}」 경험이 있는 분을 찾으시는 것으로 이해했어요.\n\n' if summary else '') + (lookup_reason if lookup_ready and not ready else reasons[status])
         hint_given=bool(previous and previous.get('hint_given'))
-        if repeated and status=='broad':
+        if repeated and status=='broad' and not lookup_ready:
             if hint_given:
                 reply='원하는 반응이나 제품이 떠오르면 이어서 말씀해 주세요. 그 내용을 바탕으로 다시 살펴볼게요.'
             else:
                 example='예를 들어 CO₂ 전환처럼 다루는 반응이나 SAF처럼 만들려는 제품을 한 가지만 말씀해 주세요.' if 'catalysis' in family_ids else '예를 들어 증류처럼 다루는 공정이나 해결하려는 문제를 한 가지만 말씀해 주세요.'
                 reply='아직 반응·제품 또는 구체적인 문제가 없어 범위를 좁히기 어려워요. '+example
                 hint_given=True
-        if unsupported and ready:
+        if evidence_notices and lookup_ready:
+            reply += '\n\n' + '\n'.join(dict.fromkeys(evidence_notices))
+        if proposal_blockers and lookup_ready:
+            reply += '\n\n' + reasons['unverified_mandatory']
+        if unsupported and (ready or lookup_ready):
             reply += '\n\n추가 확인할 요청: ' + ' · '.join(dict.fromkeys(unsupported)) + '. 이 부분을 충족한다는 의미는 아니에요.'
         if show_question:
             reply += '\n\n' + question
         return {'ready':ready, 'status':status, 'summary':summary, 'reason':reasons[status],
+                'excluded_person_ids':sorted(excluded_person_ids), 'excluded_all_candidates':excluded_all_candidates,
+                'lookup_ready':lookup_ready, 'lookup_status':lookup_status, 'lookup_reason':lookup_reason,
+                'lookup_scope':lookup_scope, 'lookup_blockers':lookup_blockers, 'evidence_notices':evidence_notices,
+                'proposal_blockers':proposal_blockers,
                 'question':question, 'query':query, 'revision':revision, 'reply':reply,
                 'candidate_ids':sorted(candidate_ids), 'record_ids':sorted(record_ids),
-                'conditions':conditions, 'parent_ids':sorted(parent_ids), 'hint_given':hint_given,
+                'conditions':conditions, 'lookup_conditions':lookup_conditions, 'parent_ids':sorted(parent_ids), 'hint_given':hint_given,
                 'unsupported':unsupported, 'unresolved':issues}
 
     @staticmethod
     def public(state):
-        return {key:state[key] for key in ('ready','status','summary','reason','question','revision','hint_given')}
+        return {key:state[key] for key in ('ready','status','summary','reason','question','revision','hint_given',
+                                         'lookup_ready','lookup_status','lookup_reason')}
 
 
 def _normal(value):
@@ -350,12 +423,14 @@ def condition_notes(row, knownterms):
     knownterms = tuple(knownterms)
     active = str(row.get("text") or "").strip()
     if not active:
-        return {"unverified": [], "blocking": []}
+        return {"unverified": [], "blocking": [], "proposal_blocking": []}
     source = row.get("source") or row
+    if source.get('purpose') == 'exclude_person':
+        return {"unverified": [], "blocking": [], "proposal_blocking": []}
     quote = str(source.get("quote") or active).strip()
     # Keep exact substring wording; split only overt sentence/clause boundaries.
     clauses = re.split(r"[\n;]+|[.!?](?:\s+|$)|,\s*|\s+(?:그리고|하지만|반면)\s+|(?:이고|이며|하고)\s+", quote)
-    notes, questions = [], []
+    notes, questions, proposal_blocking = [], [], []
     measure = re.compile(r"(?<![\d.])\d+(?:\.\d+)?\s*(?:도|℃|°c|bar|년|개월|만원|원|일|주|장|개|%)", re.I)
     attribute = re.compile(r"내구|성능|순도|선택도|수율|효율|가용|소속|장비|압력|온도|검증|확인된")
     required = re.compile(r"검증된|확인된|반드시|필수|충족해야|꼭")
@@ -377,8 +452,22 @@ def condition_notes(row, knownterms):
         # Do not run "required" against a whole multi-clause quote. Explicit
         # negation of 필수 applies only here; another mandatory phrase still wins.
         non_relaxed_text = relaxed.sub("", raw)
-        is_required = bool(required.search(non_relaxed_text))
+        is_required = bool(required.search(non_relaxed_text) or (source.get('required') and not asks_followup))
         if not (unknown_scope or has_attribute or asks_followup):
+            # This formerly ignored clause may contain an explicit qualification
+            # outside the registered topics (e.g. a language requirement). Keep
+            # known topic-only requirements such as "MPC 필수" on their existing
+            # record-backed path. Strip only requirement grammar, never a list of
+            # particular qualifications. No new lookup ambiguity is introduced.
+            if is_required:
+                subject = required.sub(' ', non_relaxed_text)
+                subject = re.sub(r'(?:필요|요구)(?:해요|해|합니다|하다|함)?', ' ', subject)
+                subject = re.sub(r'(?:입니다|이에요|예요|이야|이다|야|요)[.!?。！？\s]*$', ' ', subject).strip(' .!?。！？')
+                if _without_known(subject, knownterms):
+                    if raw not in notes:
+                        notes.append(raw)
+                    if raw not in proposal_blocking:
+                        proposal_blocking.append(raw)
             # Ordinary purposes connecting matched topics are not extra facts.
             continue
         if raw not in notes:
@@ -391,10 +480,12 @@ def condition_notes(row, knownterms):
             question = f"추가로 요구하신 「{subject}」의 충족 여부는 등록 기록으로 확인하지 못했어요. 이 조건을 후보에게 확인할 사항으로 남겨도 될까요?"
         elif unknown_scope and not asks_followup:
             question = f"「{raw}」의 추가 경험·분야는 등록 근거로 확인하지 못했어요. 이번 검색에 꼭 필요한 별도 경험인가요?"
-        elif not asks_followup and attribute.search(raw) and not measure.search(value):
+        elif not asks_followup and attribute.search(raw) and not measure.search(value) and source.get('purpose') != 'goal':
+            # A current user aspiration is not an asserted capability threshold.
+            # Explicit required conditions and unknown scope still win above.
             question = f"「{raw}」는 충족이 필수인 조건인가요, 후보에게 확인할 사항인가요?"
         else:
             question = None
         if question and question not in questions:
             questions.append(question)
-    return {"unverified": notes, "blocking": questions}
+    return {"unverified": notes, "blocking": questions, "proposal_blocking": proposal_blocking}

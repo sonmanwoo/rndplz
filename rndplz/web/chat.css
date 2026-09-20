@@ -41,3 +41,13 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
   #profileChatHost:not([hidden]) ~ .composer-dock .composer-controls{flex-wrap:wrap}
   #profileChatHost:not([hidden]) ~ .composer-dock .composer select{flex:1 1 100%;width:100%;max-width:none;min-width:0;padding-left:0}
 }
+
+/* Current server-compiled lookup state, separate from assistant prose. */
+.inline-scout{padding:14px 16px;border:1px solid #b9c5ae;border-radius:8px;background:#f1f3e9;overflow-wrap:anywhere}
+.inline-scout-source{margin:0 0 8px;font:11px/1.5 Consolas,monospace;color:#596d50;letter-spacing:.3px}
+.inline-scout-summary{margin:0 0 10px;font-size:13px;line-height:1.7;white-space:pre-wrap;color:#3f5038}
+.inline-scout-summary strong{font-weight:600;margin-right:6px}
+.inline-scout-question{margin:0 0 12px;font-size:13px;line-height:1.7;color:#46583e}
+.inline-scout .primary{min-height:44px;max-width:100%;padding:10px 14px;font-size:13px;white-space:normal}
+.inline-scout .primary:disabled{opacity:1;background:#e4e8dc;border-color:#b9c2b1;color:#697660;cursor:default}
+.inline-scout-progress{margin:10px 0 0;font-size:12px;line-height:1.6;color:#52654a}
