@@ -44,6 +44,31 @@ PREVIEW_FILES = {
 
 # Previews use fixed reviewed packages, never filesystem path discovery.
 PREVIEW_PACKAGES = {
+    '/ui-previews/CAPABILITY-PROPOSALS/r2/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'app.js': ('app.js', 'text/javascript; charset=utf-8'),
+        'assets/gs-ignacio-e-grossmann.png': ('assets/gs-ignacio-e-grossmann.png', 'image/png'),
+        'assets/gs-jens-kehlet-norskov.png': ('assets/gs-jens-kehlet-norskov.png', 'image/png'),
+        'assets/gs-sankar-nair.png': ('assets/gs-sankar-nair.png', 'image/png'),
+        'assets/jinho-illustration.png': ('assets/jinho-illustration.png', 'image/png'),
+        'assets/manwoo-illustration.png': ('assets/manwoo-illustration.png', 'image/png'),
+        'assets/pool-ian-wilson.png': ('assets/pool-ian-wilson.png', 'image/png'),
+        'assets/pool-issam-mudawar.png': ('assets/pool-issam-mudawar.png', 'image/png'),
+        'assets/pool-james-rawlings.png': ('assets/pool-james-rawlings.png', 'image/png'),
+        'assets/pool-joshua-heyne.png': ('assets/pool-joshua-heyne.png', 'image/png'),
+        'assets/pool-manfred-morari.png': ('assets/pool-manfred-morari.png', 'image/png'),
+        'assets/pool-oussama-khatib.png': ('assets/pool-oussama-khatib.png', 'image/png'),
+        'assets/pool-robert-mccormick.png': ('assets/pool-robert-mccormick.png', 'image/png'),
+        'assets/pool-sandro-macchietto.png': ('assets/pool-sandro-macchietto.png', 'image/png'),
+        'assets/pool-yogendra-joshi.png': ('assets/pool-yogendra-joshi.png', 'image/png'),
+        'data.js': ('data.js', 'text/javascript; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'map.css': ('map.css', 'text/css; charset=utf-8'),
+        'map.js': ('map.js', 'text/javascript; charset=utf-8'),
+        'proposals.css': ('proposals.css', 'text/css; charset=utf-8'),
+        'proposals.js': ('proposals.js', 'text/javascript; charset=utf-8'),
+        'styles.css': ('styles.css', 'text/css; charset=utf-8'),
+    },
     '/ui-previews/CAPABILITY-PROPOSALS/r1/': {
         '': ('index.html', 'text/html; charset=utf-8'),
         'app.js': ('app.js', 'text/javascript; charset=utf-8'),
