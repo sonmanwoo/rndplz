@@ -39,6 +39,13 @@ _MODEL_FIELDS = {'model_selected','model_job','provider_model_observed'}
 _NUMBER_FIELDS = {'input_chars','output_chars','attachment_count','elapsed_ms','queue_ms','first_delta_ms',
                   'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict'}
 _BOOL_FIELDS = {'partial_output','cached','model_called','truncated'}
+_SELECTION_SOURCES = {'lexical_search','record_id_read','registered_name'}
+# Current summary values are replaceable; immutable event_contents retains every
+# observed original/response attempt, including a superseded first response.
+_CURRENT_CONTENT_FIELDS = {'assistant_text','model_plan','model_plan_raw','model_plan_base',
+    'model_assessment_raw','model_assessment','model_assessment_materials','model_assessment_status',
+    'model_response_attempts','model_response_status','model_plan_attempts','model_search_attempts',
+    'model_generation_budget','model_consultation_attempts'}
 _SECRET_KEY = re.compile(r'(?i)(?:token|secret|password|api.?key|authorization|cookie|csrf|lease|headers?|environ|config|image|base64|raw_bytes)')
 _LIMITS = {'retention_seconds':7*86400,'content_retention_seconds':86400,'snapshot_retention_seconds':86400,
            'max_event_bytes':2*1024*1024,'max_total_event_bytes':32*1024*1024,
@@ -185,9 +192,40 @@ def _assessment_matching(value):
     return branches
 
 
+def _record_ids(value, limit):
+    return [item for item in _assessment_list(value,limit)
+            if isinstance(item,str) and _RECORD_ID.fullmatch(item) and redact_text(item)==item]
+
+
+def _clean_interpretations(value):
+    interpretations=[]
+    for branch in _assessment_list(value,3):
+        if not isinstance(branch,dict):continue
+        item={'label':redact_text(branch.get('label',''),1000),'groups':[]}
+        for group in _assessment_list(branch.get('groups'),3):
+            if not isinstance(group,dict):continue
+            item['groups'].append({'topic_ids':_assessment_ids(group.get('topic_ids'),8),
+                'queries':[redact_text(q,500) for q in _assessment_list(group.get('queries'),6) if isinstance(q,str)]})
+        interpretations.append(item)
+    return interpretations
+
+
+def _clean_next_lookup(value):
+    clean={}
+    if isinstance(value.get('interpretations'),list):clean['interpretations']=_clean_interpretations(value['interpretations'])
+    if isinstance(value.get('record_ids'),list):clean['record_ids']=_record_ids(value['record_ids'],21)
+    return clean
+
+
 def _clean_assessment(value):
     clean={'assessments':[]}
     if isinstance(value.get('empty_reply'),str):clean['empty_reply']=_assessment_text(value['empty_reply'],800)
+    # New response contract keeps the complete model reply; legacy empty_reply
+    # remains readable for retained older diagnostic events.
+    if isinstance(value.get('reply'),str):clean['reply']=_assessment_text(value['reply'],6000)
+    if 'next_lookup' in value:
+        if value['next_lookup'] is None:clean['next_lookup']=None
+        elif isinstance(value['next_lookup'],dict):clean['next_lookup']=_clean_next_lookup(value['next_lookup'])
     for assessment in _assessment_list(value.get('assessments'),7):
         if not isinstance(assessment,dict):continue
         row={'evidence':[]}
@@ -217,6 +255,9 @@ def _clean_assessment_materials(value):
         if type(person.get('individual_performance_verified')) is bool:
             row['individual_performance_verified']=person['individual_performance_verified']
         if isinstance(person.get('availability'),str):row['availability']=_assessment_text(person['availability'],100)
+        if person.get('selection_source') in _SELECTION_SOURCES:row['selection_source']=person['selection_source']
+        for key in ('selected_record_ids','omitted_selected_record_ids'):
+            if isinstance(person.get(key),list):row[key]=_record_ids(person[key],21)
         if isinstance(person.get('matching_interpretations'),list):
             row['matching_interpretations']=_assessment_matching(person['matching_interpretations'])
         for record in _assessment_list(person.get('evidence'),3):
@@ -247,30 +288,69 @@ def _clean_content(value):
         if key in value:result[key]=redact_text(value[key])
     if isinstance(value.get('model_assessment_raw'),str):
         result['model_assessment_raw']=_assessment_text(value['model_assessment_raw'],24000)
-    if isinstance(value.get('model_assessment'),dict):
+    if 'model_assessment' in value and value['model_assessment'] is None:
+        result['model_assessment']=None
+    elif isinstance(value.get('model_assessment'),dict):
         result['model_assessment']=_clean_assessment(value['model_assessment'])
     if isinstance(value.get('model_assessment_materials'),list):
         result['model_assessment_materials']=_clean_assessment_materials(value['model_assessment_materials'])
+    for key in ('model_assessment_status','model_response_status'):
+        if _assessment_id(value.get(key)) is not None:result[key]=value[key]
+    if isinstance(value.get('model_response_attempts'),list):
+        responses=[]
+        for row in value['model_response_attempts'][:2]:
+            if not isinstance(row,dict):continue
+            item={}
+            if type(row.get('attempt')) is int and 1<=row['attempt']<=2:item['attempt']=row['attempt']
+            if isinstance(row.get('raw'),str):item['raw']=_assessment_text(row['raw'],24000)
+            if 'parsed' in row:
+                if row['parsed'] is None:item['parsed']=None
+                elif isinstance(row['parsed'],dict):item['parsed']=_clean_assessment(row['parsed'])
+            if isinstance(row.get('materials'),list):item['materials']=_clean_assessment_materials(row['materials'])
+            for key in ('adopted','provider_completed'):
+                if type(row.get(key)) is bool:item[key]=row[key]
+            if row.get('validation') in (None,'accepted','rejected') and 'validation' in row:item['validation']=row['validation']
+            for key in ('tool_call_id','discovery_revision','reason','status'):
+                if key in row and row[key] is None:item[key]=None
+                elif _assessment_id(row.get(key)) is not None:item[key]=row[key]
+            if 'next_plan' in row:
+                if row['next_plan'] is None:item['next_plan']=None
+                elif isinstance(row['next_plan'],dict):item['next_plan']=_clean_content({'model_plan':row['next_plan']})['model_plan']
+            responses.append(item)
+        result['model_response_attempts']=responses
+    if isinstance(value.get('model_consultation_attempts'),list):
+        consultations=[]
+        for row in value['model_consultation_attempts'][:1]:
+            if not isinstance(row,dict):continue
+            item={}
+            if type(row.get('attempt')) is int and row['attempt']==1:item['attempt']=1
+            if isinstance(row.get('raw'),str):item['raw']=_assessment_text(row['raw'],8000)
+            for key in ('provider_completed','adopted'):
+                if type(row.get(key)) is bool:item[key]=row[key]
+            if row.get('validation') in (None,'accepted','rejected') and 'validation' in row:item['validation']=row['validation']
+            for key in ('revision','reason'):
+                if _assessment_id(row.get(key)) is not None:item[key]=row[key]
+            consultations.append(item)
+        result['model_consultation_attempts']=consultations
+    if isinstance(value.get('model_generation_budget'),dict):
+        budget=value['model_generation_budget'];clean_budget={}
+        if _assessment_id(budget.get('origin_turn_id')) is not None:clean_budget['origin_turn_id']=budget['origin_turn_id']
+        if type(budget.get('calls')) is int and 0<=budget['calls']<=4:clean_budget['calls']=budget['calls']
+        if type(budget.get('extra_consumed')) is bool:clean_budget['extra_consumed']=budget['extra_consumed']
+        result['model_generation_budget']=clean_budget
     if isinstance(value.get('model_plan'),dict):
         plan=value['model_plan'];clean={}
         for key in ('reply','intent','lookup_action','summary'):
             if isinstance(plan.get(key),str):clean[key]=redact_text(plan[key],4000)
-        clean['person_names']=[redact_text(x,200) for x in plan.get('person_names',[])[:10] if isinstance(x,str)]
+        clean['person_names']=[redact_text(x,200) for x in _assessment_list(plan.get('person_names'),10) if isinstance(x,str)]
         clean['conditions']=[]
-        for row in plan.get('conditions',[])[:20]:
+        for row in _assessment_list(plan.get('conditions'),20):
             if not isinstance(row,dict):continue
             item={k:redact_text(row[k],4000) for k in ('kind','text','source_quote') if isinstance(row.get(k),str)}
             if isinstance(row.get('source_turn_id'),str) and _ID.fullmatch(row['source_turn_id']):item['source_turn_id']=row['source_turn_id']
             clean['conditions'].append(item)
-        clean['interpretations']=[]
-        for branch in plan.get('interpretations',[])[:3]:
-            if not isinstance(branch,dict):continue
-            item={'label':redact_text(branch.get('label',''),1000),'groups':[]}
-            for group in branch.get('groups',[])[:3]:
-                if not isinstance(group,dict):continue
-                item['groups'].append({'topic_ids':[t for t in group.get('topic_ids',[])[:8] if isinstance(t,str) and _ID.fullmatch(t)],
-                                       'queries':[redact_text(q,500) for q in group.get('queries',[])[:6] if isinstance(q,str)]})
-            clean['interpretations'].append(item)
+        clean['interpretations']=_clean_interpretations(plan.get('interpretations'))
+        if isinstance(plan.get('record_ids'),list):clean['record_ids']=_record_ids(plan['record_ids'],21)
         result['model_plan']=clean
     if isinstance(value.get('model_plan_base'),dict):
         result['model_plan_base']=_clean_content({'model_plan':value['model_plan_base']})['model_plan']
@@ -299,6 +379,9 @@ def _clean_content(value):
                 if isinstance(row.get(key),str) and _ID.fullmatch(row[key]):item[key]=row[key]
             for key in ('attempt','candidate_count'):
                 if type(row.get(key)) is int and 0<=row[key]<=7:item[key]=row[key]
+            if row.get('selection_source') in _SELECTION_SOURCES:item['selection_source']=row['selection_source']
+            for key,limit in (('record_ids',21),('selected_record_ids',21),('omitted_selected_record_ids',21),('matching_record_ids',200)):
+                if isinstance(row.get(key),list):item[key]=_record_ids(row[key],limit)
             searches.append(item)
         result['model_search_attempts']=searches
     if isinstance(value.get('request_context'),dict):
@@ -324,6 +407,9 @@ def _clean_content(value):
         entry={}
         for key in ('candidate_ids','evidence_ids'):
             if isinstance(value['retrieval'].get(key),list):entry[key]=[x for x in value['retrieval'][key][:200] if isinstance(x,str) and _RECORD_ID.fullmatch(x)]
+        if value['retrieval'].get('selection_source') in _SELECTION_SOURCES:entry['selection_source']=value['retrieval']['selection_source']
+        for key,limit in (('record_ids',21),('selected_record_ids',21),('omitted_selected_record_ids',21),('matching_record_ids',200)):
+            if isinstance(value['retrieval'].get(key),list):entry[key]=_record_ids(value['retrieval'][key],limit)
         if isinstance(value['retrieval'].get('corpus_fingerprint'),str) and _ID.fullmatch(value['retrieval']['corpus_fingerprint']):entry['corpus_fingerprint']=value['retrieval']['corpus_fingerprint']
         if isinstance(value['retrieval'].get('candidates'),list):
             entry['candidates']=[]
@@ -332,6 +418,9 @@ def _clean_content(value):
                 row={}
                 if isinstance(candidate.get('id'),str) and _RECORD_ID.fullmatch(candidate['id']):row['id']=candidate['id']
                 if isinstance(candidate.get('reason'),str):row['reason']=redact_text(candidate['reason'],4000)
+                if candidate.get('selection_source') in _SELECTION_SOURCES:row['selection_source']=candidate['selection_source']
+                for key in ('selected_record_ids','omitted_selected_record_ids'):
+                    if isinstance(candidate.get(key),list):row[key]=_record_ids(candidate[key],21)
                 row['evidence']=[]
                 for evidence in candidate.get('evidence',[])[:10] if isinstance(candidate.get('evidence'),list) else []:
                     if not isinstance(evidence,dict):continue
@@ -373,7 +462,16 @@ def _content_observations(original, cleaned):
         elif isinstance(before,str) and isinstance(after,str):
             leaf=path.rsplit('.',1)[-1]
             limit=16000 if leaf=='query' else 4000 if leaf in ('text','quote','selection_quote','option_quote','reason') else 2000 if leaf in ('title','scope','role','boundary') else 1000 if '.unresolved[' in path else 24000
+            response_text=(path.startswith('model_assessment.') or path.startswith('model_response_attempts['))
+            if path.startswith('model_consultation_attempts[') and leaf=='raw':limit=8000
+            elif response_text and leaf=='reply':limit=6000
+            elif response_text and leaf=='empty_reply':limit=800
+            elif response_text and leaf=='raw':limit=24000
             if len(before)>limit:omissions.append({'field':path,'reason':'text_limit','original_chars':len(before),'captured_chars':len(after)})
+            elif len(before)>len(after):
+                # Narrow field caps and redaction can both shorten a value.
+                # Report the observable loss without calling redaction truncation.
+                omissions.append({'field':path,'reason':'text_shortened','original_chars':len(before),'captured_chars':len(after)})
     walk(original,cleaned,'')
     changed=json.dumps(original,ensure_ascii=False,sort_keys=True,default=str)!=json.dumps(cleaned,ensure_ascii=False,sort_keys=True)
     return {'redaction_applied':changed,'omissions':omissions}
@@ -533,7 +631,7 @@ class Diagnostics:
                     prior=self._read(path,self.limits['max_attempt_bytes']) if path.exists() else {}
                     merged=copy.deepcopy(prior.get('content',{}))
                     for field,value in captured.items():
-                        if field=='assistant_text' or field not in merged:merged[field]=value
+                        if field in _CURRENT_CONTENT_FIELDS or field not in merged:merged[field]=value
                     observed=_content_observations(content,captured)
                     omissions=copy.deepcopy(prior.get('omissions',[]))+observed['omissions']
                     event_contents=copy.deepcopy(prior.get('event_contents',[]))

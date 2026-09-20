@@ -296,3 +296,16 @@ body.crafted:before{content:"";position:fixed;inset:0;pointer-events:none;z-inde
 
 /* Keep all four menu targets and actions within a narrow phone header. */
 @media(max-width:380px){.chat-page .craft-header,.explorer-page .craft-header{padding-inline:8px;gap:4px}}
+/* Shared profile management, preserving the existing profile editor. */
+.account-control{position:relative;margin-left:auto;flex:none}
+.account-toggle{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid #b9c5ae;border-radius:50%;color:#52654a;background:#f8f8ef}
+.account-menu{position:absolute;z-index:90;right:0;top:48px;width:230px;padding:8px;border:1px solid #c5cfba;border-radius:12px;background:#fffdf6;box-shadow:0 10px 30px #24372520;text-align:left}
+.account-menu[hidden]{display:none!important}.account-menu>a,.account-menu>button{display:block;width:100%;padding:10px 12px;min-height:44px;border:0;border-radius:6px;text-align:left;background:none;font:14px/1.5 system-ui,sans-serif;color:#34482f}
+.account-menu>a:hover,.account-menu>button:hover:not(:disabled){background:#edf1e5}.account-menu>button:disabled{opacity:.45;cursor:default}
+.account-note{margin:6px 10px!important;font:11px/1.7 system-ui,sans-serif!important;color:#778270;white-space:normal;overflow-wrap:anywhere}.account-note:empty{display:none}
+.account-control :focus-visible{outline:2px solid #537747;outline-offset:3px}
+.simple-portrait{display:block;width:100%;height:260px;object-fit:contain;background:#eeeede;border-radius:9px}
+.simplified-person{text-align:left;display:flex!important;flex-direction:column;gap:12px;overflow:hidden;min-width:0;cursor:pointer}
+.simplified-person .simple-person-name{font-size:21px;font-weight:600;line-height:1.3;display:block}
+.simplified-person .simple-person-capability{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+@media(max-width:700px){.account-toggle{width:34px;height:34px}.account-menu{right:-4px;max-width:calc(100vw - 28px)}.simple-portrait{height:230px}}

@@ -1,0 +1,169 @@
+.cd-draw {
+  --cd-paper: #fffdf5;
+  --cd-ink: #233e32;
+  --cd-sage: #dce3d5;
+  --cd-green: #315846;
+  --cd-draw-ms: 180ms;
+  --cd-flip-ms: 300ms;
+  width: 100%;
+  min-width: 0;
+  color: var(--cd-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  padding: 12px 0 22px;
+}
+.cd-draw *, .cd-draw *::before, .cd-draw *::after { box-sizing: border-box; }
+.cd-draw [hidden] { display: none !important; }
+.cd-draw .cd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  justify-content: center;
+  gap: 22px;
+  width: 100%;
+  max-width: 788px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.cd-draw .cd-grid[data-count="0"] { display: none; }
+.cd-draw .cd-grid[data-count="1"] { grid-template-columns: minmax(0, 248px); }
+.cd-draw .cd-grid[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 248px)); }
+.cd-draw .cd-item { min-width: 0; width: 100%; margin: 0; padding: 0; perspective: 1100px; }
+.cd-draw .cd-card {
+  display: block;
+  appearance: none;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: min(248px, calc(var(--cd-viewport-height, 100svh) * .6 - 43.2px));
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--cd-ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  box-shadow: 0 7px 19px #263d2e12;
+  -webkit-tap-highlight-color: transparent;
+}
+.cd-draw .cd-card:disabled { cursor: default; filter: none; }
+.cd-draw .cd-card:focus-visible { outline: 3px solid #a65c3e; outline-offset: 5px; }
+.cd-draw .cd-card.cd-is-revealed:hover { box-shadow: 0 10px 26px #263d2e20; }
+.cd-draw .cd-turn {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 5;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateY(0);
+  border-radius: inherit;
+}
+.cd-draw .cd-back, .cd-draw .cd-front {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 15px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.cd-draw .cd-back {
+  color: #e8eddd;
+  border: 7px solid #f8f5e9;
+  background-color: var(--cd-green);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 10px, #cedec212 10px 11px, transparent 11px 21px),
+    repeating-linear-gradient(-45deg, transparent 0 10px, #cedec20b 10px 11px, transparent 11px 21px);
+  transform: rotateY(0);
+}
+.cd-draw .cd-back-border { position: absolute; inset: 9px; border: 1px solid #d9e5cf70; border-radius: 8px; }
+.cd-draw .cd-back-border::after { content: ""; position: absolute; inset: 4px; border: 1px solid #d9e5cf28; border-radius: 5px; }
+.cd-draw .cd-back-corner { position: absolute; font: 26px Georgia, serif; line-height: 1; opacity: .85; }
+.cd-draw .cd-back-corner--top { top: 24px; left: 23px; }
+.cd-draw .cd-back-corner--bottom { bottom: 24px; right: 23px; transform: rotate(180deg); }
+.cd-draw .cd-back-emblem { position: absolute; top: 42%; left: 50%; width: 85px; height: 85px; transform: translate(-50%, -50%); padding: 4px; border: 1px solid #d9e5cf58; border-radius: 50%; }
+.cd-draw .cd-back-emblem svg { display: block; width: 100%; height: 100%; fill: none; stroke: #e3e9d8; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.cd-draw .cd-back-emblem svg circle { stroke-width: .5; opacity: .6; }
+.cd-draw .cd-back-word { position: absolute; top: 61%; left: 16px; right: 16px; font: 17px Georgia, "Batang", serif; letter-spacing: .26em; text-indent: .26em; }
+.cd-draw .cd-front {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 14px 12px 12px;
+  border: 1px solid #cbd4c3;
+  background: var(--cd-paper);
+  transform: rotateY(180deg);
+}
+.cd-draw .cd-front:empty { visibility: hidden; }
+.cd-draw .cd-name {
+  display: block;
+  color: var(--cd-ink);
+  font-family: Georgia, "Noto Serif KR", "Batang", serif;
+  font-size: clamp(16px, 4.5svh, 23px);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.cd-draw .cd-portrait {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  justify-self: center;
+  width: calc(100% - 14px);
+  aspect-ratio: 3 / 4;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #dce1d0;
+  border-radius: 8px;
+  background: #e8ecdf;
+}
+.cd-draw .cd-portrait img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: cover; object-position: center; border: 0; }
+.cd-draw .cd-portrait--empty { color: #5c6e5f; font-size: 12px; }
+.cd-draw .cd-capability {
+  display: block;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid #dde2d3;
+  color: #526655;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-draw .cd-card.cd-is-drawing { opacity: 1; animation: cd-card-draw var(--cd-draw-ms) cubic-bezier(.18,.65,.3,1) both; }
+.cd-draw .cd-card.cd-is-flipping { opacity: 1; }
+.cd-draw .cd-card.cd-is-flipping .cd-turn { transform: rotateY(180deg); transition: transform var(--cd-flip-ms) cubic-bezier(.4,0,.25,1); }
+.cd-draw .cd-card.cd-is-revealed { opacity: 1; animation: none; }
+.cd-draw .cd-card.cd-is-revealed .cd-turn { transform: rotateY(180deg); transition: none; }
+.cd-draw .cd-empty {
+  max-width: 620px;
+  margin: 8px auto;
+  padding: 36px 22px;
+  border: 1px dashed #cbd4c3;
+  border-radius: 12px;
+  background: #f5f6ec;
+  color: #526655;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.cd-draw .cd-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes cd-card-draw {
+  from { opacity: 0; transform: translate(-7px, 7px) rotate(-1.5deg) scale(.98); }
+  to { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); }
+}
+@media (max-width: 650px) {
+  .cd-draw .cd-grid,
+  .cd-draw .cd-grid[data-count="1"],
+  .cd-draw .cd-grid[data-count="2"] { grid-template-columns: minmax(0, 268px); gap: 22px; }
+  .cd-draw .cd-card { max-width: min(268px, calc(var(--cd-viewport-height, 100svh) * .6 - 43.2px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cd-draw *, .cd-draw *::before, .cd-draw *::after { animation: none !important; transition: none !important; }
+}

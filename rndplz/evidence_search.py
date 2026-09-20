@@ -1,6 +1,7 @@
 """Bounded retrieval over an Engine's already-visible corpus.
 
-The selected model supplies search expressions, never people/record IDs or facts.
+The selected model supplies search expressions or record IDs from the exposed
+neutral catalog, never facts or invented people IDs.
 Topic IDs are checked against this corpus; lexical queries search record title/text
 only. An exact phrase is preferred; otherwise every whitespace-delimited query
 term must occur in the same record's title/text. No query term is discarded.
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 from copy import deepcopy
+import json
 import re
 import unicodedata
 import uuid
@@ -30,6 +32,7 @@ MAX_QUERIES = 5
 MAX_CANDIDATES = 7
 MAX_EVIDENCE = 3
 MAX_SNIPPET = 700
+MAX_READ_RECORDS = 21
 
 
 def _normalized(value):
@@ -132,6 +135,35 @@ class PublicEvidenceSearch:
                 "record_expressions_omitted":max(0,len(records)-len(examples)),
                 "catalog_is_search_result":False}
 
+    def record_catalog(self, *, excluded_person_ids=()):
+        """Expose neutral titles/scopes from this same projected corpus only."""
+        if self.engine.corpus is not self.corpus:
+            raise ValueError("catalog_corpus_changed")
+        people = self._people()
+        if not isinstance(excluded_person_ids, (list, tuple, set, frozenset)):
+            raise ValueError("excluded_person_ids_invalid")
+        excluded = set()
+        for pid in excluded_person_ids:
+            if not isinstance(pid, str) or pid not in people:
+                raise ValueError("excluded_person_id_outside_current_corpus")
+            excluded.add(pid)
+        records = sorted((record for record in self._records(people).values()
+                          if not any(c.person_id in excluded for c in record.people)),
+                         key=lambda record: record.id)
+        catalog = {"records": [], "omitted_count": len(records), "record_limit": 48,
+                   "data_char_limit": 14000, "catalog_is_search_result": False}
+        for record in records[:48]:
+            _text(record.id, 200, "catalog_record_id")
+            if not isinstance(record.title, str) or not isinstance(record.scope, str):
+                raise ValueError("catalog_record_field_invalid")
+            item = {"record_id": record.id, "title": record.title, "scope": record.scope}
+            trial = {**catalog, "records": [*catalog["records"], item],
+                     "omitted_count": len(records) - len(catalog["records"]) - 1}
+            if len(json.dumps(trial, ensure_ascii=False, separators=(",", ":"))) > 14000:
+                break
+            catalog = trial
+        return catalog
+
     def refinement_observation(self, *, excluded_person_ids=()):
         """Bounded source prefixes for a caller-authorized post-zero review.
 
@@ -181,14 +213,14 @@ class PublicEvidenceSearch:
 
     def _validate(self, plan):
         allowed = {"reply", "intent", "lookup_action", "summary", "interpretations",
-                   "person_names", "conditions"}
+                   "person_names", "conditions", "record_ids"}
         if not isinstance(plan, dict) or set(plan) - allowed:
             raise ValueError("plan_invalid")
         if plan.get("intent") not in ("search", "person"):
             raise ValueError("search_intent_required")
         if plan.get("lookup_action") != "execute":
             raise ValueError("explicit_execute_required")
-        for key, limit in (("reply", 4000), ("summary", 2000)):
+        for key, limit in (("reply", 6000), ("summary", 2000)):
             _text(plan.get(key, ""), limit, key, empty=True)
         names = _strings(plan.get("person_names", []), MAX_CANDIDATES, 160, "person_names")
         if any(not _name_key(name) for name in names):
@@ -196,9 +228,12 @@ class PublicEvidenceSearch:
         if plan["intent"] == "person" and not names:
             raise ValueError("person_name_required")
         branches = plan.get("interpretations", [])
+        record_ids = _strings(plan.get("record_ids", []), MAX_READ_RECORDS, 200, "record_ids")
         if not isinstance(branches, list) or len(branches) > MAX_INTERPRETATIONS:
             raise ValueError("interpretations_invalid")
-        if plan["intent"] == "search" and not branches:
+        if record_ids and branches:
+            raise ValueError("mixed_lookup_modes")
+        if plan["intent"] == "search" and not (branches or record_ids):
             raise ValueError("interpretation_required")
         current_topics = {topic["id"] for topic in self.corpus.topics}
         interpretations = []
@@ -236,7 +271,7 @@ class PublicEvidenceSearch:
             _text(condition["text"], 1000, "condition_text")
             _text(condition["source_turn_id"], 200, "condition_source_turn_id")
             _text(condition["source_quote"], 2000, "condition_source_quote")
-        return interpretations, names, deepcopy(conditions)
+        return interpretations, names, deepcopy(conditions), record_ids
 
     def _names(self, names, people):
         registry = {}
@@ -327,7 +362,9 @@ class PublicEvidenceSearch:
 
     def search(self, plan, *, excluded_person_ids=(), unverified_conditions=(),
                request_revision="", original_query=""):
-        interpretations, names, conditions = self._validate(plan)
+        if self.engine.corpus is not self.corpus:
+            raise ValueError("search_corpus_changed")
+        interpretations, names, conditions, record_ids = self._validate(plan)
         request_revision = _text(request_revision, 200, "request_revision", empty=True)
         original_query = _text(original_query, 12000, "original_query", empty=True)
         people = self._people()
@@ -347,8 +384,22 @@ class PublicEvidenceSearch:
         if any(not isinstance(note, (str, dict)) for note in notes):
             raise ValueError("unverified_condition_invalid")
         named, unresolved_names, ambiguous_names = self._names(names, people)
+        selection_source = "record_id_read" if record_ids else "lexical_search" if interpretations else "registered_name"
+        if record_ids:
+            catalog_ids = {row["record_id"] for row in
+                           self.record_catalog(excluded_person_ids=excluded)["records"]}
+            if any(rid not in records or rid not in catalog_ids for rid in record_ids):
+                raise ValueError("record_id_not_exposed")
         per_person = {}
         summaries = []
+        for rid in record_ids:
+            # ID selection grants access to this record, not lexical evidence or
+            # semantic relevance. Actual links and an optional name filter bind it.
+            for contribution in records[rid].people:
+                pid = contribution.person_id
+                if pid not in people or pid in excluded or names and pid not in named:
+                    continue
+                per_person.setdefault(pid, {"records": {}, "interpretations": []})["records"][rid] = 1.0
         for interpretation in interpretations:
             groups = [self._group_matches(group, records, people) for group in interpretation["groups"]]
             eligible = set(groups[0])
@@ -370,7 +421,7 @@ class PublicEvidenceSearch:
                         row["records"][rid] = max(row["records"].get(rid, 0), hit["score"])
                 row["interpretations"].append({"index": interpretation["index"], "label": interpretation["label"],
                                                "source": "model_interpretation", "groups": details})
-        if not interpretations and names:
+        if not interpretations and not record_ids and names:
             for pid in named:
                 # by_person is an index, not a second authority: require the same
                 # visible current record and an actual contribution linking pid.
@@ -398,7 +449,12 @@ class PublicEvidenceSearch:
             scored_ids = witness_ids + [rid for rid in ranked_ids if rid not in witness_ids]
             scored = [(records[rid], row["records"][rid]) for rid in scored_ids]
             card = self._candidate(people[pid], scored, topics, original_query, row["interpretations"], records)
-            if names and not interpretations:
+            card["selection_source"] = selection_source
+            if record_ids:
+                card.update(role="선택한 등록 자료",
+                            reason="모델이 현재 자료 목록에서 선택해 읽은 기록입니다. 요청 목적의 적합성이나 개인의 역량을 확인한 결과는 아닙니다.",
+                            interpretation_source="record_id_read")
+            elif names and not interpretations:
                 card.update(role="등록 이름과 연결된 기록",
                             reason="선택된 이름과 연결된 현재 등록 기록입니다. 인물 본인 확인이나 요청 업무의 적합성 검증을 뜻하지 않습니다.",
                             interpretation_source="registered_name")
@@ -419,11 +475,17 @@ class PublicEvidenceSearch:
                   "field": self.engine.field_for(topics, "advice", original_query), "topic_ids": list(topics),
                   "candidates": cards, "choices": [], "author_strip": [], "author_strip_record": None,
                   "closest_topics": [], "empty_message": message, "record_count": len(linked_ids),
-                  "model_calls": 0, "ranking_source": "모델 검색 해석 · 현재 등록 기록 조회", "claims": [],
+                  "model_calls": 0,
+                  "ranking_source": "모델이 선택한 등록 자료 읽기" if record_ids else "모델 검색 해석 · 현재 등록 기록 조회",
+                  "claims": [],
                   "tool_call_id": uuid.uuid4().hex, "tool_name": "public_evidence_search",
                   "request_revision": request_revision, "original_query": original_query,
+                  "selection_source": selection_source,
+                  "selected_record_ids": list(record_ids),
+                  "omitted_selected_record_ids": sorted(set(record_ids) - set(shown_ids)),
                   "lookup_resolution": resolution, "interpretations": summaries,
-                  "interpretation_source": "model_interpretation", "group_semantics": "OR_terms_AND_groups_per_person_OR_interpretations",
+                  "interpretation_source": "record_id_read" if record_ids else "model_interpretation",
+                  "group_semantics": "selected_records_with_name_filter" if record_ids else "OR_terms_AND_groups_per_person_OR_interpretations",
                   "matching_record_ids": linked_ids, "evidence": [self._evidence(records[rid]) for rid in shown_ids],
                   "unresolved_person_names": unresolved_names, "ambiguous_person_names": ambiguous_names,
                   "unverified_request_conditions": notes, "model_proposed_conditions": conditions,

@@ -10,7 +10,8 @@ from .models import NoRedirect
 
 
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
-GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1')
+GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
+                             'dialogue_plan.v2','dialogue_response.v1')
 
 
 def generation_spec(name):
@@ -24,7 +25,7 @@ def generation_spec(name):
         raise ValueError('대화 생성 계약을 불러오지 못했습니다.') from None
     if (not isinstance(spec,dict) or not isinstance(spec.get('system'),str) or not spec['system'].strip()
             or type(spec.get('max_tokens')) is not int or not 1<=spec['max_tokens']<=8192
-            or (name in ('dialogue_plan.v1','dialogue_refine.v1','dialogue_assessment.v1') and not isinstance(spec.get('format'),dict))
+            or (name != 'dialogue_answer.v1' and not isinstance(spec.get('format'),dict))
             or (name=='dialogue_answer.v1' and spec.get('format') is not None)):
         raise ValueError('대화 생성 계약 형식이 올바르지 않습니다.')
     return spec

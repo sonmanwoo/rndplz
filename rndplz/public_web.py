@@ -28,6 +28,7 @@ from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .profile_chat import ProfileChat
+from .scout_projection import project_session
 
 WEB = Path(__file__).with_name('web')
 # Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
@@ -269,6 +270,38 @@ class PublicModels(ChatModels):
             yield '이 모드는 기술 답변을 생성하지 않는 기록 탐색 안내입니다. 어떤 경험이 있는 사람을 찾는지 말씀해 주세요. 등록 기록에서 범위가 좁혀졌을 때만 «현재 정보로 수소문»으로 이어집니다.'
 
 
+class _VisitorStream:
+    """Release visitor admission even if WSGI closes before the first iteration."""
+    def __init__(self, iterator, first, release):
+        self.iterator = iterator
+        self.events = itertools.chain([first], iterator)
+        self.release = release
+        self.closed = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.closed:
+            raise StopIteration
+        try:
+            event = next(self.events)
+            if isinstance(event, dict) and 'session' in event:
+                event = {**event, 'session': project_session(event['session'])}
+            return (json.dumps(event, ensure_ascii=False) + '\n').encode()
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self):
+        if not self.closed:
+            self.closed = True
+            try:
+                self.iterator.close()
+            finally:
+                self.release()
+
+
 class PublicApp:
     def __init__(self, state_dir=None, env=None, include_personal=None):
         self.env = dict(os.environ if env is None else env)
@@ -297,7 +330,7 @@ class PublicApp:
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
-                 'model_dialogue.py','evidence_search.py','model_conversation.py')
+                 'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py')
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -315,6 +348,28 @@ class PublicApp:
     def signature(self, value):
         return hmac.new(self.secret, value.encode(), hashlib.sha256).hexdigest()
 
+    def _revoked(self, sid):
+        # The signed cookie identifies one existing visitor directory. Keeping a
+        # tombstone prevents an old cookie from restoring that visitor on restart.
+        return (self.directory / sid / '.visitor-revoked').exists()
+
+    def _expired_cookie(self):
+        return ('rndplz_visitor=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; '
+                'Expires=Thu, 01 Jan 1970 00:00:00 GMT' + ('; Secure' if self.secure else ''))
+
+    def _logout(self, context):
+        with self.lock:
+            if context['inflight'] != 1 or context['active']:
+                return False
+            marker = self.directory / context['sid'] / '.visitor-revoked'
+            with marker.open('xb') as stream:
+                stream.write(b'1\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            context['revoked'] = True
+            self.contexts.pop(context['sid'], None)
+        return True
+
     def visitor(self, environ):
         cookie = SimpleCookie()
         try:
@@ -325,22 +380,23 @@ class PublicApp:
         parts = value.split('.')
         valid = len(parts) == 3 and re.fullmatch('[a-f0-9]{32}', parts[0]) and parts[1].isdigit()
         valid = valid and 0 <= time.time() - int(parts[1]) < 86400 and hmac.compare_digest(parts[2], self.signature('.'.join(parts[:2])))
-        if not valid:
-            value = secrets.token_hex(16) + '.' + str(int(time.time()))
-            value += '.' + self.signature(value)
-        sid = value.split('.')[0]
         with self.lock:
+            if not valid or self._revoked(parts[0]):
+                value = secrets.token_hex(16) + '.' + str(int(time.time()))
+                value += '.' + self.signature(value)
+            sid = value.split('.')[0]
             now = time.monotonic()
             if sid not in self.contexts:
                 # Only discard idle in-memory handles; never touch another visitor's files.
                 for key, item in list(self.contexts.items()):
-                    if now - item['used'] > 3600 and item['active'] == 0:
+                    if now - item['used'] > 3600 and item['active'] == 0 and item['inflight'] == 0:
                         del self.contexts[key]
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
                 service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
                 self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
+                                      'sid': sid, 'inflight': 0, 'revoked': False,
                                       'visitor_ref':self.signature('diagnostic:' + sid)}
             context = self.contexts[sid]
             context['used'] = now
@@ -399,6 +455,9 @@ class PublicApp:
                 self._diagnostic_observe({**diagnostic_request,'event_type':'request_rejected','status':'rejected',
                     'route':'reject','route_reason':'request_validation','http_status':status,'error_kind':diagnostic_error,
                     'failure_stage':'request','elapsed_ms':round((time.monotonic()-received)*1000),'model_called':False},diagnostic_content)
+            if (isinstance(value, dict) and 'session' in value
+                    and not environ.get('PATH_INFO', '').startswith('/api/operator/diagnostics/')):
+                value = {**value, 'session': project_session(value['session'])}
             raw = json.dumps(value, ensure_ascii=False).encode() if isinstance(value, (dict, list)) else value
             start_response(f'{status} {HTTPStatus(status).phrase}', headers + [('Content-Type', mime), ('Content-Length', str(len(raw)))])
             return [raw]
@@ -410,6 +469,8 @@ class PublicApp:
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
             return send(405, {'error': '지원하지 않는 요청입니다.'})
+        if path == '/api/logout' and method != 'POST':
+            return send(405, {'error': '방문자 세션 종료는 POST 요청으로만 처리합니다.'})
         if path.startswith('/api/operator/diagnostics/'):
             return self._operator(environ,path,method,send)
         if path.startswith('/ui-previews/'):
@@ -443,8 +504,16 @@ class PublicApp:
                 self.models.bridge.deliver(payload)
                 return send(200,{'ok':True})
             except (ValueError,KeyError,TypeError): return send(400,{'error':'연결 요청 형식을 확인해 주세요.'})
+        lease = None
+        streaming = False
         try:
             context, cookie = self.visitor(environ)
+            with self.lock:
+                if context['revoked'] or self._revoked(context['sid']):
+                    headers.append(('Set-Cookie', self._expired_cookie()))
+                    return send(403, {'error': '종료된 방문자 세션입니다. 화면을 새로고침해 주세요.'})
+                context['inflight'] += 1
+                lease = context
             headers.append(('Set-Cookie', cookie))
             service, chat, profile = context['service'], context['chat'], context['profile']
             token = context['token']
@@ -460,10 +529,10 @@ class PublicApp:
             if method == 'GET':
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
-                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog()})
+                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'session_mode': 'visitor', 'logout_supported': True})
                 if path == '/api/chat/models': return send(200, self.models.catalog())
-                if path == '/api/chat/session': return send(200, chat.get(identifier))
-                if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True})
+                if path == '/api/chat/session': return send(200, project_session(chat.get(identifier)))
+                if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': 'visitor', 'logout_supported': True})
                 if path == '/api/people-map': return send(200, build_people_map(service.engine))
                 if path == '/api/admin': return send(200, service.admin())
                 if path == '/api/person': return send(200, service.person(identifier))
@@ -476,7 +545,7 @@ class PublicApp:
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'draw.js', 'draw.css'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
@@ -495,6 +564,14 @@ class PublicApp:
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             payload = json.loads(environ['wsgi.input'].read(length).decode('utf-8'))
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
+            if path == '/api/logout':
+                if payload:
+                    return send(400, {'error': '방문자 세션 종료 요청에는 추가 항목을 넣지 마세요.'})
+                if not self._logout(context):
+                    return send(409, {'error': '현재 요청이 끝난 뒤 방문자 세션을 종료해 주세요.', 'code': 'logout_busy'})
+                headers[:] = [(name, value) for name, value in headers if name.lower() != 'set-cookie']
+                headers.append(('Set-Cookie', self._expired_cookie()))
+                return send(200, {'ok': True, 'logged_out': True, 'session_mode': 'visitor'})
             if diagnostic_request is not None:
                 for key in ('session_id','turn_id'):
                     if isinstance(payload.get(key),str) and re.fullmatch(r'[A-Za-z0-9-]{16,80}',payload[key]):diagnostic_request[key]=payload[key]
@@ -526,16 +603,21 @@ class PublicApp:
                     self.request_slots.release()
                     raise
                 with self.lock: context['active'] += 1
-                def stream():
+                def release_stream():
                     try:
-                        for event in itertools.chain([first], iterator):
-                            yield (json.dumps(event, ensure_ascii=False) + '\n').encode()
+                        with self.lock:
+                            context['active'] -= 1
+                            context['inflight'] -= 1
                     finally:
-                        iterator.close()
-                        with self.lock: context['active'] -= 1
                         self.request_slots.release()
-                start_response('200 OK', headers + [('Content-Type', 'application/x-ndjson; charset=utf-8')])
-                return stream()
+                response = _VisitorStream(iterator, first, release_stream)
+                streaming = True
+                try:
+                    start_response('200 OK', headers + [('Content-Type', 'application/x-ndjson; charset=utf-8')])
+                except BaseException:
+                    response.close()
+                    raise
+                return response
             if path == '/api/chat/prepare':
                 # Preparing may now generate an answer, so it shares chat admission.
                 if not self.request_slots.acquire(blocking=False):
@@ -544,8 +626,8 @@ class PublicApp:
                 try:
                     if diagnostic_request is not None:
                         with diagnostic_scope(self.diagnostics,diagnostic_request):
-                            return send(200,chat.prepare(payload))
-                    return send(200,chat.prepare(payload))
+                            return send(200,project_session(chat.prepare(payload)))
+                    return send(200,project_session(chat.prepare(payload)))
                 finally:
                     with self.lock:context['active']-=1
                     self.request_slots.release()
@@ -558,8 +640,8 @@ class PublicApp:
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
                 '/api/attachments': lambda: chat.attachments.upload(payload),
-                '/api/converse': lambda: service.converse(payload),
-                '/api/slots': lambda: service.update_slots(payload),
+                '/api/converse': lambda: project_session(service.converse(payload)),
+                '/api/slots': lambda: project_session(service.update_slots(payload)),
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id')),
                 '/api/proposals': lambda: service.save_proposal(payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
@@ -590,6 +672,10 @@ class PublicApp:
         except Exception:
             diagnostic_error='server_error'
             return send(500, {'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'})
+        finally:
+            if lease is not None and not streaming:
+                with self.lock:
+                    lease['inflight'] -= 1
 
 
 application = PublicApp()

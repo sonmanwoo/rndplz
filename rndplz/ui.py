@@ -17,6 +17,7 @@ from rndplz.conversation import Conversation
 from rndplz.build_vault import export_vault
 from rndplz.profiles import Profiles, ProfileError
 from rndplz.profile_chat import ProfileChat
+from rndplz.scout_projection import project_session
 
 WEB=Path(__file__).with_name("web")
 
@@ -39,6 +40,9 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
             # Avoid logging arbitrary question text or environment values.
             pass
         def send(self,status,data,content_type="application/json; charset=utf-8"):
+            if isinstance(data,dict):
+                if data.get('kind')=='chat':data=project_session(data)
+                elif isinstance(data.get('session'),dict):data={**data,'session':project_session(data['session'])}
             raw=json.dumps(data,ensure_ascii=False).encode() if isinstance(data,(dict,list)) else data
             self.send_response(status)
             self.send_header("Content-Type",content_type)
@@ -62,7 +66,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 if parsed.path=="/api/self-profile/source":
                     return self.send(200,profiles.source(query.get("id",[""])[0]))
                 if parsed.path=="/api/chat/bootstrap":
-                    return self.send(200,{"token":token,"history":chat.history(),**chat.models.catalog()})
+                    return self.send(200,{"token":token,"history":chat.history(),"session_mode":"local_single_user","logout_supported":False,**chat.models.catalog()})
                 if parsed.path=="/api/chat/session":
                     return self.send(200,chat.get(query.get("id",[""])[0]))
                 if parsed.path=="/api/chat/models":
@@ -87,6 +91,9 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     return self.send(200,{**service.engine.explain_record(record),"text":record.text,"details":record.details})
                 static={"/craft.css":("craft.css","text/css; charset=utf-8"),"/craft.js":("craft.js","text/javascript; charset=utf-8"),"/":("index.html","text/html; charset=utf-8"),"/explore":("explore.html","text/html; charset=utf-8"),"/chat.js":("chat.js","text/javascript; charset=utf-8"),"/chat.css":("chat.css","text/css; charset=utf-8"),"/app.js":("app.js","text/javascript; charset=utf-8"),"/style.css":("style.css","text/css; charset=utf-8")}
                 static["/profile-chat.js"]=("profile-chat.js","text/javascript; charset=utf-8")
+                static["/account-menu.js"]=("account-menu.js","text/javascript; charset=utf-8")
+                static["/draw.js"]=("draw.js","text/javascript; charset=utf-8")
+                static["/draw.css"]=("draw.css","text/css; charset=utf-8")
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
                 static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map.js")})
                 static.update(portraits)
@@ -125,6 +132,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     self.end_headers();self.close_connection=True
                     try:
                         for event in itertools.chain([first],iterator):
+                            if isinstance(event.get('session'),dict):event={**event,'session':project_session(event['session'])}
                             self.wfile.write((json.dumps(event,ensure_ascii=False)+"\n").encode())
                             self.wfile.flush()
                     except (BrokenPipeError,ConnectionResetError,OSError):

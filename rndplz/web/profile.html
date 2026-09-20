@@ -5,13 +5,13 @@
   <meta name="theme-color" content="#f4f2eb"><title>내 프로필 — 수소문</title>
   <link rel="stylesheet" href="/craft.css"><link rel="stylesheet" href="/profile.css">
   <script src="/profile.js" defer></script>
-</head>
+<script src="/account-menu.js" defer></script></head>
 <body class="crafted profile-page">
 <a class="skip-link" href="#profileForm">프로필 편집으로 이동</a>
 <header class="craft-header">
   <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
-  <nav class="craft-nav" aria-label="서비스 메뉴"><a href="/">대화</a><a href="/explore#map">연구 맵</a><a href="/explore#inbox">제안함</a><a href="/profile" aria-current="page">내 프로필</a></nav>
-  <span class="private-label">PRIVATE DRAFT</span>
+  <nav class="craft-nav" aria-label="서비스 메뉴"><a href="/">대화</a><a href="/explore#map">연구 맵</a><a href="/explore#inbox">제안함</a></nav>
+  <div class="craft-actions"><div class="account-control"><button type="button" id="accountToggle" class="icon-button account-toggle" aria-label="내 프로필 관리 메뉴" aria-expanded="false" aria-controls="accountMenu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div id="accountMenu" class="account-menu" hidden><a href="/profile">프로필 변경</a><a href="/explore#inbox">제안함</a><button type="button" id="logoutButton" disabled>로그아웃</button><p id="accountSessionNote" class="account-note"></p><p id="accountError" class="account-note" role="alert"></p></div></div></div>
 </header>
 <main class="profile-shell">
   <section class="profile-intro" aria-labelledby="pageTitle">

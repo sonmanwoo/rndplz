@@ -328,13 +328,14 @@
     if(!isPersonalIllustration(profile))return '';
     const p=profile.portrait,r=p.reference||{};
     const note='<p class="personal-portrait-note">'+html(profile.portrait_note||'제공된 사진의 외형을 참고한 AI 생성 일러스트입니다.')+'</p>';
-    if(!detailed)return note;
+    if(!detailed)return '';
     return note+'<details class="personal-portrait-provenance"><summary>일러스트 제작·참고 자료</summary><div><h4>카드에 표시한 생성물</h4><p>AI 생성 초상 일러스트</p>'+(p.generated_credit?'<p>'+html(p.generated_credit)+'</p>':'')+(p.change_note?'<p>변경 이력: '+html(p.change_note)+'</p>':'')+'<h4>외형 참고 사진</h4><p>'+html(r.title||'제공된 프로필 사진')+'</p>'+(r.usage?'<p>'+html(r.usage)+'</p>':'')+'</div></details>';
   }
   function researcherCard(person,index=0,total=1) {
-    const p=person.profile||{},work=(person.evidence||[]).find(e=>e.id===p.featured_work)||person.evidence?.[0],nobel=isLaureate(p),personal=isPersonalIllustration(p);
-    const career=['self_reported','provided_resume'].includes(p.source_type), action=career?'이력과 경력 보기':'이력과 논문 보기';
-    return '<article class="researcher-card holo-card'+(nobel?' laureate-card':'')+'" data-person-id="'+html(person.id)+'" data-tilt'+laureateAttributes(p)+'><div class="researcher-edition"><span>H:문 / RESEARCH ARCHIVE</span><span>'+String(index+1).padStart(2,'0')+' / '+String(total).padStart(2,'0')+'</span></div>'+(nobel?nameBlock(person):nameBlock(person,'h3',personal?'personal-name':'researcher-name'))+portrait(p,person.name)+'<div class="researcher-card-copy">'+(nobel?awardSummary(p)+effectControls(p,person.name):personal?personalPortraitNote(p):'')+'<p class="researcher-tagline">'+html(p.tagline)+'</p><div class="researcher-skills">'+(p.skills||[]).map(x=>'<span>'+html(x)+'</span>').join('')+'</div>'+(work?'<p class="researcher-paper"><span>'+(career?'CAREER / ':'SELECTED WORK / ')+html(work.date)+'</span>'+html(work.title)+'</p>':'')+'<button class="researcher-open" data-action="person" data-id="'+html(person.id)+'" aria-label="'+html(person.name)+' '+action+'"><span>'+(career?'이력과 경력 ':'이력과 논문 ')+person.record_count+(career?'건':'편')+'</span><span>↗</span></button></div></article>';
+    const p=person.profile||{},path=artPath(p.portrait?.path),line=p.tagline||person.evidence?.[0]?.title||'연결된 연구 기록을 살펴보세요.';
+    person={...person,name:p.display_name||person.name};
+    const face=path?'<img class="simple-portrait" src="'+html(path)+'" alt="'+html(person.name)+(p.portrait?.generated?'의 AI 생성 초상 일러스트':'의 제공된 프로필 사진')+'" loading="lazy" decoding="async">':'<span class="simple-portrait portrait-unavailable" aria-hidden="true">초상 미제공</span>';
+    return '<button type="button" class="researcher-card simplified-person" data-action="person" data-id="'+html(person.id)+'" aria-label="'+html(person.name)+' 상세 보기"><span class="simple-person-name">'+html(person.name)+'</span>'+face+'<span class="simple-person-capability" title="'+html(line)+'">'+html(line)+'</span></button>';
   }
   function profileDetails(person) {
     const p=person.profile;if(!p?.curated)return '';
