@@ -9,6 +9,14 @@
  const topicName=id=>(C.topics.find(t=>t.id===id)||{}).name||id;
  const historical=p=>{const profile=p.sourceProfile||{};return profile.display_type==="historical_researcher"||profile.current_status?.category==="deceased"||profile.affiliation_status==="deceased";};
  const historicalNotice="역사적 연구 자료 · 실제 자문 가능 대상 아님";
+ function personDistinction(p){
+  const nobel=Array.isArray(p.awards)&&p.awards.some(item=>{
+   const award=item&&item.sourceAward;
+   if(!award||award.name!=="Nobel Prize"||award.recognition_kind!=="nobel"||typeof award.facts_url!=="string")return false;
+   try{const url=new URL(award.facts_url);return url.protocol==="https:"&&(url.hostname==="nobelprize.org"||url.hostname==="www.nobelprize.org")&&!url.username&&!url.password&&!url.port;}catch{return false;}
+  }),team=p.sourcePerson?.team_member===true;
+  return {nobel,team,classes:(nobel?" mp-person-nobel":"")+(team?" mp-person-team":""),labels:[nobel?"노벨상 수상자":"",team?"우리 팀":""].filter(Boolean)};
+ }
  const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.(png|jpg|jpeg)$/i.test(p.portrait.path||"")?p.portrait.path.replace(/\.(?:png|jpe?g)$/i,'-thumb.webp'):null;
  const recordType=r=>r.typeLabel||r.type||"기록";
  const recordRole=r=>r.role||"역할 미기재";
@@ -30,6 +38,16 @@
   }).filter(Boolean);
   return links.length?'<div class="asset-source-field">'+links.join(" · ")+'</div>':"";
  }
+ function projectParticipants(raw){
+  if(raw.kind!=="project_record"||!Array.isArray(raw.project_participants))return "";
+  const seen=new Set(),links=[];
+  for(const participant of raw.project_participants){
+   if(!participant||typeof participant.id!=="string"||typeof participant.display_name!=="string"||!participant.display_name.trim()||seen.has(participant.id)||!C.people.some(p=>p.id===participant.id))continue;
+   seen.add(participant.id);
+   links.push('<button type="button" class="text-button" data-map-open="person" data-id="'+esc(participant.id)+'" aria-label="'+esc(participant.display_name+' 인물 상세 보기')+'">'+esc(participant.display_name)+' ↗</button>');
+  }
+  return links.length?'<div class="mp-project-participants"><p>함께한 사람 · 사용자 제공 참여 정보</p>'+links.join(' ')+'</div>':"";
+ }
  function recordCard(r,s,index){
   const link=safeUrl(r.sourceUrl),details=[],raw=r.sourceRecord||{};
   if(r.period)details.push('<dt>참여 기간</dt><dd>'+esc(r.period)+'</dd>');
@@ -37,7 +55,7 @@
   else details.push('<dt>참여 기간</dt><dd>미기재 · 자료 날짜와 구분</dd>');
   if(r.organization)details.push('<dt>자료상 소속</dt><dd>'+esc(r.organization)+'</dd>');
   const source=link?'<a class="source-link" href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(r.sourceLabel||"원 출처 열기")+' ↗</a>':'<span class="micro">'+esc(r.sourceLabel||"원 출처 링크 미기재")+'</span>';
-  return '<article class="record-card" data-record="'+esc(r.id)+'"><div class="section-label"><span>'+esc(recordType(r))+(raw.virtual?' · 기존 가상 기록':'')+'</span><span>'+(raw.kind==="career_record"?'기재 기간 · ':'자료 날짜 · ')+esc(recordDate(r))+'</span></div><h3>'+esc(r.title||"제목 미기재")+'</h3><p class="role-line">'+esc(recordRole(r))+'</p>'+(r.summary?'<p class="record-summary">'+esc(r.summary)+'</p>':'')+(raw.boundary?'<p class="record-boundary">'+esc(raw.boundary)+'</p>':'')+'<dl class="facts">'+details.join("")+'</dl>'+((r.topics||[]).length?'<div class="record-topics">'+r.topics.map(t=>'<span>'+esc(topicName(t))+'</span>').join("")+'</div>':'')+'<details class="source-details"><summary>출처와 표시 범위</summary>'+source+additionalRecordSources(raw)+(r.provenance?'<p>'+displayValue(r.provenance)+'</p>':'')+(raw.evidence_label?'<p>자료 분류: '+esc(raw.evidence_label)+'</p>':'')+(raw.classification_basis?'<p>분류 근거: '+esc(raw.classification_basis)+'</p>':'')+(raw.access?'<p>원자료 접근 표기: '+esc(raw.access)+'</p>':'')+(raw.checked_at?'<p>자료 확인 시점: '+esc(raw.checked_at)+'</p>':'')+(raw.corresponding?'<p>교신저자 표기 있음</p>':'')+'<p>기록에 나온 연결과 역할을 보여줍니다. 현재의 수행 역량·자문 가능 여부를 확정하지 않습니다.</p></details><button type="button" class="text-button" data-map-open="record" data-id="'+esc(r.id)+'">기록 원문 상세 보기 ↗</button><label class="evidence-check"><input type="checkbox" id="evidence-'+index+'" data-evidence="'+esc(r.id)+'"'+(s.evidenceIds.includes(r.id)?' checked':'')+'>이 근거를 질문 준비에 포함</label></article>';
+  return '<article class="record-card" data-record="'+esc(r.id)+'"><div class="section-label"><span>'+esc(recordType(r))+(raw.virtual?' · 기존 가상 기록':'')+'</span><span>'+(raw.kind==="career_record"?'기재 기간 · ':'자료 날짜 · ')+esc(recordDate(r))+'</span></div><h3>'+esc(r.title||"제목 미기재")+'</h3><p class="role-line">'+esc(recordRole(r))+'</p>'+(r.summary?'<p class="record-summary">'+esc(r.summary)+'</p>':'')+(raw.boundary?'<p class="record-boundary">'+esc(raw.boundary)+'</p>':'')+'<dl class="facts">'+details.join("")+'</dl>'+projectParticipants(raw)+((r.topics||[]).length?'<div class="record-topics">'+r.topics.map(t=>'<span>'+esc(topicName(t))+'</span>').join("")+'</div>':'')+'<details class="source-details"><summary>출처와 표시 범위</summary>'+source+additionalRecordSources(raw)+(r.provenance?'<p>'+displayValue(r.provenance)+'</p>':'')+(raw.evidence_label?'<p>자료 분류: '+esc(raw.evidence_label)+'</p>':'')+(raw.classification_basis?'<p>분류 근거: '+esc(raw.classification_basis)+'</p>':'')+(raw.access?'<p>원자료 접근 표기: '+esc(raw.access)+'</p>':'')+(raw.checked_at?'<p>자료 확인 시점: '+esc(raw.checked_at)+'</p>':'')+(raw.corresponding?'<p>교신저자 표기 있음</p>':'')+'<p>기록에 나온 연결과 역할을 보여줍니다. 현재의 수행 역량·자문 가능 여부를 확정하지 않습니다.</p></details><button type="button" class="text-button" data-map-open="record" data-id="'+esc(r.id)+'">기록 원문 상세 보기 ↗</button><label class="evidence-check"><input type="checkbox" id="evidence-'+index+'" data-evidence="'+esc(r.id)+'"'+(s.evidenceIds.includes(r.id)?' checked':'')+'>이 근거를 질문 준비에 포함</label></article>';
  }
  function renderQuestion(s,p){
   const selected=checked(s,p),isHistorical=historical(p);
@@ -91,8 +109,9 @@
   return C.capabilities.map((c,index)=>'<button type="button" class="mp-capability" data-capability="'+esc(c.id)+'" aria-pressed="'+(s.capability===c.id)+'" aria-controls="people-map person-detail"><span class="mp-capability-index">'+String(index+1).padStart(2,"0")+'</span><span class="mp-capability-label">'+esc(c.label)+'</span><span class="mp-capability-count">'+C.visiblePeople({...s,capability:c.id}).length+'명</span></button>').join("");
  }
  function personCard(p,s){
-  const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=portraitPath(p);
-  return '<button type="button" class="mp-person" data-person="'+esc(p.id)+'" aria-pressed="'+active+'" aria-controls="person-detail"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(shortScope(s,p))+'</span><span class="mp-person-records">근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
+  const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=portraitPath(p),distinction=personDistinction(p),scope=shortScope(s,p);
+  const label=[title(p),...distinction.labels,scope,'근거 '+records.length+'개 보기',p.virtual?'가상 사례':''].filter(Boolean).join(' · ');
+  return '<button type="button" class="mp-person'+distinction.classes+'" data-person="'+esc(p.id)+'" aria-pressed="'+active+'" aria-controls="person-detail" aria-label="'+esc(label)+'"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(scope)+'</span><span class="mp-person-records">'+(distinction.team?'<span class="mp-list-team-marker" aria-hidden="true">우리 팀</span> · ':'')+'근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
  }
  function renderLegacyMap(s){
   const people=C.visiblePeople(s),capability=currentCapability(s),page=Math.min(s.page||0,Math.max(0,Math.ceil(people.length/PAGE_SIZE)-1)),shown=people.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
@@ -125,8 +144,9 @@
   const graph=G.graph(s),selected=selectedPerson(s);
   const nodes=graph.nodes.map(n=>{
    if(n.type==='person'){
-    const p=graph.visible.find(p=>p.id===n.id),path=portraitPath(p),scope=shortScope(s,p);
-    return '<button type="button" class="mp-spatial-node mp-spatial-person" data-map-node="'+esc(n.key)+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-controls="person-detail" aria-label="'+esc(title(p)+' · 인물과 근거 보기')+'" title="'+esc(title(p)+' · '+scope)+'"><span class="mp-node-face">'+(path?'<img src="'+esc(path)+'" alt="" decoding="async" width="150" height="200">':'<span aria-hidden="true">'+esc(Array.from(title(p))[0])+'</span>')+'</span><span class="mp-node-name">'+esc(title(p))+'</span><span class="mp-node-field">'+esc(scope)+'</span></button>';
+    const p=graph.visible.find(p=>p.id===n.id),path=portraitPath(p),scope=shortScope(s,p),distinction=personDistinction(p);
+    const label=[title(p),...distinction.labels,scope,'근거 '+C.visibleEvidence(s,p).length+'개 보기',p.virtual?'가상 사례':'','인물과 근거 보기'].filter(Boolean).join(' · ');
+    return '<button type="button" class="mp-spatial-node mp-spatial-person'+distinction.classes+'" data-map-node="'+esc(n.key)+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-controls="person-detail" aria-label="'+esc(label)+'" title="'+esc(title(p)+' · '+scope)+'"><span class="mp-face-shell"><span class="mp-node-face">'+(path?'<img src="'+esc(path)+'" alt="" decoding="async" width="150" height="200">':'<span aria-hidden="true">'+esc(Array.from(title(p))[0])+'</span>')+'</span>'+(distinction.team?'<span class="mp-team-marker" aria-hidden="true">우리 팀</span>':'')+'</span><span class="mp-node-name">'+esc(title(p))+'</span><span class="mp-node-field">'+esc(scope)+'</span></button>';
    }
    const filter=n.filter||{type:'CAPABILITY',value:n.id};
    return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';

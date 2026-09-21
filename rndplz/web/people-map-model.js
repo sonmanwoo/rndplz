@@ -35,7 +35,7 @@
     }).filter(function (id) { return typeof id === 'string' && topicIds.has(id); }));
   }
   function typeLabel(kind) {
-    return ({ paper: '논문', preprint: '프리프린트', career_record: '제공 경력', public_profile_record: '공개 경력·학력', site_record: '현장 기록' })[kind] || kind || '자료 종류 미기재';
+    return ({ paper: '논문', preprint: '프리프린트', career_record: '제공 경력', public_profile_record: '공개 경력·학력', project_record: '제공 프로젝트 이력', site_record: '현장 기록' })[kind] || kind || '자료 종류 미기재';
   }
   function normalizePortrait(value) {
     if (!value || typeof value !== 'object') return null;

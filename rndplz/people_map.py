@@ -27,6 +27,9 @@ def build_people_map(engine):
             contribution for contribution in record.people
             if contribution.person_id == person.id
         )) for record in records]
+        team_projects = [record for record in records
+                         if record.kind == 'project_record' and
+                         record.details.get('team_membership_basis') == 'user_provided_project_participation']
         curated = bool(person.profile.get('curated'))
         profile = {key: value for key, value in person.profile.items()
                    if curated and key in PROFILE_KEYS}
@@ -46,6 +49,9 @@ def build_people_map(engine):
             'org_as_of': profile.get('affiliation_as_of') or None,
             'org_basis': org_basis, 'virtual': person.virtual, 'featured': curated,
             'record_count': len(evidence), 'topic_ids': sorted({tag for record in records for tag in record.tags}),
+            'team_member': bool(team_projects),
+            'team_membership_basis': '사용자 제공 프로젝트 참여 정보' if team_projects else None,
+            'team_project_ids': [record.id for record in team_projects],
             'person_confirmed': False, 'profile': profile, 'evidence': evidence,
         })
         linked.update(item['id'] for item in evidence)

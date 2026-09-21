@@ -147,6 +147,23 @@ class Corpus:
                 "curated_primary_sources", raw["id"], raw["url"], raw["checked_at"], "public_profile",
                 raw["classification_basis"], details=details))
             self.checked_at = max(self.checked_at, raw["checked_at"])
+        for raw in featured.get("project_records", []):
+            participants = [self.people[pid] for pid in raw["person_ids"]]
+            if len({person.id for person in participants}) != len(participants):
+                self.errors.append("프로젝트 참여자 중복: " + raw["id"])
+                continue
+            details = {"text_kind": "user_provided_project_participation", "abstract_available": False,
+                       "source_label": raw["source_label"], "team_membership_basis": raw.get("team_membership_basis")}
+            self.add(self.records, Record(raw["id"], "project_record", raw["title"], raw["summary"], raw["date"],
+                [Contribution(person.id, person.name, "participant_unspecified") for person in participants],
+                [], "project_participation", "user_provided_project", "user_provided_project_participation",
+                raw["id"], "", raw["checked_at"], "project_participation", [raw["source_label"]], details=details))
+            for person in participants:
+                # One participant definition supplies both profile and map history.
+                person.profile = {**person.profile, "projects": [*person.profile.get("projects", []),
+                    {"id": raw["id"], "date": raw["date"], "title": raw["title"],
+                     "text": "참여 · 역할 미기재. " + raw["source_label"] + "; 성과·수상·정확한 일정·주최 미기재."}]}
+            self.checked_at = max(self.checked_at, raw["checked_at"])
         questions = self.read("questions.json")["questions"]
         # Runtime receives user-visible prompts only. Evaluation labels and stage notes stay out.
         self.questions = [{k: q[k] for k in ("id", "question", "ai_answer", "mode") if k in q} for q in questions]

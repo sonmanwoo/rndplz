@@ -124,13 +124,23 @@ function newQuestion(){
  for(const k of ["goal","target","conditions","resources","deadline"])$(k).value="";
  renderSession();$("question").focus();
 }
-function evidenceHtml(e){
- return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl><dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd><dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+'</section>';
+function projectParticipantsHtml(e,currentPersonId=null){
+ if(e?.kind!=="project_record"||e.in_current_pool===false||!Array.isArray(e.project_participants))return "";
+ const seen=new Set(),items=[];
+ for(const participant of e.project_participants){
+  if(!participant||typeof participant.id!=="string"||!participant.id||participant.id.trim()!==participant.id||typeof participant.display_name!=="string"||!participant.display_name.trim()||seen.has(participant.id))continue;
+  seen.add(participant.id);
+  items.push(participant.id===currentPersonId?'<span>'+esc(participant.display_name)+' · 현재 인물</span>':'<button type="button" class="text-button" data-action="person" data-id="'+esc(participant.id)+'" aria-label="'+esc(participant.display_name+' 인물 상세 보기')+'">'+esc(participant.display_name)+' ↗</button>');
+ }
+ return items.length?'<div class="project-participants"><p class="detail-note">함께한 사람 · 사용자 제공 참여 정보</p>'+items.join(' · ')+'</div>':"";
+}
+function evidenceHtml(e,currentPersonId=null){
+ return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl><dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd><dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
 function showPerson(p,candidate=false){
  if(!p)throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
- $("detailContent").innerHTML=RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+(p.evidence||[]).map(evidenceHtml).join("")+(candidate&&canPropose(p)?'<button class="primary full" data-action="letter" data-id="'+esc(p.id)+'">이 사람에게 제안하기 ↗</button>':"");
+ $("detailContent").innerHTML=RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+(p.evidence||[]).map(e=>evidenceHtml(e,p.id)).join("")+(candidate&&canPropose(p)?'<button class="primary full" data-action="letter" data-id="'+esc(p.id)+'">이 사람에게 제안하기 ↗</button>':"");
  showDialog("detailDialog");
 }
 async function openLetter(ids){
