@@ -5534,6 +5534,117 @@
           "name": "Base Oil 수급·운영"
         }
       ]
+    },
+    {
+      "id": "PUB-KWON-YOUNGWOON",
+      "slug": "kwon-youngwoon",
+      "name": "Youngwoon Kwon",
+      "display_name": "권영운",
+      "aliases": [
+        "권영운",
+        "Youngwoon Kwon"
+      ],
+      "org": "GS칼텍스",
+      "org_type": "company",
+      "curated": true,
+      "source_type": "curated_public",
+      "tagline": "화학 R&D 전략·신기술 사업화",
+      "biography": "LG화학에서 미래기술연구센터장과 중앙연구소장 등을 맡았고, GS칼텍스에서 연구개발과 신기술 사업화 관련 역할을 수행했습니다. 공개자료에는 2024년 6월 기술연구소장, 2026년 2월 부사장으로 기재되어 있습니다.",
+      "current_role": "부사장 · 2026-02-06 공개 기록",
+      "affiliation_as_of": "2026-02-06",
+      "profile_observed_as_of": "2026-09-21",
+      "employment_verification": "2026-02-06 GS칼텍스 부사장 표기 확인. 이후 재직·보직 변동은 별도 확인하지 않았습니다.",
+      "collaboration_availability": "미확인",
+      "contact_consent": "미확인",
+      "profile_note": "회사·기관의 공개 경력과 학력 자료에 근거합니다. 개별 실험 수행, 발명, 숙련도, 현재 협업 가능성 또는 계정 소유를 확인한 자료가 아닙니다. GS 합류 연도는 공개 보도의 2020/2021 인사발표 차이로 미기입했고, 학위 취득 연도도 미기입했습니다. 같은 이름의 주유소 운영자 경력은 포함하지 않았습니다.",
+      "timeline": [
+        {
+          "date": "2013",
+          "text": "LG화학 CRD연구소 미래기술연구센터장(상무).",
+          "url": "https://www.lg.co.kr/media/release/8472"
+        },
+        {
+          "date": "2017",
+          "text": "LG화학 중앙연구소장 겸 미래기술연구센터장(상무).",
+          "url": "https://www.lg.co.kr/media/release/8472"
+        },
+        {
+          "date": "2017-11-30 발표 · 2018 인사",
+          "text": "LG화학 전무 승진 · 미래기술연구센터장.",
+          "url": "https://www.lg.co.kr/media/release/8472"
+        },
+        {
+          "date": "2024-06-12 행사 · 06-13 게시",
+          "text": "GS칼텍스 기술연구소장으로 Summit Cosmetics 업무협약에 참석. 그린다이올 기반 화이트바이오 사업 협력을 설명.",
+          "url": "https://gscaltexmediahub.com/news/summit-cosmetics/"
+        },
+        {
+          "date": "2026-02-06 행사 · 02-10 게시",
+          "text": "GS칼텍스 부사장. KOITA 제48차 정기총회에서 감사 연임.",
+          "url": "https://www.koita.or.kr/board/commBoardNoticeView.do?no=66938"
+        }
+      ],
+      "education": [
+        {
+          "date": "취득 연도 미기재",
+          "title": "서울대학교 화학공학 학사·석사·박사",
+          "text": "2017-11-30 LG 공식 인사 약력의 학력 표기. 학위 취득 연도는 이 자료에 없습니다.",
+          "url": "https://www.lg.co.kr/media/release/8472"
+        }
+      ],
+      "topics": [
+        {
+          "name": "R&D 전략·신기술 사업화"
+        }
+      ],
+      "sources": [
+        {
+          "title": "LG화학 2018년 정기 임원인사 · 2017-11-30",
+          "url": "https://www.lg.co.kr/media/release/8472"
+        },
+        {
+          "title": "KOITA 제48차 정기총회 결과 · 행사 2026-02-06 / 게시 02-10",
+          "url": "https://www.koita.or.kr/board/commBoardNoticeView.do?no=66938"
+        },
+        {
+          "title": "GS칼텍스–Summit Cosmetics 업무협약 · 행사 2024-06-12 / 게시 06-13",
+          "url": "https://gscaltexmediahub.com/news/summit-cosmetics/"
+        },
+        {
+          "title": "GS칼텍스 기술연구소장 공식 인터뷰 · 2024-02-01",
+          "url": "https://gscaltexmediahub.com/uncategorized/energy-short_ep2/"
+        },
+        {
+          "title": "한국화학공학회 공식 영문명 · 2024-10-17 행사 프로그램",
+          "url": "https://www.kiche.or.kr/uploads/2024f/20240919pdf%2020.pdf"
+        },
+        {
+          "title": "LG–GS 이력 연결 보도 · 2023-11-29 (합류 연도는 채택하지 않음)",
+          "url": "https://www.newspim.com/news/view/20231129000746"
+        },
+        {
+          "title": "2021-12-01 외부 영입 인사 보도 · GS 시작일 미확정",
+          "url": "https://www.newsis.com/view/NISX20211201_0001671835"
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/kwon-youngwoon-illustration.png",
+        "label": "AI ILLUSTRATION",
+        "generated": true,
+        "kind": "public_profile_illustration",
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "reference": {
+          "title": "GS칼텍스 제공 인물 사진을 실은 공개 프로필 기사",
+          "url": "https://www.newspim.com/news/view/20231129000746",
+          "kind": "company_provided_press_photo",
+          "usage": "외형 참고. 원사진을 제품 자산으로 복사하지 않습니다."
+        },
+        "sha256": "a53b04d4d80bb8a452ba67ac041ba0d7bb78f33e5353b2884bbeb0217448ca98",
+        "width": 1086,
+        "height": 1448
+      },
+      "portrait_note": "공개 인물 사진을 참고한 AI 생성 일러스트입니다. 배경은 역할의 편집적 상징이며 실제 설비·개인 연구 수행 능력의 근거가 아닙니다.",
+      "featured_work": "PUBLIC-KWON-LG-RND"
     }
   ],
   "papers": [
@@ -8566,6 +8677,91 @@
       "field": "base_oil_operations",
       "scope": "provided_resume",
       "checked_at": "2026-09-21"
+    }
+  ],
+  "public_profile_records": [
+    {
+      "id": "PUBLIC-KWON-LG-RND",
+      "person_id": "PUB-KWON-YOUNGWOON",
+      "title": "LG화학 연구조직 보직과 신기술 사업화 관련 경력",
+      "summary": "LG화학의 2017년 11월 30일 공식 인사 약력은 권영운의 2013년 CRD연구소 미래기술연구센터장(상무), 2017년 중앙연구소장 겸 미래기술연구센터장(상무) 경력을 기록한다. 2018년 정기 인사에서 전무 승진과 미래기술연구센터장 직책이 명시됐다. 회사는 신규 사업 후보 발굴과 사업화 추진 기여를 설명한다. 같은 인사에서 중앙연구소장은 노기수로 보임되므로 권영운이 2018년 이후에도 중앙연구소장을 겸임했다고 해석하지 않는다.",
+      "date": "2017-11-30",
+      "tags": [
+        "RD-STRATEGY-COMMERCIALIZATION"
+      ],
+      "url": "https://www.lg.co.kr/media/release/8472",
+      "publication_type": "official_career_profile",
+      "boundary_note": "R&D 전략·사업화 관련 보직과 회사의 평가를 요약한 기록이다. 개별 실험 수행, 발명, 정량 성과 또는 전체 재직 기간을 입증하지 않는다.",
+      "field": "rd_strategy_commercialization",
+      "checked_at": "2026-09-21",
+      "classification_basis": [
+        "회사·기관의 공식 경력·학력·행사 자료를 확인한 편집 요약"
+      ]
+    },
+    {
+      "id": "PUBLIC-KWON-SNU-EDUCATION",
+      "person_id": "PUB-KWON-YOUNGWOON",
+      "title": "서울대학교 화학공학 학사·석사·박사 학력",
+      "summary": "LG화학의 2017년 11월 30일 공식 인사 약력은 권영운의 서울대학교 화학공학 학사·석사·박사 학력을 명시한다. 각 학위 취득 연도는 기재하지 않아 비워 두었다.",
+      "date": "",
+      "tags": [],
+      "url": "https://www.lg.co.kr/media/release/8472",
+      "publication_type": "official_education_profile",
+      "source_published_at": "2017-11-30",
+      "boundary_note": "학력 표기는 회사 공식 약력의 기재 내용이다. 학위 취득 시점·개별 논문·직무 수행 숙련도를 이 기록에서 추론하지 않는다.",
+      "field": "rd_strategy_commercialization",
+      "checked_at": "2026-09-21",
+      "classification_basis": [
+        "회사·기관의 공식 경력·학력·행사 자료를 확인한 편집 요약"
+      ]
+    },
+    {
+      "id": "PUBLIC-KWON-GS-ROLE",
+      "person_id": "PUB-KWON-YOUNGWOON",
+      "title": "GS칼텍스 부사장 및 기술연구소장 공개 직함·직무 기록",
+      "summary": "2026년 2월 6일 KOITA 제48차 정기총회 결과(2월 10일 게시)는 GS칼텍스 권영운 부사장의 KOITA 감사 연임을 기록한다. GS칼텍스 기술연구소장 직무는 별도의 2024년 2월 1일 공식 인터뷰와 6월 12일 Summit Cosmetics 협약 참석 기록(6월 13일 게시)으로 확인한다. 부사장 직급과 기술연구소장 직무의 확인 시점은 서로 다르며, GS 합류 연도는 공개 자료가 일치하지 않아 미기입했다.",
+      "date": "2026-02-06",
+      "source_published_at": "2026-02-10",
+      "tags": [
+        "RD-STRATEGY-COMMERCIALIZATION"
+      ],
+      "url": "https://www.koita.or.kr/board/commBoardNoticeView.do?no=66938",
+      "publication_type": "official_role_record",
+      "metadata_sources": [
+        {
+          "title": "기술연구소장 공식 인터뷰 · 2024-02-01",
+          "url": "https://gscaltexmediahub.com/uncategorized/energy-short_ep2/"
+        },
+        {
+          "title": "Summit Cosmetics 협약 참석 · 행사 2024-06-12 / 게시 06-13",
+          "url": "https://gscaltexmediahub.com/news/summit-cosmetics/"
+        }
+      ],
+      "boundary_note": "KOITA 감사는 GS칼텍스 감사 직책이 아니다. 공개 직함·보직 기록이며 2026년 2월 이후의 현재 재직·직무 유지, 실험 수행 또는 협업 가능성을 확인하지 않는다.",
+      "field": "rd_strategy_commercialization",
+      "checked_at": "2026-09-21",
+      "classification_basis": [
+        "회사·기관의 공식 경력·학력·행사 자료를 확인한 편집 요약"
+      ]
+    },
+    {
+      "id": "PUBLIC-KWON-WHITEBIO-COLLABORATION",
+      "person_id": "PUB-KWON-YOUNGWOON",
+      "title": "Summit Cosmetics와의 화이트바이오 사업 협력 참여",
+      "summary": "GS칼텍스의 2024년 6월 13일 공식 보도자료는 6월 12일 Summit Cosmetics 업무협약 행사에 권영운 기술연구소장이 참석한 사실과 그린다이올 기반 화이트바이오 사업 협력에 관한 발언을 기록한다. 이는 사업 협력 참여 기록이다.",
+      "date": "2024-06-12",
+      "source_published_at": "2024-06-13",
+      "tags": [
+        "RD-STRATEGY-COMMERCIALIZATION"
+      ],
+      "url": "https://gscaltexmediahub.com/news/summit-cosmetics/",
+      "publication_type": "official_business_collaboration",
+      "boundary_note": "회사의 대량생산 기술·판매량·효능을 개인의 발명·실험 수행·정량 성과로 귀속하지 않는다. 바이오공정·촉매 개발의 개인 전문성 검증이 아니다.",
+      "field": "rd_strategy_commercialization",
+      "checked_at": "2026-09-21",
+      "classification_basis": [
+        "회사·기관의 공식 경력·학력·행사 자료를 확인한 편집 요약"
+      ]
     }
   ]
 }

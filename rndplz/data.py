@@ -133,6 +133,20 @@ class Corpus:
                 [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw.get("field", "process_engineering"), raw.get("scope", "self_reported"),
                 "user_provided_resume", raw["id"], "", raw.get("checked_at", featured["checked_at"]), "career_experience",
                 ["제공된 이력과 경력 보완"], "local_self_reported", False, {"text_kind": "self_reported", "abstract_available": False}))
+        for raw in featured.get("public_profile_records", []):
+            person = self.people[raw["person_id"]]
+            for tag in raw["tags"]:
+                if tag not in self.topic_by_id:
+                    self.errors.append("미해결 주제 참조: " + tag)
+            details = {"text_kind": "editorial_public_profile_summary", "abstract_available": False}
+            for key in ("boundary_note", "metadata_sources", "publication_type", "source_published_at"):
+                if key in raw:
+                    details[key] = raw[key]
+            self.add(self.records, Record(raw["id"], "public_profile_record", raw["title"], raw["summary"], raw["date"],
+                [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw["field"], "public_profile",
+                "curated_primary_sources", raw["id"], raw["url"], raw["checked_at"], "public_profile",
+                raw["classification_basis"], details=details))
+            self.checked_at = max(self.checked_at, raw["checked_at"])
         questions = self.read("questions.json")["questions"]
         # Runtime receives user-visible prompts only. Evaluation labels and stage notes stay out.
         self.questions = [{k: q[k] for k in ("id", "question", "ai_answer", "mode") if k in q} for q in questions]

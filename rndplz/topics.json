@@ -848,5 +848,23 @@
     ],
     "boundary_note": "과거 수급·운영 경력이며 공정 제어·공정 모델링 경력으로 확대하지 않습니다.",
     "color": "#8980a2"
+  },
+  {
+    "id": "RD-STRATEGY-COMMERCIALIZATION",
+    "name": "R&D 전략·신기술 사업화",
+    "field": "rd_strategy_commercialization",
+    "color": "#718b74",
+    "keywords": [
+      "R&D 전략",
+      "연구개발 전략",
+      "신기술 사업화",
+      "기술 사업화",
+      "기술사업화",
+      "화이트바이오 사업 협력"
+    ],
+    "classification_basis": [
+      "회사·기관 공개 보직과 사업 협력 자료"
+    ],
+    "boundary_note": "공개 경력의 연결 분류이며 직접 실험·발명·기술 숙련도 또는 현재 자문 가용성을 뜻하지 않습니다."
   }
 ]
