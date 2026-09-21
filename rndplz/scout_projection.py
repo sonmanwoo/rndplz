@@ -224,6 +224,11 @@ def project_session(session):
     status = status if isinstance(status, str) and status in _STATUSES else "consulting"
     shaped = _pick(session, ("id", "kind", "created", "updated", "original", "turns", "mode", "asker",
                              "model_id", "model_selection_origin", "pending"))
+    scope = session.get('provider_scope')
+    if (isinstance(scope, dict) and scope.get('id') == 'gemini_public_papers.v1'
+            and scope.get('provider') == 'gemini' and isinstance(scope.get('model_id'), str)
+            and scope['model_id'].startswith('gemini:')):
+        shaped['provider_scope'] = _pick(scope, ('id', 'provider', 'model_id'))
     shaped["scout"] = {"revision": revision, "status": status, "disclosed": disclosed,
                        "count": count if known else None, "count_status": "known" if known else "unknown"}
     count_basis = scout.get("count_basis")

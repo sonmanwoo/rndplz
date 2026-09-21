@@ -26,6 +26,55 @@ def validate_text(value, limit=20000, empty=False):
     return value.strip()
 
 
+
+GEMINI_SCOPE_ID = 'gemini_public_papers.v1'
+
+
+class ProviderScopeError(ValueError):
+    code = 'provider_scope_restricted'
+
+
+def public_paper_corpus(base):
+    """Project only the currently accessible public papers; never load full data."""
+    personal = set((getattr(base, 'demo_pool', None) or {}).get('personal_person_ids', []))
+    personal.update(pid for pid in base.people if pid.startswith('LOCAL-'))
+    records = {rid: copy.deepcopy(row) for rid, row in base.records.items()
+               if not row.virtual and row.kind in ('paper', 'preprint')
+               and row.source_system in ('openalex', 'curated_primary_sources')
+               and not any(c.person_id in personal for c in row.people)}
+    linked = {c.person_id for row in records.values() for c in row.people
+              if c.person_id in base.people and not base.people[c.person_id].virtual}
+    view = copy.copy(base)
+    view.records = records
+    view.people = {pid: copy.deepcopy(base.people[pid]) for pid in linked}
+    for person in view.people.values():
+        person.profile = {}
+    view.by_person = {pid: [row for row in records.values() if any(c.person_id == pid for c in row.people)]
+                      for pid in view.people}
+    active = {tag for row in records.values() for tag in row.tags}
+    view.topics = [copy.deepcopy(row) for row in base.topics if row['id'] in active]
+    view.topic_by_id = {row['id']: row for row in view.topics}
+    base_version = str((getattr(base, 'demo_pool', None) or {}).get('version', 'public'))
+    view.demo_pool = {'schema_version': 1, 'version': base_version + ':' + GEMINI_SCOPE_ID,
+                     'person_ids': sorted(view.people), 'record_ids': sorted(view.records),
+                     'personal_person_ids': [], 'personal_record_ids': [],
+                     'note': (f'이 대화는 공개 논문 {len(records)}건과 연결된 연구자 {len(linked)}명만 조회합니다. '
+                              '개인 제공 프로필·경력·첨부 자료는 제외했습니다. '
+                              '논문 연결은 현장 수행 경력이나 현재 협업 가능성의 확인을 뜻하지 않습니다.')}
+    return view
+
+
+def provider_scope(session):
+    value = session.get('provider_scope')
+    if value is None:
+        return None
+    if (not isinstance(value, dict) or set(value) != {'id', 'provider', 'model_id'}
+            or value.get('id') != GEMINI_SCOPE_ID or value.get('provider') != 'gemini'
+            or not isinstance(value.get('model_id'), str) or not value['model_id'].startswith('gemini:')):
+        raise ProviderScopeError('이 대화의 자료 범위를 확인할 수 없습니다. 새 대화를 시작해 주세요.')
+    return value
+
+
 class Service:
     def __init__(self, engine=None, state_dir=None, model=None):
         self.engine=engine or Engine()
@@ -33,8 +82,21 @@ class Service:
         self.store=StateStore(state_dir or ROOT/"out"/"state")
         self.model=model or ExternalModel(audit_path=self.store.directory/"model-events.jsonl")
 
+    def for_provider_scope(self, scope):
+        if scope is None:
+            return self
+        provider_scope({'provider_scope': scope})
+        if getattr(self, '_provider_scope', None) == scope:
+            return self
+        view = copy.copy(self)
+        view.corpus = public_paper_corpus(self.corpus)
+        view.engine = Engine(view.corpus)
+        view._provider_scope = copy.deepcopy(scope)
+        return view
+
     def present_session(self, session):
-        return present_session(session, self.corpus)
+        scoped = self.for_provider_scope(provider_scope(session)) if session else self
+        return present_session(session, scoped.corpus)
 
     def bootstrap(self):
         state=self.store.read()

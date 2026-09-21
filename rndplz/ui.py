@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 if __package__ in (None,""):
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from rndplz.service import Service
+from rndplz.service import Service, ProviderScopeError
 from rndplz.people_map import build_people_map
 from rndplz.conversation import Conversation
 from rndplz.build_vault import export_vault
@@ -171,6 +171,8 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                         iterator.close()
                     return
                 routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:project_session(chat.prepare(payload)),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
+                if path=="/api/self-profile/chat":
+                    chat.require_profile_context(payload.get("session_id"))
                 routes.update({"/api/self-profile/chat":lambda:ProfileChat(service,profiles).handle(payload),"/api/self-profile/save":lambda:profiles.save(payload),"/api/self-profile/upload":lambda:profiles.upload(payload),"/api/self-profile/suggest":lambda:profiles.suggest(payload),"/api/self-profile/source-action":lambda:profiles.source_action(payload)})
                 path=urlparse(self.path).path
                 if path not in routes:
@@ -178,6 +180,8 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 self.send(200,routes[path]())
             except ProfileError as exc:
                 self.send(exc.status,{"error":str(exc),"code":exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
+            except ProviderScopeError as exc:
+                self.send(409,{"error":str(exc),"code":exc.code,"request_preserved":True})
             except ScoutSourceChanged as exc:
                 self.send(409,{"error":str(exc),"code":exc.code,"request_preserved":True,"session":project_session(exc.session)})
             except ModelResponseBudgetExhausted as exc:

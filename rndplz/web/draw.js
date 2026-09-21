@@ -211,6 +211,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     }
     root.dataset.state = 'waiting';
     root.setAttribute('aria-busy', 'false');
+    armRevealDeadline(run);
   }
 
   function queueVisibilityCheck() {
@@ -363,7 +364,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
 
     const source = typeof card.record.portrait === 'string' ? card.record.portrait.trim() : '';
     if (!source) {
-      settle('failed', '등록된 초상이 없어요');
+      settle('failed', '초상 미리보기가 없어요');
       return;
     }
     try {
@@ -428,8 +429,24 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     card.revealed = true;
   }
 
+  function clearRevealDeadline(run) {
+    if (run?.revealTimer) clearTimeout(run.revealTimer);
+    if (run) run.revealTimer = 0;
+  }
+
+  function armRevealDeadline(run) {
+    if (!isCurrent(run) || run.complete || run.finishRequested || run.playing || run.revealTimer) return;
+    // Bound viewport/observer waiting, using the existing portrait-ready interval.
+    // Motion has its own timers; repeated waiting checks must not extend this one.
+    run.revealTimer = setTimeout(() => {
+      run.revealTimer = 0;
+      if (isCurrent(run) && !run.complete && !run.playing) complete(run);
+    }, IMAGE_READY_MS);
+  }
+
   function complete(run) {
     if (!isCurrent(run) || run.complete) return;
+    clearRevealDeadline(run);
     clearTimers();
     stopListening();
     run.finishRequested = true;
@@ -461,6 +478,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     run.ioVisible = !observer;
     root.dataset.state = 'waiting';
     root.setAttribute('aria-busy', 'false');
+    armRevealDeadline(run);
     observer?.disconnect();
     observer?.observe(run.cards[index].item);
     queueVisibilityCheck();
@@ -476,6 +494,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
       live.textContent = '카드의 초상을 준비하고 있어요.';
       return;
     }
+    clearRevealDeadline(run);
     run.playing = true;
     run.motionToken += 1;
     root.dataset.state = 'drawing';
@@ -502,6 +521,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     const run = current;
     current = null;
     if (run) {
+      clearRevealDeadline(run);
       run.cancelled = true;
       run.cards.forEach((card) => card.asset?.dispose({ retainImage: !clear && card.revealed }));
     }
@@ -545,7 +565,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     cancel();
     const run = {
       token: sequence, key, complete: false, cancelled: false, cards: [],
-      index: 0, playing: false, motionToken: 0, ioVisible: false, finishRequested: false,
+      index: 0, playing: false, motionToken: 0, ioVisible: false, finishRequested: false, revealTimer: 0,
     };
     current = run;
     run.cards = ready.map((record, index) => createCard(record, index, run));

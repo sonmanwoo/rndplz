@@ -72,11 +72,24 @@ class ChatModels:
         if u.scheme not in ('http','https') or u.hostname not in ('127.0.0.1','localhost','::1') or u.username or u.password or u.query or u.fragment:
             raise ValueError('로컬 모델 주소는 이 기기의 Ollama 주소여야 합니다.')
         self.local=[];self.refreshed=0;self.configs={};self.lock=threading.Lock();self.calls={}
+        # Gemini is an explicit server opt-in; no key files, inferred model or fallback.
+        gemini_key=self.env.get('GEMINI_API_KEY','')
+        gemini_model=self.env.get('RNDPLZ_GEMINI_MODEL','')
+        if gemini_key and gemini_model:
+            from .gemini_native import validate_config
+            validate_config(gemini_model,gemini_key)
+            self.configs['gemini']={'key':gemini_key,'model':gemini_model}
         for provider,key in [('openai',self.env.get('OPENAI_API_KEY') or self.env.get('RNDPLZ_API_KEY')),('claude',self.env.get('ANTHROPIC_API_KEY'))]:
             model=self.env.get('RNDPLZ_'+provider.upper()+'_MODEL','')
             if not model and self.env.get('RNDPLZ_PROVIDER') in (provider,{'openai':'openai_compatible','claude':'claude'}[provider]):model=self.env.get('RNDPLZ_MODEL','')
             if provider=='openai' and not model:model=DEFAULT_OPENAI_MODEL
             if key and model:self.configs[provider]={'key':key,'model':model}
+
+    def gemini_option(self):
+        config=self.configs.get('gemini')
+        if not config:return None
+        return {'id':'gemini:'+config['model'],'provider':'gemini','model':config['model'],
+                'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':False}
 
     def catalog(self,refresh=False):
         if refresh or time.monotonic()-self.refreshed>60:
@@ -91,6 +104,9 @@ class ChatModels:
             config=self.configs.get(provider)
             items.append({'id':provider,'provider':provider,'name':label+(' · '+config['model'] if config else ' · 연결 설정'),'enabled':bool(config),'local':False,'vision':False})
         default='openai' if self.configs.get('openai') else next((m['id'] for m in items if m['enabled']),None)
+        # Calculate the existing default before adding the explicitly selectable API.
+        gemini=self.gemini_option()
+        if gemini:items.append(gemini)
         return {'models':items,'default':default}
 
     def configure(self,payload):
@@ -122,6 +138,28 @@ class ChatModels:
             if provider!='ollama' and self.calls.get(identifier,0)>=20:raise ValueError('이 서버 실행의 모델 호출 한도에 도달했습니다.')
             self.calls[identifier]=self.calls.get(identifier,0)+1
             config=dict(self.configs.get(provider,{}))
+        if provider=='gemini':
+            from .gemini_native import make_payload,generate
+            payload=make_payload(messages,system=system,
+                                 max_tokens=spec['max_tokens'] if spec is not None else 1800,
+                                 structured=schema is not None)
+            observer=getattr(self,'diagnostic_observer',None)
+            if callable(observer):
+                try:observer(provider,copy.deepcopy(payload))
+                except Exception:pass
+            # Exactly one HTTP attempt uses the caller's existing origin reservation.
+            text=generate(config['model'],config['key'],payload,
+                          deadline=deadline if deadline is not None else time.monotonic()+180,
+                          structured=schema is not None,
+                          max_chars=8000 if contract=='dialogue_answer.v1' else 24000)
+            response_observer=getattr(self,'diagnostic_response_observer',None)
+            if callable(response_observer):
+                # Only completed visible text; raw native parts/thoughts stay private.
+                try:response_observer(provider,{'model':config['model'],'done':True,
+                    'done_reason':'stop','message':{'content':text}})
+                except Exception:pass
+            yield text
+            return
         headers={'Content-Type':'application/json'}
         if provider=='ollama':
             url=self.local_base+'/api/chat'

@@ -24,7 +24,7 @@ from .discovery import DiscoveryError
 from .data import Corpus, ROOT
 from .engine import Engine
 from .models import ExternalModel
-from .service import Service
+from .service import Service, ProviderScopeError
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
@@ -335,7 +335,9 @@ class PublicModels(ChatModels):
                               'provider':'bridge','model':model,'name':model+' · 운영자 PC'+suffix,
                               'enabled':ready,'local':False,'vision':False})
             items.append({'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False})
-            return {'models':items,'default':'bridge' if items[0]['enabled'] else 'guide','public':True}
+            option = self.gemini_option()
+            if option: items.append(option)
+            return {'models':items,'default':option['id'] if option else ('bridge' if items[0]['enabled'] else 'guide'),'public':True}
         items = [{'id': p, 'provider': p, 'name': label + ' · ' + c['model'],
                   'enabled': True, 'local': False, 'vision': False}
                  for p, label in [('openai', 'OpenAI API'), ('claude', 'Claude API')]
@@ -343,7 +345,10 @@ class PublicModels(ChatModels):
         if not items:
             items = [{'id': 'guide', 'provider': 'guide', 'name': '기록 탐색 안내 · AI 미사용',
                       'enabled': True, 'local': False, 'vision': False}]
-        return {'models': items, 'default': items[0]['id'], 'public': True}
+        default = items[0]['id']
+        option = self.gemini_option()
+        if option: items.append(option)
+        return {'models': items, 'default': option['id'] if option else default, 'public': True}
 
     def configure(self, payload):
         raise ValueError('공개 서비스 모델은 운영자가 서버에서 설정합니다.')
@@ -426,7 +431,7 @@ class PublicApp:
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
-                 'auth_service.py','account_storage.py','profiles.py')
+                 'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py')
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -927,6 +932,8 @@ class PublicApp:
                     self.request_slots.release()
             if path == '/api/attachments' and len(list(chat.attachments.directory.glob('*.json'))) >= 12:
                 return send(429, {'error': '공개 시연의 첨부 개수 한도에 도달했습니다.'})
+            if path == '/api/self-profile/chat':
+                chat.require_profile_context(payload.get('session_id'))
             routes = {
                 '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),
@@ -945,6 +952,9 @@ class PublicApp:
                 with diagnostic_scope(self.diagnostics,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
+        except ProviderScopeError as exc:
+            diagnostic_error = exc.code
+            return send(409, {'error': str(exc), 'code': exc.code, 'request_preserved': True})
         except AuthError as exc:
             return send(exc.status, {'error': str(exc), 'code': exc.code})
         except ModelResponseBudgetExhausted as exc:
