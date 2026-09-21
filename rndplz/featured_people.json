@@ -9263,6 +9263,470 @@
       "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
       "date_precision": "year",
       "abstract_available": false
+    },
+    {
+      "id": "PC03-PAPER-MATYJASZEWSKI-2002",
+      "kind": "paper",
+      "title": "Factors Affecting Rates of Comonomer Consumption in Copolymerization Processes with Intermittent Activation",
+      "summary": "간헐적 활성화를 거치는 제어 중합에서 공단량체 소비 속도를 다룬다. 이런 간헐적 성장 과정이 분산도와 공중합체 미세구조에 영향을 줄 수 있음을 설명한다.",
+      "date": "2002",
+      "authors": [
+        {
+          "name": "Krzysztof Matyjaszewski",
+          "person_id": "PUB-MATYJASZEWSKI",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [
+        "GS-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "scope": "public_research_case",
+      "url": "https://pubs.acs.org/doi/10.1021/ma0208180",
+      "doi": "10.1021/ma0208180",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 선택 구절만으로 연구 수행 유형을 추가 확정하지 않음"
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Selected displayed author only; full authorship not independently confirmed",
+      "publication_type": "Macromolecules Article",
+      "metadata_sources": [
+        {
+          "url": "https://pubs.acs.org/doi/10.1021/ma0208180",
+          "access_level": "PRIMARY_SEARCH_INDEX",
+          "checked_at": "2026-09-21",
+          "scope": "Publisher-indexed Abstract opening paragraph only; direct article open403. Title and selected author metadata returned by search.",
+          "source_locator": "search result2, Abstract first sentence",
+          "metadata_access": {
+            "access_level": "PRIMARY_SEARCH_INDEX",
+            "read_scope": "Publisher-indexed Abstract opening paragraph only; direct article open403. Title and selected author metadata returned by search.",
+            "direct_selected_article_open": "FAILED_403",
+            "full_paper_reviewed": false,
+            "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+          },
+          "preparation_status": "PREPARED_INDEXED_PARTIAL_SOURCE",
+          "limitations": [
+            "제공 초록 일부의 문제 설명이며 효과 크기·반응 조건·산업 재현성을 확인한 결과가 아니다.",
+            "직접 현재 출판사 페이지 열기는403으로 실패; 재시도/대체0."
+          ],
+          "evidence_anchor_ids": [
+            "PC03-MATY-Q1",
+            "PC03-MATY-Q2"
+          ]
+        }
+      ],
+      "source_access_note": "Publisher-indexed Abstract opening paragraph only; direct article open403. Title and selected author metadata returned by search. 직접 원페이지 열기403; 검색반환 일부를 전체 전문 열람으로 표시하지 않습니다.",
+      "boundary_note": "제공 초록 일부의 문제 설명이며 효과 크기·반응 조건·산업 재현성을 확인한 결과가 아니다. 직접 현재 출판사 페이지 열기는403으로 실패; 재시도/대체0. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "candidate_key": "PC03-MATYJASZEWSKI-2002",
+      "metadata_access": {
+        "access_level": "PRIMARY_SEARCH_INDEX",
+        "read_scope": "Publisher-indexed Abstract opening paragraph only; direct article open403. Title and selected author metadata returned by search.",
+        "direct_selected_article_open": "FAILED_403",
+        "full_paper_reviewed": false,
+        "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+      },
+      "preparation_status": "PREPARED_INDEXED_PARTIAL_SOURCE",
+      "limitations": [
+        "제공 초록 일부의 문제 설명이며 효과 크기·반응 조건·산업 재현성을 확인한 결과가 아니다.",
+        "직접 현재 출판사 페이지 열기는403으로 실패; 재시도/대체0."
+      ],
+      "source_metadata": {
+        "authors": [
+          "Krzysztof Matyjaszewski"
+        ],
+        "author_coverage": "Selected displayed author only; full authorship not independently confirmed",
+        "date": "2002",
+        "published_online": "2002-07-30",
+        "issue_date": "2002-08-27",
+        "historical_institution": "Carnegie Mellon University",
+        "institution_source": "Publisher-indexed author block; publication-time context only"
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "UNVERIFIED",
+      "product_application": "UNOBSERVED",
+      "venue": "Macromolecules"
+    },
+    {
+      "id": "PC03-PAPER-MORARI-1989",
+      "kind": "paper",
+      "title": "Model predictive control: Theory and practice—A survey",
+      "summary": "명시적이며 별도로 식별할 수 있는 모델을 직접 사용하는 MPC를 다룬 조사 논문이다. 제시된 제어 관련 쟁점의 관점에서 MPC 기법을 검토한다.",
+      "date": "1989-05",
+      "authors": [
+        {
+          "name": "Carlos E. García",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "David M. Prett",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Manfred Morari",
+          "person_id": "PUB-MORARI",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [
+        "EXP02-CONTROL"
+      ],
+      "field": "process_control",
+      "scope": "public_research_case",
+      "url": "https://www.sciencedirect.com/science/article/pii/0005109889900022",
+      "doi": "10.1016/0005-1098(89)90002-2",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "review",
+      "classification_basis": [
+        "제공 서지에서 Survey paper로 확인; 전문 검토는 아님"
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Displayed survey author list",
+      "publication_type": "Survey paper",
+      "metadata_sources": [
+        {
+          "url": "https://www.sciencedirect.com/science/article/pii/0005109889900022",
+          "access_level": "PRIMARY_SEARCH_INDEX",
+          "checked_at": "2026-09-21",
+          "scope": "Publisher-indexed Abstract plus survey metadata; direct article open403.",
+          "source_locator": "search result2, Abstract opening and final sentence",
+          "metadata_access": {
+            "access_level": "PRIMARY_SEARCH_INDEX",
+            "read_scope": "Publisher-indexed Abstract plus survey metadata; direct article open403.",
+            "direct_selected_article_open": "FAILED_403",
+            "full_paper_reviewed": false,
+            "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+          },
+          "preparation_status": "PREPARED_INDEXED_PARTIAL_SOURCE",
+          "limitations": [
+            "1989년 조사 논문의 설명이며 현재 모델이나 제품 성능의 실증이 아니다.",
+            "선정 저자의 실제 실험 수행·자문 수락·가용성은 확인하지 않았다."
+          ],
+          "evidence_anchor_ids": [
+            "PC03-MORARI-Q1",
+            "PC03-MORARI-Q2"
+          ]
+        }
+      ],
+      "source_access_note": "Publisher-indexed Abstract plus survey metadata; direct article open403. 직접 원페이지 열기403; 검색반환 일부를 전체 전문 열람으로 표시하지 않습니다.",
+      "boundary_note": "1989년 조사 논문의 설명이며 현재 모델이나 제품 성능의 실증이 아니다. 선정 저자의 실제 실험 수행·자문 수락·가용성은 확인하지 않았다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "candidate_key": "PC03-MORARI-1989",
+      "metadata_access": {
+        "access_level": "PRIMARY_SEARCH_INDEX",
+        "read_scope": "Publisher-indexed Abstract plus survey metadata; direct article open403.",
+        "direct_selected_article_open": "FAILED_403",
+        "full_paper_reviewed": false,
+        "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+      },
+      "preparation_status": "PREPARED_INDEXED_PARTIAL_SOURCE",
+      "limitations": [
+        "1989년 조사 논문의 설명이며 현재 모델이나 제품 성능의 실증이 아니다.",
+        "선정 저자의 실제 실험 수행·자문 수락·가용성은 확인하지 않았다."
+      ],
+      "source_metadata": {
+        "authors": [
+          "Carlos E. García",
+          "David M. Prett",
+          "Manfred Morari"
+        ],
+        "author_coverage": "Displayed survey author list",
+        "date": "1989-05",
+        "published_online": null,
+        "issue_date": "1989-05",
+        "historical_institution": null
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "UNVERIFIED",
+      "product_application": "UNOBSERVED"
+    },
+    {
+      "id": "PC03-PAPER-MUDAWAR-2008",
+      "kind": "paper",
+      "title": "Photographic study of pool boiling CHF from a downward-facing convex surface",
+      "summary": "아래를 향한 90도 볼록면에서 FC-87을 이용한 풀비등의 열전달 측정과 촬영으로 임계열유속을 조사한다. 이 시험 조건에서는 임계열유속이 표면의 가장 아래쪽에서 시작한다고 보고한다.",
+      "date": "2008",
+      "authors": [
+        {
+          "name": "Alicia H. Howard",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Issam Mudawar",
+          "person_id": "PUB-MUDAWAR",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [],
+      "field": "pool_boiling_heat_transfer",
+      "scope": "public_research_case",
+      "url": "https://engineering.purdue.edu/mudawar/files/articles-all/2008/2008-09.pdf",
+      "doi": "10.1016/j.icheatmasstransfer.2008.03.003",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "experiment",
+      "classification_basis": [
+        "제공 첫쪽 선택 구절의 열전달 측정·촬영; 이 시험 조건에만 한정"
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Displayed article first-page author list",
+      "publication_type": "International Communications in Heat and Mass Transfer research article",
+      "metadata_sources": [
+        {
+          "url": "https://engineering.purdue.edu/mudawar/files/articles-all/2008/2008-09.pdf",
+          "access_level": "DIRECT_SELECTED_PASSAGES",
+          "checked_at": "2026-09-21",
+          "scope": "Institution-hosted7page PDF textual Abstract and methods selected passages on page1; not all-paper/figure/table review.",
+          "source_locator": "PDF page1 lines9–20,52–64; author/DOI lines0–4,66–71",
+          "metadata_access": {
+            "access_level": "DIRECT_SELECTED_PASSAGES",
+            "read_scope": "Institution-hosted7page PDF textual Abstract and methods selected passages on page1; not all-paper/figure/table review.",
+            "direct_selected_article_open": "SELECTED_TEXT_READ",
+            "full_paper_reviewed": false,
+            "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+          },
+          "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGES",
+          "limitations": [
+            "특정 면 형상·시험 유체·시험조건의 결과다. 액침냉각유 전반의 적합성·호환성·시스템 검증으로 일반화하지 않는다.",
+            "PDF 텍스트가 반환됐지만 전문·모든 그림·수치의 독립 검토는 수행하지 않았다."
+          ],
+          "evidence_anchor_ids": [
+            "PC03-MUDAWAR-Q1",
+            "PC03-MUDAWAR-Q2",
+            "PC03-MUDAWAR-Q3",
+            "PC03-MUDAWAR-Q4"
+          ]
+        }
+      ],
+      "source_access_note": "Institution-hosted7page PDF textual Abstract and methods selected passages on page1; not all-paper/figure/table review. 선택 구절 확인이며 전문·모든 그림·표 검토가 아닙니다.",
+      "boundary_note": "특정 면 형상·시험 유체·시험조건의 결과다. 액침냉각유 전반의 적합성·호환성·시스템 검증으로 일반화하지 않는다. PDF 텍스트가 반환됐지만 전문·모든 그림·수치의 독립 검토는 수행하지 않았다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "candidate_key": "PC03-MUDAWAR-2008",
+      "metadata_access": {
+        "access_level": "DIRECT_SELECTED_PASSAGES",
+        "read_scope": "Institution-hosted7page PDF textual Abstract and methods selected passages on page1; not all-paper/figure/table review.",
+        "direct_selected_article_open": "SELECTED_TEXT_READ",
+        "full_paper_reviewed": false,
+        "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+      },
+      "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGES",
+      "limitations": [
+        "특정 면 형상·시험 유체·시험조건의 결과다. 액침냉각유 전반의 적합성·호환성·시스템 검증으로 일반화하지 않는다.",
+        "PDF 텍스트가 반환됐지만 전문·모든 그림·수치의 독립 검토는 수행하지 않았다."
+      ],
+      "source_metadata": {
+        "authors": [
+          "Alicia H. Howard",
+          "Issam Mudawar"
+        ],
+        "author_coverage": "Displayed article first-page author list",
+        "date": "2008",
+        "published_online": "2008-04-23",
+        "issue_date": null,
+        "historical_institution": "Purdue University",
+        "institution_source": "Institution-hosted article first page; publication-time context only"
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "UNVERIFIED",
+      "product_application": "UNOBSERVED",
+      "venue": "International Communications in Heat and Mass Transfer"
+    },
+    {
+      "id": "PC03-PAPER-NAIR-2001",
+      "kind": "paper",
+      "title": "A titanosilicate molecular sieve with adjustable pores for size-selective adsorption of molecules",
+      "summary": "티타노실리케이트 분자체의 고온 탈수에 따른 구조 수축과 기공 조절, 크기 선택 흡착을 다룬다. 연결된 정정문은 열람하지 못해 이 설명에 대한 정정 영향은 미확인이다.",
+      "date": "2001-08-16",
+      "authors": [
+        {
+          "name": "Steven M. Kuznicki",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Valerie A. Bell",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Sankar Nair",
+          "person_id": "PUB-NAIR",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Hugh W. Hillhouse",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Richard M. Jacubinas",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Carola M. Braunbarth",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Brian H. Toby",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Michael Tsapatsis",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [
+        "GS-POROUS"
+      ],
+      "field": "porous_materials_separation",
+      "scope": "public_research_case",
+      "url": "https://www.nature.com/articles/35089052",
+      "doi": "10.1038/35089052",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 선택 구절만으로 연구 수행 유형을 추가 확정하지 않음"
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Displayed publisher author list; no new roster identities assigned",
+      "publication_type": "Nature Letter (research paper)",
+      "metadata_sources": [
+        {
+          "url": "https://www.nature.com/articles/35089052",
+          "access_level": "DIRECT_PUBLIC_ABSTRACT_CORRECTION_UNREAD",
+          "checked_at": "2026-09-21",
+          "scope": "Direct publisher public Abstract lines42–46 and metadata/authors; linked2001erratum open failed, no retry.",
+          "source_locator": "Publisher Abstract lines45–46; erratum notice41; historical affiliation183–185",
+          "metadata_access": {
+            "access_level": "DIRECT_PUBLIC_ABSTRACT_CORRECTION_UNREAD",
+            "read_scope": "Direct publisher public Abstract lines42–46 and metadata/authors; linked2001erratum open failed, no retry.",
+            "direct_selected_article_open": "SELECTED_TEXT_READ",
+            "full_paper_reviewed": false,
+            "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+          },
+          "preparation_status": "PREPARED_DIRECT_ABSTRACT_CORRECTION_IMPACT_UNCONFIRMED",
+          "limitations": [
+            "정정문10.1038/35098125가 표시됐으나 연결 열기500/nonretryable실패로 정정 내용·영향 미확인.",
+            "현재 사내 공정 적용·성능·가용성으로 승격하지 않는다.",
+            "논문 당시 University of Massachusetts 소속 연결이며 현재 소속을 덮지 않는다."
+          ],
+          "evidence_anchor_ids": [
+            "PC03-NAIR-Q1",
+            "PC03-NAIR-Q2"
+          ],
+          "correction": {
+            "notice_date": "2001-10-11",
+            "doi": "10.1038/35098125",
+            "url": "https://doi.org/10.1038/35098125",
+            "read_status": "FAILED_500_NONRETRYABLE",
+            "content": null,
+            "impact": "UNCONFIRMED",
+            "retry": 0
+          }
+        }
+      ],
+      "source_access_note": "Direct publisher public Abstract lines42–46 and metadata/authors; linked2001erratum open failed, no retry. 선택 구절 확인이며 전문·모든 그림·표 검토가 아닙니다.",
+      "boundary_note": "정정문10.1038/35098125가 표시됐으나 연결 열기500/nonretryable실패로 정정 내용·영향 미확인. 현재 사내 공정 적용·성능·가용성으로 승격하지 않는다. 논문 당시 University of Massachusetts 소속 연결이며 현재 소속을 덮지 않는다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "candidate_key": "PC03-NAIR-2001",
+      "metadata_access": {
+        "access_level": "DIRECT_PUBLIC_ABSTRACT_CORRECTION_UNREAD",
+        "read_scope": "Direct publisher public Abstract lines42–46 and metadata/authors; linked2001erratum open failed, no retry.",
+        "direct_selected_article_open": "SELECTED_TEXT_READ",
+        "full_paper_reviewed": false,
+        "source_verification": "PROVIDED_TRANSFER_ONLY_NO_NEW_FETCH"
+      },
+      "preparation_status": "PREPARED_DIRECT_ABSTRACT_CORRECTION_IMPACT_UNCONFIRMED",
+      "limitations": [
+        "정정문10.1038/35098125가 표시됐으나 연결 열기500/nonretryable실패로 정정 내용·영향 미확인.",
+        "현재 사내 공정 적용·성능·가용성으로 승격하지 않는다.",
+        "논문 당시 University of Massachusetts 소속 연결이며 현재 소속을 덮지 않는다."
+      ],
+      "source_metadata": {
+        "authors": [
+          "Steven M. Kuznicki",
+          "Valerie A. Bell",
+          "Sankar Nair",
+          "Hugh W. Hillhouse",
+          "Richard M. Jacubinas",
+          "Carola M. Braunbarth",
+          "Brian H. Toby",
+          "Michael Tsapatsis"
+        ],
+        "author_coverage": "Displayed publisher author list; no new roster identities assigned",
+        "date": "2001-08-16",
+        "published_online": "2001-08-16",
+        "issue_date": "2001-08-16",
+        "historical_institution": "University of Massachusetts, Amherst",
+        "institution_source": "Publisher Authors and Affiliations2; publication-time context only"
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "UNVERIFIED",
+      "product_application": "UNOBSERVED",
+      "venue": "Nature",
+      "correction": {
+        "notice_date": "2001-10-11",
+        "doi": "10.1038/35098125",
+        "url": "https://doi.org/10.1038/35098125",
+        "read_status": "FAILED_500_NONRETRYABLE",
+        "content": null,
+        "impact": "UNCONFIRMED",
+        "retry": 0
+      }
     }
   ],
   "experience_records": [
