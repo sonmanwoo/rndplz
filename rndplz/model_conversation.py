@@ -14,7 +14,7 @@ from .responses_stream import LLMError
 from .diagnostics import event as diagnostic_event
 from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
-from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
+from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, parse_request_effect, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
 from .service import now
 
 
@@ -609,6 +609,8 @@ class ModelConversation:
                        'people_disclosure_trigger':'explicit_current_information_scout_button',
                        'button_label':'이 정보로 수소문하기',
                        'user_text_lookup_request_does_not_press_button':True},
+                    'request_continuity':{'preserve_available':self._request_continuity(session, session['pending']) is not None,
+                        'meaning':'preserve keeps the existing work request and prior result; evidence questions do not replace requested help or create requirements'},
                    'historical_disclosures':historical,
                    'historical_disclosure_rule':'사용자가 이전 수소문 버튼으로 이미 열람한 인물과 기록입니다. 이 사람 등의 지칭을 이 자료와 대화로 해석해 설명할 수 있습니다. adjacent/insufficient 등의 기존 관련성·근거 한계를 유지하세요. 새 추천이나 현재 조건의 결과·권한이 아니며 record_ids를 새 scope에 자동 승계하지 마세요. 기록은 사용자 조건 출처가 아닙니다.',
                    'previous_scope':{k:v for k,v in (session.get('previous_model_plan') or {}).items()
@@ -641,8 +643,64 @@ class ModelConversation:
                  'planning_record_ids':visible_record_ids,
                  'request_spec_basis':copy.deepcopy(session.get('request_spec')),
                  'execution_binding':copy.deepcopy(session.get('execution_binding')),
+                  'request_continuity_snapshot':copy.deepcopy(session.get('request_continuity_snapshot')),
                  'record_ids':[r['record_id'] for r in catalog['records']]}
         return PlanMessages(messages, basis=basis)
+
+    _REQUEST_CONTINUITY_FIELDS = (
+        'model_plan', 'model_plan_version', 'model_plan_revision', 'model_plan_source_turn',
+        'model_plan_corpus_fingerprint', 'request_spec', 'discovery', 'scout',
+        'scout_result', 'scout_request', 'result', 'ready', 'can_propose',
+        'scout_authorized_revision', 'prepared_discovery_revision', 'search_context',
+        'proposal_context', 'proposal_policy_context', 'request_context', 'slots', 'lookup_paused')
+
+    def _capture_request_continuity(self, session, turn_id):
+        # Called only inside begin's state transaction, before adding the new user.
+        # No client payload supplies this snapshot or its authorization fields.
+        session.pop('request_continuity_snapshot', None)
+        if (session.get('pending') or session.get('model_plan_version') != 'dialogue_decision.v6'
+                or not session.get('model_plan') or request_spec_content(session.get('request_spec')) is None
+                or session['request_spec'].get('has_content') is not True):
+            return
+        fingerprint = self._model_corpus_fingerprint()
+        if (session.get('model_plan_corpus_fingerprint') != fingerprint
+                or session.get('model_plan_revision') != request_revision(session.get('model_plan_source_turn'),
+                    session['model_plan'], fingerprint, session['request_spec'])):
+            return
+        fields = {k:copy.deepcopy(session[k]) for k in self._REQUEST_CONTINUITY_FIELDS if k in session}
+        scout = fields.get('scout') or {}
+        if scout.get('disclosed'):
+            revision = scout.get('revision')
+            if (not revision or not fields.get('ready') or fields.get('result') is None
+                    or revision != (fields.get('discovery') or {}).get('revision')
+                    or revision != fields.get('scout_authorized_revision')
+                    or revision != fields.get('prepared_discovery_revision')
+                    or revision != fields.get('model_plan_revision')
+                    or fields['result'].get('request_revision') != revision):
+                return
+        session['request_continuity_snapshot'] = {
+            'session_id':session['id'], 'turn_id':turn_id, 'fields':fields,
+            'provider_scope':copy.deepcopy(session.get('provider_scope')),
+            'source_sha256':digest(self._model_sources(session)), 'corpus_fingerprint':fingerprint,
+            'excluded_person_ids':sorted(self.request_context(session).get('excluded_person_ids', []))}
+
+    def _request_continuity(self, session, turn_id):
+        snapshot = session.get('request_continuity_snapshot')
+        if not isinstance(snapshot, dict):
+            return None
+        sources = self._model_sources(session)
+        current = [m for m in session['messages'] if m.get('role')=='user' and m.get('turn_id')==turn_id]
+        if (snapshot.get('session_id') != session['id'] or snapshot.get('turn_id') != turn_id
+                or session.get('pending') != turn_id or len(current) != 1 or current[0].get('attachments')
+                or current[0].get('person_id') or not sources
+                or sources[-1].get('turn_id') != turn_id
+                or snapshot.get('provider_scope') != session.get('provider_scope')
+                or snapshot.get('source_sha256') != digest([s for s in sources if s.get('turn_id') != turn_id])
+                or snapshot.get('corpus_fingerprint') != self._model_corpus_fingerprint()
+                or snapshot.get('excluded_person_ids') != sorted(self.request_context(session).get('excluded_person_ids', []))
+                or snapshot['fields'].get('request_spec') != session.get('request_spec')):
+            return None
+        return snapshot['fields']
 
     def reserve_model_turn(self, session, option, turn_id):
         previous = (copy.deepcopy(session.get('model_plan'))
@@ -679,7 +737,8 @@ class ModelConversation:
             current = self._model_pending(sid, turn_id)
         except ValueError as exc:
             raise ModelBasisChanged(str(exc)) from exc
-        if (current.get('execution_binding') != basis.get('execution_binding') or
+        if (current.get('request_continuity_snapshot') != basis.get('request_continuity_snapshot') or
+                current.get('execution_binding') != basis.get('execution_binding') or
                 current.get('request_spec') != basis.get('request_spec_basis') or
                 self._model_sources(current) != basis['source_turns'] or
                 self._model_historical_disclosures(current) != basis.get('historical_disclosures', []) or
@@ -1118,7 +1177,7 @@ class ModelConversation:
 
     def _finish_model_turn(self, sid, turn_id, option, reply, status, error, elapsed,
                            *, plan=None, raw_plan='', raw_plan_contract='dialogue_plan.v2', revision=None, result=None, request=None,
-                           kind=None, plan_source_turn=None, plan_attempts=None, search_attempts=None, assessment=None, consultation=None, request_spec=None, retry_prepare=None, chat_retry=None, error_code=None):
+                           kind=None, plan_source_turn=None, plan_attempts=None, search_attempts=None, assessment=None, consultation=None, request_spec=None, retry_prepare=None, chat_retry=None, error_code=None, request_effect="update"):
         if status != 'complete' and (assessment or {}).get('execution'):
             executed = assessment['execution']
             plan, raw_plan, raw_plan_contract = executed['plan'], executed['raw'], executed['raw_contract']
@@ -1129,6 +1188,8 @@ class ModelConversation:
                 return self.service.present_session(session)
             # Model-led scope lives in model_plan; legacy compiler state is
             # retained only as the current successful proposal-policy snapshot.
+            retained = (self._request_continuity(session, turn_id)
+                        if status == 'complete' and request_effect == 'preserve' and kind is None else None)
             session.pop('request_context', None)
             session.pop('proposal_policy_context', None)
             message = {'role':'assistant', 'text':reply, 'status':status, 'error':error,
@@ -1159,6 +1220,37 @@ class ModelConversation:
             session['messages'].append(message)
             session.update(pending=None, updated=now(), can_propose=False)
             session.pop('pending_model_led', None)
+            if retained is not None:
+                for key in self._REQUEST_CONTINUITY_FIELDS:
+                    if key in retained:
+                        session[key] = copy.deepcopy(retained[key])
+                    else:
+                        session.pop(key, None)
+                # Re-anchor delivery to this completed turn without changing sourced content.
+                current_revision = request_revision(turn_id, session['model_plan'],
+                    session['model_plan_corpus_fingerprint'], session['request_spec'])
+                previous_revision = session['model_plan_revision']
+                session['model_plan_source_turn'] = turn_id
+                session['model_plan_revision'] = current_revision
+                session['request_spec'].update(source_turn_id=turn_id, revision=current_revision)
+                session['discovery']['revision'] = current_revision
+                session['scout']['revision'] = current_revision
+                if session['scout'].get('requested_revision') == previous_revision:
+                    session['scout']['requested_revision'] = current_revision
+                for key in ('result', 'scout_result'):
+                    if isinstance(session.get(key), dict) and session[key].get('request_revision') == previous_revision:
+                        session[key]['request_revision'] = current_revision
+                if (session.get('search_context') or {}).get('model_plan_revision') == previous_revision:
+                    session['search_context']['model_plan_revision'] = current_revision
+                message['scout_revision'] = current_revision
+                for key in ('scout_authorized_revision', 'prepared_discovery_revision'):
+                    if session.get(key) == previous_revision:
+                        session[key] = current_revision
+                session['request_continuity_from_revision'] = previous_revision
+                session.pop('request_continuity_snapshot', None)
+                return self.service.present_session(session)
+            if status == 'complete':
+                session.pop('request_continuity_snapshot', None)
             if status == 'complete' and plan is not None:
                 session['model_plan'] = plan
                 session['model_plan_revision'] = revision
@@ -1261,7 +1353,7 @@ class ModelConversation:
         reply = ''; error = ''; status = 'cancelled'
         dispatched = False; attempts = []; searches = []; assessment = {}; consultation = {}
         plan = revision = result = request = request_spec = None
-        repair_decision = None; chat_retry = None; error_code = None
+        repair_decision = None; chat_retry = None; error_code = None; request_effect = "update"
         try:
             yield {'type':'start', 'session':session}
             if not isinstance(messages, PlanMessages):
@@ -1304,6 +1396,12 @@ class ModelConversation:
                     self._check_consultation_reply(plan, basis['source_turns'], basis['historical_disclosures'])
                     request_spec = parse_request_spec(raw, user_messages=basis['source_turns'])
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
+                    request_effect = parse_request_effect(raw)
+                    if request_effect == 'preserve':
+                        retained = self._request_continuity(self.get(sid), turn_id)
+                        if retained is None:
+                            raise PlanValidationError('request_preserve_unavailable', field='$.request_effect')
+                        request_spec = copy.deepcopy(retained['request_spec'])
                 except PlanValidationError as exc:
                     attempt.update(validation='rejected', reason=exc.reason)
                     diagnostic_event('model_plan_rejected', model_phase=phase,
@@ -1320,7 +1418,8 @@ class ModelConversation:
                         continue
                     raise
                 attempt.update(validation='accepted', adopted=True)
-                revision = request_revision(turn_id, plan, basis['corpus_fingerprint'], request_spec)
+                revision = (retained['model_plan_revision'] if request_effect == 'preserve' else
+                            request_revision(turn_id, plan, basis['corpus_fingerprint'], request_spec))
                 diagnostic_event('model_plan_validated', model_phase=phase, plan_sha256=digest(plan),
                                  status='complete', content={'model_plan':plan, 'model_plan_raw':raw,
                                                              'plan_attempt':number})
@@ -1363,7 +1462,7 @@ class ModelConversation:
                 dispatched = any(a.get('dispatched') for a in attempts) or bool(consultation.get('dispatched')) or bool(assessment.get('dispatched'))
             session = self._finish_model_turn(sid, turn_id, option, reply, status, error,
                 time.monotonic()-started, plan=plan, raw_plan=raw, raw_plan_contract=raw_contract, revision=revision,
-                result=result, request=request, plan_attempts=attempts, search_attempts=searches, assessment=assessment, consultation=consultation, request_spec=request_spec, chat_retry=chat_retry, error_code=error_code)
+                result=result, request=request, plan_attempts=attempts, search_attempts=searches, assessment=assessment, consultation=consultation, request_spec=request_spec, chat_retry=chat_retry, error_code=error_code, request_effect=request_effect)
             saved = next((m for m in reversed(session['messages'])
                           if m.get('role')=='assistant' and m.get('turn_id')==turn_id), {})
             diagnostic_event('turn_finished', status=status, model_called=dispatched, output_chars=len(reply),

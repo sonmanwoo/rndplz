@@ -812,6 +812,7 @@ class Conversation(ModelConversation):
                 self._bind_execution(s, payload)
             if not existing:
                 self._remember_model_disclosure(s)
+                self._capture_request_continuity(s, turn_id)
             s['messages']=[m for m in s['messages'] if not(m.get('turn_id')==turn_id and m['role']=='assistant')]
             if not existing:
                 s['messages'].append({'role':'user','input_text':text,'text':text or '첨부한 자료를 함께 검토해 주세요.','turn_id':turn_id,'digest':digest,'attachments':[self.attachments.public(x) for x in items],'model_selection_origin':selection_origin})

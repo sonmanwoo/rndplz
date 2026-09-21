@@ -60,6 +60,7 @@ ANSWER_SYSTEM = _STYLE + (
     "request_spec은 현재 모델이 정리한 의뢰 초안입니다. source_turns의 실제 사용자 표현을 우선하여, 사용자가 바라는 변화와 상대에게 맡기려는 일, 사용자가 할 수 있는 일과 협의 가능한 선택지, 상대에게 요구한 조건을 구별하세요. 주체나 강도가 불분명하면 원문 표현을 유지하세요. 모델 요약이나 이전 assistant 답변은 사용자 확인이나 자료 근거가 아닙니다. 대화에서 이미 해소된 불확실성을 다시 미정으로 돌리지 마세요. "
     "일반 설명·비교·조언과 관련성 추론은 자유롭게 하되, 일반 지식·가설과 실제 공개 자료의 사실을 구분하세요. 사용자가 채택하지 않은 조언을 의뢰의 확정 조건으로 바꾸지 마세요. "
     "execution_observation은 상담에 곁들일 실제 실행 사실입니다. completed일 때만 조회했다고 말하고 not_executed는 미조회이며 0건이 아닙니다. 제공된 수는 등록 기록에 연결된 익명 인물 수이고, 익명 주제는 반환된 일치 기록에 붙은 등록 태그입니다. 필요할 때 탐색 맥락으로만 짧게 활용하세요. 이는 개인의 경력·전문성·가용성이나 목적 적합성을 평가한 결과가 아니며, 원문을 받지 않은 새 자료의 내용·강점·가치를 아는 것은 아닙니다. "
+    "근거·수행 경험을 묻는 질문은 그 경험을 필수조건으로 추가하라는 지시가 아닙니다. 사용자가 조건 변경을 요청하지 않았다면 필수로 넣으라고 권하거나 의뢰를 재정의하지 말고 확인된 근거와 미확인 범위를 설명하세요. 지칭이 여러 사람에 걸치면 임의로 한 명을 정하지 말고 그 모호함을 밝혀 확인하거나 대상을 나누어 답하세요. 집단 요약에서도 각 인물의 기존 관련성·근거 수준과 미확인을 유지하세요. 일부만 인접한 경우 근거가 부족한 다른 인물까지 인접 전문가로 묶지 마세요. "
     "historical_disclosures는 이전 버튼으로 이미 공개된 자료입니다. 그 자료에 관한 질문은 지금 답하되 출처·실제 기여·기존 relation과 missing 및 claim_boundary의 핵심 한계를 반영하세요. 이전 자료에 대한 설명을 이번 조건의 새 추천이나 검증된 개인 수행능력으로 바꾸지 마세요. "
     "새 조회의 인물·기록 원문은 아직 공개되지 않았습니다. 사용자가 직접 언급한 이름과 검증된 historical_disclosures 밖의 이름·사진·개인 이력을 소개하거나 추측하지 말고, 보이지 않는 인물 중 누구를 고를지 묻지 마세요. 새 인물 자료는 명시적 버튼으로 공개되며, button_enabled_on_completion이 true일 때만 '이 정보로 수소문하기'를 사용할 수 있다고 안내할 수 있습니다. 버튼은 현재 정리된 정보로 후보 자료를 조회·공개하는 선택이며, 의뢰서 내용을 함께 정리하거나 상담을 이어가는 전제가 아닙니다. 버튼 안내로 현재 질문에 대한 답이나 더 들을 질문을 대신하지 마세요. "
     "이번 답변 뒤 자동 후속 조회·답변·연락은 없습니다. 기다리면 결과를 보내겠다고 약속하지 마세요. 내부 계획이나 구현 용어 대신 사용자와 의뢰에 필요한 이야기를 나누세요."
@@ -268,9 +269,19 @@ PLAN_SCHEMA["properties"] = {
     "reply": PLAN_SCHEMA["properties"]["reply"],
 }
 PLAN_SCHEMA["required"] = list(PLAN_SCHEMA["properties"])
+# Saved v6 plans remain readable; their missing effect never grants preservation.
+_PLAN_BEFORE_REQUEST_EFFECT = copy.deepcopy(PLAN_SCHEMA)
+PLAN_SCHEMA["properties"] = {
+    "request_effect": {"type":"string", "enum":["preserve", "update"],
+        "description":"Preserve an existing request for explanation or evidence questions only. Update for a new request, explicit correction, added requirement, new material, lookup or stop. Preserve requires answer/clarify, null scope and empty brief arrays; the server retains the prior request."},
+    **PLAN_SCHEMA["properties"],
+}
+PLAN_SCHEMA["required"] = list(PLAN_SCHEMA["properties"])
 PLAN_SYSTEM = _STYLE + (
-    "\n지금은 최종 답변 전에 실제로 실행할 조회 범위와 사용자에게 보여 줄 의뢰서 초안을 함께 만드는 단계입니다. JSON 객체 하나로 decision·scope·brief·summary·reply 순서로 반환하세요. "
+    "\n지금은 최종 답변 전에 실제로 실행할 조회 범위와 사용자에게 보여 줄 의뢰서 초안을 함께 만드는 단계입니다. JSON 객체 하나로 request_effect·decision·scope·brief·summary·reply 순서로 반환하세요. "
     "reply는 실행 전의 짧은 상담 초안이며 사용자에게 표시되지 않습니다. 최종 답변은 실제 실행 상태를 받은 별도 단계에서 작성됩니다. 조회 완료·후보 수·버튼 사용 가능 여부를 미리 주장하지 마세요. "
+    "기존 의뢰의 목적·필요한 도움·조건을 바꾸는 요청인지 먼저 판단하세요. 기존 자료의 설명·비교·경험 근거를 묻는 후속 질문만이면 request_effect=preserve, decision=answer 또는 clarify, scope=null, brief의 두 배열=[]로 두세요. 서버가 기존 의뢰와 공개결과를 그대로 유지하며 현재 질문에는 최종 상담에서 답합니다. 이런 질문을 새 requested_help나 필수자격으로 바꾸지 마세요. 지칭할 인물이 여러 명이면 어느 사람인지 확인하거나 가능한 대상을 구분해 설명하고 한 명을 임의 확정하지 마세요. "
+    "새 의뢰·명시한 수정·조건 추가/철회·새 첨부·새 조회·중단은 request_effect=update입니다. 근거 질문과 명시 수정이 함께 있으면 update로 실제 수정만 의뢰서에 반영하고 질문에도 답하세요. 기존 의뢰가 없으면 update입니다. "
     "사용자의 현재 말과 누적 대화에서 다음 행동을 판단하세요. answer는 설명·비교·도움 안내·조건 정리, clarify는 답변에 꼭 필요한 질문, lookup은 지금 익명 기록 수를 확인할 조회, stop은 탐색 보류입니다. "
     "사용자가 현재까지 말한 조건으로 등록 연구 경험이나 기록을 실제로 찾아달라고 요청했고 앞선 대화에 조회할 주제가 있으면 decision=lookup과 실행할 조회 범위를 작성하세요. 목적만 저장하거나 버튼을 안내하는 답변으로 조회 실행을 대신하지 마세요. 이미 받은 조회 의사를 다시 허락받거나 모든 세부 조건이 정해질 때까지 미루지 마세요. "
     "일반 설명·도움 질문 자체를 조회 의사로 간주하지 마세요. 조회 주제가 모호해 실행할 범위를 정할 수 없으면 필요한 질문을 하세요. 조회 범위가 있어도 아직 모르는 실제 업무 목적이나 필요한 도움은 최종 상담에서 유용한 질문으로 더 들을 수 있습니다. answer/clarify는 scope에 목적·조건만 담고 interpretations·record_ids·person_names를 모두 비워 둘 수 있으며, 이 경우 익명 조회도 하지 않습니다. scope=null도 가능합니다. "
@@ -613,6 +624,20 @@ def _validate_v2_scope_sources(scope, user_messages):
                                       field="$.scope.conditions[" + str(index) + "].strength_quote")
 
 
+def _parse_active_plan(raw):
+    # Reading a pre-effect saved plan is an update, not an implicit preserve.
+    return _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_REQUEST_EFFECT]})
+
+
+def parse_request_effect(raw):
+    external = _parse_active_plan(raw)
+    effect = external.get("request_effect", "update")
+    if effect == "preserve" and (external["decision"] not in ("answer", "clarify")
+            or external["scope"] is not None or any(external["brief"].values())):
+        raise PlanValidationError("preserve_request_has_changes", field="$.request_effect")
+    return effect
+
+
 def parse_request_spec(raw, *, user_messages):
     """Project only source-checked display fields from a completed active plan.
 
@@ -621,7 +646,8 @@ def parse_request_spec(raw, *, user_messages):
     Exact user/attachment quotes prove source membership, not semantic accuracy
     or user confirmation of the model's summary. Empty fields stay empty.
     """
-    external = _parse_json(raw, PLAN_SCHEMA)
+    external = _parse_active_plan(raw)
+    parse_request_effect(raw)
     scope = external["scope"]
     purposes = scope["purposes"] if scope is not None else []
     conditions = scope["conditions"] if scope is not None else []
@@ -665,7 +691,8 @@ def parse_plan(raw, *, user_messages, allowed_topic_ids, allowed_record_ids=(),
         repaired_decision = plan_repair_decision(raw)
         if repaired_decision is not None and repaired_decision != expected_decision:
             raise PlanValidationError("repair_decision_changed", field="$.decision")
-    external = _parse_json(raw, PLAN_SCHEMA)
+    external = _parse_active_plan(raw)
+    parse_request_effect(raw)
     decision, scope = external["decision"], external["scope"]
     if expected_decision is not None and decision != expected_decision:
         raise PlanValidationError("repair_decision_changed", field="$.decision")
