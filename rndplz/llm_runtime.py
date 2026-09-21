@@ -269,6 +269,53 @@ def _safe_transport(transport, endpoint, headers, body, *, deadline, cancelled, 
                 pass
 
 
+MAX_REQUEST_BYTES = 20_000_000
+
+
+def runtime_supports_images(config):
+    """A deliberately narrow capability; no provider/model-name inference."""
+    return (config.runtime in OAUTH_RUNTIMES and config.provider == "codex_oauth"
+            and config.model == "gpt-5.5")
+
+
+def _response_input(messages, config):
+    rows = []
+    encoded_image_chars = 0
+    for message in messages:
+        images = message.get("images", [])
+        if (not isinstance(images, list) or (images and message["role"] != "user")
+                or (images and not runtime_supports_images(config))):
+            _fail("invalid_input", config.provider)
+        parts = [{"type": "input_text" if message["role"] == "user" else "output_text",
+                  "text": message["content"]}]
+        if images:
+            from .gemini_native import image_part
+            for image in images:
+                if not isinstance(image, str):
+                    _fail("invalid_input", config.provider)
+                encoded_image_chars += len(image)
+                if encoded_image_chars >= MAX_REQUEST_BYTES:
+                    _fail("invalid_input", config.provider)
+                try:
+                    inline = image_part(image)["inlineData"]
+                except (ValueError, TypeError, KeyError):
+                    _fail("invalid_input", config.provider)
+                parts.append({"type": "input_image", "image_url":
+                              "data:" + inline["mimeType"] + ";base64," + inline["data"]})
+        rows.append({"type": "message", "role": message["role"], "content": parts})
+    return rows
+
+
+def _request_observation(payload):
+    """Text diagnostics stay exact; inline image bytes never enter callbacks."""
+    observed = copy.deepcopy(payload)
+    for row in observed["input"]:
+        for part in row["content"]:
+            if part["type"] == "input_image":
+                part["image_url"] = "[inline image omitted]"
+    return observed
+
+
 class ResponsesRuntime:
     def __init__(self, config, *, transport=None, auth_loader=None, budget_guard=None,
                  mock_responses=None):
@@ -290,6 +337,7 @@ class ResponsesRuntime:
                 or type(output_cap) is not int or not 1 <= output_cap <= 8192
                 or (output_schema is not None and not isinstance(output_schema, dict))):
             _fail("invalid_input", config.provider)
+        response_input = _response_input(messages, config)
         if config.runtime == "test":
             text = self._mock_responses.get(contract_name)
             if text is None and output_schema is not None:
@@ -308,13 +356,17 @@ class ResponsesRuntime:
                       "required": ["result"], "additionalProperties": False}
             instructions += '\nReturn a JSON object with exactly one field, "result", containing the complete output described above.'
         payload = {"model": config.model, "instructions": instructions,
-                   "input": [{"type": "message", "role": m["role"],
-                              "content": [{"type": "input_text" if m["role"] == "user" else "output_text", "text": m["content"]}]} for m in messages],
+                   "input": response_input,
                    "tools": [], "tool_choice": "auto", "parallel_tool_calls": False,
                    "store": False, "stream": True}
         if schema is not None:
             name = re.sub(r"[^A-Za-z0-9_-]", "_", contract_name)[:64] or "response"
             payload["text"] = {"format": {"type": "json_schema", "name": name, "strict": True, "schema": schema}}
+        if config.runtime not in OAUTH_RUNTIMES:
+            payload["max_output_tokens"] = output_cap
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        if len(body) >= MAX_REQUEST_BYTES:
+            _fail("invalid_input", config.provider)
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "rndplz-local/1"}
         if config.runtime in OAUTH_RUNTIMES:
             endpoint = CODEX_ENDPOINT
@@ -332,8 +384,6 @@ class ResponsesRuntime:
             endpoint = OPENAI_ENDPOINT
             headers["User-Agent"] = "rndplz-deployed/1"
             headers["Authorization"] = "Bearer " + config.api_key
-            payload["max_output_tokens"] = output_cap
-        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
         reservation = None
         if config.runtime == "deployed":
             if self._budget is None:
@@ -358,7 +408,7 @@ class ResponsesRuntime:
                     _fail("budget_unverified", config.provider)
             if callable(request_observer):
                 try:
-                    request_observer(config.provider, copy.deepcopy(payload))
+                    request_observer(config.provider, _request_observation(payload))
                 except Exception:
                     pass
             chunks = _safe_transport(self._transport, endpoint, headers, body,
@@ -443,7 +493,7 @@ class RuntimeChatModels:
         # Keep implementation/auth diagnostics out of the product selector.
         option = {"id": "runtime", "provider": config.provider, "model": config.model,
                   "name": config.model if config.runtime != "test" else "테스트 응답 (mock)",
-                  "enabled": True, "local": False, "vision": False}
+                  "enabled": True, "local": False, "vision": runtime_supports_images(config)}
         return {"models": [option], "default": "runtime"}
 
     def get(self, identifier):

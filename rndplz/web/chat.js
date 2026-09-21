@@ -61,7 +61,7 @@ function hasRuntimeScope(saved){const scope=saved?.provider_scope;return ["runti
 function hasPublicPaperScope(saved){return hasGeminiScope(saved)||hasRuntimeScope(saved);}
 function isPublicPaperModel(id=selectedModel){return isGeminiModel(id)||isRuntimeModel(id);}
 function isPublicPaperContext(id=selectedModel,saved=session){return hasPublicPaperScope(saved)||isPublicPaperModel(id);}
-function allowsScopedImages(id=selectedModel,saved=session){return (saved?.id?hasGeminiScope(saved):isGeminiModel(id))&&catalog.find(m=>m.id===id)?.vision===true;}
+function allowsScopedImages(id=selectedModel,saved=session){return (saved?.id?(hasGeminiScope(saved)||(hasRuntimeScope(saved)&&saved.provider_scope.id==="runtime_public_papers.v2")):(isGeminiModel(id)||isRuntimeModel(id)))&&catalog.find(m=>m.id===id)?.vision===true;}
 function isPublicPaperSession(saved=session){return hasPublicPaperScope(saved)||isGeminiModel(saved?.model_id)||saved?.model_id==="runtime";}
 function allowsScopedDocuments(id=selectedModel,saved=session){return isPublicPaperContext(id,saved)&&(!saved?.id||(hasPublicPaperScope(saved)&&["gemini_public_papers.v2","runtime_public_papers.v2"].includes(saved.provider_scope.id)));}
 function explicitScopedAttachment(item,id,saved){

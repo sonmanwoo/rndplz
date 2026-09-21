@@ -105,8 +105,9 @@ class Conversation(ModelConversation):
         items = [self.attachments.load(value) for value in ids]
         for item in items:
             if item.get('image'):
-                if scope['provider'] != 'gemini':
-                    raise ProviderScopeError('이 외부 모델은 이미지 입력을 지원하지 않습니다. 텍스트 문서를 선택해 주세요.')
+                if not (scope['provider'] == 'gemini' or
+                        (scope['id'] == RUNTIME_DOCUMENT_SCOPE_ID and scope['provider'] in RUNTIME_SCOPE_PROVIDERS)):
+                    raise ProviderScopeError('이 외부 모델 대화에는 이미지를 첨부할 수 없습니다.')
                 self._scoped_image_items([item['id']])
             elif not isinstance(item.get('text'), str) or not item['text'].strip():
                 raise ProviderScopeError('본문을 추출한 문서를 다시 선택해 주세요.')
