@@ -576,6 +576,7 @@ class Conversation(ModelConversation):
                 s['turns']+=1
                 if selected:s['messages'][-1]['person_id']=selected
             s['model_selection_origin']=selection_origin
+            s.pop('scout_recovery',None)
             s.pop('scout_authorized_revision',None)
             s.pop('prepared_discovery_revision',None)
             s['scout']={'revision':None,'status':'consulting','disclosed':False,'count':None,'count_status':'unknown'}

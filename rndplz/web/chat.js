@@ -9,7 +9,7 @@ let accountNavigationPending=false,accountInvalidated=false;
 let prepareBusy=false,prepareTicket=0;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="";
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-async function api(path,body){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;throw failure;}return data;}
+async function api(path,body){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
 function error(message=""){$("composerError").textContent=message;$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
 function modal(id,returnFocus=document.activeElement){
@@ -68,11 +68,13 @@ function discoveryCompletion(s=session){
  const count=result.candidates.length;
  return count?"조회가 완료됐어요. 현재 조건으로 찾은 인물은 "+count+"명이에요.":"조회가 완료됐어요. 현재 조건으로 찾은 인물은 0명이에요.";
 }
-function canPrepareDiscovery(){return discoveryReady()&&briefCurrent()&&!briefEditor&&!briefFailure&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
+function recoverableScout(s=session){const r=s?.scout_recovery;return !!s?.id&&r?.available===true&&r.status==="required"&&typeof r.id==="string"&&typeof r.from_revision==="string"&&r.from_revision===s.request_spec?.revision&&s.request_spec?.state==="stale"&&briefHasContent(s.request_spec)&&!s.pending;}
+function scoutButtonLabel(){return recoverableScout()?"이 정보로 다시 수소문하기":"이 정보로 수소문하기";}
+function canPrepareDiscovery(){return (discoveryReady()&&briefCurrent()||recoverableScout())&&!briefEditor&&!briefFailure&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
 function syncDiscoveryControls(){
  const button=$("currentScoutButton"),scout=$("currentScout");if(!button||!scout)return;
  const available=canPrepareDiscovery();scout.hidden=!available;
- button.disabled=!available;button.textContent="이 정보로 수소문하기";
+ button.disabled=!available;button.textContent=scoutButtonLabel();
  button.setAttribute("aria-busy",String(prepareBusy));
 }
 function scoutCount(){
@@ -86,7 +88,7 @@ function scoutConditions(){
 }
 function currentScout(){
  const available=canPrepareDiscovery();
- return '<div class="continue-actions" id="currentScout"'+(available?'':' hidden')+'><button type="button" class="primary" id="currentScoutButton" data-action="prepare" title="등록된 인물과 근거를 조회합니다."'+(available?'':' disabled')+'>이 정보로 수소문하기</button></div>';
+ return '<div class="continue-actions" id="currentScout"'+(available?'':' hidden')+'><button type="button" class="primary" id="currentScoutButton" data-action="prepare" title="등록된 인물과 근거를 조회합니다."'+(available?'':' disabled')+'>'+scoutButtonLabel()+'</button></div>';
 }
 
 // request_spec is the only accepted brief; this is an unsent editor buffer.
@@ -173,7 +175,7 @@ function newerAcceptedBriefForEditor(){
 function updateBriefNotice(){
  const host=$("consultBriefHost");if(!host||host.hidden)return;
  const state=briefState(),editing=!!briefEditor,latestAccepted=newerAcceptedBriefForEditor();
- const text=state==="updating"?"이전 초안 · 새 내용을 반영하고 있어요.":state==="failed"?"이전 초안 · 변경을 반영하지 못했어요.":state==="stopped"?"수소문을 보류했어요.":editing?(latestAccepted?"새 초안이 도착했어요. 편집을 닫아 최신 내용을 확인하세요.":briefEditor.revision!==session?.request_spec?.revision?"이전 초안을 기준으로 편집 중이에요. 현재 대화와 함께 확인해 주세요.":briefEditor.phase==="staged"?"수정문을 입력창에 넣었어요. 확인한 뒤 보내기를 눌러 주세요.":"편집 중 · 아직 대화에 반영되지 않았어요."):state==="stale"?"이전 초안 · 현재 대화에서 다시 확인해 주세요.":"대화에서 정리한 의뢰서 초안이에요.";
+ const text=state==="updating"?"이전 초안 · 새 내용을 반영하고 있어요.":state==="failed"?"이전 초안 · 변경을 반영하지 못했어요.":state==="stopped"?"수소문을 보류했어요.":editing?(latestAccepted?"새 초안이 도착했어요. 편집을 닫아 최신 내용을 확인하세요.":briefEditor.revision!==session?.request_spec?.revision?"이전 초안을 기준으로 편집 중이에요. 현재 대화와 함께 확인해 주세요.":briefEditor.phase==="staged"?"수정문을 입력창에 넣었어요. 확인한 뒤 보내기를 눌러 주세요.":"편집 중 · 아직 대화에 반영되지 않았어요."):state==="stale"?(session?.scout_recovery?.status==="unsupported"?"이전 검색 범위가 현재 자료에 없어 의뢰서 수정이 필요해요.":session?.request_spec?.stale_reason==="source_changed"?"등록 자료가 바뀌었어요. 의뢰서는 유지되며 같은 정보로 다시 수소문할 수 있어요.":"이전 초안 · 현재 대화에서 다시 확인해 주세요."):"대화에서 정리한 의뢰서 초안이에요.";
  host.querySelector(".consult-brief-status").textContent=text+(!editing&&state==="current"&&briefChangeLabel?" "+briefChangeLabel:"");
  const cancel=host.querySelector('[data-brief-action="cancel"]');if(cancel)cancel.textContent=latestAccepted?"편집 닫고 최신 초안 보기":"취소";
  const locked=busy||profileBusy||prepareBusy||uploading||!!session?.pending;
@@ -255,8 +257,8 @@ function failBriefSubmission(edit,sid){
 
 async function prepareDiscovery(button,keyboard=false){
  if(!canPrepareDiscovery())return;
- const before=session,sid=before.id,revision=before.discovery.revision,ticket=++prepareTicket;
- const current=()=>ticket===prepareTicket&&session===before&&session?.id===sid&&session?.discovery?.revision===revision;
+ const before=session,sid=before.id,recovery=recoverableScout(before)?before.scout_recovery:null,revision=recovery?.from_revision||before.discovery.revision,ticket=++prepareTicket;
+ const current=()=>ticket===prepareTicket&&session===before&&session?.id===sid&&(recovery?session.scout_recovery?.id===recovery.id:session?.discovery?.revision===revision);
  const returnFocus=keyboard&&document.activeElement===button;let focusMoved=false;
  const focusElsewhere=e=>{if(e.target!==document.body&&!button.contains(e.target))focusMoved=true;};
  const pointerElsewhere=e=>{if(!button.contains(e.target))focusMoved=true;};
@@ -264,17 +266,17 @@ async function prepareDiscovery(button,keyboard=false){
  document.addEventListener("focusin",focusElsewhere);document.addEventListener("pointerdown",pointerElsewhere);window.addEventListener("blur",windowBlur);
  let adopted=false,invalidated=false;prepareBusy=true;error();controls();button.disabled=true;button.textContent="관련 기록을 찾고 있어요…";
  try{
-  const prepared=await api("/api/chat/prepare",{session_id:sid,discovery_revision:revision});
+  const prepared=await api("/api/chat/prepare",{session_id:sid,discovery_revision:revision,...(recovery?{recovery_id:recovery.id}:{})});
   if(!current())return;
-  if(prepared?.id!==sid||!(prepared.discovery?.revision===revision||prepared.scout?.disclosed&&prepared.scout.requested_revision===revision))throw new Error("대화 조건이 바뀌었습니다. 현재 조건을 확인한 뒤 다시 수소문해 주세요.");
+  if(prepared?.id!==sid||!(recovery?(prepared.scout_recovery?.id===recovery.id&&prepared.scout_recovery.from_revision===revision&&prepared.scout?.disclosed&&prepared.scout.requested_revision===prepared.scout_recovery.target_revision):(prepared.discovery?.revision===revision||prepared.scout?.disclosed&&prepared.scout.requested_revision===revision)))throw new Error("대화 조건이 바뀌었습니다. 현재 조건을 확인한 뒤 다시 수소문해 주세요.");
   session=prepared;animateScoutKey=session.id+":"+session.scout.revision;adopted=true;autoScroll=false;
- }catch(e){if(current()){error(e.message);if(((e.code==="model_response_unavailable"||e.code==="model_response_budget_exhausted")&&e.retry_available===false)||e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};invalidated=true;}}}
+ }catch(e){if(current()){error(e.message);if(["scout_source_changed","scout_source_unsupported"].includes(e.code)&&e.session?.id===sid&&e.session.request_spec?.source_turn_id===before.request_spec?.source_turn_id&&(e.session.scout_recovery?.from_revision===before.request_spec?.revision||recovery&&e.session.request_spec?.source_revision===before.request_spec?.source_revision)){session=e.session;adopted=true;autoScroll=false;}else if(((e.code==="model_response_unavailable"||e.code==="model_response_budget_exhausted")&&e.retry_available===false)||e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};if(session.scout_recovery)session.scout_recovery={...session.scout_recovery,available:false};invalidated=true;}}}
  finally{
   document.removeEventListener("focusin",focusElsewhere);document.removeEventListener("pointerdown",pointerElsewhere);window.removeEventListener("blur",windowBlur);
   if(ticket===prepareTicket){
    prepareBusy=false;controls();
    if(adopted){render();}
-   else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent="이 정보로 수소문하기";}else render();}
+   else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent=scoutButtonLabel();}else render();}
    if(returnFocus&&(adopted||current())&&!focusMoved&&document.hasFocus()&&(document.activeElement===document.body||document.activeElement===button)){
     const target=adopted||invalidated||!button.isConnected?$("message"):button;
     if(!target.disabled)target.focus({preventScroll:true});

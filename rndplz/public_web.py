@@ -19,7 +19,7 @@ from urllib.parse import parse_qs
 from .chat_models import ChatModels
 from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
-from .model_conversation import ModelResponseUnavailable, ModelResponseBudgetExhausted
+from .model_conversation import ModelResponseUnavailable, ModelResponseBudgetExhausted, ScoutSourceChanged
 from .discovery import DiscoveryError
 from .data import Corpus, ROOT
 from .engine import Engine
@@ -865,6 +865,10 @@ class PublicApp:
                        str(exc) + ' 이번 요청의 처리 한도에 도달했어요. 의뢰서는 유지되니 새 메시지로 조건을 확인해 주세요.')
             return send(503, {'error':message, 'code':exc.code,
                               'request_preserved':exc.request_preserved, 'retry_available':exc.retry_available})
+        except ScoutSourceChanged as exc:
+            diagnostic_error=exc.code
+            return send(409, {'error':str(exc), 'code':exc.code, 'request_preserved':True,
+                              'session':exc.session})
         except DiscoveryError as exc:
             diagnostic_error='discovery_not_ready'
             return send(409, {'error':str(exc), 'code':exc.code})

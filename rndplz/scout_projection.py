@@ -11,7 +11,7 @@ import hashlib
 import math
 
 
-_STATUSES = {"consulting", "ready", "searching", "complete", "stopped", "error"}
+_STATUSES = {"consulting", "ready", "searching", "complete", "stopped", "error", "stale"}
 
 
 def _pick(value, fields):
@@ -68,6 +68,9 @@ def _request_spec(value, session):
         state = 'updating'
     elif session.get('lookup_paused') or scout.get('status') == 'stopped':
         state = 'stopped'
+    elif (session.get('scout_recovery') or {}).get('status') in ('required', 'unsupported'):
+        state = 'stale'
+        result['stale_reason'] = 'source_changed'
     elif scout.get('status') == 'error':
         state = 'failed'
     else:
@@ -227,6 +230,17 @@ def project_session(session):
     if known and count_basis in ("registered_record_matches", "assessed_displayed"):
         shaped["scout"]["count_basis"] = count_basis
     shaped["request_spec"] = _request_spec(session.get("request_spec"), session)
+    recovery = session.get('scout_recovery') or {}
+    if recovery.get('status') in ('required', 'unsupported', 'revalidated'):
+        shaped['scout_recovery'] = _pick(recovery, ('id', 'from_revision', 'target_revision', 'status'))
+        budget = session.get('model_generation_budget') or {}
+        spec = shaped['request_spec'] or {}
+        latest = next((m for m in reversed(session.get('messages') or []) if m.get('role')=='user' and m.get('kind')!='self_profile'), {})
+        shaped['scout_recovery']['available'] = bool(recovery.get('status')=='required'
+            and not session.get('pending') and not session.get('lookup_paused')
+            and spec.get('has_content') and spec.get('state')=='stale'
+            and latest.get('turn_id') == recovery.get('source_turn_id') == spec.get('source_turn_id') == budget.get('origin_turn_id')
+            and type(budget.get('calls')) is int and 0 <= budget['calls'] < 4)
     shaped["messages"] = _messages(session.get("messages"), disclosed=disclosed, revision=revision,
                                   historical_disclosures=session.get("historical_disclosures"))
     shaped["result"] = _result(session.get("result")) if disclosed else None

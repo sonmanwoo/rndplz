@@ -18,6 +18,8 @@ from rndplz.build_vault import export_vault
 from rndplz.profiles import Profiles, ProfileError
 from rndplz.profile_chat import ProfileChat
 from rndplz.scout_projection import project_session
+from rndplz.model_conversation import ScoutSourceChanged, ModelResponseUnavailable, ModelResponseBudgetExhausted
+from rndplz.discovery import DiscoveryError
 
 WEB=Path(__file__).with_name("web")
 
@@ -73,7 +75,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 if parsed.path=="/api/chat/bootstrap":
                     return self.send(200,{"token":token,"history":chat.history(),"session_mode":"local_single_user","logout_supported":False,**chat.models.catalog()})
                 if parsed.path=="/api/chat/session":
-                    return self.send(200,chat.get(query.get("id",[""])[0]))
+                    return self.send(200,project_session(chat.get(query.get("id",[""])[0])))
                 if parsed.path=="/api/chat/models":
                     return self.send(200,chat.models.catalog(refresh=query.get("refresh")==["1"]))
                 if parsed.path=="/api/attachment":
@@ -145,7 +147,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     finally:
                         iterator.close()
                     return
-                routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:chat.prepare(payload),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
+                routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:project_session(chat.prepare(payload)),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
                 routes.update({"/api/self-profile/chat":lambda:ProfileChat(service,profiles).handle(payload),"/api/self-profile/save":lambda:profiles.save(payload),"/api/self-profile/upload":lambda:profiles.upload(payload),"/api/self-profile/suggest":lambda:profiles.suggest(payload),"/api/self-profile/source-action":lambda:profiles.source_action(payload)})
                 path=urlparse(self.path).path
                 if path not in routes:
@@ -153,6 +155,14 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 self.send(200,routes[path]())
             except ProfileError as exc:
                 self.send(exc.status,{"error":str(exc),"code":exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
+            except ScoutSourceChanged as exc:
+                self.send(409,{"error":str(exc),"code":exc.code,"request_preserved":True,"session":project_session(exc.session)})
+            except ModelResponseBudgetExhausted as exc:
+                self.send(409,{"error":str(exc),"code":exc.code,"request_preserved":True,"retry_available":False})
+            except ModelResponseUnavailable as exc:
+                self.send(503,{"error":str(exc),"code":exc.code,"request_preserved":exc.request_preserved,"retry_available":exc.retry_available})
+            except DiscoveryError as exc:
+                self.send(409,{"error":str(exc),"code":exc.code})
             except (ValueError,KeyError,TypeError) as exc:
                 self.send(400,{"error":str(exc)})
             except Exception:

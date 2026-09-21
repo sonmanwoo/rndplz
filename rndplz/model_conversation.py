@@ -201,6 +201,16 @@ class ModelResponseBudgetExhausted(ValueError):
         super().__init__('이번 요청의 처리 한도에 도달했어요. 의뢰서는 유지되니 새 메시지로 조건을 확인해 주세요.')
 
 
+class ScoutSourceChanged(DiscoveryError):
+    """A source change is recoverable only through an explicit, bound prepare."""
+    def __init__(self, session):
+        unsupported = (session.get('scout_recovery') or {}).get('status') == 'unsupported'
+        self.code = 'scout_source_unsupported' if unsupported else 'scout_source_changed'
+        ValueError.__init__(self, '이전 검색 범위가 현재 자료에 없어 자동으로 바꾸지 않았어요. 의뢰서를 수정해 주세요.' if unsupported else
+                           '등록 자료가 바뀌었어요. 의뢰서는 유지되며 같은 정보로 다시 수소문할 수 있어요.')
+        self.session = copy.deepcopy(session)
+
+
 class PlanMessages(list):
     """Server-only immutable request basis; JSON providers see a normal list."""
     def __init__(self, values, *, basis, deadline=None):
@@ -1165,9 +1175,68 @@ class ModelConversation:
                                       'model_generation_budget':session.get('model_generation_budget')})
         yield {'type':'done' if status=='complete' else 'error', 'session':session, 'error':error}
 
+    def _mark_scout_source_changed(self, session):
+        # Keep the accepted brief, plan, origin ledger and history. Revoke only
+        # the expired retrieval/cache/disclosure; the old plan is not executable.
+        revision = session['model_plan_revision']
+        recovery = session.get('scout_recovery') or {}
+        if recovery.get('from_revision') != revision or recovery.get('status') not in ('required', 'unsupported'):
+            session['scout_recovery'] = {
+                'id':uuid.uuid4().hex, 'from_revision':revision, 'status':'required',
+                'source_turn_id':session['model_plan_source_turn'],
+                'plan_sha256':digest(session['model_plan']),
+                'spec_sha256':digest(session['request_spec']),
+                'sources_sha256':digest(self._model_sources(session)),
+                'exclusions_sha256':digest(self.request_context(session).get('excluded_person_ids', []))}
+        session.update(result=None, ready=False, can_propose=False,
+            scout={'revision':revision, 'status':'stale', 'disclosed':False, 'count':None, 'count_status':'unknown'},
+            search_context={'kind':'discovery', 'ids':[], 'query':session['model_plan']['summary']})
+        session['discovery'] = {**self._model_discovery(session['model_plan'], revision), 'lookup_ready':False}
+        for key in ('scout_result', 'scout_request', 'scout_authorized_revision', 'prepared_discovery_revision'):
+            session.pop(key, None)
+
+    def _revalidate_scout_source(self, session, recovery, corpus_fingerprint):
+        if (recovery.get('plan_sha256') != digest(session['model_plan'])
+                or recovery.get('spec_sha256') != digest(session['request_spec'])
+                or recovery.get('sources_sha256') != digest(self._model_sources(session))
+                or recovery.get('exclusions_sha256') != digest(self.request_context(session).get('excluded_person_ids', []))):
+            raise DiscoveryError()
+        plan = session['model_plan']
+        search = PublicEvidenceSearch(self.service.engine)
+        people = search._people()
+        excluded = set(self.request_context(session).get('excluded_person_ids', []))
+        try:
+            # Only IDs in the already accepted plan can remain selected. Newly
+            # added corpus entries never become selected IDs by this operation.
+            records = search._records(people)
+            allowed_records = [rid for rid in plan.get('record_ids', []) if rid in records
+                and not any(c.person_id in excluded for c in records[rid].people)]
+            _validate_internal_plan(plan, user_messages=self._model_sources(session),
+                allowed_topic_ids=[t['id'] for t in self.service.corpus.topics], allowed_record_ids=allowed_records)
+            if excluded - set(people):
+                raise ValueError('excluded_person_no_longer_available')
+            if plan.get('person_names'):
+                _, unresolved, ambiguous = search._names(plan['person_names'], people)
+                if unresolved or ambiguous:
+                    raise ValueError('named_scope_no_longer_available')
+        except ValueError:
+            recovery['status'] = 'unsupported'
+            return False
+        revision = request_revision(session['model_plan_source_turn'], plan, corpus_fingerprint, session['request_spec'])
+        session['model_plan_corpus_fingerprint'] = corpus_fingerprint
+        session['model_plan_revision'] = revision
+        session['request_spec'] = {**session['request_spec'], 'revision':revision}
+        session['discovery'] = self._model_discovery(plan, revision)
+        session['scout'] = {'revision':revision, 'status':'ready', 'disclosed':False, 'count':None, 'count_status':'unknown'}
+        recovery.update(status='revalidated', target_revision=revision)
+        return True
+
     def prepare_model_turn(self, payload):
         sid = payload.get('session_id')
         operation = 'prepare-' + uuid.uuid4().hex
+        recovery_id = payload.get('recovery_id')
+        if recovery_id is not None and (not isinstance(recovery_id, str) or not re.fullmatch(r'[a-f0-9]{32}', recovery_id)):
+            raise DiscoveryError()
         def reserve(state):
             session = next((s for s in state['sessions'] if s['id']==sid), None)
             if not session or session.get('pending') or session.get('lookup_paused'):
@@ -1181,7 +1250,17 @@ class ModelConversation:
                 return copy.deepcopy(session), 'stale'
             revision = session.get('model_plan_revision')
             plan = session.get('model_plan')
-            if not plan or not revision or payload.get('discovery_revision')!=revision:
+            recovery = session.get('scout_recovery') or {}
+            requested_revision = payload.get('discovery_revision')
+            if recovery_id is not None:
+                if (recovery.get('id') != recovery_id or recovery.get('from_revision') != requested_revision
+                        or recovery.get('source_turn_id') != session.get('model_plan_source_turn')):
+                    raise DiscoveryError()
+                if recovery.get('status') == 'revalidated':
+                    requested_revision = revision  # Same explicit action/replay, never a fresh budget.
+                elif recovery.get('status') not in ('required', 'unsupported'):
+                    raise DiscoveryError()
+            if not plan or not revision or requested_revision!=revision:
                 raise DiscoveryError()
             spec = session.get('request_spec') or {}
             source_turn = session.get('model_plan_source_turn')
@@ -1199,10 +1278,27 @@ class ModelConversation:
             corpus_fingerprint = self._model_corpus_fingerprint()
             expected = request_revision(source_turn, plan, corpus_fingerprint, spec)
             if session.get('model_plan_corpus_fingerprint')!=corpus_fingerprint or expected!=revision:
-                session.update(self.discussion_state(session))
-                session.update(model_plan=None,model_plan_revision=None,discovery=None,can_propose=False)
-                session.pop('prepared_discovery_revision',None)
-                return copy.deepcopy(session), 'stale'
+                old_fingerprint = session.get('model_plan_corpus_fingerprint')
+                if not old_fingerprint or request_revision(source_turn, plan, old_fingerprint, spec)!=revision:
+                    raise DiscoveryError()
+                self._mark_scout_source_changed(session)
+                recovery = session['scout_recovery']
+                if recovery_id != recovery['id']:
+                    return copy.deepcopy(session), 'source_changed'
+                if not self._prepare_response_available(session, source_turn):
+                    return copy.deepcopy(session), 'budget_exhausted'
+                if not self._revalidate_scout_source(session, recovery, corpus_fingerprint):
+                    return copy.deepcopy(session), 'source_changed'
+                revision = session['model_plan_revision']
+            elif recovery.get('status') in ('required', 'unsupported'):
+                # A source revert still requires the user's explicit action.
+                if recovery_id != recovery.get('id'):
+                    return copy.deepcopy(session), 'source_changed'
+                if not self._prepare_response_available(session, source_turn):
+                    return copy.deepcopy(session), 'budget_exhausted'
+                if not self._revalidate_scout_source(session, recovery, corpus_fingerprint):
+                    return copy.deepcopy(session), 'source_changed'
+                revision = session['model_plan_revision']
             if (session.get('scout_authorized_revision')==revision and session.get('scout', {}).get('disclosed') is True
                     and session.get('prepared_discovery_revision')==revision and session.get('result') is not None):
                 return copy.deepcopy(session), True
@@ -1214,6 +1310,8 @@ class ModelConversation:
             session.update(pending=operation, pending_model_led=True, can_propose=False)
             return copy.deepcopy(session), False
         session, cached = self.store.transaction(reserve)
+        if cached=='source_changed':raise ScoutSourceChanged(session)
+        if cached=='budget_exhausted':raise ModelResponseBudgetExhausted()
         if cached=='stale':raise DiscoveryError()
         if cached:return self.service.present_session(session)
         option = {'id':session['model_id'], 'name':session['model_id'], 'provider':'unknown'}
