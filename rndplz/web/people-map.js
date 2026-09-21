@@ -138,7 +138,7 @@
  }
  function fieldColor(key){
   const colors=['#56783c','#84743b','#396f69','#55749a','#48808a','#9a6741','#87634b','#866688','#687942'];
-  let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;return colors[hash%colors.length];
+  let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;const index=hash%colors.length;return 'var(--map-color-'+index+','+colors[index]+')';
  }
  function renderMap(s){
   if(s.view==='organization')return renderLegacyMap(s);

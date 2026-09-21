@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f4f2eb">
   <title>초대로 시작하기 — 수소문</title>
-  <link rel="stylesheet" href="/craft.css">
+  <script src="/theme.js"></script><link rel="stylesheet" href="/craft.css">
   <script src="/account-enroll.js" defer></script>
   <style>
     .enrollment-page .craft-header { display:flex; justify-content:space-between; gap:1rem; }
@@ -28,12 +28,12 @@
     .enrollment-footer { display:flex; gap:1rem; flex-wrap:wrap; }
     @media(max-width:420px) { .enrollment-page .craft-header { padding:1rem; } }
   </style>
-</head>
+<link rel="stylesheet" href="/theme.css"></head>
 <body class="crafted enrollment-page">
   <a class="skip-link" href="#enrollmentTitle">가입 안내로 이동</a>
   <header class="craft-header">
     <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
-    <a href="/">대화로 돌아가기</a>
+    <div class="craft-actions"><a href="/">대화로 돌아가기</a><div class="theme-controls" data-theme-controls role="group" aria-label="화면 모드" hidden><button type="button" data-theme-set="light" aria-pressed="true">라이트</button><button type="button" data-theme-set="dark" aria-pressed="false">다크</button></div></div>
   </header>
   <main class="enrollment-shell">
     <p class="eyebrow">함께 연구할 동료에게</p>

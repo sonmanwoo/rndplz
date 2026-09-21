@@ -1,0 +1,49 @@
+/* Light declarations in style.css/orbit.css remain intact. */
+:root {
+  --theme-control-edge: #768170;
+  --theme-hover: #e7e9df;
+}
+.theme-switch { display:inline-flex; flex:0 0 auto; align-items:center; gap:3px; padding:3px; border:1px solid var(--theme-control-edge); border-radius:5px; background:transparent; }
+.theme-switch button { border:0; border-radius:2px; min-height:38px; min-width:66px; padding:8px 12px; font:500 12px/1.5 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif; background:transparent; color:var(--ink,var(--om-ink)); cursor:pointer; white-space:nowrap; }
+.theme-switch button:hover { background:var(--theme-hover); }
+.theme-switch button[aria-pressed="true"] { background:var(--ink,var(--om-ink)); color:var(--paper,var(--om-paper)); }
+.theme-switch button:focus-visible { outline:2px solid var(--red,var(--om-red)); outline-offset:4px; }
+.theme-status { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+header,.om-header { flex-wrap:wrap; }
+.theme-note { margin:18px 0 0; font-size:12px; line-height:1.8; color:var(--muted,var(--om-muted)); }
+html[data-theme="dark"] {
+  color-scheme:dark;
+  --paper:#181d1a;
+  --sheet:#212823;
+  --ink:#f1eee5;
+  --muted:#b5beb3;
+  --red:#ee8b75;
+  --line:#465348;
+  --theme-control-edge:#83927f;
+  --theme-hover:#303c33;
+  --om-paper:var(--paper);
+  --om-ink:var(--ink);
+  --om-muted:var(--muted);
+  --om-red:var(--red);
+  --om-line:var(--line);
+  background:var(--paper);
+  color:var(--ink);
+}
+html[data-theme="dark"] .description { color:#c6cfc3; }
+html[data-theme="dark"] .choice-strip .open-choice,
+html[data-theme="dark"] .recommended .badge,
+html[data-theme="dark"] .om-panel-recommended .om-panel-type,
+html[data-theme="dark"] .om-panel[data-playing="true"] .om-status { color:var(--red); }
+html[data-theme="dark"] .h-card.recommended { border-top-color:var(--red); }
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .om-button { border-color:var(--theme-control-edge); }
+html[data-theme="dark"] .btn:hover,
+html[data-theme="dark"] .om-button:hover,
+html[data-theme="dark"] .om-text-button:hover { background:var(--theme-hover); }
+html[data-theme="dark"] .btn.primary,
+html[data-theme="dark"] .om-button-primary { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+html[data-theme="dark"] .btn.primary:hover,
+html[data-theme="dark"] .om-button-primary:hover { background:#fff9ed; }
+html[data-theme="dark"] .om-motion-notice { background:#30382d; }
+html[data-theme="dark"] ::selection { background:#d7c4a7; color:#181d1a; }
+@media(max-width:620px) { .theme-switch { margin-left:auto; } .theme-switch button { min-height:38px; } }

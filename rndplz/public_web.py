@@ -289,6 +289,26 @@ PREVIEW_PACKAGES = {
         'motion.js': ('motion.js', 'text/javascript; charset=utf-8'),
         'style.css': ('style.css', 'text/css; charset=utf-8'),
     },
+    '/ui-previews/CI-FONTS/r4/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'app.js': ('app.js', 'text/javascript; charset=utf-8'),
+        'fonts/c-en.woff2': ('fonts/c-en.woff2', 'font/woff2'),
+        'fonts/c-ko.woff2': ('fonts/c-ko.woff2', 'font/woff2'),
+        'fonts/h5.woff2': ('fonts/h5.woff2', 'font/woff2'),
+        'fonts.css': ('fonts.css', 'text/css; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'licenses/gowunbatang-OFL.txt': ('licenses/gowunbatang-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/librebaskerville-OFL.txt': ('licenses/librebaskerville-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/spacegrotesk-OFL.txt': ('licenses/spacegrotesk-OFL.txt', 'text/plain; charset=utf-8'),
+        'mark.svg': ('mark.svg', 'image/svg+xml'),
+        'motion.js': ('motion.js', 'text/javascript; charset=utf-8'),
+        'orbit.css': ('orbit.css', 'text/css; charset=utf-8'),
+        'orbit.html': ('orbit.html', 'text/html; charset=utf-8'),
+        'orbit.js': ('orbit.js', 'text/javascript; charset=utf-8'),
+        'style.css': ('style.css', 'text/css; charset=utf-8'),
+        'theme.css': ('theme.css', 'text/css; charset=utf-8'),
+        'theme.js': ('theme.js', 'text/javascript; charset=utf-8'),
+    },
 }
 PREVIEW_ROUTES = {
     prefix + suffix: (prefix.strip('/') + '/' + name, mime)
@@ -799,7 +819,7 @@ class PublicApp:
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
