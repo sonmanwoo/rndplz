@@ -287,6 +287,21 @@ def project_session(session):
                  or (scope.get('id') in ('runtime_public_papers.v1', 'runtime_public_papers.v2')
                      and scope.get('provider') in ('codex_oauth', 'openai_api') and scope.get('model_id') == 'runtime'))):
         shaped['provider_scope'] = _pick(scope, ('id', 'provider', 'model_id'))
+        binding = session.get('execution_binding')
+        if (isinstance(binding, dict) and set(binding) == {'model_id', 'provider'}
+                and binding.get('model_id') == session.get('model_id')
+                and all(isinstance(binding.get(k), str) and 0 < len(binding[k]) <= 150 for k in binding)):
+            shaped['execution_binding'] = _pick(binding, ('model_id', 'provider'))
+    # Provider-specific retry failure must not conceal remaining origin capacity
+    # for a different, explicitly selected execution model.
+    budget = session.get('model_generation_budget') or {}
+    latest_user = next((m for m in reversed(session.get('messages', [])) if m.get('role') == 'user'), {})
+    latest_assistant = next((m for m in reversed(session.get('messages', [])) if m.get('role') == 'assistant'), {})
+    switch_retry = (bool(session.get('provider_scope')) and not session.get('pending')
+                    and latest_assistant.get('status') in ('error', 'cancelled')
+                    and latest_assistant.get('turn_id') == latest_user.get('turn_id') == budget.get('origin_turn_id')
+                    and type(budget.get('calls')) is int and 0 <= budget['calls'] <= 2)
+    shaped['model_switch_retry_available'] = switch_retry
     shaped["scout"] = {"revision": revision, "status": status, "disclosed": disclosed,
                        "count": count if known else None, "count_status": "known" if known else "unknown"}
     count_basis = scout.get("count_basis")

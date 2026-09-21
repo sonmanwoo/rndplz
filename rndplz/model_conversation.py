@@ -640,6 +640,7 @@ class ModelConversation:
                  'excluded_person_ids':exclusions, 'record_catalog':catalog,
                  'planning_record_ids':visible_record_ids,
                  'request_spec_basis':copy.deepcopy(session.get('request_spec')),
+                 'execution_binding':copy.deepcopy(session.get('execution_binding')),
                  'record_ids':[r['record_id'] for r in catalog['records']]}
         return PlanMessages(messages, basis=basis)
 
@@ -678,7 +679,8 @@ class ModelConversation:
             current = self._model_pending(sid, turn_id)
         except ValueError as exc:
             raise ModelBasisChanged(str(exc)) from exc
-        if (current.get('request_spec') != basis.get('request_spec_basis') or
+        if (current.get('execution_binding') != basis.get('execution_binding') or
+                current.get('request_spec') != basis.get('request_spec_basis') or
                 self._model_sources(current) != basis['source_turns'] or
                 self._model_historical_disclosures(current) != basis.get('historical_disclosures', []) or
                 sorted(self.service.corpus.topic_by_id) != basis['topic_ids'] or
@@ -1511,6 +1513,7 @@ class ModelConversation:
                 raise ModelResponseBudgetExhausted()
             if not (session.get('discovery') or {}).get('lookup_ready'):
                 raise DiscoveryError()
+            if getattr(self, '_provider_scope', None):self._bind_execution(session, payload)
             session['scout_authorized_revision'] = revision
             session.update(pending=operation, pending_model_led=True, can_propose=False)
             return copy.deepcopy(session), False

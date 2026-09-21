@@ -26,6 +26,9 @@ from .discovery import DiscoveryError
 from .data import Corpus, ROOT
 from .engine import Engine
 from .models import ExternalModel
+from .hosted_demo import HostedDemoPolicy
+from .llm_runtime import RuntimeLegacyModel
+from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
@@ -407,15 +410,18 @@ class _VisitorStream:
 class PublicApp:
     def __init__(self, state_dir=None, env=None, include_personal=None):
         self.env = dict(os.environ if env is None else env)
+        self.hosted_demo_policy = HostedDemoPolicy(self.env) if self.env.get('APP_RUNTIME') == 'hosted_demo' else None
         self.directory = Path(state_dir or self.env.get('RNDPLZ_STATE_DIR', ROOT / 'out' / 'public-state'))
         self.directory.mkdir(parents=True, exist_ok=True)
         self.secret = self.env.get('RNDPLZ_SESSION_SECRET', '').encode() or secrets.token_bytes(32)
-        self.secure = self.env.get('RNDPLZ_LOCAL_PREVIEW') != '1'
+        self.secure = self.hosted_demo_policy is not None or self.env.get('RNDPLZ_LOCAL_PREVIEW') != '1'
         self.allowed_hosts = set(filter(None, self.env.get('RNDPLZ_ALLOWED_HOSTS', '').split(',')))
         if self.env.get('RENDER_EXTERNAL_HOSTNAME'):
             self.allowed_hosts.add(self.env['RENDER_EXTERNAL_HOSTNAME'])
         self.allowed_hosts.update({'127.0.0.1', 'localhost'})
-        self.origin = self.env.get('RNDPLZ_PUBLIC_ORIGIN', '').rstrip('/')
+        self.origin = self.hosted_demo_policy.origin if self.hosted_demo_policy is not None else self.env.get('RNDPLZ_PUBLIC_ORIGIN', '').rstrip('/')
+        if self.hosted_demo_policy is not None:
+            self.allowed_hosts.add(self.hosted_demo_policy.authority.split(':')[0])
         corpus = Corpus()
         approved = self.env.get('RNDPLZ_PUBLISH_PERSONAL') == '1' if include_personal is None else include_personal
         if not approved:
@@ -426,14 +432,16 @@ class PublicApp:
         from .demo_pool import project_corpus
         corpus = project_corpus(corpus, allow_personal_omission=not approved)
         self.engine = Engine(corpus)
-        self.models = PublicModels(self.env)
-        self.diagnostic_auth=DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
+        self.models = ObservedRuntimeChatModels(self.env) if self.hosted_demo_policy is not None else PublicModels(self.env)
+        self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py')
+        if self.hosted_demo_policy is not None:
+            tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -442,7 +450,7 @@ class PublicApp:
                                  'deployment_revision':revision if re.fullmatch(r'[a-f0-9]{40}',revision) else None,
                                  'raw_state_retention':'existing_state_unchanged',
                                  'storage_lifetime':'ephemeral_platform_storage; export_before_deploy'}
-        self.auth = AuthService.from_env(self.env)
+        self.auth = AuthService(reason='hosted_demo_disabled') if self.hosted_demo_policy is not None else AuthService.from_env(self.env)
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
@@ -454,6 +462,11 @@ class PublicApp:
             if isinstance(asset, str) and re.fullmatch(r'/portraits/[A-Za-z0-9_.-]+\.(?:png|jpe?g|webp)', asset):
                 stem = asset.rsplit('.', 1)[0]
                 self.images.update(stem + '-' + size + '.webp' for size in ('thumb', 'detail'))
+
+    def _runtime_legacy_model(self, directory):
+        if self.hosted_demo_policy is not None:
+            return RuntimeLegacyModel(self.models.runtime, audit_path=directory / 'model-events.jsonl')
+        return ExternalModel(env={})
 
     def signature(self, value):
         return hmac.new(self.secret, value.encode(), hashlib.sha256).hexdigest()
@@ -538,6 +551,8 @@ class PublicApp:
                 'token': context['token'] if account or not has_account_cookie else None}
 
     def _account_context(self, environ):
+        if self.hosted_demo_policy is not None:
+            return None
         protected = (environ.get('REQUEST_METHOD') == 'POST' or
                      environ.get('PATH_INFO', '').startswith('/api/self-profile') or
                      environ.get('PATH_INFO', '') == '/api/account/mole')
@@ -565,7 +580,7 @@ class PublicApp:
                         del self.contexts[key]
                 if len(self.contexts) >= 128:
                     raise AuthError('account_busy', 429)
-                service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
+                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid))
                 store = self.auth.profile_store(account['id'], session_cookie=cookie)
                 profile = Profiles(store, public=True, account={key: account[key]
                     for key in ('id', 'verified', 'storage_lifetime')})
@@ -656,7 +671,7 @@ class PublicApp:
                         del self.contexts[key]
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
-                service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
+                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid))
                 self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
                                       'sid': sid, 'inflight': 0, 'revoked': False,
@@ -709,6 +724,10 @@ class PublicApp:
         except Exception:return send(503,{'error':'진단 기록을 현재 읽을 수 없습니다.'})
 
     def __call__(self, environ, start_response):
+        if self.hosted_demo_policy is not None:
+            handled = self.hosted_demo_policy.admit(environ, start_response)
+            if handled is not None:
+                return handled
         headers = [('Cache-Control', 'no-store'), ('X-Content-Type-Options', 'nosniff'),
                    ('Referrer-Policy', 'same-origin'),
                    ('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")]

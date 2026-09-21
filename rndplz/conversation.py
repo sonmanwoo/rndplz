@@ -112,18 +112,52 @@ class Conversation(ModelConversation):
                 raise ProviderScopeError('본문을 추출한 문서를 다시 선택해 주세요.')
         return items
 
+    def _execution_binding(self, session):
+        scope = provider_scope(session)
+        binding = session.get('execution_binding')
+        if binding is None:
+            if scope and session.get('model_id') not in (None, scope['model_id']):
+                raise ProviderScopeError('저장된 실행 모델을 확인할 수 없습니다.')
+            return ({'model_id':scope['model_id'], 'provider':scope['provider']} if scope else None)
+        if (not isinstance(binding, dict) or set(binding) != {'model_id', 'provider'}
+                or not all(isinstance(binding.get(k), str) and 0 < len(binding[k]) <= 150 for k in binding)
+                or session.get('model_id') != binding['model_id']):
+            raise ProviderScopeError('저장된 실행 모델을 확인할 수 없습니다.')
+        return copy.deepcopy(binding)
+
+    def _execution_option(self, session, payload):
+        binding = self._execution_binding(session)
+        identifier = payload.get('model_id', session.get('model_id'))
+        option = self.models.get(identifier)  # The catalog rejects unknown/disabled options; no fallback.
+        if option.get('id') != identifier or option.get('enabled') is not True:
+            raise ProviderScopeError('선택한 모델을 사용할 수 없습니다.')
+        target = {'model_id':option['id'], 'provider':option['provider']}
+        previous = binding or ({'model_id':session['model_id'], 'provider':option['provider']}
+                               if session.get('model_id') else None)
+        if previous and previous != target and payload.get('model_selection_origin') != 'explicit':
+            raise ProviderScopeError('실행 모델 변경은 직접 선택한 경우에만 적용합니다.')
+        for message in session.get('messages', []):
+            for ref in message.get('attachments', []):
+                if self.attachments.load(ref['id']).get('image') and option.get('vision') is not True:
+                    raise ProviderScopeError('선택한 모델은 이 대화의 이미지를 읽지 못합니다. 이미지 지원 모델을 선택해 주세요.')
+        return option
+
+    def _bind_execution(self, session, payload):
+        option = self._execution_option(session, payload)
+        session['execution_binding'] = {'model_id':option['id'], 'provider':option['provider']}
+        session['model_id'] = option['id']
+        if 'model_selection_origin' in payload:
+            session['model_selection_origin'] = payload['model_selection_origin']
+        return option
+
     def _scoped_session_check(self, session):
         scope = provider_scope(session)
         if scope != getattr(self, '_provider_scope', None):
             raise ProviderScopeError('이 대화의 자료 범위가 달라졌습니다. 새 대화를 시작해 주세요.')
         if scope is None:
             return
-        if scope['id'] in (RUNTIME_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID):
-            option = self.models.get(scope['model_id'])
-            if option.get('provider') != scope['provider'] or option.get('vision') is not False:
-                raise ProviderScopeError('이 대화의 외부 모델 연결이 바뀌었습니다. 새 대화를 시작해 주세요.')
-        if session.get('model_id') not in (None, scope['model_id']):
-            raise ProviderScopeError('공개 논문 대화에서는 모델을 바꿀 수 없습니다. 새 대화를 시작해 주세요.')
+        # Scope remains the original data policy, independent of current execution.
+        self._execution_binding(session)
         messages = session.get('messages') or []
         if any(m.get('kind') == 'self_profile' for m in messages):
             raise ProviderScopeError('공개 논문 대화에는 내 프로필 이력을 연결할 수 없습니다.')
@@ -159,12 +193,16 @@ class Conversation(ModelConversation):
 
     def _check_scoped_dispatch(self, identifier, messages):
         scope = self._provider_scope
-        if identifier != scope['model_id'] or any(m.get('attachments') for m in messages):
+        if any(m.get('attachments') for m in messages):
             raise ProviderScopeError('공개 논문 전송 범위와 선택한 모델이 일치하지 않습니다.')
         session = next((s for s in self.store.read()['sessions'] if s['id'] == self._provider_session_id), None)
         if session is None:
             raise ProviderScopeError('공개 논문 대화를 찾을 수 없습니다.')
         self._scoped_session_check(session)
+        binding = self._execution_binding(session)
+        option = self.models.get(identifier)
+        if binding != {'model_id':identifier, 'provider':option.get('provider')} or option.get('enabled') is not True:
+            raise ProviderScopeError('현재 실행 모델과 전송 모델이 일치하지 않습니다.')
         expected = [item['image'] for row in session.get('messages', []) for item in
                     self._scoped_attachment_items([ref['id'] for ref in row.get('attachments', [])], scope) if item.get('image')]
         actual = []
@@ -177,22 +215,21 @@ class Conversation(ModelConversation):
             raise ProviderScopeError('명시적으로 연결한 이미지와 전송 자료가 다릅니다.')
 
     def _for_provider_request(self, payload, *, preparing=False):
-        if 'provider_scope' in payload:
+        if 'provider_scope' in payload or 'execution_binding' in payload:
             raise ProviderScopeError('대화 자료 범위는 서버에서 정합니다.')
         sid, turn = payload.get('session_id'), payload.get('turn_id')
         sessions = self.store.read()['sessions']
         current = next((s for s in sessions if s['id'] == sid), None) if sid else next(
             (s for s in sessions if turn and any(m.get('turn_id') == turn for m in s.get('messages', []))), None)
         scope = provider_scope(current) if current else None
-        identifier = current.get('model_id') if preparing and current else payload.get('model_id')
+        identifier = payload.get('model_id', current.get('model_id') if current else None)
         gemini = isinstance(identifier, str) and identifier.startswith('gemini:')
         runtime_option = self.models.get(identifier) if identifier == 'runtime' else None
         remote_runtime = runtime_option is not None and runtime_option.get('provider') in RUNTIME_SCOPE_PROVIDERS
         if runtime_option is not None and not remote_runtime and runtime_option.get('provider') != 'mock':
             raise ProviderScopeError('외부 런타임의 자료 범위를 확인할 수 없습니다.')
         if scope:
-            if identifier != scope['model_id']:
-                raise ProviderScopeError('이 대화는 선택한 외부 모델의 공개 논문 범위로 고정돼 있습니다. 모델 변경은 새 대화에서 해 주세요.')
+            self._execution_option(current, payload)
         elif gemini or remote_runtime:
             if (current or sid or preparing or not (payload.get('model_selection_origin') == 'explicit' or
                     (payload.get('model_selection_origin') == 'automatic' and self.models.catalog().get('default') == identifier))):
@@ -226,7 +263,7 @@ class Conversation(ModelConversation):
             raise ProviderScopeError('공개 논문 대화에 내 프로필을 연결할 수 없습니다. 별도 대화를 시작해 주세요.')
 
     def history(self):
-        return [{'id':s['id'],'title':s['original'][:60],'updated':s['updated'],'model_id':s.get('model_id'),'model_selection_origin':s.get('model_selection_origin','legacy_unknown'), **({'provider_scope':copy.deepcopy(provider_scope(s))} if s.get('provider_scope') else {})}
+        return [{'id':s['id'],'title':s['original'][:60],'updated':s['updated'],'model_id':s.get('model_id'),'model_selection_origin':s.get('model_selection_origin','legacy_unknown'), **({'provider_scope':copy.deepcopy(provider_scope(s))} if s.get('provider_scope') else {}), **({'execution_binding':self._execution_binding(s)} if s.get('execution_binding') else {})}
                 for s in reversed(self.store.read()['sessions']) if s.get('kind')=='chat']
 
     def get(self,sid):
@@ -722,7 +759,19 @@ class Conversation(ModelConversation):
                        for message in other.get('messages', []) for ref in message.get('attachments', [])):
                     raise ProviderScopeError('다른 대화의 첨부는 가져오지 않습니다. 자료를 새로 선택해 주세요.')
             existing=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='user'),None)
-            if existing and existing.get('digest')!=digest:raise ValueError('다른 내용으로 이미 사용한 메시지 식별자입니다.')
+            retry_model_changed = False
+            if existing and existing.get('retry_digest', existing.get('digest')) != digest:
+                previous = next((m for m in reversed(s['messages']) if m.get('role') == 'assistant'
+                                 and m.get('turn_id') == turn_id), {})
+                same_request = (existing.get('input_text', existing.get('text', '')) == text
+                    and [ref.get('id') for ref in existing.get('attachments', [])] == ids
+                    and existing.get('person_id') == selected)
+                binding = self._execution_binding(s)
+                retry_model_changed = bool(binding and binding != {'model_id':option['id'], 'provider':option['provider']})
+                if (not same_request or not retry_model_changed or selection_origin != 'explicit'
+                        or previous.get('status') not in ('error', 'cancelled')
+                        or (s.get('model_generation_budget') or {}).get('origin_turn_id') != turn_id):
+                    raise ValueError('다른 내용으로 이미 사용한 메시지 식별자입니다.')
             completed=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='assistant' and m.get('status')=='complete'),None)
             if completed:return self.service.present_session(s),None,True
             if selected:
@@ -745,6 +794,11 @@ class Conversation(ModelConversation):
                         # At most three provider reservations belong to this turn.
                         # Preserve failed output before replacing its screen entry.
                         archived.append({'generation_calls':calls,'message':copy.deepcopy(previous)})
+            if retry_model_changed:
+                # Preserve the original request fingerprint and failed assistant archive.
+                existing['retry_digest'] = digest
+            if getattr(self, '_provider_scope', None):
+                self._bind_execution(s, payload)
             if not existing:
                 self._remember_model_disclosure(s)
             s['messages']=[m for m in s['messages'] if not(m.get('turn_id')==turn_id and m['role']=='assistant')]
@@ -1056,6 +1110,7 @@ class Conversation(ModelConversation):
             discovery=self.discovery.evaluate(request,previous)
             if not discovery['lookup_ready'] or discovery['revision']!=previous['revision']:
                 raise DiscoveryError()
+            if getattr(self, '_provider_scope', None):self._bind_execution(s, payload)
             query=self.actions.query_for({'_request_query':discovery['query']},'')
             s['mode']=self.service.engine.mode_for(query)
             s['asker']='site' if s['mode']=='site_request' else 'lab'

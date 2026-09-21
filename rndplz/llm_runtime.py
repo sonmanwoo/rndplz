@@ -1,4 +1,4 @@
-"""Explicit local OAuth / deployed Responses / offline-test routing.
+"""Explicit local/hosted-demo OAuth / deployed Responses / test routing.
 
 No SDK, inference CLI, retries, refresh implementation or provider fallback.
 This module is server-only. OAuth is a Codex backend integration, not a promise
@@ -25,6 +25,8 @@ from .responses_stream import LLMError, StreamEvent, iter_response_events
 CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
 MOCK_TEXT = "[MOCK] 실제 모델을 호출하지 않은 테스트 응답입니다."
+OAUTH_RUNTIMES = frozenset({"local", "hosted_demo"})
+OAUTH_AUTH_ERRORS = frozenset({"auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized"})
 NONRETRYABLE_RUNTIME_ERRORS = frozenset({
     "auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized",
     "model_access_denied", "local_only", "mock_fixture_required", "process_call_cap",
@@ -43,10 +45,13 @@ class RuntimeConfigError(ValueError):
 
 
 class RuntimeFailure(LLMError):
-    def __init__(self, code, *, provider=None, http_status=None):
+    def __init__(self, code, *, provider=None, http_status=None, runtime=None):
         super().__init__(code, provider=provider, http_status=http_status)
-        if code in {"auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized"}:
-            self.args = ("로컬 인증을 사용할 수 없습니다. 로컬 로그인 명령을 다시 실행하세요.",)
+        if code in OAUTH_AUTH_ERRORS:
+            if runtime == "hosted_demo":
+                self.args = ("서버 OAuth 인증을 사용할 수 없습니다. 소유자가 전용 로그인 명령을 다시 실행하고 서버 인증 secret을 갱신해야 합니다.",)
+            else:
+                self.args = ("로컬 인증을 사용할 수 없습니다. 로컬 로그인 명령을 다시 실행하세요.",)
         elif code == "model_access_denied":
             self.args = ("선택한 계정 또는 모델의 접근 권한을 확인해 주세요. 다른 인증 경로로 전환하지 않았습니다.",)
         elif code == "rate_limited":
@@ -61,8 +66,8 @@ class RuntimeFailure(LLMError):
             self.args = ("이 구조화 출력 테스트에는 명시적인 mock 응답 fixture가 필요합니다.",)
 
 
-def _fail(code, provider=None, status=None):
-    raise RuntimeFailure(code, provider=provider, http_status=status) from None
+def _fail(code, provider=None, status=None, *, runtime=None):
+    raise RuntimeFailure(code, provider=provider, http_status=status, runtime=runtime) from None
 
 
 def _inside(path, root):
@@ -101,14 +106,15 @@ class RuntimeConfig:
     model: str
     auth_file: Path | None = field(default=None, repr=False)
     api_key: str = field(default="", repr=False)
+    max_calls: int = 20
 
     @classmethod
     def from_env(cls, env=None, *, repo_root=None):
         env = os.environ if env is None else env
         runtime, provider = env.get("APP_RUNTIME"), env.get("LLM_PROVIDER")
-        if runtime not in {"local", "deployed", "test"}:
-            raise RuntimeConfigError("APP_RUNTIME은 local, deployed, test 중 하나로 명시해야 합니다.")
-        expected = {"local": "codex_oauth", "deployed": "openai_api", "test": "mock"}[runtime]
+        if runtime not in {"local", "hosted_demo", "deployed", "test"}:
+            raise RuntimeConfigError("APP_RUNTIME은 local, hosted_demo, deployed, test 중 하나로 명시해야 합니다.")
+        expected = {"local": "codex_oauth", "hosted_demo": "codex_oauth", "deployed": "openai_api", "test": "mock"}[runtime]
         if provider != expected:
             raise RuntimeConfigError("APP_RUNTIME과 LLM_PROVIDER 조합이 올바르지 않습니다. test는 mock을 사용합니다.")
         if runtime == "test":
@@ -117,22 +123,34 @@ class RuntimeConfig:
             # Deliberately do not read CODEX_AUTH_FILE or any OAuth credential.
             return cls(runtime, provider, _safe_string(env.get("OPENAI_MODEL"), "OPENAI_MODEL"),
                        api_key=_safe_string(env.get("OPENAI_API_KEY"), "OPENAI_API_KEY"))
+        max_calls = 20
+        if runtime == "hosted_demo":
+            raw_limit = env.get("RNDPLZ_DEMO_MAX_CALLS", "20")
+            if (not isinstance(raw_limit, str) or not re.fullmatch(r"[0-9]{1,3}", raw_limit)
+                    or not 1 <= int(raw_limit) <= 200):
+                raise RuntimeConfigError("RNDPLZ_DEMO_MAX_CALLS는 1부터 200까지의 정수여야 합니다.")
+            max_calls = int(raw_limit)
         model = _safe_string(env.get("CODEX_MODEL"), "CODEX_MODEL")
         raw_path = _safe_string(env.get("CODEX_AUTH_FILE"), "CODEX_AUTH_FILE")
         path = Path(raw_path).expanduser()
         if not path.is_absolute():
+            if runtime == "hosted_demo":
+                raise RuntimeConfigError("CODEX_AUTH_FILE은 저장소 밖 전용 인증 파일의 절대 경로여야 합니다.")
             raise RuntimeConfigError("CODEX_AUTH_FILE은 저장소 밖 전용 auth.json의 절대 경로여야 합니다.")
         root = Path(repo_root).resolve() if repo_root else Path(__file__).resolve().parents[1]
         resolved = path.resolve()
         global_file = (Path.home() / ".codex" / "auth.json").resolve()
-        if (_inside(resolved, root) or resolved == global_file or resolved.name != "auth.json"
+        allowed_names = {"auth.json", "codex-auth.json"} if runtime == "hosted_demo" else {"auth.json"}
+        if (_inside(resolved, root) or resolved == global_file or resolved.name not in allowed_names
                 or any(p.is_symlink() or bool(getattr(p, "is_junction", lambda: False)()) for p in (path, *path.parents))):
+            if runtime == "hosted_demo":
+                raise RuntimeConfigError("CODEX_AUTH_FILE은 기존 Codex 인증과 분리된 저장소 밖 전용 auth.json 또는 codex-auth.json이어야 합니다.")
             raise RuntimeConfigError("CODEX_AUTH_FILE은 기존 Codex 인증과 분리된 저장소 밖 전용 auth.json이어야 합니다.")
-        # Deliberately never inspect OPENAI_API_KEY for local.
-        return cls(runtime, provider, model, auth_file=resolved)
+        # Deliberately never inspect OPENAI_API_KEY for either OAuth runtime.
+        return cls(runtime, provider, model, auth_file=resolved, max_calls=max_calls)
 
     def diagnostics(self):
-        present = self.auth_file.is_file() if self.runtime == "local" else bool(self.api_key) if self.runtime == "deployed" else False
+        present = self.auth_file.is_file() if self.runtime in OAUTH_RUNTIMES else bool(self.api_key) if self.runtime == "deployed" else False
         return {"runtime": self.runtime, "provider": self.provider, "model": self.model,
                 "auth_configured": present}
 
@@ -286,14 +304,18 @@ class ResponsesRuntime:
             name = re.sub(r"[^A-Za-z0-9_-]", "_", contract_name)[:64] or "response"
             payload["text"] = {"format": {"type": "json_schema", "name": name, "strict": True, "schema": schema}}
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "rndplz-local/1"}
-        if config.runtime == "local":
+        if config.runtime in OAUTH_RUNTIMES:
             endpoint = CODEX_ENDPOINT
+            if config.runtime == "hosted_demo":
+                headers["User-Agent"] = "rndplz-hosted-demo/1"
             try:
                 headers.update(self._auth_loader(config.auth_file))
-            except LLMError:
+            except LLMError as exc:
+                if config.runtime == "hosted_demo" and exc.code in OAUTH_AUTH_ERRORS:
+                    _fail(exc.code, config.provider, exc.http_status, runtime=config.runtime)
                 raise
             except Exception:
-                _fail("auth_invalid", config.provider)
+                _fail("auth_invalid", config.provider, runtime=config.runtime)
         else:
             endpoint = OPENAI_ENDPOINT
             headers["User-Agent"] = "rndplz-deployed/1"
@@ -329,7 +351,7 @@ class ResponsesRuntime:
                     pass
             chunks = _safe_transport(self._transport, endpoint, headers, body,
                                      deadline=deadline, cancelled=cancelled, provider=config.provider)
-            for event in iter_response_events(chunks, provider=config.provider, cancelled=cancelled):
+            for event in iter_response_events(chunks, provider=config.provider, cancelled=cancelled, final_only=schema is not None):
                 _check(deadline, cancelled, config.provider)
                 if event.kind == "completed":
                     completed = event
@@ -354,11 +376,13 @@ class ResponsesRuntime:
         except urllib.error.HTTPError as exc:
             status = exc.code
             exc.close()
-            code = "oauth_unauthorized" if status == 401 and config.runtime == "local" else "model_access_denied" if status in {401, 403, 404} else "rate_limited" if status == 429 else "provider_http_error"
-            _fail(code, config.provider, status)
+            code = "oauth_unauthorized" if status == 401 and config.runtime in OAUTH_RUNTIMES else "model_access_denied" if status in {401, 403, 404} else "rate_limited" if status == 429 else "provider_http_error"
+            _fail(code, config.provider, status, runtime=config.runtime)
         except (TimeoutError, socket.timeout):
             _fail("timeout", config.provider)
-        except LLMError:
+        except LLMError as exc:
+            if config.runtime == "hosted_demo" and exc.code in OAUTH_AUTH_ERRORS:
+                _fail(exc.code, config.provider, exc.http_status, runtime=config.runtime)
             raise
         except Exception:
             _fail("transport_error", config.provider)
@@ -384,7 +408,7 @@ def build_runtime(env=None, *, repo_root=None, **kwargs):
 
 
 def enforce_local_request(config, remote_addr):
-    """Call at the HTTP boundary; never trust forwarded IPs for local OAuth."""
+    """Check local OAuth peers; never infer runtime from forwarded addresses."""
     if config.runtime != "local":
         return
     try:
@@ -423,14 +447,14 @@ class RuntimeChatModels:
                 or type(required_calls) is not int or required_calls < 1):
             return False
         with self.lock:
-            return self.runtime.config.runtime == "test" or self.calls.get(identifier, 0) + required_calls <= 20
+            return self.runtime.config.runtime == "test" or self.calls.get(identifier, 0) + required_calls <= self.runtime.config.max_calls
 
     def stream(self, identifier, messages, *, contract=None):
         from .chat_models import CHAT_SYSTEM, validate_generation_input
         self.get(identifier)
         spec = validate_generation_input(messages, contract) if contract is not None else None
         with self.lock:
-            if self.runtime.config.runtime != "test" and self.calls.get(identifier, 0) >= 20:
+            if self.runtime.config.runtime != "test" and self.calls.get(identifier, 0) >= self.runtime.config.max_calls:
                 # MAIN's current integration baseline owns this shared error.
                 # Older ROOT snapshots do not yet contain the class.
                 try:
@@ -500,6 +524,6 @@ class RuntimeLegacyModel(ExternalModel):
 
     def fallback(self, reason):
         result = super().fallback(reason)
-        if reason in {"auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized"}:
-            result["message"] = "로컬 인증을 사용할 수 없습니다. 로컬 로그인 명령을 다시 실행하세요."
+        if reason in OAUTH_AUTH_ERRORS:
+            result["message"] = str(RuntimeFailure(reason, provider=self.provider, runtime=self.runtime.config.runtime))
         return result
