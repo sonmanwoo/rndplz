@@ -285,11 +285,17 @@ PLAN_SYSTEM = _STYLE + (
     "제공된 활성 topic ID가 없으면 topic_ids=[], 노출된 record ID가 없으면 record_ids=[]입니다. person_names는 사용자 발화 또는 검증된 이전 공개 자료에 있는 실제 이름만 쓰고, 없으면 []로 두세요. 미정인 항목을 채우려고 이름·조회식·문자열 대체값을 만들지 마세요. "
     "decision·scope·brief·summary를 정한 뒤 reply에는 현재 질문에 답할 방향을 짧게 적으세요. 한 발화의 요청 수정과 설명·판단 요청을 모두 반영하되 실행 전 초안을 최종 결과처럼 쓰지 마세요."
 )
+# Response input exposes record IDs and free queries, not active topic IDs.
+# Isolate the nested shape before restricting it; other contracts share schemas.
+_RESPONSE_SEARCH_SCHEMA = copy.deepcopy(_lookup_schema("search"))
+_RESPONSE_SEARCH_SCHEMA["properties"]["interpretations"]["items"]["properties"][
+    "groups"]["items"]["properties"]["topic_ids"]["maxItems"] = 0
+
 RESPONSE_SCHEMA = _object({
     "assessments": copy.deepcopy(ASSESSMENT_SCHEMA["properties"]["assessments"]),
     "reply": {**_text(6000, minimum=1),
               "description": "Final user-facing reply. Explain source-attributed roles, techniques and participation, and reason about their relevance to the user purpose. For each person discussed, concisely retain material limits from assessments.missing and the cited record claim_boundary that affect that judgment. Source naming alone does not state those limits. Do not turn relevance into an assurance of proficiency, expertise or independently verified performance. Keep natural useful explanation; do not avoid all recommendations or repeat a fixed verification disclaimer."},
-    "next_lookup": {"anyOf": [{"type": "null"}, _lookup_schema("search"), _lookup_schema("read")]},
+    "next_lookup": {"anyOf": [{"type": "null"}, _RESPONSE_SEARCH_SCHEMA, _lookup_schema("read")]},
 })
 RESPONSE_SYSTEM = _STYLE + (
     "\n실제 조회 자료를 원래 사용자 목적과 최신 정정에 비추어 먼저 인물별로 평가한 뒤, 그 평가와 원문이 뒷받침하는 관계 범위 안에서 reply를 작성해 JSON 하나로 답하세요. "
