@@ -222,15 +222,17 @@ class Conversation(ModelConversation):
         current = next((s for s in sessions if s['id'] == sid), None) if sid else next(
             (s for s in sessions if turn and any(m.get('turn_id') == turn for m in s.get('messages', []))), None)
         scope = provider_scope(current) if current else None
+        stopping = not preparing and self.actions.cancelled(validate_text(payload.get('text', ''), 16000, True))
         identifier = payload.get('model_id', current.get('model_id') if current else None)
         gemini = isinstance(identifier, str) and identifier.startswith('gemini:')
-        runtime_option = self.models.get(identifier) if identifier == 'runtime' else None
+        runtime_option = self.models.get(identifier) if identifier == 'runtime' and not stopping else None
         remote_runtime = runtime_option is not None and runtime_option.get('provider') in RUNTIME_SCOPE_PROVIDERS
         if runtime_option is not None and not remote_runtime and runtime_option.get('provider') != 'mock':
             raise ProviderScopeError('외부 런타임의 자료 범위를 확인할 수 없습니다.')
         if scope:
-            self._execution_option(current, payload)
-        elif gemini or remote_runtime:
+            if not stopping:
+                self._execution_option(current, payload)
+        elif (gemini or remote_runtime) and not stopping:
             if (current or sid or preparing or not (payload.get('model_selection_origin') == 'explicit' or
                     (payload.get('model_selection_origin') == 'automatic' and self.models.catalog().get('default') == identifier))):
                 raise ProviderScopeError('외부 모델은 이전 이력이 없는 새 대화에서 선택해 주세요.')
@@ -790,14 +792,16 @@ class Conversation(ModelConversation):
                 if previous and budget.get('origin_turn_id')==turn_id:
                     archived=existing.setdefault('model_attempt_history',[])
                     calls=budget.get('calls',0)
-                    if calls and (not archived or calls>archived[-1]['generation_calls']):
-                        # At most three provider reservations belong to this turn.
-                        # Preserve failed output before replacing its screen entry.
+                    # Predispatch failures may use zero or the same call count.
+                    # Ignore timing-only changes when retaining distinct failed output.
+                    identity = {k:v for k,v in previous.items() if k != 'elapsed_ms'}
+                    if not any({k:v for k,v in row.get('message', {}).items() if k != 'elapsed_ms'} == identity for row in archived):
                         archived.append({'generation_calls':calls,'message':copy.deepcopy(previous)})
+                    del archived[:-8]
             if retry_model_changed:
                 # Preserve the original request fingerprint and failed assistant archive.
                 existing['retry_digest'] = digest
-            if getattr(self, '_provider_scope', None):
+            if getattr(self, '_provider_scope', None) and not stopping:
                 self._bind_execution(s, payload)
             if not existing:
                 self._remember_model_disclosure(s)
@@ -921,7 +925,9 @@ class Conversation(ModelConversation):
                                 'can_propose':s.get('can_propose',False),'mode':s.get('mode','advice')}
                 s['search_context']={**context,'kind':'discussion'}
             s['pending_action']=action
-            s['pending']=turn_id;s['model_id']=option['id'];s['ready']=False;s['result']=None;s['updated']=now()
+            s['pending']=turn_id;s['ready']=False;s['result']=None;s['updated']=now()
+            if not stopping or not s.get('model_id'):
+                s['model_id']=option['id']
             if dialogue_state is not None:
                 # Errors and cancellation must not erase the user's reading context
                 # or restore authority for conditions that may have changed.
