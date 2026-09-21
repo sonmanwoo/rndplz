@@ -28,6 +28,7 @@ from .service import Service
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
+from .auth_service import AuthService, AuthError, AUTHORIZATION
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
 
@@ -331,7 +332,8 @@ class PublicApp:
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
-                 'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py')
+                 'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
+                 'auth_service.py','account_storage.py','profiles.py')
         fingerprint=hashlib.sha256()
         for name in tracked:
             fingerprint.update(name.encode());fingerprint.update(Path(__file__).with_name(name).read_bytes())
@@ -340,6 +342,7 @@ class PublicApp:
                                  'deployment_revision':revision if re.fullmatch(r'[a-f0-9]{40}',revision) else None,
                                  'raw_state_retention':'existing_state_unchanged',
                                  'storage_lifetime':'ephemeral_platform_storage; export_before_deploy'}
+        self.auth = AuthService.from_env(self.env)
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
@@ -368,6 +371,12 @@ class PublicApp:
         with self.lock:
             if context['inflight'] != 1 or context['active']:
                 return False
+            if context.get('session_mode') == 'account':
+                # Account store and logout serialize against the same session row.
+                self.auth.logout(context['_account_cookie'], context['token'])
+                context['revoked'] = True
+                self.contexts.pop(context['sid'], None)
+                return True
             marker = self.directory / context['sid'] / '.visitor-revoked'
             with marker.open('xb') as stream:
                 stream.write(b'1\n')
@@ -377,7 +386,147 @@ class PublicApp:
             self.contexts.pop(context['sid'], None)
         return True
 
+    @staticmethod
+    def _account_cookie(environ, name):
+        raw = environ.get('HTTP_COOKIE', '')
+        # Reject ambiguous same-name cookies rather than choosing client order.
+        entries = [piece.strip() for piece in raw.split(';')
+                   if piece.strip().split('=', 1)[0] == name]
+        if len(entries) > 1:
+            raise AuthError('account_cookie_ambiguous', 401)
+        if not entries:
+            return None
+        cookie = SimpleCookie()
+        try:
+            cookie.load(entries[0])
+            value = cookie[name].value
+        except Exception:
+            raise AuthError('account_cookie_invalid', 401) from None
+        if not value or len(value) > 2048:
+            raise AuthError('account_cookie_invalid', 401)
+        return value
+
+    @staticmethod
+    def _account_cookie_header(name, value='', max_age=0):
+        # Only opaque server-issued values enter Set-Cookie, never query data.
+        if value and not re.fullmatch(r'[A-Za-z0-9_-]{20,200}', value):
+            raise AuthError('account_cookie_shape', 503)
+        result = name + '=' + value + '; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=' + str(max_age)
+        if not value:
+            result += '; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        return result
+
+    @staticmethod
+    def _public_account(account):
+        return {key: account[key] for key in ('id', 'display_name', 'email')}
+
+    def _account_status(self, context, environ):
+        account = context.get('account')
+        # An expired account cookie never supplies a new visitor CSRF for writes.
+        try:
+            has_account_cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME) is not None
+        except AuthError:
+            has_account_cookie = True
+        return {'enabled': self.auth.enabled, 'authenticated': account is not None,
+                'account': self._public_account(account) if account else None,
+                'login_url': '/auth/google/start' if self.auth.enabled else None,
+                'disabled_reason': None if self.auth.enabled else 'Google 로그인이 아직 설정되지 않았습니다. 방문자로 계속 이용할 수 있습니다.',
+                'token': context['token'] if account or not has_account_cookie else None}
+
+    def _account_context(self, environ):
+        protected = (environ.get('REQUEST_METHOD') == 'POST' or
+                     environ.get('PATH_INFO', '').startswith('/api/self-profile'))
+        try:
+            cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME)
+        except AuthError:
+            if protected:
+                raise
+            return None
+        if cookie is None:
+            return None
+        principal = self.auth.authenticate(cookie)
+        if principal is None:
+            if protected:
+                raise AuthError('account_session_expired', 401)
+            return None
+        account = principal['account']
+        # The key identifies this opaque login session, not every login to the account.
+        sid = 'account-' + hashlib.sha256(cookie.encode('utf-8')).hexdigest()
+        with self.lock:
+            now = time.monotonic()
+            if sid not in self.contexts:
+                for key, item in list(self.contexts.items()):
+                    if now - item['used'] > 3600 and item['active'] == 0 and item['inflight'] == 0:
+                        del self.contexts[key]
+                if len(self.contexts) >= 128:
+                    raise AuthError('account_busy', 429)
+                service = Service(self.engine, self.directory / sid, ExternalModel(env={}))
+                store = self.auth.profile_store(account['id'], session_cookie=cookie)
+                profile = Profiles(store, public=True, account={key: account[key]
+                    for key in ('id', 'verified', 'storage_lifetime')})
+                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models),
+                    'profile': profile, 'account': account, 'session_mode': 'account',
+                    '_account_cookie': cookie, 'token': principal['csrf'], 'used': now,
+                    'active': 0, 'requests': [], 'sid': sid, 'inflight': 0, 'revoked': False,
+                    'visitor_ref': self.signature('diagnostic:' + sid)}
+            context = self.contexts[sid]
+            context.update(account=account, token=principal['csrf'], used=now)
+        return context
+
+    def _google_login(self, environ, path, method, send, headers):
+        if method != 'GET':
+            return send(405, {'error': '로그인 이동은 GET 요청으로만 처리합니다.'})
+        try:
+            query = parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True)
+            if any(len(value) != 1 for value in query.values()):
+                raise AuthError('login_query_ambiguous', 400)
+            if path == '/auth/google/start':
+                if query:
+                    raise AuthError('login_query_invalid', 400)
+                # Normal same-site menu navigation has no X-CSRF or Origin header.
+                flow = self.auth.begin_login('/')
+                if not flow['authorization_url'].startswith(AUTHORIZATION + '?'):
+                    raise AuthError('login_destination_invalid', 503)
+                headers.append(('Set-Cookie', self._account_cookie_header(
+                    self.auth.LOGIN_COOKIE_NAME, flow['login_cookie'], flow['cookie_max_age'])))
+                headers.append(('Location', flow['authorization_url']))
+                return send(303, b'', 'text/plain; charset=utf-8')
+            if 'error' in query:
+                raise AuthError('google_login_not_completed', 403)
+            if not query.get('code', [''])[0] or not query.get('state', [''])[0]:
+                raise AuthError('login_query_invalid', 400)
+            login_cookie = self._account_cookie(environ, self.auth.LOGIN_COOKIE_NAME)
+            try:
+                previous_cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME)
+            except AuthError:
+                previous_cookie = None
+            # A malformed/expired prior cookie cannot prevent a fresh valid login.
+            if previous_cookie and self.auth.authenticate(previous_cookie) is None:
+                previous_cookie = None
+            result = self.auth.finish(query['code'][0], query['state'][0], login_cookie, previous_cookie)
+            if previous_cookie:
+                old_key = 'account-' + hashlib.sha256(previous_cookie.encode('utf-8')).hexdigest()
+                with self.lock:
+                    previous = self.contexts.pop(old_key, None)
+                    if previous is not None:
+                        previous['revoked'] = True
+            headers.append(('Set-Cookie', self._account_cookie_header(
+                self.auth.SESSION_COOKIE_NAME, result['session_cookie'], 86400)))
+            headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
+            headers.append(('Set-Cookie', self._expired_cookie()))
+            headers.append(('Location', '/?account_changed=1'))
+            return send(303, b'', 'text/plain; charset=utf-8')
+        except AuthError as exc:
+            headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
+            return send(exc.status, {'error': str(exc), 'code': exc.code})
+        except Exception:
+            headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
+            return send(503, {'error': '계정 인증을 지금 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.', 'code': 'account_service_unavailable'})
+
     def visitor(self, environ):
+        account = self._account_context(environ)
+        if account is not None:
+            return account, None
         cookie = SimpleCookie()
         try:
             cookie.load(environ.get('HTTP_COOKIE', ''))
@@ -473,6 +622,8 @@ class PublicApp:
         if host not in self.allowed_hosts:
             return send(421, {'error': '허용되지 않은 서비스 주소입니다.'})
         path, method = environ.get('PATH_INFO', '/'), environ.get('REQUEST_METHOD', 'GET')
+        if path in ('/auth/google/start', '/auth/google/callback'):
+            return self._google_login(environ, path, method, send, headers)
         if path == '/healthz':
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
@@ -522,7 +673,8 @@ class PublicApp:
                     return send(403, {'error': '종료된 방문자 세션입니다. 화면을 새로고침해 주세요.'})
                 context['inflight'] += 1
                 lease = context
-            headers.append(('Set-Cookie', cookie))
+            if cookie is not None:
+                headers.append(('Set-Cookie', cookie))
             service, chat, profile = context['service'], context['chat'], context['profile']
             token = context['token']
             query = parse_qs(environ.get('QUERY_STRING', ''))
@@ -534,13 +686,16 @@ class PublicApp:
                                     'code_fingerprint':self.diagnostic_runtime['code_fingerprint']}
                 marker=environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC_RUN','')
                 if isinstance(marker,str) and re.fullmatch(r'[a-f0-9]{32}',marker):diagnostic_request['diagnostic_run']=marker
+            session_mode = context.get('session_mode', 'visitor')
+            account_view = {'account': self._public_account(context['account'])} if context.get('account') else {}
             if method == 'GET':
+                if path == '/api/account/session': return send(200, self._account_status(context, environ))
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
-                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'session_mode': 'visitor', 'logout_supported': True})
+                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/chat/models': return send(200, self.models.catalog())
                 if path == '/api/chat/session': return send(200, project_session(chat.get(identifier)))
-                if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': 'visitor', 'logout_supported': True})
+                if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/people-map': return send(200, build_people_map(service.engine))
                 if path == '/api/admin': return send(200, service.admin())
                 if path == '/api/person': return send(200, service.person(identifier))
@@ -579,6 +734,9 @@ class PublicApp:
                     return send(409, {'error': '현재 요청이 끝난 뒤 방문자 세션을 종료해 주세요.', 'code': 'logout_busy'})
                 headers[:] = [(name, value) for name, value in headers if name.lower() != 'set-cookie']
                 headers.append(('Set-Cookie', self._expired_cookie()))
+                headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
+                if session_mode == 'account':
+                    headers.append(('Set-Cookie', self._account_cookie_header(self.auth.SESSION_COOKIE_NAME)))
                 return send(200, {'ok': True, 'logged_out': True, 'session_mode': 'visitor'})
             if diagnostic_request is not None:
                 for key in ('session_id','turn_id'):
@@ -659,6 +817,8 @@ class PublicApp:
                 with diagnostic_scope(self.diagnostics,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
+        except AuthError as exc:
+            return send(exc.status, {'error': str(exc), 'code': exc.code})
         except ModelResponseBudgetExhausted as exc:
             diagnostic_error=exc.code
             return send(409, {'error':str(exc), 'code':exc.code,

@@ -14,6 +14,7 @@
     if(!host)throw new Error("프로필 표시 영역이 필요합니다.");
     const prefix="profile-chat-"+uid(), selected=new Map(), cancelActions=new Set(["cancel-editor","cancel-selection","cancel-delete"]);
     let view=null,opened=false,busy=false,activeMutation=false,uncertain=null,error=null,conflict=null,editor=null,editorRevision=0,selectionRevision=0;
+    let accountNavigationPending=false,accountInvalidated=false;
     let generation=0,readTicket=0,sourceTicket=0,focusReceipt=null,reviewVisible=false,reply="",deleteSource=null,errorRequest=null;
     const wrap=el("section","panel"),status=el("p","status"),errors=el("div","error"),summary=el("div","summary"),editorBox=el("details","editor"),editorBody=el("div","editor-body"),all=el("details","all"),allBody=el("div","all-body"),review=el("section","review"),receipts=el("section","receipts"),conflicts=el("section","conflict");
     wrap.setAttribute("aria-label","대화 속 내 프로필");status.setAttribute("role","status");status.setAttribute("aria-live","polite");errors.setAttribute("role","alert");errors.tabIndex=-1;
@@ -29,10 +30,10 @@
     function actions(...nodes) { const n=el("div","actions");n.append(...nodes);return n; }
     function notify(fn,arg) { try{fn(arg);}catch(_){} }
     function controls() {
-      for(const n of wrap.querySelectorAll("[data-profile-lock]"))n.disabled=busy||!!uncertain||!view;
-      for(const n of wrap.querySelectorAll('[data-profile-action="apply"], [data-profile-action="save-editor"]'))n.disabled=busy||!!uncertain||!!conflict||!view;
+      for(const n of wrap.querySelectorAll("[data-profile-lock]"))n.disabled=accountNavigationPending||busy||!!uncertain||!view;
+      for(const n of wrap.querySelectorAll('[data-profile-action="apply"], [data-profile-action="save-editor"]'))n.disabled=accountNavigationPending||busy||!!uncertain||!!conflict||!view;
       for(const n of wrap.querySelectorAll('[data-profile-action="cancel-editor"], [data-profile-action="cancel-selection"], [data-profile-action="cancel-delete"]'))n.disabled=activeMutation||!!uncertain;
-      wrap.setAttribute("aria-busy",String(busy));notify(onBusy,busy||!!uncertain);
+      wrap.setAttribute("aria-busy",String(busy));notify(onBusy,accountNavigationPending||busy||!!uncertain);
       status.textContent=busy?"프로필 요청을 처리하고 있어요. 저장 완료 응답을 기다려 주세요.":error||uncertain||conflict?"":reply;
     }
     function showError(e) { error=e;notify(onError,e);paintError(); }
@@ -49,10 +50,12 @@
       return {action:value.action,field:value.field,value:value.value};
     }
     async function api(path,body) {
+      if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");
       let response,data;
       try { response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-Rndplz-Token":getToken()||""},body:JSON.stringify(body)})}); }
       catch(_){const e=new Error("연결 결과를 확인하지 못했습니다. 작성 중인 내용은 유지했습니다.");e.uncertain=body!==undefined;throw e;}
       try{data=await response.json();}catch(_){const e=new Error("응답 내용을 확인하지 못했습니다. 작성 중인 내용은 유지했습니다.");e.status=response.status;e.uncertain=body!==undefined;throw e;}
+      if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");
       if(!response.ok){const e=new Error(typeof data.error==="string"?data.error:"프로필 요청을 처리하지 못했습니다.");e.status=response.status;e.code=data.code;e.uncertain=body!==undefined&&response.status>=500;if(response.status===409&&body?.action==="text")e.profileCommand=profileCommand(data.profile_command);throw e;}
       return data;
     }
@@ -150,10 +153,16 @@
       await mutation("text",{}, {text:String(value)});return true;
     }
     function compare(before,after,a="현재",b="제안") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,text(value)||"미입력"));n.append(col);}return n;}
+    function profileScopeSummary(scope={}) {
+      const account=scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false;
+      return {badge:account?"계정의 비공개 프로필":"방문자 전용 초안",
+        notice:account?(typeof scope.notice==="string"?scope.notice:"계정의 비공개 프로필입니다. 저장소의 보관 설정을 확인해 주세요."):
+          scope.cookie_lifetime_seconds?"이 방문자의 임시 초안 · 쿠키 발급 후 24시간 · 기기 간 복구 없음 · 공개 인물에 반영되지 않음":"이 로컬 저장소의 비공개 초안 · 본인·경력 확인 및 기기 간 복구 없음"};
+    }
     function paintSummary() {
-      summary.replaceChildren();const h=el("div","heading");h.append(el("h2",null,"내 프로필"),el("span","badge","방문자 전용 초안"));summary.append(h);
+      summary.replaceChildren();const scopeCopy=profileScopeSummary(view.scope);const h=el("div","heading");h.append(el("h2",null,"내 프로필"),el("span","badge",scopeCopy.badge));summary.append(h);
       const dl=el("dl","facts");for(const k of ["name","role","skills"])dl.append(el("dt",null,FIELDS[k]),el("dd",null,view.profile.fields[k]||"아직 입력하지 않음"));summary.append(dl);
-      summary.append(note(view.scope?.cookie_lifetime_seconds?"이 방문자의 임시 초안 · 쿠키 발급 후 24시간 · 기기 간 복구 없음 · 공개 인물에 반영되지 않음":"이 로컬 저장소의 비공개 초안 · 본인·경력 확인 및 기기 간 복구 없음"),actions(button("상담 계속",close,"continue",true)));
+      summary.append(note(scopeCopy.notice),actions(button("상담 계속",close,"continue",true)));
       if(!view.profile.id)summary.append(note("예: 내 전문분야에 공정 제어 추가해줘"));
     }
     function startEditor(key) {
@@ -334,7 +343,19 @@
       for(const h of [...(view.history||[])].reverse()){const row=el("div","history-row");row.append(el("span",null,`${historyLabel(h)} · v${h.version}`),button("변경 보기",()=>{focusReceipt=h.version;paintReceipts();controls();},"receipt"));history.append(row);}allBody.append(history);
       if(view.scope?.notice)allBody.append(note(view.scope.notice));
     }
-    return Object.freeze({open,close,shouldHandle,submit,showReceipt,isOpen:()=>opened,hasPendingRequest:()=>!!uncertain});
+    function accountNavigationState() {
+      return {blocked:accountNavigationPending||busy||activeMutation||!!uncertain,
+        dirty:!!(editor&&!same(editor.value,editor.before))||selected.size>0};
+    }
+    window.addEventListener("rndplz:account-navigation",event=>{
+      accountNavigationPending=event.detail?.phase!=="cancel";
+      if(event.detail?.phase==="invalidate"){
+        accountInvalidated=true;generation++;readTicket++;sourceTicket++;opened=false;host.hidden=true;
+        if(sourceDialog.open)sourceDialog.close();
+      }
+      controls();
+    });
+    return Object.freeze({open,close,shouldHandle,submit,showReceipt,isOpen:()=>opened,hasPendingRequest:()=>!!uncertain,accountNavigationState});
   }
   window.RndProfileChat=Object.freeze({create});
 })();

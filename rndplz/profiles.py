@@ -1,7 +1,8 @@
-"""Private visitor profile drafts; document claims never edit the public corpus.
+"""Private profile drafts; document claims never edit the public corpus.
 
-The caller supplies the current visitor's StateStore. This module has no account,
-catalog, model, network, or diagnostic-log dependency. All writes are explicit.
+The caller supplies an authorized visitor/account store. Account authentication
+and storage selection belong to the server, never the request payload. This
+module has no catalog, model, network, or diagnostic-log dependency.
 """
 from __future__ import annotations
 
@@ -56,6 +57,16 @@ def _id(value):
     return value
 
 
+def _account_metadata(value):
+    if value is None:
+        return None
+    if (not isinstance(value, dict) or set(value) != {'id', 'verified', 'storage_lifetime'} or
+            not isinstance(value.get('id'), str) or not re.fullmatch(r'[a-f0-9]{32}', value['id']) or
+            value.get('verified') is not True or value.get('storage_lifetime') != 'account_database'):
+        raise ProfileError('서버 계정 범위를 확인할 수 없습니다.', code='account_scope')
+    return dict(value)
+
+
 class Profiles:
     """One private draft. `version` guards every profile/source operation.
 
@@ -63,7 +74,8 @@ class Profiles:
     view, never an old cached response that could contain a deleted source.
     """
 
-    def __init__(self, store, *, public=False, clock=None):
+    def __init__(self, store, *, public=False, clock=None, account=None):
+        self.account = _account_metadata(account)
         self.store = store
         self.public = bool(public)
         self.clock = clock or (lambda: datetime.now(timezone.utc))
@@ -75,6 +87,9 @@ class Profiles:
     def _now(self):
         value = self.clock()
         return value.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+    def _actor(self):
+        return self.account['id'] if self.account else ('current_visitor' if self.public else 'local_editor')
 
     def _check_path(self, path):
         base = Path(self.store.directory).resolve()
@@ -134,6 +149,17 @@ class Profiles:
                        '접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.') if self.public else
                       '이 로컬 작업 저장소의 초안입니다. 계정 본인 확인·기기 간 복구·영구 보관 기능은 없습니다.',
         }
+        if self.account:
+            result['scope'] = {
+                'kind': 'account_private', 'person_id': None,
+                'identity_status': 'google_authenticated', 'person_confirmed': False, 'shared': False,
+                'reviewer_label': '계정 사용자가 검토함', 'cookie_lifetime_seconds': None,
+                'cross_device_recovery': True, 'permanent_storage': False,
+                'storage_lifetime': self.account['storage_lifetime'], 'storage_deployment_verified': False,
+                'notice': '같은 Google 계정으로 다시 로그인하면 계정 저장소의 초안을 열 수 있습니다. '
+                          'Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다. '
+                          '실제 운영 저장소의 지속 보관·첨부 보관 설정은 별도 확인이 필요하며 영구 보관을 보장하지 않습니다.',
+            }
         result['limits'] = {'file_bytes': 1024 * 1024 if self.public else MAX_BYTES,
                             'sources': MAX_SOURCES, 'careers': MAX_CAREERS,
                             'fields': FIELDS, 'career_fields': CAREER_FIELDS,
@@ -355,6 +381,8 @@ class Profiles:
                                          'line': text.count('\n', 0, offset) + 1},
                             'origin': 'source_claim', 'method': 'paragraph_rules',
                             'decision': 'pending', 'notice': '문서 문단입니다. 내 항목인지 확인하고 적용할 종류를 골라 주세요.'})
+                        if self.account:
+                            data['suggestions'][-1]['actor'] = self._actor()
                         count += 1
             return {'created': count, 'model_calls': 0}
 
@@ -363,13 +391,13 @@ class Profiles:
     def _provenance(self, source_ids=(), *, edited=False):
         return {'origin': ('user_edited_source' if edited else 'source_claim') if source_ids else 'user_input',
                 'source_ids': list(source_ids), 'review': 'edited_accepted' if edited else 'accepted',
-                'reviewer': 'current_visitor' if self.public else 'local_editor',
+                'reviewer': self._actor(),
                 'reviewed_at': self._now(), 'identity_verified': False,
                 'evidence_status': 'linked_claim' if source_ids else 'not_provided'}
 
     def _record(self, data, key, before, after, sources, action):
         data['history'].append({'id': uuid.uuid4().hex, 'version': data['profile']['version'] + 1,
-            'at': self._now(), 'actor': 'current_visitor' if self.public else 'local_editor',
+            'at': self._now(), 'actor': self._actor(),
             'action': action, 'field': key, 'before': copy.deepcopy(before),
             'after': copy.deepcopy(after), 'source_ids': list(dict.fromkeys(sources))})
 
@@ -445,6 +473,8 @@ class Profiles:
                     raise ProfileError('현재 검토할 수 있는 변경 후보가 아닙니다.')
                 if choice not in ('accept', 'edit', 'exclude', 'defer'):
                     raise ProfileError('채택·수정·제외·보류 중에서 선택해 주세요.')
+                if self.account:
+                    proposal['reviewer'] = self._actor()
                 if choice in ('exclude', 'defer'):
                     proposal['decision'] = 'excluded' if choice == 'exclude' else 'deferred'
                     proposal['reviewed_at'] = self._now()

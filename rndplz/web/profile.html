@@ -4,6 +4,11 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f4f2eb"><title>내 프로필 — 수소문</title>
   <link rel="stylesheet" href="/craft.css"><link rel="stylesheet" href="/profile.css">
+  <style>
+    @media (max-width:700px) {
+      .profile-page .account-menu { left:0; right:auto; }
+    }
+  </style>
   <script src="/profile.js" defer></script>
 <script src="/account-menu.js" defer></script></head>
 <body class="crafted profile-page">
@@ -11,14 +16,14 @@
 <header class="craft-header">
   <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
   <nav class="craft-nav" aria-label="서비스 메뉴"><a href="/">대화</a><a href="/explore#map">연구 맵</a><a href="/explore#inbox">제안함</a></nav>
-  <div class="craft-actions"><div class="account-control"><button type="button" id="accountToggle" class="icon-button account-toggle" aria-label="내 프로필 관리 메뉴" aria-expanded="false" aria-controls="accountMenu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div id="accountMenu" class="account-menu" hidden><a href="/profile">프로필 변경</a><a href="/explore#inbox">제안함</a><button type="button" id="logoutButton" disabled>로그아웃</button><p id="accountSessionNote" class="account-note"></p><p id="accountError" class="account-note" role="alert"></p></div></div></div>
+  <div class="craft-actions"><div class="account-control"><button type="button" id="accountToggle" class="icon-button account-toggle" aria-label="내 프로필 관리 메뉴" aria-expanded="false" aria-controls="accountMenu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button><div id="accountMenu" class="account-menu" hidden><p id="accountIdentity" class="account-note" hidden style="display:none"></p><a id="googleLogin" href="/auth/google/start" hidden style="display:none">Google 계정으로 로그인</a><p id="accountLoginUnavailable" class="account-note" hidden style="display:none"></p><button type="button" id="accountVerifySession" hidden style="display:none">계정 상태 다시 확인</button><a href="/profile">프로필 변경</a><a href="/explore#inbox">제안함</a><button type="button" id="logoutButton" disabled>로그아웃</button><p id="accountSessionNote" class="account-note"></p><p id="accountError" class="account-note" role="alert"></p></div></div></div>
 </header>
 <main class="profile-shell">
   <section class="profile-intro" aria-labelledby="pageTitle">
     <div><p class="eyebrow">A RECORD OF WHAT YOU BRING.</p><h1 id="pageTitle">내가 쌓아온 경험을,<br><em>내 말로.</em></h1><p class="intro-copy">함께 풀 수 있는 일과 관심 있는 연구.<br>직접 적고, 자료를 살펴 나의 프로필을 다듬어보세요.</p></div>
-    <div class="draft-stamp" aria-label="내 프로필 시연 초안"><span>내 프로필</span><strong>시연 초안</strong><small>공개 인물과 미연결</small></div>
+    <div id="profileScopeStamp" class="draft-stamp" aria-label="내 프로필 저장 범위 확인 중"><span>내 프로필</span><strong id="profileScopeBadge">저장 범위 확인 중</strong><small>공개 인물과 미연결</small></div>
   </section>
-  <aside class="scope-note" aria-label="저장 범위"><strong>이 방문자의 초안에만 저장합니다.</strong><p id="scopeNotice">저장 범위를 확인하고 있습니다. 실제 계정이나 공개 인물 카드와 자동으로 연결되지 않습니다.</p><details><summary>임시 저장과 자료 처리 안내</summary><p>영구 보관이나 기기 간 복구를 지원하지 않습니다. 공개 시연의 방문자 쿠키는 발급 후 24시간 유효하며, 접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.</p><p>이 화면의 자료는 프로필 검토에만 사용합니다. 원본 파일은 보관하지 않고 읽힌 텍스트만 저장합니다. 이미지·OCR·모델을 통한 분석은 지원하지 않습니다.</p></details></aside>
+  <aside class="scope-note" aria-label="저장 범위"><strong id="scopeHeading">저장 범위를 확인하고 있습니다.</strong><p id="scopeNotice">서버에서 프로필의 저장 범위를 확인하고 있습니다.</p><details><summary id="scopeDetailsTitle">저장과 자료 처리 안내</summary><p id="scopeStorageNotice">저장 기간과 복구 지원은 서버의 범위 안내를 확인해 주세요.</p><p>이 화면의 자료는 프로필 검토에만 사용합니다. 원본 파일은 보관하지 않고 읽힌 텍스트만 저장합니다. 이미지·OCR·모델을 통한 분석은 지원하지 않습니다.</p></details></aside>
   <div class="profile-status" id="pageStatus" role="status" aria-live="polite">프로필을 불러오고 있어요.</div>
   <div class="profile-error" id="pageError" role="alert" tabindex="-1" hidden></div>
   <section id="conflictPanel" class="conflict-panel" aria-labelledby="conflictTitle" hidden>

@@ -5,10 +5,11 @@ let token="",catalog=[],history=[],session=null,selectedModel="",files=[],busy=f
 let modelSelectionOrigin="automatic",modelDefault="",modelSelectionEpoch=0,modelCatalogTicket=0;
 let profileBusy=false,profileSubmission=null;
 let profileUI=null;
+let accountNavigationPending=false,accountInvalidated=false;
 let prepareBusy=false,prepareTicket=0;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="";
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;throw failure;}return data;}
+async function api(path,body){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;throw failure;}return data;}
 function error(message=""){$("composerError").textContent=message;$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
 function modal(id,returnFocus=document.activeElement){
@@ -52,7 +53,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
+function controls(){syncModelSelection();const m=option(),locked=accountNavigationPending||busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
 function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
@@ -423,6 +424,20 @@ profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,ge
   if(profileSubmission){if($("message").value===profileSubmission.text)$("message").value="";files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
   autoScroll=false;render();resizeInput();
  }});
+window.addEventListener("rndplz:before-account-navigation",event=>{
+ const state=profileUI?.accountNavigationState();event.detail.checkedScopes.push("chat");
+ if(!state||accountNavigationPending||busy||profileBusy||uploading||prepareBusy||session?.pending||$("letterDialog").open||state.blocked){
+  event.preventDefault();event.detail.message="진행 중인 대화·프로필·제안 작업의 결과를 먼저 확인해 주세요.";return;
+ }
+ if($("message").value.trim()||files.length||briefEditor||state.dirty)event.detail.dirty=true;
+});
+window.addEventListener("rndplz:account-navigation",event=>{
+ accountNavigationPending=event.detail?.phase!=="cancel";
+ if(event.detail?.phase==="invalidate"){
+  accountInvalidated=true;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
+ }
+ controls();
+});
 $ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy)return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
 $ ("message").addEventListener("input",resizeInput);

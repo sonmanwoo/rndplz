@@ -7,6 +7,7 @@
   const choices = {accept:"채택",edit:"수정해서 채택",exclude:"제외",defer:"나중에 검토"};
   const reviewed = {pending:"미검토",accepted:"채택됨",edited_accepted:"수정 후 채택됨",excluded:"제외됨",deferred:"보류됨",withdrawn:"근거 변경 · 재확인 필요",redacted:"관련 자료 삭제됨"};
   let view=null, token="", draft=null, busy=false, conflict=null, uncertain=null, action=null;
+  let accountNavigationPending=false,accountInvalidated=false;
   let previewRequest=null, previewGeneration=0;
   const selections=new Map(), deletionRetries=new Map(), dialogOpeners=new Map();
   const clone=value=>JSON.parse(JSON.stringify(value));
@@ -23,8 +24,8 @@
   function manualChanges(){if(!view||!draft)return {fields:{},careers:false};const fields={};for(const k of Object.keys(view.profile.fields))if(draft.fields[k]!==view.profile.fields[k])fields[k]=draft.fields[k];return {fields,careers:JSON.stringify(cleanCareers(draft.careers))!==JSON.stringify(cleanCareers(view.profile.careers))};}
   function hasChanges(){const c=manualChanges();return Object.keys(c.fields).length+(c.careers?1:0)+selections.size;}
   function fieldOrigin(key){const p=view.profile.provenance[key];if(!p)return "근거 미제공";const origin={user_input:"직접 입력",source_claim:"자료에서 추출",user_edited_source:"자료를 바탕으로 직접 수정"}[p.origin]||"출처 확인 필요";const status={linked_claim:"근거 연결됨",not_provided:"근거 미제공",requires_review:"근거 재확인 필요",source_deleted:"연결 자료 삭제됨"}[p.evidence_status]||"근거 상태 확인 필요";return `${origin} · ${status}`;}
-  function updateControls(){const locked=busy||!view||!!uncertain;$("profileFields").disabled=locked;document.querySelectorAll("[data-lock]").forEach(el=>el.disabled=locked);$("saveProfile").disabled=locked||!hasChanges()||!!conflict;$("changeCount").textContent=hasChanges()?`변경 ${hasChanges()}개 · 아직 저장하지 않음`:"변경 없음";$("saveProfile").firstChild.textContent=busy?"처리 중 ":`변경 ${hasChanges()||""}${hasChanges()?"개 ":""}저장 `;if(draft){$("previewName").textContent=draft.fields.name.trim()||"당신의 이름";$("previewRole").textContent=[draft.fields.organization,draft.fields.role].filter(Boolean).join("\n")||"지금 하는 일부터 적어보세요.";}}
-  async function api(path,payload){const options={credentials:"same-origin",cache:"no-store"};if(payload!==undefined)Object.assign(options,{method:"POST",headers:{"Content-Type":"application/json","X-Rndplz-Token":token},body:JSON.stringify(payload)});let response,data;try{response=await fetch(path,options);}catch(_){const e=new Error("전송 결과를 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}try{data=await response.json();}catch(_){const e=new Error("서버 응답을 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}if(!response.ok){const e=new Error(typeof data.error==="string"?data.error:"요청을 처리하지 못했습니다. 입력은 그대로 두었습니다.");e.status=response.status;e.code=data.code;e.uncertain=payload!==undefined&&response.status>=500;throw e;}return data;}
+  function updateControls(){const locked=accountNavigationPending||busy||!view||!!uncertain;$("profileFields").disabled=locked;document.querySelectorAll("[data-lock]").forEach(el=>el.disabled=locked);$("saveProfile").disabled=locked||!hasChanges()||!!conflict;$("changeCount").textContent=hasChanges()?`변경 ${hasChanges()}개 · 아직 저장하지 않음`:"변경 없음";$("saveProfile").firstChild.textContent=busy?"처리 중 ":`변경 ${hasChanges()||""}${hasChanges()?"개 ":""}저장 `;if(draft){$("previewName").textContent=draft.fields.name.trim()||"당신의 이름";$("previewRole").textContent=[draft.fields.organization,draft.fields.role].filter(Boolean).join("\n")||"지금 하는 일부터 적어보세요.";}}
+  async function api(path,payload){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const options={credentials:"same-origin",cache:"no-store"};if(payload!==undefined)Object.assign(options,{method:"POST",headers:{"Content-Type":"application/json","X-Rndplz-Token":token},body:JSON.stringify(payload)});let response,data;try{response=await fetch(path,options);}catch(_){const e=new Error("전송 결과를 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}try{data=await response.json();}catch(_){const e=new Error("서버 응답을 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const e=new Error(typeof data.error==="string"?data.error:"요청을 처리하지 못했습니다. 입력은 그대로 두었습니다.");e.status=response.status;e.code=data.code;e.uncertain=payload!==undefined&&response.status>=500;throw e;}return data;}
   function draftFrom(profile){return {fields:clone(profile.fields),careers:profile.careers.map(row=>({...row,_key:row.id}))};}
   function mergeCareerEdits(previous,edited,latest,derived){
     const base=new Map(previous.map(row=>[row.id,row])), local=new Map(edited.filter(row=>row.id).map(row=>[row.id,row]));
@@ -66,8 +67,18 @@
     render();
     if(removed)announce(`삭제된 자료에서 나온 편집 ${removed}개를 지웠습니다. 독립적으로 작성한 입력은 유지했습니다.`);
   }
+  function renderScope(){
+    const scope=view.scope||{},account=scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false,visitor=scope.kind==="visitor_private";
+    const badge=account?"계정의 비공개 프로필":"시연 초안";
+    $("profileScopeBadge").textContent=badge;$("profileScopeStamp").setAttribute("aria-label","내 프로필 · "+badge);
+    $("scopeHeading").textContent=account?"계정의 비공개 프로필입니다.":visitor?"이 방문자의 초안에만 저장합니다.":"로컬 작업 저장소의 초안입니다.";
+    $("scopeNotice").textContent=typeof scope.notice==="string"?scope.notice:"저장 범위 안내를 확인하지 못했습니다.";
+    $("saveScope").textContent=(account?"본인 계정의 비공개 프로필":visitor?"이 방문자의 초안":"로컬 작업의 초안")+"에 저장 · 외부 비공유";
+    $("scopeDetailsTitle").textContent=account?"계정 저장과 자료 처리 안내":"임시 저장과 자료 처리 안내";
+    $("scopeStorageNotice").textContent=account?"저장 범위와 보관 조건은 위 서버 안내를 따릅니다. Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다.":visitor?"영구 보관이나 기기 간 복구를 지원하지 않습니다. 공개 시연의 방문자 쿠키는 발급 후 24시간 유효하며, 접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.":"이 로컬 작업 저장소의 초안입니다. 계정 본인 확인·기기 간 복구·영구 보관 기능은 없습니다.";
+  }
   function render(){
-    $("scopeNotice").textContent=view.scope.notice;$("saveScope").textContent=(view.scope.kind==="visitor_private"?"이 방문자의 초안":"로컬 작업의 초안")+"에 저장 · 외부 비공유";
+    renderScope();
     $("savedVersion").textContent=view.profile.id?`초안 v${view.profile.version}\n마지막 저장 ${date(view.profile.updated_at)}`:"저장된 프로필 없음";
     $("uploadLimits").textContent=`${view.limits.formats.map(x=>x.toUpperCase()).join(" · ")} / 파일당 ${Math.round(view.limits.file_bytes/1024/1024)} MiB / 최대 ${view.limits.sources}개. 이미지·OCR 미지원.`;
     $("sourceFile").accept=view.limits.formats.map(x=>"."+x).join(",");
@@ -133,7 +144,17 @@
   $("refreshConflict").addEventListener("click",async()=>{if(busy)return;busy=true;updateControls();try{const latest=await api("/api/self-profile");adopt(latest);conflict={ready:true};const box=$("conflictComparison");box.replaceChildren();for(const [k,value] of Object.entries(manualChanges().fields)){const heading=node("h3","",labels[k]);box.append(heading,compare(latest.profile.fields[k],value,"최신 저장값","작성 중인 내 입력"));}if(manualChanges().careers)box.append(node("h3","","경력·프로젝트"),compare(latest.profile.careers,cleanCareers(draft.careers),"최신 저장값","작성 중인 내 입력"));if(!box.childNodes.length)box.append(empty("직접 입력의 차이는 없습니다. 남겨둔 자료 선택도 다시 비교해 주세요."));$("conflictActions").hidden=false;announce("최신 값을 읽었습니다. 작성 중 입력과 비교한 뒤 아래에서 선택해 주세요.");}catch(e){showError(e.message);}finally{busy=false;updateControls();}});
   $("keepEdits").addEventListener("click",()=>{if(!conflict?.ready)return;const ids=new Set(view.profile.careers.map(r=>r.id));if(draft.careers.some(r=>r.id&&!ids.has(r.id))){showError("저장소에서 삭제된 경력이 편집 중 목록에 남아 있습니다. 해당 경력을 제외하거나 최신 저장값을 사용해 주세요.");return;}conflict=null;$("conflictPanel").hidden=true;clearError();renderSuggestions();updateControls();announce("내 수정을 유지했습니다. 자료 후보는 최신 기준으로 다시 비교한 뒤 명시적으로 저장하세요.");});
   $("useLatest").addEventListener("click",()=>{if(!conflict?.ready)return;draft=draftFrom(view.profile);selections.clear();conflict=null;$("conflictPanel").hidden=true;clearError();render();announce("확인한 최신 저장값을 사용합니다.");});
-  window.addEventListener("beforeunload",event=>{if(hasChanges()||uncertain){event.preventDefault();event.returnValue="";}});
+  window.addEventListener("rndplz:before-account-navigation",event=>{
+    event.detail.checkedScopes.push("profile");
+    if(accountNavigationPending||busy||uncertain){event.preventDefault();event.detail.message="프로필 처리 결과를 먼저 확인해 주세요. 입력과 선택은 유지했습니다.";return;}
+    if(hasChanges())event.detail.dirty=true;
+  });
+  window.addEventListener("rndplz:account-navigation",event=>{
+    accountNavigationPending=event.detail?.phase!=="cancel";
+    if(event.detail?.phase==="invalidate"){accountInvalidated=true;previewGeneration++;previewRequest=null;token="";}
+    updateControls();
+  });
+  window.addEventListener("beforeunload",event=>{if(!accountNavigationPending&&(hasChanges()||uncertain)){event.preventDefault();event.returnValue="";}});
   async function load(){busy=true;updateControls();try{const data=await api("/api/self-profile");adopt(data,{preserve:false});announce(data.profile.id?"저장한 초안을 불러왔습니다.":"아직 저장한 프로필이 없습니다. 직접 작성하거나 자료를 추가해 보세요.");}catch(e){showError(e.message);const retry=button("프로필 다시 불러오기",load,"secondary-button");delete retry.dataset.lock;$("pageError").append(retry);}finally{busy=false;updateControls();}}
   load();
 })();
