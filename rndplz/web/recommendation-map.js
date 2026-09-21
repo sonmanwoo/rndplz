@@ -61,6 +61,9 @@ export function initRecommendationMap(host, {
   const nodeByKey = new Map(graph.nodes.map(node => [node.key, node]));
   const candidateIds = new Set(focus.candidateIds);
   const candidateById = new Map(focus.candidateNodes.map(node => [node.id, node]));
+  const rowById = new Map(rows.map(row => [row.id, row]));
+  const rowIndexById = new Map(rows.map((row, index) => [row.id, index]));
+  const adjacentLabel = '인접 분야 후보 · 직접 근거 부족';
   const matchedFields = new Set(focus.fieldNodes.map(node => node.key));
   const matchedPairs = new Set(focus.matchingEdges.map(edge => edge.from + '\0' + edge.to));
 
@@ -144,6 +147,16 @@ export function initRecommendationMap(host, {
       element.tabIndex = candidate ? 0 : -1;
       element.setAttribute('aria-disabled', String(!candidate));
       if (!candidate) element.removeAttribute('aria-pressed');
+      if (candidate && rowById.get(node.id)?.purpose_relation === 'adjacent') {
+        const marker = doc.createElement('span');
+        marker.className = 'rm-adjacent-marker';
+        marker.textContent = '인접';
+        marker.setAttribute('aria-hidden', 'true');
+        element.append(marker);
+        const description = uid + '-context-' + rowIndexById.get(node.id);
+        element.setAttribute('aria-describedby',
+          [element.getAttribute('aria-describedby'), description].filter(Boolean).join(' '));
+      }
     } else {
       // Field controls only move this camera; they never filter candidates.
       element.tabIndex = -1;
@@ -294,7 +307,25 @@ export function initRecommendationMap(host, {
       item.setAttribute('aria-pressed', 'false');
       const name = doc.createElement('strong'); name.textContent = record.name;
       const caption = doc.createElement('span'); caption.textContent = record.capability || '이력과 근거 보기';
-      item.append(name, caption); list.append(item);
+      item.append(name, caption);
+      const row = rowById.get(record.id);
+      if (row?.purpose_relation === 'adjacent') {
+        const context = doc.createElement('span');
+        context.className = 'rm-candidate-context';
+        context.id = uid + '-context-' + rowIndexById.get(record.id);
+        const label = doc.createElement('span');
+        label.className = 'rm-purpose-label';
+        label.textContent = adjacentLabel;
+        context.append(label);
+        if (typeof row.purpose_missing === 'string' && row.purpose_missing.trim()) {
+          const missing = doc.createElement('span');
+          missing.className = 'rm-purpose-missing';
+          missing.textContent = '추가 확인 사항 · ' + row.purpose_missing;
+          context.append(missing);
+        }
+        item.append(context);
+      }
+      list.append(item);
     });
   }
   function refreshBoundary() {

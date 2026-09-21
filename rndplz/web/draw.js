@@ -286,8 +286,17 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     turn.append(cardBack(), front);
     button.append(turn);
     item.append(button);
+    // Leave both text and visibility empty until the original reveal boundary.
+    let context = null;
+    if (record.purpose_relation === 'adjacent') {
+      context = document.createElement('div');
+      context.className = 'cd-candidate-context';
+      context.id = uid + '-' + run.token + '-context-' + index;
+      context.hidden = true;
+      item.append(context);
+    }
     const card = {
-      record, item, button, front, index, populated: false, revealed: false, asset: null,
+      record, item, button, front, context, index, populated: false, revealed: false, asset: null,
     };
     button.addEventListener('click', () => {
       if (isCurrent(run) && card.revealed && !button.disabled) onDetail?.(record);
@@ -427,6 +436,25 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     card.button.disabled = false;
     card.button.tabIndex = 0;
     card.revealed = true;
+    if (card.context) {
+      if (card.context.hidden) {
+        const label = document.createElement('p');
+        label.className = 'cd-purpose-label';
+        label.textContent = '인접 분야 후보 · 직접 근거 부족';
+        card.context.append(label);
+        if (typeof card.record.purpose_missing === 'string' && card.record.purpose_missing.trim()) {
+          const missing = document.createElement('p');
+          missing.className = 'cd-purpose-missing';
+          missing.textContent = '추가 확인 사항 · ' + card.record.purpose_missing;
+          card.context.append(missing);
+        }
+        card.context.hidden = false;
+        // The existing boundary measures the full item, including its revealed note.
+        updateViewportHeight();
+      }
+      card.button.setAttribute('aria-describedby',
+        uid + '-' + run.token + '-capability-' + card.index + ' ' + card.context.id);
+    }
   }
 
   function clearRevealDeadline(run) {

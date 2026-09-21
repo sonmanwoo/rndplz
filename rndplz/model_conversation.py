@@ -1009,7 +1009,8 @@ class ModelConversation:
                      retrieved_candidate_ids=[c['id'] for c in result['candidates']],
                      retrieved_record_ids=list(result.get('matching_record_ids', [])),
                      assessment_status='accepted', assessed_candidate_count=len(assessment['assessments']))
-        selected = {row['person_id']:row for row in assessment['assessments'] if row['relation']=='direct'}
+        selected = {row['person_id']:row for row in assessment['assessments']
+                    if row['relation'] in {'direct', 'adjacent'}}
         cards = []
         for card in value['candidates']:
             row = selected.get(card['id'])
@@ -1017,7 +1018,9 @@ class ModelConversation:
                 continue
             ids = {e['record_id'] for e in row['evidence']}
             card['evidence'] = [e for e in card['evidence'] if e['id'] in ids]
-            card.update(reason=row['text'], role='요청 관련 기록', purpose_relation='direct',
+            card.update(reason=row['text'],
+                        role='요청 관련 기록' if row['relation']=='direct' else '인접 분야 기록',
+                        purpose_relation=row['relation'], purpose_missing=row['missing'],
                         purpose_assessment_source='model', assessment_evidence=copy.deepcopy(row['evidence']))
             # The model's relevance assessment never grants an additional right.
             cards.append(card)
@@ -1025,6 +1028,8 @@ class ModelConversation:
         value.update(candidates=cards, matching_record_ids=sorted(ids), record_count=len(ids),
                      evidence=[e for e in value.get('evidence', []) if e['id'] in ids],
                      matched_candidate_count=len(cards),
+                     direct_candidate_count=sum(c['purpose_relation']=='direct' for c in cards),
+                     adjacent_candidate_count=sum(c['purpose_relation']=='adjacent' for c in cards),
                      retrieval_matched_candidate_count=result.get('matched_candidate_count', len(result['candidates'])),
                      assessment_outcomes=[{'person_id':row['person_id'], 'relation':row['relation'],
                                            'record_ids':[e['record_id'] for e in row['evidence']]}

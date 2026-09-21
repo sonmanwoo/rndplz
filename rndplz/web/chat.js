@@ -6,7 +6,7 @@ let modelSelectionOrigin="automatic",modelDefault="",modelSelectionEpoch=0,model
 let profileBusy=false,profileSubmission=null;
 let profileUI=null;
 let accountNavigationPending=false,accountInvalidated=false;
-let prepareBusy=false,prepareTicket=0;
+let prepareBusy=false,prepareTicket=0,prepareProgress=null;
 let composerInputRevision=0,composerComposing=false;
 function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading;}
 function composerSendLocked(){return composerClientLocked()||!!session?.pending;}
@@ -272,11 +272,26 @@ function discoveryCompletion(s=session){
 function recoverableScout(s=session){const r=s?.scout_recovery;return !!s?.id&&r?.available===true&&r.status==="required"&&typeof r.id==="string"&&typeof r.from_revision==="string"&&r.from_revision===s.request_spec?.revision&&s.request_spec?.state==="stale"&&briefHasContent(s.request_spec)&&!s.pending;}
 function scoutButtonLabel(){return recoverableScout()?"이 정보로 다시 수소문하기":"이 정보로 수소문하기";}
 function canPrepareDiscovery(){return (discoveryReady()&&briefCurrent()||recoverableScout())&&!briefEditor&&!briefFailure&&!busy&&!profileBusy&&!uploading&&!prepareBusy;}
+function prepareProgressActive(){return prepareBusy&&prepareProgress?.ticket===prepareTicket&&prepareProgress.sessionId===session?.id&&!accountNavigationPending&&!accountInvalidated;}
+function resetPrepareProgress(){prepareBusy=false;prepareProgress=null;}
+function prepareProgressContent(){
+ if(!prepareProgressActive())return "";
+ const elapsed=Math.max(0,performance.now()-prepareProgress.started)%2400;
+ return '<span class="avatar"><span class="susomun-ci susomun-ci--busy" style="--ci-busy-delay:-'+elapsed.toFixed(1)+'ms" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span class="scout-prepare-label">수소문 응답을 기다리고 있어요.</span>';
+}
+function syncPrepareAnnouncement(active){
+ // The brief may be replaced; one separate live node announces state changes only.
+ let live=$("scoutPrepareLive");
+ if(!live&&active){live=document.createElement("span");live.id="scoutPrepareLive";live.className="sr-only";live.setAttribute("role","status");live.setAttribute("aria-live","polite");live.setAttribute("aria-atomic","true");$("thread").before(live);}
+ const label=active?"수소문 응답을 기다리고 있어요.":"";if(live&&live.textContent!==label)live.textContent=label;
+}
 function syncDiscoveryControls(){
+ const active=prepareProgressActive();syncPrepareAnnouncement(active);
  const button=$("currentScoutButton"),scout=$("currentScout");if(!button||!scout)return;
- const available=canPrepareDiscovery();scout.hidden=!available;
- button.disabled=!available;button.textContent=scoutButtonLabel();
- button.setAttribute("aria-busy",String(prepareBusy));
+ const available=!accountNavigationPending&&!accountInvalidated&&canPrepareDiscovery();scout.hidden=!(available||active);
+ button.disabled=!available;button.textContent=active?"수소문 중…":scoutButtonLabel();
+ button.setAttribute("aria-busy",String(active));
+ const progress=$("scoutPrepareProgress");if(progress){progress.hidden=!active;progress.innerHTML=prepareProgressContent();}
 }
 function scoutCount(){
  const s=session?.scout,known=s?.count_status==="known"&&Number.isSafeInteger(s.count)&&s.count>=0;
@@ -288,8 +303,8 @@ function scoutConditions(){
  return rows.length?'<ul class="scout-conditions">'+rows.map(c=>'<li>'+esc((c.kind==='required'?'필수 · ':'선호 · ')+c.text)+'</li>').join('')+'</ul>':'';
 }
 function currentScout(){
- const available=canPrepareDiscovery();
- return '<div class="continue-actions" id="currentScout"'+(available?'':' hidden')+'><button type="button" class="primary" id="currentScoutButton" data-action="prepare" title="등록된 인물과 근거를 조회합니다."'+(available?'':' disabled')+'>'+scoutButtonLabel()+'</button></div>';
+ const available=!accountNavigationPending&&!accountInvalidated&&canPrepareDiscovery(),active=prepareProgressActive();
+ return '<div class="continue-actions" id="currentScout"'+(available||active?'':' hidden')+'><button type="button" class="primary" id="currentScoutButton" data-action="prepare" title="등록된 인물과 근거를 조회합니다." aria-busy="'+String(active)+'"'+(available?'':' disabled')+'>'+(active?'수소문 중…':scoutButtonLabel())+'</button><div class="message-meta scout-prepare-progress" id="scoutPrepareProgress" aria-hidden="true"'+(active?'':' hidden')+'>'+prepareProgressContent()+'</div></div>';
 }
 
 // request_spec is the only accepted brief; this is an unsent editor buffer.
@@ -467,7 +482,7 @@ async function prepareDiscovery(button,keyboard=false){
  const pointerElsewhere=e=>{if(!button.contains(e.target))focusMoved=true;};
  const windowBlur=()=>{focusMoved=true;};
  document.addEventListener("focusin",focusElsewhere);document.addEventListener("pointerdown",pointerElsewhere);window.addEventListener("blur",windowBlur);
- let adopted=false,invalidated=false;prepareBusy=true;error();controls();button.disabled=true;button.textContent="관련 기록을 찾고 있어요…";
+ let adopted=false,invalidated=false;prepareBusy=true;prepareProgress={ticket,sessionId:sid,started:performance.now()};error();controls();
  try{
   const prepared=await api("/api/chat/prepare",{session_id:sid,discovery_revision:revision,...requested,...(recovery?{recovery_id:recovery.id}:{})});
   if(!current())return;
@@ -476,8 +491,9 @@ async function prepareDiscovery(button,keyboard=false){
  }catch(e){if(current()){error(e.message);if(["scout_source_changed","scout_source_unsupported"].includes(e.code)&&e.session?.id===sid&&e.session.request_spec?.source_turn_id===before.request_spec?.source_turn_id&&(e.session.scout_recovery?.from_revision===before.request_spec?.revision||recovery&&e.session.request_spec?.source_revision===before.request_spec?.source_revision)){session=e.session;adopted=true;autoScroll=false;}else if(((e.code==="model_response_unavailable"||e.code==="model_response_budget_exhausted")&&e.retry_available===false)||e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};if(session.scout_recovery)session.scout_recovery={...session.scout_recovery,available:false};invalidated=true;}}}
  finally{
   document.removeEventListener("focusin",focusElsewhere);document.removeEventListener("pointerdown",pointerElsewhere);window.removeEventListener("blur",windowBlur);
+  if(prepareProgress?.ticket===ticket){resetPrepareProgress();if(ticket!==prepareTicket)controls();}
   if(ticket===prepareTicket){
-   prepareBusy=false;controls();
+   controls();
    if(adopted){render();}
    else if(current()){if(invalidated)render();else if(button.isConnected){button.disabled=!canPrepareDiscovery();button.textContent=scoutButtonLabel();}else render();}
    if(returnFocus&&(adopted||current())&&!focusMoved&&document.hasFocus()&&(document.activeElement===document.body||document.activeElement===button)){
@@ -527,6 +543,46 @@ function extraRecordSources(e){
  return (Array.isArray(e.metadata_sources)?e.metadata_sources:[]).filter(x=>safeUrl(x.url)).map(x=>'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.title||x.label||(/correction/i.test(x.basis||x.type||'')?'정정 출처':'추가 확인 출처'))+' ↗</a></p>').join('');
 }
 
+// Display only: relation and limitations belong to this saved result, not the profile.
+function candidatePurposeRelation(candidate){
+ return ['direct','adjacent'].includes(candidate?.purpose_relation)?candidate.purpose_relation:'';
+}
+function candidatePurposeLabel(candidate){
+ const relation=candidatePurposeRelation(candidate);
+ return relation==='adjacent'?'인접 분야 후보 · 직접 근거 부족':relation==='direct'?'직접 관련 후보':'';
+}
+function candidateRelationSummary(rows,result){
+ const counts={direct:0,adjacent:0,unknown:0};
+ for(const candidate of rows)counts[candidatePurposeRelation(candidate)||'unknown']++;
+ const values=[result?.direct_candidate_count,result?.adjacent_candidate_count,result?.matched_candidate_count];
+ if(counts.unknown||!rows.length||!values.every(v=>Number.isInteger(v)&&v>=0)||values[0]!==counts.direct||values[1]!==counts.adjacent||values[2]!==rows.length||values[0]+values[1]!==values[2])return '';
+ return '직접 관련 '+counts.direct+'명 · 인접 분야 '+counts.adjacent+'명';
+}
+function candidateContextHtml(candidate){
+ const relation=candidatePurposeRelation(candidate);if(!relation)return '';
+ const missing=typeof candidate.purpose_missing==='string'?candidate.purpose_missing.trim():'';
+ const reason=typeof candidate.reason==='string'?candidate.reason.trim():'';
+ const evidence=(Array.isArray(candidate.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==='object');
+ return '<section class="candidate-request-context" data-purpose-relation="'+relation+'"><h3>이번 요청과의 연결</h3><p class="candidate-purpose-label">'+candidatePurposeLabel(candidate)+'</p>'+
+  (reason?'<p>'+esc(reason)+'</p>':'')+
+  (missing?'<h4>추가 확인사항</h4><p>'+esc(missing)+'</p>':'')+
+  (evidence.length?'<h4>이번 판단에 연결된 근거</h4><ul>'+evidence.map(e=>'<li><strong>'+esc(e.title||e.id||'연결 근거')+'</strong>'+(e.scope_label||e.scope?'<p>'+esc(e.scope_label||e.scope)+'</p>':'')+(e.excerpt?'<p>'+esc(e.excerpt)+'</p>':'')+(e.boundary?'<p>'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':'')+extraRecordSources(e)+'</li>').join('')+'</ul>':'')+'</section>';
+}
+function captureCandidateContexts(source,ids){
+ return Object.fromEntries(ids.map(id=>{
+  const candidate=source?.result?.candidates?.find(c=>c.id===id);
+  if(!candidatePurposeRelation(candidate))return [id,null];
+  return [id,JSON.parse(JSON.stringify({purpose_relation:candidate.purpose_relation,purpose_missing:candidate.purpose_missing,reason:candidate.reason,evidence:candidate.evidence}))];
+ }));
+}
+function renderLetterCandidateContext(id){
+ let context=$('letterCandidateContext');
+ const html=candidateContextHtml(letter?.candidateContexts?.[id]);
+ if(!html){context?.remove();return;}
+ if(!context){context=document.createElement('div');context.id='letterCandidateContext';$('letterDialog').querySelector('.dialog-heading').after(context);}
+ context.innerHTML=html;
+}
+
 function cardCapability(c){
  const profile=c.profile||{},values=[profile.tagline,...(Array.isArray(profile.skills)?profile.skills:[]),...(Array.isArray(profile.topics)?profile.topics:[]).map(t=>t?.name)];
  // Select a complete registered field, never a clipped sentence or AI reason.
@@ -535,7 +591,7 @@ function cardCapability(c){
 }
 async function candidateDrawRecords(rows,gemini,historical,signal){
  return Promise.all(rows.map(async c=>{
-  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(c.profile?.portrait?.path||'')?c.profile.portrait.path:'',capability:cardCapability(c)};
+  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(c.profile?.portrait?.path||'')?c.profile.portrait.path:'',capability:cardCapability(c),purpose_relation:candidatePurposeRelation(c),purpose_missing:typeof c.purpose_missing==='string'?c.purpose_missing:'',reason:typeof c.reason==='string'?c.reason:''};
   if(!gemini||historical||c.in_current_pool===false||typeof c.id!=="string"||!c.id)return record;
   try{
    const person=await api("/api/person?id="+encodeURIComponent(c.id),undefined,signal);
@@ -560,15 +616,15 @@ function renderCandidates(){
  if(accountNavigationPending||accountInvalidated)return;
  const result=session.result||{},rows=result.candidates||[],key=session.id+":"+session.scout.revision;
  const mapEligible=!result.historical_result&&!result.inspection_only&&rows.every(c=>c.in_current_pool!==false);
- const emptyNotice=rows.length?"":emptyCandidateNotice(session);
- const renderKey=key+":"+JSON.stringify(rows)+":"+mapEligible+(rows.length?"":":"+JSON.stringify(emptyNotice));
+ const emptyNotice=rows.length?"":emptyCandidateNotice(session),relationSummary=candidateRelationSummary(rows,result);
+ const renderKey=key+":"+JSON.stringify(rows)+":"+mapEligible+":"+JSON.stringify(relationSummary)+(rows.length?"":":"+JSON.stringify(emptyNotice));
  if(renderKey===drawRenderKey)return;
  drawMetadataController?.abort();
  drawRenderKey=renderKey;const epoch=++drawEpoch;
  drawController?.dispose();drawController=null;
  const animate=animateScoutKey===key;animateScoutKey="";
  zone.classList.add("scout-draw-zone");
- zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
+ zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+(relationSummary?'<p class="candidate-relation-summary">'+esc(relationSummary)+'</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
  if(!rows.length){$("scoutDrawHost").textContent=emptyNotice;if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
  let settleMapTimeout;
@@ -584,7 +640,7 @@ function renderCandidates(){
     const [mapData,{initRecommendationMap}]=map;
     drawController=initRecommendationMap(host,{...options,quiet:()=>RndCraft.quiet(),animateOnShow:animate,mapData,rows,records});
     drawController.show(records,key);
-    hint.textContent='관련 분야를 따라 연결된 사람을 살펴보세요. 컬러 사진이 이번 요청의 후보예요.';
+    hint.textContent='관련 분야를 따라 연결된 사람을 살펴보세요. 이번 요청의 후보와 근거 범위는 아래 목록에서 확인할 수 있어요.';
    }catch{
     drawController?.dispose();drawController=null;host.replaceChildren();options.onBoundaryFit(true);
    }
@@ -856,14 +912,15 @@ async function showPerson(id,opener=document.activeElement){
   (session.result.scope_note?'<p class="subtle small">'+esc(session.result.scope_note)+'</p>':'')+
   (p.proposal_unavailable_reason?'<p class="candidate-boundary">'+esc(p.proposal_unavailable_reason)+'</p>':''):'';
  const profileNotice=!historical&&candidate?.profile_only?'<p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
- const reasonDetails=typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
- $("detailContent").innerHTML=historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
+ const requestContext=candidateContextHtml(candidate);
+  const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
+ $("detailContent").innerHTML=historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
  if(candidate&&canPropose(candidate))$("detailContent").insertAdjacentHTML("beforeend",'<button class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">편지 쓰기 ↗</button>');
  modal("detailDialog",opener);
 }
 async function openLetter(ids){
- checkProposalSelection(ids);const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}
-function renderLetter(){const d=letter.drafts[letter.index];$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
+ checkProposalSelection(ids);const candidateContexts=captureCandidateContexts(session,ids);const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}
+function renderLetter(){const d=letter.drafts[letter.index];renderLetterCandidateContext(d.candidate.id);$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
 function keepLetter(){const id=letter.ids[letter.index];if(letter.bodies[id]!==$("letterBody").value){letter.bodies[id]=$("letterBody").value;letter.key=crypto.randomUUID();}}
 async function saveLetter(state){const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent")RndCraft.deliver(recipientName,saved.length);else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
 profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,getSessionId:()=>session?.id||null,
@@ -886,7 +943,7 @@ window.addEventListener("rndplz:account-navigation",event=>{
  if(accountNavigationPending)invalidateRecovery(true);
  if(accountNavigationPending){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";$("proposalZone").replaceChildren();}
  if(event.detail?.phase==="invalidate"){
-  accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
+  accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;resetPrepareProgress();modelSelectionEpoch++;controller?.abort();token="";
  }
  controls();
  if(!accountNavigationPending&&!accountInvalidated)renderCandidates();

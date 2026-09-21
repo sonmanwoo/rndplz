@@ -209,6 +209,11 @@ async function exportVault(){
  renderSettings();showDialog("settingsDialog");
  toast(exported.conflicts.length?"사용자가 수정한 노트 "+exported.conflicts.length+"개를 보존했어요. 설정에서 결과를 확인하세요.":exported.note_count+"개의 노트를 내보냈어요.");
 }
+// Do not change map selection for a person request the existing busy guard cannot accept.
+document.addEventListener("click",event=>{
+ const person=event.target.closest('button[data-person][data-map-open="person"]');
+ if(busy&&person?.closest("#peopleMapHost")){event.preventDefault();event.stopPropagation();}
+},true);
 document.addEventListener("click",event=>{
  const mapHost=event.target.closest("#peopleMapHost"),mapButton=mapHost&&event.target.closest("button[data-map-open]");
  if(mapHost&&!mapButton)return;

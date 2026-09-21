@@ -167,3 +167,21 @@
 @media (prefers-reduced-motion: reduce) {
   .cd-draw *, .cd-draw *::before, .cd-draw *::after { animation: none !important; transition: none !important; }
 }
+
+/* Outside the unchanged 3:5 face; text appears only when that card is revealed. */
+.cd-draw .cd-candidate-context {
+  width: 100%;
+  max-width: 268px;
+  margin: 12px auto 0;
+  padding-top: 9px;
+  border-top: 1px solid #dde2d3;
+  color: var(--cd-ink);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cd-draw .cd-candidate-context p { margin: 0; font-size: inherit; }
+.cd-draw .cd-candidate-context .cd-purpose-label { font-weight: 600; }
+.cd-draw .cd-candidate-context .cd-purpose-missing { margin-top: 5px; }
