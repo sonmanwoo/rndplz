@@ -558,24 +558,41 @@ function renderCandidates(){
  zone.hidden=!session?.ready||busy||!disclosed;
  if(zone.hidden){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";zone.replaceChildren();return;}
  if(accountNavigationPending||accountInvalidated)return;
- const rows=session.result?.candidates||[],key=session.id+":"+session.scout.revision;
+ const result=session.result||{},rows=result.candidates||[],key=session.id+":"+session.scout.revision;
+ const mapEligible=!result.historical_result&&!result.inspection_only&&rows.every(c=>c.in_current_pool!==false);
  const emptyNotice=rows.length?"":emptyCandidateNotice(session);
- const renderKey=key+":"+JSON.stringify(rows)+(rows.length?"":":"+JSON.stringify(emptyNotice));
+ const renderKey=key+":"+JSON.stringify(rows)+":"+mapEligible+(rows.length?"":":"+JSON.stringify(emptyNotice));
  if(renderKey===drawRenderKey)return;
  drawMetadataController?.abort();
  drawRenderKey=renderKey;const epoch=++drawEpoch;
  drawController?.dispose();drawController=null;
  const animate=animateScoutKey===key;animateScoutKey="";
  zone.classList.add("scout-draw-zone");
- zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p>카드를 누르면 자세한 이력과 근거를 볼 수 있어요.</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
+ zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
  if(!rows.length){$("scoutDrawHost").textContent=emptyNotice;if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
- const metadataTimeout=setTimeout(()=>metadataController.abort(),8000);
- Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(session.result?.historical_result),metadataController.signal),import('/draw.js')]).then(([records,{initDraw}])=>{
+ let settleMapTimeout;
+ const metadataTimeout=setTimeout(()=>{metadataController.abort();settleMapTimeout?.(null);},8000);
+ // The full map is display-only. Recommendation IDs and evidence remain the saved result.
+ const mapRequest=mapEligible?Promise.race([Promise.all([api("/api/people-map",undefined,metadataController.signal),import('/recommendation-map.js')]).catch(()=>null),new Promise(resolve=>{settleMapTimeout=resolve;})]):Promise.resolve(null);
+ Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(result.historical_result),metadataController.signal),import('/draw.js'),mapRequest]).then(([records,{initDraw},map])=>{
   if(epoch!==drawEpoch||drawRenderKey!==renderKey||zone.hidden||accountNavigationPending||accountInvalidated)return;
-  const dock=document.querySelector(".composer-dock");
-  drawController=initDraw($("scoutDrawHost"),{bottomBoundary:dock,onBoundaryFit:fits=>dock?.classList.toggle("scout-dock-in-flow",!fits),quiet:()=>!animate||RndCraft.quiet(),onDetail:record=>showPerson(record.id,document.activeElement).catch(exc=>error(exc.message))});
-  drawController.show(records,key);
+  const host=$("scoutDrawHost"),hint=$("scoutResultHint"),dock=document.querySelector(".composer-dock");
+  const options={bottomBoundary:dock,onBoundaryFit:fits=>dock?.classList.toggle("scout-dock-in-flow",!fits),quiet:()=>!animate||RndCraft.quiet(),onDetail:record=>showPerson(record.id,document.activeElement).catch(exc=>error(exc.message))};
+  if(map){
+   try{
+    const [mapData,{initRecommendationMap}]=map;
+    drawController=initRecommendationMap(host,{...options,quiet:()=>RndCraft.quiet(),animateOnShow:animate,mapData,rows,records});
+    drawController.show(records,key);
+    hint.textContent='관련 분야를 따라 연결된 사람을 살펴보세요. 컬러 사진이 이번 요청의 후보예요.';
+   }catch{
+    drawController?.dispose();drawController=null;host.replaceChildren();options.onBoundaryFit(true);
+   }
+  }
+  if(!drawController){
+   drawController=initDraw(host,options);drawController.show(records,key);
+   hint.textContent=mapEligible?'연구맵을 불러오지 못해 후보 카드를 보여드려요. 카드를 누르면 근거를 볼 수 있어요.':'카드를 누르면 이 결과에 연결된 이력과 근거를 볼 수 있어요.';
+  }
   if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});
  }).catch(()=>{if(epoch===drawEpoch&&!accountNavigationPending&&!accountInvalidated){drawRenderKey="";$("scoutDrawHost").textContent='인물 카드를 불러오지 못했어요. 화면을 새로고침해 주세요.';}}).finally(()=>{metadataController.abort();clearTimeout(metadataTimeout);if(drawMetadataController===metadataController)drawMetadataController=null;});
 }
@@ -867,7 +884,7 @@ window.addEventListener("rndplz:before-account-navigation",event=>{
 window.addEventListener("rndplz:account-navigation",event=>{
  accountNavigationPending=event.detail?.phase!=="cancel";
  if(accountNavigationPending)invalidateRecovery(true);
- if(accountNavigationPending&&!drawController){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawRenderKey="";}
+ if(accountNavigationPending){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";$("proposalZone").replaceChildren();}
  if(event.detail?.phase==="invalidate"){
   accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
  }

@@ -1,0 +1,193 @@
+/* Load after people-map.css. Original graph geometry, palette and distinctions
+   remain owned by that stylesheet; this file only adds the recommendation flow. */
+#peopleMapHost.recommendation-map {
+  color-scheme: light;
+  width: 100%;
+  min-width: 0;
+  color: #242b28;
+  background: #fcfbf7;
+}
+#peopleMapHost.recommendation-map[hidden] { display: none; }
+#peopleMapHost.recommendation-map .mp-map { padding: 0; min-width: 0; }
+#peopleMapHost.recommendation-map .mp-graph-shell {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #dcded3;
+  border-radius: 10px;
+  background: #fcfbf7;
+}
+#peopleMapHost.recommendation-map .mp-graph-stage,
+#peopleMapHost.recommendation-map .mp-graph-shell.mobile-show-map .mp-graph-stage {
+  display: block;
+  height: clamp(340px, 56svh, 560px);
+  min-height: 340px;
+  max-width: 100%;
+  touch-action: pan-y pinch-zoom;
+}
+#peopleMapHost.recommendation-map .rm-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+#peopleMapHost.recommendation-map .rm-status {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  color: #315e50;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+#peopleMapHost.recommendation-map .rm-actions,
+#peopleMapHost.recommendation-map .rm-camera-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#peopleMapHost.recommendation-map .rm-actions button,
+#peopleMapHost.recommendation-map .rm-camera-controls button {
+  min-height: 40px;
+  padding: 8px 11px;
+  border: 1px solid #dcded3;
+  border-radius: 7px;
+  color: #315e50;
+  background: #fffdf7;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+#peopleMapHost.recommendation-map button[hidden] { display: none; }
+#peopleMapHost.recommendation-map .rm-camera-controls { margin-top: 10px; }
+#peopleMapHost.recommendation-map .rm-camera-controls output {
+  min-width: 52px;
+  text-align: center;
+  color: #62685f;
+  font-size: 12px;
+}
+#peopleMapHost.recommendation-map .rm-help,
+#peopleMapHost.recommendation-map .rm-note {
+  margin: 9px 0 0;
+  color: #62685f;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+#peopleMapHost.recommendation-map .rm-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+#peopleMapHost.recommendation-map .rm-candidates > button {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 70px;
+  padding: 12px;
+  text-align: left;
+  color: #242b28;
+  border: 1px solid #cbd5c6;
+  border-radius: 8px;
+  background: #fffdf7;
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+#peopleMapHost.recommendation-map .rm-candidates strong { font-size: 14px; line-height: 1.4; }
+#peopleMapHost.recommendation-map .rm-candidates span { font-size: 12px; line-height: 1.5; color: #62685f; }
+#peopleMapHost.recommendation-map .rm-candidates > button[aria-pressed="true"] {
+  border-color: #315e50;
+  box-shadow: inset 0 0 0 1px #315e50;
+  background: #e5ebe0;
+}
+#peopleMapHost.recommendation-map .mp-spatial-person[aria-disabled="true"] { cursor: default; }
+/* Never grayscale names, Nobel/team rings, field cards, lines or the background. */
+#peopleMapHost.recommendation-map .mp-spatial-person.rm-noncandidate .mp-node-face img {
+  filter: grayscale(1);
+}
+#peopleMapHost.recommendation-map .mp-spatial-person.rm-candidate .mp-node-name {
+  background: #e5ebe0;
+  border-radius: 3px;
+}
+#peopleMapHost.recommendation-map .mp-spatial-person.rm-selected .mp-node-name {
+  outline: 1px solid #315e50;
+  outline-offset: 2px;
+}
+#peopleMapHost.recommendation-map .mp-spatial-field.rm-related-field {
+  border-color: #779770;
+  box-shadow: 0 0 0 2px #dde7d7;
+}
+#peopleMapHost.recommendation-map .mp-spatial-edge.rm-related-edge {
+  stroke: #688a62;
+  stroke-width: 2.3;
+  opacity: 1;
+}
+#peopleMapHost.recommendation-map button:focus-visible,
+#peopleMapHost.recommendation-map .mp-graph-stage:focus-visible {
+  outline: 2px solid #315e50;
+  outline-offset: 3px;
+}
+/* This adopted map keeps the original light palette even when the surrounding
+   chat uses dark mode. Scope beats the later theme.css map rules without !important. */
+html[data-theme="dark"] #peopleMapHost.recommendation-map {
+  --paper: #f4f2eb; --sheet: #fffdf7; --ink: #242b28; --muted: #62685f;
+  --line: #dcded3; --green: #315e50; --soft: #e5ebe0; --gold: #b28a2e;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-map {
+  --mp-ink: #242b28; --mp-muted: #62685f; --mp-line: #d8ddd3;
+  --mp-graph-paper: #fcfbf7; --mp-graph-accent: #356951;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-graph-stage {
+  border-color: #e4e7df;
+  background-image: radial-gradient(#b8c3b748 .7px, transparent .7px);
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-node-face {
+  background: #e4e9dd;
+  box-shadow: 0 0 0 3px #fcfbf7, 0 0 0 4px #c9d3c2;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-person[aria-pressed="true"] .mp-node-face {
+  box-shadow: 0 0 0 3px #fcfbf7, 0 0 0 6px #356951;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-person :is(.mp-node-name, .mp-node-field) {
+  background: #fcfbf7ee; color: #242b28;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-person .mp-node-field { color: #667561; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-person.rm-candidate .mp-node-name,
+html[data-theme="dark"] #peopleMapHost.recommendation-map :is(.mp-spatial-person:hover, .mp-spatial-person[aria-pressed="true"]) .mp-node-name {
+  background: #e5ebe0; color: #23472f;
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-node.mp-spatial-field {
+  background: #f2f4eb;
+  color: var(--field-color, #38583f);
+  border-color: color-mix(in srgb, var(--field-color, #38583f) 40%, #e7e8df);
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-field.rm-related-field { border-color: #779770; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-field:hover {
+  background: #e3ebd8; border-color: var(--field-color, #38583f);
+}
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-field small { color: #738069; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-spatial-edge.rm-related-edge { stroke: #688a62; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-person-nobel .mp-face-shell::before { border-color: #b28a2e; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-person-team .mp-face-shell::after { border-color: #287c78; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-team-marker { color: #236965; background: #fffdf7ef; }
+@media (max-width: 480px) {
+  #peopleMapHost.recommendation-map .mp-graph-shell { padding: 10px; }
+  #peopleMapHost.recommendation-map .rm-actions { width: 100%; }
+  #peopleMapHost.recommendation-map .rm-actions button { min-height: 44px; }
+  #peopleMapHost.recommendation-map .rm-camera-controls button { min-width: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #peopleMapHost.recommendation-map *,
+  #peopleMapHost.recommendation-map *::before,
+  #peopleMapHost.recommendation-map *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
