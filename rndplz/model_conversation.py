@@ -16,6 +16,9 @@ from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
 from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, parse_request_effect, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
 from .service import now
+from .model_dialogue import parse_attachment_actions
+from .attachment_reader import attachment_catalog, run_attachment_tools
+from .attachment_context import reader_items, source_previews
 
 
 def digest(value):
@@ -592,7 +595,8 @@ class ModelConversation:
                      'previously_disclosed_history_available':bool(historical),
                      'candidate_observation':copy.deepcopy(session.get('scout') or {}),
                      'request_spec':copy.deepcopy(session.get('request_spec') or {})}
-        messages = self.model_messages(session, option, grounding, consultation=True)
+        readable = reader_items(self, session)
+        messages = self.model_messages(session, option, grounding, consultation=True, attachment_preview=bool(readable))
         sources = self._model_sources(session)
         exclusions = sorted(self.request_context(session).get('excluded_person_ids', []))
         catalog = PublicEvidenceSearch(self.service.engine).record_catalog(excluded_person_ids=exclusions)
@@ -618,7 +622,8 @@ class ModelConversation:
                    'previous_scope':{k:v for k,v in (session.get('previous_model_plan') or {}).items()
                                      if k in ('summary', 'interpretations', 'person_names', 'conditions')},
                    'previous_scope_origin':'이전 모델 해석이며 확정된 사용자 명세가 아닙니다. 실제 source_turns에 근거한 목적과 조건만 이어받고, 모델의 제안은 사용자가 채택했을 때만 포함하세요.',
-                   'source_turns':sources,
+                   'source_turns':source_previews(sources) if readable else sources,
+                   'attachment_tools':attachment_catalog(readable),
                    'public_search_tool':{
                        'scope':'현재 접근 가능한 등록 기록',
                        'query_match':'각 query의 모든 공백 구분 어절이 같은 기록의 제목·본문에 있어야 합니다. 정확한 연속 구절 일치에는 더 높은 어휘 점수를 줍니다. 없는 어절을 생략하거나 뜻을 자동 추론하지 않습니다. 경력·논문에 실제로 적힐 짧은 연구 개념을 고르세요. 서로 다른 기록으로도 확인할 독립 개념은 groups로, 같은 개념의 한영 표현·표기 변형은 queries로 구성할 수 있습니다.',
@@ -638,6 +643,7 @@ class ModelConversation:
             json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'})
         validate_generation_input(messages, 'dialogue_plan.v2')
         basis = {'source_turns':sources, 'historical_disclosures':historical,
+                 'attachment_provider_scope':copy.deepcopy(session.get('provider_scope')),
                  'corpus_fingerprint':self._model_corpus_fingerprint(),
                  'topic_ids':sorted(self.service.corpus.topic_by_id),
                  'exposed_topic_ids':context['public_search_tool']['topic_ids'],
@@ -739,7 +745,8 @@ class ModelConversation:
             current = self._model_pending(sid, turn_id)
         except ValueError as exc:
             raise ModelBasisChanged(str(exc)) from exc
-        if (current.get('request_continuity_snapshot') != basis.get('request_continuity_snapshot') or
+        if (('attachment_provider_scope' in basis and current.get('provider_scope') != basis['attachment_provider_scope']) or
+                current.get('request_continuity_snapshot') != basis.get('request_continuity_snapshot') or
                 current.get('execution_binding') != basis.get('execution_binding') or
                 current.get('request_spec') != basis.get('request_spec_basis') or
                 self._model_sources(current) != basis['source_turns'] or
@@ -875,7 +882,7 @@ class ModelConversation:
                                   'retrieval':self._diagnostic_retrieval({'result':result})})
         return result, request
 
-    def _model_consultation_messages(self, session, option, plan, revision, result, basis, deadline, request_spec):
+    def _model_consultation_messages(self, session, option, plan, revision, result, basis, deadline, request_spec, attachment_tools=None):
         # This allowlist exposes aggregate matched topic vocabulary, never fresh identities or record content.
         # Earlier disclosures were revalidated against the same request basis.
         count = (result.get('matched_candidate_count', len(result.get('candidates', [])))
@@ -895,12 +902,14 @@ class ModelConversation:
                      'request_spec_origin':'model_summary_of_user_turns_not_user_confirmation',
                      'execution_observation_origin':'actual_record_matches_and_registered_topic_tags_not_purpose_or_person_qualification',
                      'execution_observation':observation,
-                     'source_turns':copy.deepcopy(basis['source_turns']),
+                     'source_turns':source_previews(basis['source_turns']) if attachment_tools is not None else copy.deepcopy(basis['source_turns']),
                      'historical_disclosures':copy.deepcopy(basis['historical_disclosures']),
                      'historical_disclosure_rule':'이미 공개되고 현재 원자료와 연결이 확인된 이력입니다. 이전 자료의 출처·기여·관련성·한계를 설명할 수 있지만 이번 조건의 새 결과나 평가로 바꾸지 마세요.'}
+        if attachment_tools is not None:
+            grounding['attachment_tool_results'] = copy.deepcopy(attachment_tools)
         # Add context after model_messages' conversation limit; the complete
         # input still passes the shared generation-input budget validation.
-        messages = self.model_messages(session, option, consultation=True)
+        messages = self.model_messages(session, option, consultation=True, attachment_preview=attachment_tools is not None)
         messages.insert(max(0, len(messages)-1), {'role':'user', 'content':
             '[상담 문맥 · 모델 해석과 실제 조회 관측을 구분한 데이터]\n' +
             json.dumps(grounding, ensure_ascii=False) + '\n[상담 문맥 끝]'})
@@ -911,7 +920,7 @@ class ModelConversation:
         sid, turn_id = session['id'], session['pending']
         self._check_model_basis(sid, turn_id, basis, deadline)
         messages = self._model_consultation_messages(self.get(sid), option, plan, revision,
-                                                   result, basis, deadline, request_spec)
+                                                   result, basis, deadline, request_spec, state.get('attachment_tools'))
         self._reserve_model_call(sid, turn_id, turn_id)
         attempt = {'attempt':1, 'raw':'', 'provider_completed':False,
                    'validation':None, 'adopted':False, 'revision':revision}
@@ -1216,6 +1225,8 @@ class ModelConversation:
                        'model_assessment_materials':(assessment or {}).get('materials', []),
                        'model_assessment_status':(assessment or {}).get('status'),
                        'model_response_attempts':copy.deepcopy((assessment or {}).get('attempts', []))}
+            if 'attachment_tools' in (consultation or {}):
+                message['attachment_tool_results'] = copy.deepcopy(consultation['attachment_tools'])
             if status=='error' and type(chat_retry) is bool:
                 message['retry_available']=chat_retry
                 if error_code in ('model_generation_unavailable','model_generation_budget_exhausted'):
@@ -1376,6 +1387,7 @@ class ModelConversation:
         dispatched = False; attempts = []; searches = []; assessment = {}; consultation = {}
         plan = revision = result = request = request_spec = None
         repair_decision = None; chat_retry = None; error_code = None; request_effect = "update"
+        attachment_actions = []
         try:
             yield {'type':'start', 'session':session}
             if not isinstance(messages, PlanMessages):
@@ -1419,6 +1431,7 @@ class ModelConversation:
                     request_spec = parse_request_spec(raw, user_messages=basis['source_turns'])
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
                     request_effect = parse_request_effect(raw)
+                    attachment_actions = parse_attachment_actions(raw)
                     if request_effect == 'preserve':
                         retained = self._request_continuity(self.get(sid), turn_id)
                         if retained is None:
@@ -1446,6 +1459,23 @@ class ModelConversation:
                                  status='complete', content={'model_plan':plan, 'model_plan_raw':raw,
                                                              'plan_attempt':number})
                 break
+            readable = reader_items(self, self.get(sid))
+            if readable or attachment_actions:
+                self._check_model_basis(sid, turn_id, basis, deadline)
+                if attachment_actions:
+                    yield {'type':'phase', 'phase':'reading'}
+                # A phase yield can suspend while the user cancels or changes scope.
+                self._check_model_basis(sid, turn_id, basis, deadline)
+                readable = reader_items(self, self.get(sid))
+                # Only scoped, current-session documents cross this boundary.
+                consultation['attachment_tools'] = run_attachment_tools(readable, attachment_actions)
+                self._check_model_basis(sid, turn_id, basis, deadline)
+                for row in consultation['attachment_tools']['results']:
+                    diagnostic_event('model_tool_completed', model_phase='tool',
+                        route_reason='attachment_reader', tool_call_id=row['tool_call_id'],
+                        status='complete' if row['status']=='completed' else 'error',
+                        output_chars=len(json.dumps(row, ensure_ascii=False)),
+                        error_kind=None if row['status']=='completed' else row.get('error', 'attachment_read_failed'))
             if plan['lookup_action'] in ('offer', 'execute'):
                 yield {'type':'phase', 'phase':'searching'}
                 self._check_model_basis(sid, turn_id, basis, deadline)

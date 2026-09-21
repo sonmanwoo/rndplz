@@ -23,6 +23,20 @@ import sys
 import time
 from urllib.parse import quote, unquote, urljoin, urlsplit, urlunsplit
 
+# The isolated -I -S fetch worker has no package search path. Load only this
+# server-owned sibling; URLs, document paths and document text never select it.
+if __package__:
+    from .bounded_html import BundledHTMLError, unpack_html_template, is_loading_only
+else:
+    import importlib.util
+    _bundle_spec = importlib.util.spec_from_file_location(
+        '_rndplz_https_bounded_html', Path(__file__).resolve().with_name('bounded_html.py'))
+    _bundle_module = importlib.util.module_from_spec(_bundle_spec)
+    _bundle_spec.loader.exec_module(_bundle_module)
+    BundledHTMLError = _bundle_module.BundledHTMLError
+    unpack_html_template = _bundle_module.unpack_html_template
+    is_loading_only = _bundle_module.is_loading_only
+
 MAX_BYTES = 10 * 1024 * 1024
 # Preserve extraction inside the deadline worker. Its JSON contains raw base64
 # and text: at most six JSON bytes per decoded character, plus bounded metadata.
@@ -46,6 +60,7 @@ _ERRORS = {
     'https_fetch_failed': '이 링크에서 자료를 가져오지 못했어요.',
     'https_login_required': '로그인 없이 열 수 있는 공개 HTTPS 문서를 사용해 주세요.',
     'https_too_large': '링크 자료가 10MiB를 넘어요.',
+    'https_resource_limit': '링크 문서 내부 내용이 안전한 처리 범위를 넘었어요.',
     'https_empty': '이 링크에서 읽을 수 있는 내용을 찾지 못했어요.',
     'https_unsupported_type': '이 링크는 지원하는 문서 형식이 아니에요.',
     'https_invalid_response': '이 링크의 문서 응답을 읽지 못했어요.',
@@ -266,7 +281,8 @@ def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic):
                                  'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw),
                                  'trust': 'untrusted', 'redirects': redirects}}
             if kind in ('text', 'html'):
-                result['text'] = extract_web_text(raw, content_type)
+                result['text'], bundled = extract_web_text(raw, content_type, _with_bundle_status=True)
+                if bundled:result['html_bundle_template'] = True
             return result
         finally:
             reply.close()
@@ -302,7 +318,7 @@ class _VisibleText(HTMLParser):
             self.output.append(data)
 
 
-def extract_web_text(raw, content_type):
+def extract_web_text(raw, content_type, *, _with_bundle_status=False):
     _need(isinstance(raw, bytes) and len(raw) <= MAX_BYTES and b'\0' not in raw, 'https_unsupported_type')
     match = re.search(r'charset\s*=\s*[\"\']?([a-zA-Z0-9_-]+)', content_type)
     encoding = match.group(1).lower() if match else 'utf-8-sig'
@@ -311,14 +327,28 @@ def extract_web_text(raw, content_type):
         text = raw.decode(encoding)
     except (UnicodeError, LookupError):
         raise FetchError('https_invalid_response') from None
+    bundled = False
     if content_type.split(';', 1)[0].strip().lower() in {'text/html', 'application/xhtml+xml'}:
+        if '__bundler/' in text:
+            try:
+                template = unpack_html_template(text.encode('utf-8'))
+            except BundledHTMLError as exc:
+                code = {'invalid':'https_invalid_response', 'unsupported':'https_unsupported_type',
+                        'empty':'https_empty', 'resource_limit':'https_resource_limit'}[exc.reason]
+                raise FetchError(code) from None
+            if template is not None:
+                text = template.decode('utf-8')
+                bundled = True
         parser = _VisibleText()
         parser.feed(text)
         parser.close()
         text = re.sub(r'\n[ \t]*\n+', '\n\n', ''.join(parser.output))
+    if bundled:
+        text = '\n'.join(line.strip() for line in text.splitlines() if line.strip())
+        _need(not is_loading_only(text), 'https_unsupported_type')
     text = text.strip()
     _need(bool(text), 'https_empty')
-    return text
+    return (text, bundled) if _with_bundle_status else text
 
 
 def fetch_document(url):

@@ -16,53 +16,145 @@ function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accou
 let ciBusyStarted=null,retryDisplay=null,responseProgress="";
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-// Literal address navigation only; this does not verify a source or a claim.
+// Completed assistant presentation only; link navigation does not verify a source or claim.
 function formattedAnswer(text,status){
- const raw=String(text??'');
- if(status!=='complete')return formatted(raw);
- let marker='RNDPLZANSWERSOURCELINK';while(raw.includes(marker))marker+='X';
- const links=[],scan=/`+|~{3,}|<|https:\/\//gi;
- let cursor=0,prepared='',match;
- while((match=scan.exec(raw))){
-  const start=match.index,token=match[0];
-  if(token[0]==='`'||token[0]==='~'){
-   const lineStart=raw.lastIndexOf('\n',start-1)+1;
+ const raw=String(text??"");
+ if(status!=="complete")return formatted(raw);
+ let marker="RNDPLZANSWERREADABLE";while(raw.includes(marker))marker+="X";
+ const fragments=[],hold=html=>marker+(fragments.push(html)-1)+"END";
+ // Protection-only token balancing; uncertain HTML is never interpreted as answer Markdown.
+ const voidHtmlTags=/^(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/i;
+ function htmlTagAt(start){
+  const lead=/^<(\/?)([A-Za-z][A-Za-z0-9:-]*)(?=[\s/>])/.exec(raw.slice(start));
+  if(!lead)return null;
+  let quote="",at=start+lead[0].length;
+  for(;at<raw.length;at++){
+   const char=raw[at];
+   if(quote){if(char===quote)quote="";continue;}
+   if(char==='"'||char==="'"){quote=char;continue;}
+   if(char==="<")return null;
+   if(char===">"){
+    const tail=raw.slice(start+lead[0].length,at);
+    if(lead[1]&&tail.trim())return null;
+    return {name:lead[2].toLowerCase(),closing:!!lead[1],selfClosing:/\/\s*$/.test(tail),end:at+1};
+   }
+  }
+  return null;
+ }
+ function htmlProtectionEnd(start){
+  const first=htmlTagAt(start);if(!first)return raw.length;
+  if(first.closing||first.selfClosing||voidHtmlTags.test(first.name))return first.end;
+  const stack=[first.name];let at=first.end;
+  while(at<raw.length){
+   const next=raw.indexOf("<",at);if(next<0)return raw.length;
+   if(raw.startsWith("<!--",next)){
+    const close=raw.indexOf("-->",next+4);if(close<0)return raw.length;
+    at=close+3;continue;
+   }
+   const tag=htmlTagAt(next);if(!tag)return raw.length;
+   if(tag.closing){
+    if(tag.name!==stack[stack.length-1])return raw.length;
+    stack.pop();if(!stack.length)return tag.end;
+   }else if(!tag.selfClosing&&!voidHtmlTags.test(tag.name))stack.push(tag.name);
+   at=tag.end;
+  }
+  return raw.length;
+ }
+ let protectedText="",cursor=0,match;
+ const protection=/\x60+|~{3,}|</g;
+ while((match=protection.exec(raw))){
+  const start=match.index,token=match[0];let end=start;
+  if(token[0]!=="<"){
+   const lineStart=raw.lastIndexOf("\n",start-1)+1;
    const fence=token.length>=3&&/^ {0,3}$/.test(raw.slice(lineStart,start));
    if(fence){
-    const closing=new RegExp('^ {0,3}'+token[0]+'{'+token.length+',}[ \\t]*\\r?$','gm');
-    closing.lastIndex=start+token.length;
-    const end=closing.exec(raw);scan.lastIndex=end?end.index+end[0].length:raw.length;
-   }else if(token[0]==='`'){
-    const closing=/`+/g;closing.lastIndex=start+token.length;let end;
-    while((end=closing.exec(raw))&&end[0].length!==token.length){}
-    scan.lastIndex=end?end.index+end[0].length:raw.length;
-   }
-   continue;
-  }
-  if(token==='<'){
-   const end=raw.indexOf('>',start+1);scan.lastIndex=end<0?raw.length:end+1;continue;
-  }
-  if(start&&/[A-Za-z0-9_:/@.\\-]/.test(raw[start-1]))continue;
-  const found=/^https:\/\/[^\s\u0000-\u001f\u007f<>"'`\\*“”‘’]+/i.exec(raw.slice(start));
-  if(!found)continue;
-  let address=found[0];
-  // Sentence punctuation and unmatched outer brackets are not part of the URL.
+    const closing=new RegExp("^ {0,3}"+token[0]+"{"+token.length+",}[ \\t]*\\r?$","gm");
+    closing.lastIndex=start+token.length;const found=closing.exec(raw);end=found?found.index+found[0].length:raw.length;
+   }else if(token.charCodeAt(0)===96){
+    const closing=/\x60+/g;closing.lastIndex=start+token.length;let found;
+    while((found=closing.exec(raw))&&found[0].length!==token.length){}
+    end=found?found.index+found[0].length:raw.length;
+   }else continue;
+  }else if(raw.startsWith("<!--",start)){
+   const close=raw.indexOf("-->",start+4);end=close<0?raw.length:close+3;
+  }else{end=htmlProtectionEnd(start);}
+  protectedText+=raw.slice(cursor,start)+hold(formatted(raw.slice(start,end)));
+  cursor=end;protection.lastIndex=end;
+ }
+ protectedText+=raw.slice(cursor);
+ function safeAddress(value){
+  if(!value||value.includes(marker)||/[\s\u0000-\u001f\u007f<>"\x60\\]/.test(value))return false;
+  try{const url=new URL(value);return url.protocol==="https:"&&!!url.hostname&&!url.username&&!url.password;}catch{return false;}
+ }
+ function anchor(address,label){
+  const visible=label&&label!==address?esc(label)+' <span class="answer-source-address">('+esc(address)+")</span>":esc(address);
+  return '<a class="answer-source-link" href="'+esc(address)+'" target="_blank" rel="noopener noreferrer">'+visible+"</a>";
+ }
+ function trimAddress(value){
   let previous;
   do{
-   previous=address;address=address.replace(/[.,!?;:。，！？、…]+$/u,'');
-   for(const [open,close] of [['(',')'],['[',']'],['{','}']]){
-    const count=char=>Array.from(address).filter(value=>value===char).length;
-    while(address.endsWith(close)&&count(close)>count(open))address=address.slice(0,-1);
+   previous=value;value=value.replace(/[.,!?;:。，！？、…]+$/u,"");
+   for(const [open,close] of [["(",")"],["[","]"],["{","}"]]){
+    while(value.endsWith(close)&&value.split(close).length>value.split(open).length)value=value.slice(0,-1);
    }
-  }while(address!==previous);
-  let parsed;try{parsed=new URL(address);}catch{continue;}
-  if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password)continue;
-  const key=marker+links.length+'END';
-  links.push('<a href="'+esc(address)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:underline;text-underline-offset:2px">'+esc(address)+'</a>');
-  prepared+=raw.slice(cursor,start)+key;cursor=start+address.length;scan.lastIndex=cursor;
+  }while(value!==previous);
+  return value;
  }
- if(!links.length)return formatted(raw);
- return formatted(prepared+raw.slice(cursor)).replace(new RegExp(marker+'(\\d+)END','g'),(_,index)=>links[Number(index)]);
+ function inline(value){
+  let prepared="",at=0,hit;const scan=/\[|https:\/\//gi;
+  while((hit=scan.exec(value))){
+   const start=hit.index;
+   if(hit[0]==="["){
+    const labelEnd=value.indexOf("](",start+1);
+    if(labelEnd<0)continue;
+    const label=value.slice(start+1,labelEnd);
+    if(!label||/[\n\r[\]]/.test(label)||label.includes(marker))continue;
+    let depth=1,end=labelEnd+2;
+    for(;end<value.length;end++){
+     if(value[end]==="\n"||value[end]==="\r")break;
+     if(value[end]==="(")depth++;
+     else if(value[end]===")"&&!--depth)break;
+    }
+    if(depth!==0)continue;
+    const address=value.slice(labelEnd+2,end);
+    scan.lastIndex=end+1;
+    if(!safeAddress(address))continue;
+    prepared+=value.slice(at,start)+hold(anchor(address,label));at=end+1;
+    continue;
+   }
+   const afterProtected=new RegExp(marker+"(\\d+)END$").test(value.slice(0,start));
+   if(start&&!afterProtected&&/[A-Za-z0-9_:/@.\\-]/.test(value[start-1]))continue;
+   const found=/^https:\/\/[^\s\u0000-\u001f\u007f<>"'\x60\\*“”‘’|]+/i.exec(value.slice(start));
+   if(!found)continue;
+   const address=trimAddress(found[0].split(marker)[0]);if(!safeAddress(address))continue;
+   prepared+=value.slice(at,start)+hold(anchor(address));at=start+address.length;scan.lastIndex=at;
+  }
+  return formatted(prepared+value.slice(at));
+ }
+ function row(line){
+  let value=line.trim();if(!value.includes("|")||/\\\|/.test(value))return null;
+  if(value.startsWith("|"))value=value.slice(1);
+  if(value.endsWith("|"))value=value.slice(0,-1);
+  const cells=value.split("|").map(cell=>cell.trim());
+  return cells.length>=2?cells:null;
+ }
+ function table(block){
+  if(block.length<3)return null;
+  const header=row(block[0]),separator=row(block[1]);
+  if(!header||header.some(cell=>!cell)||!separator||separator.length!==header.length||separator.some(cell=>!/^:?-{3,}:?$/.test(cell)))return null;
+  const body=block.slice(2).map(row);if(body.some(cells=>!cells||cells.length!==header.length))return null;
+  return '<div class="answer-table-wrap" role="region" aria-label="답변 표 · 가로로 스크롤할 수 있습니다" tabindex="0"><table class="answer-table"><thead><tr>'+
+   header.map(cell=>'<th scope="col">'+inline(cell)+"</th>").join("")+"</tr></thead><tbody>"+
+   body.map(cells=>"<tr>"+cells.map(cell=>"<td>"+inline(cell)+"</td>").join("")+"</tr>").join("")+"</tbody></table></div>";
+ }
+ const lines=protectedText.split("\n"),output=[];
+ for(let i=0;i<lines.length;){
+  if(lines[i].includes("|")){
+   let end=i+1;while(end<lines.length&&lines[end].includes("|")&&lines[end].trim())end++;
+   const block=lines.slice(i,end);output.push(table(block)??inline(block.join("\n")));i=end;
+  }else{output.push(inline(lines[i]));i++;}
+ }
+ return output.join("\n").replace(new RegExp(marker+"(\\d+)END","g"),(_,index)=>fragments[Number(index)]);
 }
 async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
 function displayError(message){return message==="http_503"?"일시적으로 응답할 수 없습니다. 잠시 후 다시 시도해 주세요.":message;}
@@ -191,7 +283,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("linkAttachButton").disabled=locked||blocksScopedLinks()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();}
 const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
 let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
 function pendingAttachment(item){return !!(item.file||item.source_url);}
@@ -216,14 +308,58 @@ function documentUrl(value){
  const raw=String(value||"").trim();if(!raw||raw.length>2048||/[\u0000-\u0020\u007f]/.test(raw))return null;
  try{const url=new URL(raw);return url.protocol==="https:"&&!url.username&&!url.password&&!url.hash&&(!url.port||url.port==="443")?raw:null;}catch{return null;}
 }
-function queueAttachmentLink(){
- if(composerSendLocked()||blocksScopedLinks()||profileUI?.shouldHandle($("message").value))return;
- const url=documentUrl($("attachmentUrl").value);
- if(!url){$("attachmentLinkError").textContent="인증정보가 없는 공개 HTTPS 문서 주소를 입력해 주세요.";return;}
- if(files.length>=4){$("attachmentLinkError").textContent="파일과 링크는 합쳐서 4개까지 첨부할 수 있어요.";return;}
- if(files.some(f=>f.source_url===url)){ $("attachmentLinkError").textContent="이미 선택한 링크예요.";return;}
- files.push({id:"pending-"+crypto.randomUUID(),name:url,source_url:url});
- $("attachmentLinkDialog").close();$("attachmentUrl").value="";error();renderFiles();$("message").focus();
+// Only explicit composer submission reads URLs; typing never starts a request.
+let inlineMessageLinks=new Map();
+function normalizeMessageDocumentUrl(value){
+ const raw=String(value||"").trim();
+ if(!raw||raw.length>2048||/[\u0000-\u0020\u007f\\]/.test(raw))return null;
+ try{
+  const url=new URL(raw);
+  if(url.protocol!=="https:"||!url.hostname||url.username||url.password||url.port&&url.port!=="443")return null;
+  url.hash="";
+  return documentUrl(url.href);
+ }catch{return null;}
+}
+function messageDocumentUrls(text){
+ const urls=[],seen=new Set(),raw=String(text||""),pattern=/https?:\/\//gi;
+ let match;
+ while((match=pattern.exec(raw))){
+  let end=pattern.lastIndex;const depth={"(":0,"[":0,"{":0},opening={")":"(","]":"[","}":"{"};
+  // Unmatched closers belong to prose/Markdown; balanced DOI parentheses stay intact.
+  while(end<raw.length&&!/[\s<>"'`|]/.test(raw[end])){
+   const char=raw[end];
+   if(Object.hasOwn(depth,char))depth[char]++;
+   else if(opening[char]){if(!depth[opening[char]])break;depth[opening[char]]--;}
+   end++;
+  }
+  pattern.lastIndex=end;
+  const value=raw.slice(match.index,end).replace(/[.,;:!?\u3002\uff0c\uff1b\uff1a\uff01\uff1f\u2026\u2019\u201d]+$/u,"");
+  const url=normalizeMessageDocumentUrl(value);
+  if(!url)throw new Error("본문의 링크는 인증정보가 없는 공개 HTTPS 문서 주소여야 해요. 주소를 확인해 주세요. 작성한 글과 선택한 파일은 남아 있어요.");
+  if(!seen.has(url)){seen.add(url);urls.push(url);}
+ }
+ return urls;
+}
+function inlineAttachmentUrls(item,trackedUrl){
+ return [...new Set([trackedUrl,item?.source_url,item?.source?.original_url,item?.source?.final_url].map(normalizeMessageDocumentUrl).filter(Boolean))];
+}
+function planInlineMessageAttachments(text,items,tracked,makeId){
+ const urls=messageDocumentUrls(text),wanted=new Set(urls),autoLinks=new Map();
+ const kept=items.filter(item=>!tracked.has(item.id)||inlineAttachmentUrls(item,tracked.get(item.id)).some(url=>wanted.has(url)));
+ const known=new Set();
+ for(const item of kept){
+  if(tracked.has(item.id))autoLinks.set(item.id,tracked.get(item.id));
+  for(const url of inlineAttachmentUrls(item,tracked.get(item.id)))known.add(url);
+ }
+ const added=urls.filter(url=>!known.has(url));
+ if(kept.length+added.length>4)throw new Error("파일과 본문 링크는 합쳐서 한 번에 4개까지 첨부할 수 있어요. 작성한 글과 선택한 파일은 남아 있어요.");
+ const planned=[...kept];
+ for(const url of added){const id=makeId();planned.push({id,name:url,source_url:url});autoLinks.set(id,url);}
+ return {files:planned,autoLinks,urls};
+}
+function acceptInlineAttachment(previous,uploaded){
+ const url=inlineMessageLinks.get(previous.id);
+ if(url){inlineMessageLinks.delete(previous.id);inlineMessageLinks.set(uploaded.id,url);}
 }
 function abortAttachment(){cancelAttachmentClientReports();if(attachmentTransfer){attachmentTransfer.cancelled=true;attachmentTransfer.controller?.abort();}}
 function attachmentAbortError(){const error=new Error("첨부 처리를 중지했어요.");error.name="AbortError";return error;}
@@ -561,7 +697,7 @@ function busyCiAttributes(){
  const elapsed=Math.max(0,performance.now()-ciBusyStarted)%2400;
  return 'class="susomun-ci susomun-ci--busy" style="--ci-busy-delay:-'+elapsed.toFixed(1)+'ms"';
 }
-const responseProgressLabels={preparing:"요청을 준비하고 있어요",submitting:"요청을 보내고 있어요",waiting:"응답을 기다리고 있어요",interpreting:"요청 해석 단계",searching:"등록 자료 조회 단계",answering:"답변을 준비하고 있어요",receiving:"답변을 받고 있어요"};
+const responseProgressLabels={preparing:"요청을 준비하고 있어요",submitting:"요청을 보내고 있어요",waiting:"응답을 기다리고 있어요",interpreting:"요청 해석 단계",searching:"등록 자료 조회 단계",reading:"첨부 자료를 읽고 있어요",answering:"답변을 준비하고 있어요",receiving:"답변을 받고 있어요"};
 function responseProgressLabel(){
  const label=busy&&!controller?.signal.aborted?responseProgressLabels[responseProgress]||"":"";
  return label&&retryDisplay?retryDisplay.name+"로 다시 시도 · "+label:label;
@@ -829,8 +965,8 @@ async function send(payload,submission=null){
   if(!response.ok){const data=await response.json();throw new Error(data.error||"대화를 시작하지 못했어요.");}
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   const event=line=>{if(!line.trim())return;const data=JSON.parse(line);
-   if(data.type==="start"){if(!finished)responseProgress="waiting";session=data.session;if(/^[a-f0-9]{32}$/.test(data.request_id||""))recoveryRequestId=data.request_id;accepted=true;updateHistory();optimistic=null;if(submission)files=files.filter(f=>!submission.attachmentIds.includes(f.id));renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
-   if(!finished&&data.type==="phase"&&["interpreting","searching","answering"].includes(data.phase))responseProgress=data.phase;
+   if(data.type==="start"){if(!finished)responseProgress="waiting";session=data.session;if(/^[a-f0-9]{32}$/.test(data.request_id||""))recoveryRequestId=data.request_id;accepted=true;updateHistory();optimistic=null;if(submission){files=files.filter(f=>!submission.attachmentIds.includes(f.id));for(const id of submission.attachmentIds)inlineMessageLinks.delete(id);}renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
+   if(!finished&&data.type==="phase"&&["interpreting","searching","reading","answering"].includes(data.phase))responseProgress=data.phase;
    if(data.type==="delta"){streamText+=data.text;if(!finished&&data.text)responseProgress="receiving";}
    if(data.type==="done"||data.type==="error"){session=data.session;finished=true;responseProgress="";stopBusyCi();streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
    render();
@@ -848,7 +984,7 @@ async function send(payload,submission=null){
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
  }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(composerClientLocked())return;invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(composerClientLocked())return;invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
  const reader=new FileReader(),finish=(fn,value)=>{signal?.removeEventListener("abort",stop);fn(value);};
  const stop=()=>{if(reader.readyState===1)reader.abort();finish(reject,attachmentAbortError());};
@@ -928,21 +1064,25 @@ async function upload(list){
 async function submitComposer(){
  if(composerSendLocked()||composerComposing)return;
  const text=$("message").value.trim();if(!text&&!files.length)return;
- const boundary=modelBoundaryMessage(selectedModel);if(boundary){error(boundary);return;}
+ let attachmentPlan;try{attachmentPlan=planInlineMessageAttachments(text,files,inlineMessageLinks,()=>"pending-"+crypto.randomUUID());}catch(e){error(e.message);return;}
+ const boundary=modelBoundaryMessage(selectedModel,attachmentPlan.files);if(boundary){error(boundary);return;}
  if(isPublicPaperContext()&&profileUI.shouldHandle(text)){error("내 프로필 작업은 이 외부 모델로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
  if(profileUI.shouldHandle(text)){
-  if(files.some(f=>f.source_url||f.source?.kind==="https_document")){error("링크 자료는 프로필로 전송하지 않습니다. 링크를 제거하고 프로필용 파일을 직접 선택해 주세요.");return;}
-  if(files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
+  if(attachmentPlan.urls.length||attachmentPlan.files.some(f=>f.source_url||f.source?.kind==="https_document")){error("링크 자료는 프로필로 전송하지 않습니다. 링크를 제거하고 프로필용 파일을 직접 선택해 주세요.");return;}
+  if(attachmentPlan.files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
+  files=attachmentPlan.files;inlineMessageLinks=attachmentPlan.autoLinks;renderFiles();
   profileSubmission={text:$("message").value,revision:composerInputRevision,ids:files.map(f=>f.id)};
   try{await profileUI.submit(text,files.map(f=>f.file));}catch(e){error(e.message);}finally{if(!profileUI.hasPendingRequest())profileSubmission=null;render();resizeInput();}
   return;
  }
  let requested;try{requested=selectedRequestModel();}catch(e){error(e.message);return;}
+ files=attachmentPlan.files;inlineMessageLinks=attachmentPlan.autoLinks;renderFiles();
+ if(!text&&!files.length)return;
  const submittedFiles=[...files],submission=consumeComposerDraft();
  const payload={text,session_id:session?.id,attachments:[],...requested,turn_id:crypto.randomUUID()};
  const transfer={controller:null,cancelled:false};attachmentTransfer=transfer;uploading=true;resizeInput();let failed=false;
  try{
-  for(let i=0;i<submittedFiles.length;i++){const f=submittedFiles[i];if(pendingAttachment(f)){const uploaded=await transmitAttachment(f,transfer,i+1,submittedFiles.length);requireAttachmentTransfer(transfer);submittedFiles[i]=uploaded;files=files.map(item=>item.id===f.id?uploaded:item);renderFiles();}}
+  for(let i=0;i<submittedFiles.length;i++){const f=submittedFiles[i];if(pendingAttachment(f)){const uploaded=await transmitAttachment(f,transfer,i+1,submittedFiles.length);requireAttachmentTransfer(transfer);acceptInlineAttachment(f,uploaded);submittedFiles[i]=uploaded;files=files.map(item=>item.id===f.id?uploaded:item);renderFiles();}}
   requireAttachmentTransfer(transfer);
  }catch(e){restoreComposerDraft(submission);error(e.message);failed=true;}
  finally{transfer.controller?.abort();if(attachmentTransfer===transfer)attachmentTransfer=null;uploading=false;attachmentStatus="";controls();}
@@ -991,7 +1131,7 @@ window.addEventListener("rndplz:account-navigation",event=>{
  if(accountNavigationPending)invalidateRecovery(true);
  if(accountNavigationPending){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";$("proposalZone").replaceChildren();}
  if(event.detail?.phase==="invalidate"){
-  accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;resetPrepareProgress();modelSelectionEpoch++;controller?.abort();token="";
+  accountInvalidated=true;abortAttachment();inlineMessageLinks.clear();attachmentPreviewTicket++;prepareTicket++;resetPrepareProgress();modelSelectionEpoch++;controller?.abort();token="";
  }
  controls();
  if(!accountNavigationPending&&!accountInvalidated)renderCandidates();
@@ -1008,8 +1148,8 @@ $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
 $ ("attachmentCancel").addEventListener("click",abortAttachment);
-$ ("linkAttachButton").addEventListener("click",()=>{if(composerSendLocked()||blocksScopedLinks()||profileUI?.shouldHandle($("message").value))return;$("attachmentLinkError").textContent="";modal("attachmentLinkDialog");$("attachmentUrl").focus();});
-$ ("attachmentLinkForm").addEventListener("submit",event=>{event.preventDefault();queueAttachmentLink();});
+
+
 $ ("modelSelect").addEventListener("change",e=>selectModel(e.target.value));
 $ ("settingsButton").addEventListener("click",()=>modal("settingsDialog"));
 $ ("historyButton").addEventListener("click",()=>{$("historyList").innerHTML=history.length?history.map(h=>'<button class="history-item" data-action="history" data-id="'+h.id+'">'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasPublicPaperScope(h)?" · "+publicPaperLabel(h)+" · 공개 논문":"")+'</small></button>').join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';modal("historyDialog");});
@@ -1029,7 +1169,7 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
     const saved=await api("/api/chat/session?id="+id);
     if(navigationEpoch!==recoveryEpoch||accountNavigationPending||accountInvalidated)return;
     session=saved;restoreRecoveryAfterHistory(priorRecovery,saved);restoreModelSelection(session,epoch);
-    if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();
+    if(session.id!==previousSessionId){files=[];inlineMessageLinks.clear();setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();
    }catch(e){
     if(navigationEpoch!==recoveryEpoch||accountNavigationPending||accountInvalidated||session!==previousSession)return;
     restoreRecoveryAfterHistoryFailure(priorRecovery,previousSession,navigationEpoch);

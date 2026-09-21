@@ -931,7 +931,7 @@ _OPERATION_ENUMS = {
     'provider_observed': frozenset(('codex_oauth','openai_api','gemini','mock')),
     'phase_status': _STATUSES,
     'model_phase': frozenset(('interpret','repair','tool','consultation','answer','complete')),
-    'phase': frozenset(('interpreting','searching','answering')),
+    'phase': frozenset(('interpreting','searching','reading','answering')),
     'storage_status': frozenset(('committed','stale_ignored','failed')),
     'terminal_type': frozenset(('done','error')),
     'close_reason': frozenset(('eof','closed','iteration_error','cleanup_error')),
