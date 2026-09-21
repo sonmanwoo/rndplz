@@ -9,6 +9,8 @@ from dataclasses import asdict
 
 from .chat_models import validate_generation_input, ModelProviderCapacity
 from .gemini_native import GeminiError
+from .llm_runtime import RuntimeChatModels, RuntimeConfigError, runtime_error_retryable
+from .responses_stream import LLMError
 from .diagnostics import event as diagnostic_event
 from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
@@ -271,8 +273,59 @@ REPAIRABLE_RESPONSE_ERRORS = frozenset({
 
 
 def model_provider_retryable(exc):
+    if isinstance(exc, (LLMError, RuntimeConfigError)):
+        return runtime_error_retryable(exc)
     return not isinstance(exc,ModelProviderCapacity) and not (isinstance(exc,GeminiError) and
         (exc.http_status in (400,401,403,404) or exc.reason=='prompt_blocked'))
+
+
+class RuntimeMessages(list):
+    """Per-call observation stays outside serialized provider messages."""
+
+
+def runtime_messages(messages, models, observation=None):
+    if getattr(models, 'runtime', None) is None:
+        return messages
+    if not hasattr(messages, '__dict__'):
+        messages = RuntimeMessages(messages)
+    messages.provider_dispatched = False
+    messages.runtime_dispatch_observation = observation
+    if observation is not None:
+        observation.setdefault('dispatched', False)
+    return messages
+
+
+def model_was_called(messages, default=False):
+    return bool(getattr(messages, 'provider_dispatched', default))
+
+
+class ObservedRuntimeChatModels(RuntimeChatModels):
+    """Attach per-call observers without mutating shared adapter callbacks."""
+    def stream(self, identifier, messages, *, contract=None):
+        messages = runtime_messages(messages, self, getattr(messages, 'runtime_dispatch_observation', None))
+        adapter = copy.copy(self)
+        prior = getattr(self, 'diagnostic_observer', None)
+        def dispatched(provider, payload):
+            messages.provider_dispatched = True
+            target = getattr(messages, 'runtime_dispatch_observation', None)
+            if target is not None:
+                target['dispatched'] = True
+            diagnostic_event('model_dispatch_started', model_called=True,
+                             execution_kind='api', generation_contract=contract)
+            if callable(prior):
+                prior(provider, payload)
+        adapter.diagnostic_observer = dispatched
+        try:
+            yield from RuntimeChatModels.stream(adapter, identifier, messages, contract=contract)
+        except (LLMError, RuntimeConfigError) as exc:
+            diagnostic_event('model_provider_error' if messages.provider_dispatched else 'model_provider_rejected',
+                status='error' if messages.provider_dispatched else 'rejected',
+                model_called=messages.provider_dispatched,
+                failure_stage='provider' if messages.provider_dispatched else 'predispatch',
+                generation_contract=contract, error_kind=getattr(exc, 'code', 'runtime_config_invalid'),
+                provider_error_reason='provider_error',
+                provider_http_status=getattr(exc, 'http_status', None))
+            raise
 
 
 class ModelChatBudgetExhausted(ValueError):
@@ -799,8 +852,9 @@ class ModelConversation:
         self._reserve_model_call(sid, turn_id, turn_id)
         attempt = {'attempt':1, 'raw':'', 'provider_completed':False,
                    'validation':None, 'adopted':False, 'revision':revision}
-        state.update(dispatched=True, attempts=[attempt])
-        diagnostic_event('model_dispatch_started', model_called=True, model_phase='consultation',
+        state.update(dispatched=getattr(self.models, 'runtime', None) is None, attempts=[attempt])
+        messages = runtime_messages(messages, self.models, state)
+        diagnostic_event('model_dispatch_started', model_called=model_was_called(messages, True), model_phase='consultation',
                          generation_contract='dialogue_answer.v1', plan_sha256=digest(plan),
                          content={'model_messages':messages,
                                   'model_generation_budget':self.get(sid).get('model_generation_budget')})
@@ -933,6 +987,7 @@ class ModelConversation:
         except Exception as exc:
             failure=ModelResponseUnavailable()
             failure.provider_retryable=model_provider_retryable(exc)
+            failure.model_called=model_was_called(messages, True)
             raise failure from None
 
     def _stream_model_response(self, session, option, plan, result, basis, pending, origin_turn,
@@ -969,8 +1024,9 @@ class ModelConversation:
         messages = PlanMessages(prepared, basis=basis, deadline=deadline)
         self._check_model_basis(session['id'], pending, basis, deadline)
         self._reserve_model_call(session['id'], pending, origin_turn, extra=extra)
-        state['dispatched'] = True
-        diagnostic_event('model_dispatch_started', model_called=True, model_phase='answer',
+        if getattr(self.models, 'runtime', None) is None: state['dispatched'] = True
+        messages = runtime_messages(messages, self.models, state)
+        diagnostic_event('model_dispatch_started', model_called=model_was_called(messages, True), model_phase='answer',
                          generation_contract='dialogue_response.v1',
                          content={'model_messages':messages,
                                   'model_generation_budget':self.get(session['id']).get('model_generation_budget')})
@@ -1224,12 +1280,13 @@ class ModelConversation:
                            'provider_completed':False, 'validation':None, 'adopted':False}
                 attempts.append(attempt)
                 self._reserve_model_call(sid, turn_id, turn_id, extra=number==2)
-                diagnostic_event('model_dispatch_started', model_called=True, model_phase=phase,
+                current_messages = runtime_messages(current_messages, self.models, attempt)
+                diagnostic_event('model_dispatch_started', model_called=model_was_called(current_messages, True), model_phase=phase,
                                  generation_contract='dialogue_plan.v2',
                                  content={'model_messages':current_messages, 'plan_attempt':number,
                                           'basis_sha256':digest(basis),
                                           'model_generation_budget':self.get(sid).get('model_generation_budget')})
-                dispatched = True; raw = ''
+                dispatched = model_was_called(current_messages, True); raw = ''
                 for piece in self.models.stream(option['id'], current_messages, contract='dialogue_plan.v2'):
                     raw += piece; attempt['raw'] = raw
                     if len(raw) > 24000:raise ValueError('모델의 조회 계획이 허용 크기를 넘었습니다.')
@@ -1287,14 +1344,21 @@ class ModelConversation:
             chat_retry=self._chat_retry_available(self.get(sid),turn_id,option)
             if isinstance(exc,(ModelChatBudgetExhausted,ModelProviderCapacity)):
                 error_code='model_generation_budget_exhausted';chat_retry=False
+            elif isinstance(exc,(LLMError,RuntimeConfigError)):
+                error_code='model_generation_budget_exhausted' if getattr(exc,'code','').startswith('budget_') else 'model_generation_unavailable'
+                if not model_provider_retryable(exc):chat_retry=False
             elif isinstance(exc,GeminiError):
                 error_code='model_generation_unavailable'
                 if not model_provider_retryable(exc):chat_retry=False
             if not chat_retry and not isinstance(exc,(ModelChatBudgetExhausted,ModelProviderCapacity)):
+                if isinstance(exc,(LLMError,RuntimeConfigError)):
+                    error = error.removesuffix(' 잠시 후 다시 시도해 주세요.').removesuffix(' 다시 시도해 주세요.')
                 if isinstance(exc,GeminiError) and exc.http_status in (429,503):
                     error = error.removesuffix(' 잠시 후 다시 시도해 주세요.')
                 error += ' 이 요청을 지금 다시 처리할 수 없습니다. 기존 대화는 유지되며, 이 오류 때문에 조건을 바꾸실 필요는 없습니다.'
         finally:
+            if getattr(self.models, 'runtime', None) is not None:
+                dispatched = any(a.get('dispatched') for a in attempts) or bool(consultation.get('dispatched')) or bool(assessment.get('dispatched'))
             session = self._finish_model_turn(sid, turn_id, option, reply, status, error,
                 time.monotonic()-started, plan=plan, raw_plan=raw, raw_plan_contract=raw_contract, revision=revision,
                 result=result, request=request, plan_attempts=attempts, search_attempts=searches, assessment=assessment, consultation=consultation, request_spec=request_spec, chat_retry=chat_retry, error_code=error_code)
@@ -1503,6 +1567,7 @@ class ModelConversation:
                 else:
                     retry_prepare = session
                     exc.request_preserved = True
+                    exc.model_called = bool(assessment.get('dispatched'))
                     exc.retry_available = (getattr(exc,'provider_retryable',True) and
                                            self._prepare_response_available(self.get(sid), source_turn) and
                                            self._provider_calls_available(option,1))
@@ -1518,8 +1583,8 @@ class ModelConversation:
             saved = next((m for m in reversed(current['messages'])
                           if m.get('role')=='assistant' and m.get('turn_id')==operation), {})
             diagnostic_event('prepare_completed', session_id=sid, status=status, route='model',
-                route_reason='model_plan_prepare', execution_kind=option['provider'],
-                model_called=bool(assessment.get('dispatched')) or any(a.get('phase')=='refine' for a in attempts),
+                route_reason='model_plan_prepare', execution_kind='api' if option['provider'] in ('codex_oauth','openai_api') else option['provider'],
+                model_called=bool(assessment.get('dispatched')) or (getattr(self.models, 'runtime', None) is None and any(a.get('phase')=='refine' for a in attempts)),
                 model_phase='answer', plan_sha256=digest(plan),
                 content={'assistant_text':reply, 'model_plan':saved.get('model_plan'),
                          'model_plan_raw':saved.get('model_plan_raw',raw),

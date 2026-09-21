@@ -281,9 +281,11 @@ def project_session(session):
     shaped = _pick(session, ("id", "kind", "created", "updated", "original", "turns", "mode", "asker",
                              "model_id", "model_selection_origin", "pending"))
     scope = session.get('provider_scope')
-    if (isinstance(scope, dict) and scope.get('id') == 'gemini_public_papers.v1'
-            and scope.get('provider') == 'gemini' and isinstance(scope.get('model_id'), str)
-            and scope['model_id'].startswith('gemini:')):
+    if (isinstance(scope, dict) and set(scope) == {'id', 'provider', 'model_id'}
+            and ((scope.get('id') in ('gemini_public_papers.v1', 'gemini_public_papers.v2') and scope.get('provider') == 'gemini'
+                  and isinstance(scope.get('model_id'), str) and scope['model_id'].startswith('gemini:'))
+                 or (scope.get('id') in ('runtime_public_papers.v1', 'runtime_public_papers.v2')
+                     and scope.get('provider') in ('codex_oauth', 'openai_api') and scope.get('model_id') == 'runtime'))):
         shaped['provider_scope'] = _pick(scope, ('id', 'provider', 'model_id'))
     shaped["scout"] = {"revision": revision, "status": status, "disclosed": disclosed,
                        "count": count if known else None, "count_status": "known" if known else "unknown"}

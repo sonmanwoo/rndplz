@@ -54,16 +54,34 @@ function pasteImages(event){
  // Keep the browser's native plain-text/caret/IME insertion and input event.
 }
 function isGeminiModel(id=selectedModel){return id===GEMINI_ID;}
-function hasGeminiScope(saved){const scope=saved?.provider_scope;return scope?.id==="gemini_public_papers.v1"&&scope.provider==="gemini"&&scope.model_id===GEMINI_ID;}
+function hasGeminiScope(saved){const scope=saved?.provider_scope;return ["gemini_public_papers.v1","gemini_public_papers.v2"].includes(scope?.id)&&scope.provider==="gemini"&&scope.model_id===GEMINI_ID;}
 function isGeminiSession(saved=session){return hasGeminiScope(saved)||isGeminiModel(saved?.model_id);}
+function isRuntimeModel(id=selectedModel){return id==="runtime"&&["codex_oauth","openai_api"].includes(catalog.find(m=>m.id===id)?.provider);}
+function hasRuntimeScope(saved){const scope=saved?.provider_scope;return ["runtime_public_papers.v1","runtime_public_papers.v2"].includes(scope?.id)&&["codex_oauth","openai_api"].includes(scope.provider)&&scope.model_id==="runtime";}
+function hasPublicPaperScope(saved){return hasGeminiScope(saved)||hasRuntimeScope(saved);}
+function isPublicPaperModel(id=selectedModel){return isGeminiModel(id)||isRuntimeModel(id);}
+function isPublicPaperSession(saved=session){return hasPublicPaperScope(saved)||isGeminiModel(saved?.model_id)||saved?.model_id==="runtime";}
+function allowsScopedDocuments(id=selectedModel,saved=session){return isPublicPaperModel(id)&&(!saved?.id||(hasPublicPaperScope(saved)&&["gemini_public_papers.v2","runtime_public_papers.v2"].includes(saved.provider_scope.id)));}
+function explicitScopedAttachment(item,id,saved){
+ if(!item||typeof item!=="object")return false;
+ if(!allowsScopedDocuments(id,saved))return isGeminiModel(id)&&explicitImageAttachment(item);
+ if(item.source_url)return /^https:\/\//i.test(item.source_url);
+ if(item.kind==="document")return true;
+ if(item.file&&!explicitImageAttachment(item))return /\.(txt|md|csv|json|log|pdf|docx|pptx|html?|htm)$/i.test(item.file.name);
+ return isGeminiModel(id)&&explicitImageAttachment(item);
+}
+function blocksScopedLinks(){return isPublicPaperModel()&&!allowsScopedDocuments();}
+function publicPaperNotice(){if(allowsScopedDocuments())return (isGeminiModel()?"Google Gemini":"현재 연결된 외부 모델")+"로 이 대화·공개 논문 근거와 직접 선택해 보낸 문서의 추출 본문·출처를 전송합니다. 등록된 개인 프로필·다른 대화의 자료는 포함하지 않습니다. 일부만 추출된 자료는 표시된 범위만 읽습니다. "+(isGeminiModel()?"직접 선택한 이미지도 전송됩니다. ":"이미지는 지원하지 않습니다. ")+"민감정보 전송에 유의해 주세요.";return isGeminiModel()?GEMINI_NOTICE:"현재 연결된 외부 모델로 이 대화와 공개 논문 근거만 전송합니다. 등록된 개인 프로필·이미지·문서·링크·다른 대화는 포함하지 않습니다. 프로필 작업이나 모델 변경은 새 대화를 이용해 주세요.";}
+function publicPaperLabel(saved){return hasRuntimeScope(saved)?(saved.provider_scope.provider==="codex_oauth"?"Codex 연결":"OpenAI API"):"Gemini";}
 function modelBoundaryMessage(id,attached=files,saved=session,turnId=null){
- if(saved?.id&&((isGeminiModel(id)&&!isGeminiSession(saved))||(isGeminiSession(saved)&&id!==saved.model_id)))return "이 대화의 자료 범위는 바꿀 수 없어요. ‘새 대화’를 누른 뒤 사용할 모델을 선택해 주세요.";
- if(isGeminiModel(id)&&attached.some(item=>{if(typeof item==="string"){const prior=saved?.messages?.find(m=>m.role==="user"&&m.turn_id===turnId);item=(prior?prior.attachments||[]:files).find(f=>f.id===item);}return !explicitImageAttachment(item);} ))return "Gemini에는 직접 선택한 새 PNG, JPEG, WebP 이미지만 보낼 수 있어요. 문서·링크는 다른 모델에서 사용해 주세요.";
+ if(saved?.id&&((isPublicPaperModel(id)&&!isPublicPaperSession(saved))||(isPublicPaperSession(saved)&&id!==saved.model_id)))return "이 대화의 자료 범위는 바꿀 수 없어요. ‘새 대화’를 누른 뒤 사용할 모델을 선택해 주세요.";
+ if(saved?.id&&hasRuntimeScope(saved)&&id==="runtime"&&catalog.find(m=>m.id===id)?.provider!==saved.provider_scope.provider)return "이 대화의 외부 모델 연결이 바뀌었어요. 새 대화를 시작해 주세요.";
+ if(isPublicPaperModel(id)&&attached.some(item=>{if(typeof item==="string"){const prior=saved?.messages?.find(m=>m.role==="user"&&m.turn_id===turnId);item=(prior?prior.attachments||[]:files).find(f=>f.id===item);}return !explicitScopedAttachment(item,id,saved);} ))return allowsScopedDocuments(id,saved)?"직접 선택해 업로드한 지원 자료만 보낼 수 있어요. 이미지 지원 여부도 확인해 주세요.":"이전 대화의 첨부 범위는 유지됩니다. 문서·링크는 새 대화에서 선택해 주세요.";
  return "";
 }
 function selectModel(id){
  const chosen=catalog.find(m=>m.id===id);
- if(!chosen?.enabled){$("modelSelect").value=selectedModel;if(chosen?.provider==="bridge"){toast("이 Gemma는 연결 대기 중입니다. 사용 가능한 모델을 선택해 주세요.");return;}if(isGeminiModel(id)){error("Gemini 연결을 지금 사용할 수 없어요. 설정이 준비된 뒤 새 대화에서 선택해 주세요.");return;}$("provider").value=chosen?.provider||"openai";modal("settingsDialog");return;}
+ if(!chosen?.enabled){$("modelSelect").value=selectedModel;if(chosen?.provider==="bridge"){toast("이 Gemma는 연결 대기 중입니다. 사용 가능한 모델을 선택해 주세요.");return;}if(isPublicPaperModel(id)){error("외부 모델 연결을 지금 사용할 수 없어요. 설정이 준비된 뒤 새 대화에서 선택해 주세요.");return;}$("provider").value=chosen?.provider||"openai";modal("settingsDialog");return;}
  const boundary=modelBoundaryMessage(id);if(boundary){$("modelSelect").value=selectedModel;error(boundary);return;}
  selectedModel=chosen.id;modelSelectionOrigin="explicit";modelSelectionEpoch++;controls();error();
 }
@@ -104,7 +122,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("linkAttachButton").disabled=locked||isGeminiModel()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isGeminiModel();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=isGeminiModel()?GEMINI_NOTICE:profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isRuntimeModel()&&!allowsScopedDocuments());$("linkAttachButton").disabled=locked||blocksScopedLinks()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperModel();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=isPublicPaperModel()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
 const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
 let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
 function pendingAttachment(item){return !!(item.file||item.source_url);}
@@ -118,7 +136,7 @@ function attachmentBatchIssue(list){
  for(const file of list){
   let reason="";
   if(!file.name||file.name.length>240)reason="파일 이름을 확인해 주세요";
-  else if(!/\.(txt|md|csv|json|log|pdf|docx|pptx|png|jpe?g|webp)$/i.test(file.name))reason="지원하지 않는 형식";
+  else if(!/\.(txt|md|csv|json|log|pdf|docx|pptx|html?|htm|png|jpe?g|webp)$/i.test(file.name))reason="지원하지 않는 형식";
   else if(!Number.isSafeInteger(file.size)||file.size<=0)reason="빈 파일";
   else if(file.size>ATTACHMENT_MAX_BYTES)reason="10MiB 초과";
   if(reason)rejected.push(file.name+" · "+reason);
@@ -130,7 +148,7 @@ function documentUrl(value){
  try{const url=new URL(raw);return url.protocol==="https:"&&!url.username&&!url.password&&!url.hash&&(!url.port||url.port==="443")?raw:null;}catch{return null;}
 }
 function queueAttachmentLink(){
- if(composerSendLocked()||isGeminiModel()||profileUI?.shouldHandle($("message").value))return;
+ if(composerSendLocked()||blocksScopedLinks()||profileUI?.shouldHandle($("message").value))return;
  const url=documentUrl($("attachmentUrl").value);
  if(!url){$("attachmentLinkError").textContent="인증정보가 없는 공개 HTTPS 문서 주소를 입력해 주세요.";return;}
  if(files.length>=4){$("attachmentLinkError").textContent="파일과 링크는 합쳐서 4개까지 첨부할 수 있어요.";return;}
@@ -511,7 +529,7 @@ function renderCandidates(){
  if(!rows.length){$("scoutDrawHost").textContent=session.result?.empty_message||'현재 자료에서 요청을 뒷받침하는 인물을 찾지 못했어요.';if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
  const metadataTimeout=setTimeout(()=>metadataController.abort(),8000);
- Promise.all([candidateDrawRecords(rows,hasGeminiScope(session),Boolean(session.result?.historical_result),metadataController.signal),import('/draw.js')]).then(([records,{initDraw}])=>{
+ Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(session.result?.historical_result),metadataController.signal),import('/draw.js')]).then(([records,{initDraw}])=>{
   if(epoch!==drawEpoch||drawRenderKey!==renderKey||zone.hidden||accountNavigationPending||accountInvalidated)return;
   const dock=document.querySelector(".composer-dock");
   drawController=initDraw($("scoutDrawHost"),{bottomBoundary:dock,onBoundaryFit:fits=>dock?.classList.toggle("scout-dock-in-flow",!fits),quiet:()=>!animate||RndCraft.quiet(),onDetail:record=>showPerson(record.id,document.activeElement).catch(exc=>error(exc.message))});
@@ -520,11 +538,11 @@ function renderCandidates(){
  }).catch(()=>{if(epoch===drawEpoch&&!accountNavigationPending&&!accountInvalidated){drawRenderKey="";$("scoutDrawHost").textContent='인물 카드를 불러오지 못했어요. 화면을 새로고침해 주세요.';}}).finally(()=>{metadataController.abort();clearTimeout(metadataTimeout);if(drawMetadataController===metadataController)drawMetadataController=null;});
 }
 new MutationObserver(()=>drawController?.setQuiet()).observe(document.body,{attributes:true,attributeFilter:['class']});
-function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated,model_id:session.model_id,model_selection_origin:selectionOrigin(session.model_selection_origin),...(hasGeminiScope(session)?{provider_scope:{...session.provider_scope}}:{})};history=[row,...history.filter(s=>s.id!==row.id)];}
+function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated,model_id:session.model_id,model_selection_origin:selectionOrigin(session.model_selection_origin),...(hasPublicPaperScope(session)?{provider_scope:{...session.provider_scope}}:{})};history=[row,...history.filter(s=>s.id!==row.id)];}
 async function send(payload,submission=null){
  if(composerSendLocked()){restoreComposerDraft(submission);return;}
  const boundary=modelBoundaryMessage(payload.model_id,payload.attachments||[],session,payload.turn_id);if(boundary){restoreComposerDraft(submission);error(boundary);return;}
- if(isGeminiModel(payload.model_id)&&((payload.person_id&&!isGeminiSession())||(payload.model_selection_origin!=="explicit"&&!(payload.model_selection_origin==="automatic"&&(isGeminiSession()||(!session?.id&&modelDefault===payload.model_id)))))){restoreComposerDraft(submission);error("Gemini는 새 대화에서 공개 논문을 조회해 주세요.");return;}
+ if(isPublicPaperModel(payload.model_id)&&((payload.person_id&&!isPublicPaperSession())||(payload.model_selection_origin!=="explicit"&&!(payload.model_selection_origin==="automatic"&&(isPublicPaperSession()||(!session?.id&&modelDefault===payload.model_id)))))){restoreComposerDraft(submission);error("외부 모델은 새 대화에서 공개 논문을 조회해 주세요.");return;}
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
@@ -581,7 +599,7 @@ function dataUrl(file,signal){return new Promise((resolve,reject)=>{
 async function upload(list){
  try{
   if(composerSendLocked())return;
-  if(isGeminiModel()&&list.some(file=>!explicitImageAttachment({file}))){error("Gemini에는 새 PNG, JPEG, WebP 이미지만 추가할 수 있어요. 문서·링크는 제외됩니다.");return;}
+  if(isPublicPaperModel()&&list.some(file=>!explicitScopedAttachment({file},selectedModel,session))){error(allowsScopedDocuments()?"지원하는 문서 형식과 이미지 지원 여부를 확인해 주세요.":"이전 대화의 첨부 범위는 유지됩니다. 문서는 새 대화에서 선택해 주세요.");return;}
   const issue=attachmentBatchIssue(list);if(issue){error(issue);return;}
   error();files.push(...list.map(file=>({id:"pending-"+crypto.randomUUID(),name:file.name,file})));
  }finally{$("fileInput").value="";renderFiles();}
@@ -590,7 +608,7 @@ async function submitComposer(){
  if(composerSendLocked()||composerComposing)return;
  const text=$("message").value.trim();if(!text&&!files.length)return;
  const boundary=modelBoundaryMessage(selectedModel);if(boundary){error(boundary);return;}
- if(isGeminiModel()&&profileUI.shouldHandle(text)){error("내 프로필 작업은 Gemini로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
+ if(isPublicPaperModel()&&profileUI.shouldHandle(text)){error("내 프로필 작업은 이 외부 모델로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
  if(profileUI.shouldHandle(text)){
   if(files.some(f=>f.source_url||f.source?.kind==="https_document")){error("링크 자료는 프로필로 전송하지 않습니다. 링크를 제거하고 프로필용 파일을 직접 선택해 주세요.");return;}
   if(files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
@@ -654,7 +672,7 @@ window.addEventListener("rndplz:account-navigation",event=>{
  controls();
  if(!accountNavigationPending&&!accountInvalidated)renderCandidates();
 });
-$ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy||isGeminiModel())return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
+$ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy||isPublicPaperModel())return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
 $ ("message").addEventListener("paste",pasteImages);
 $ ("message").addEventListener("input",()=>{composerInputRevision++;resizeInput();});
@@ -666,11 +684,11 @@ $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
 $ ("attachmentCancel").addEventListener("click",abortAttachment);
-$ ("linkAttachButton").addEventListener("click",()=>{if(composerSendLocked()||isGeminiModel()||profileUI?.shouldHandle($("message").value))return;$("attachmentLinkError").textContent="";modal("attachmentLinkDialog");$("attachmentUrl").focus();});
+$ ("linkAttachButton").addEventListener("click",()=>{if(composerSendLocked()||blocksScopedLinks()||profileUI?.shouldHandle($("message").value))return;$("attachmentLinkError").textContent="";modal("attachmentLinkDialog");$("attachmentUrl").focus();});
 $ ("attachmentLinkForm").addEventListener("submit",event=>{event.preventDefault();queueAttachmentLink();});
 $ ("modelSelect").addEventListener("change",e=>selectModel(e.target.value));
 $ ("settingsButton").addEventListener("click",()=>modal("settingsDialog"));
-$ ("historyButton").addEventListener("click",()=>{$("historyList").innerHTML=history.length?history.map(h=>'<button class="history-item" data-action="history" data-id="'+h.id+'">'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasGeminiScope(h)?" · Gemini · 공개 논문":"")+'</small></button>').join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';modal("historyDialog");});
+$ ("historyButton").addEventListener("click",()=>{$("historyList").innerHTML=history.length?history.map(h=>'<button class="history-item" data-action="history" data-id="'+h.id+'">'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasPublicPaperScope(h)?" · "+publicPaperLabel(h)+" · 공개 논문":"")+'</small></button>').join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';modal("historyDialog");});
 $ ("refreshModels").addEventListener("click",async()=>{try{if(!await refreshModelOptions())return;toast("사용 가능한 모델 목록을 갱신했어요.");}catch(e){error(e.message);}});
 $ ("configForm").addEventListener("submit",async e=>{e.preventDefault();$("saveConfig").disabled=true;$("configMessage").textContent="";try{const provider=$("provider").value,epoch=modelSelectionEpoch,ticket=++modelCatalogTicket;const data=await api("/api/chat/configure",{provider,model:$("apiModel").value,key:$("apiKey").value});$("apiKey").value="";if(epoch===modelSelectionEpoch){selectedModel=provider;modelSelectionOrigin="explicit";modelSelectionEpoch++;}if(ticket===modelCatalogTicket)modelOptions(data);else{renderModelSelect();controls();}$("configMessage").textContent="설정을 저장했어요. 다음 메시지에는 현재 선택한 모델을 사용합니다.";}catch(e){$("configMessage").textContent=e.message;}finally{$("saveConfig").disabled=false;}});
 $ ("draftButton").addEventListener("click",()=>saveLetter("draft"));

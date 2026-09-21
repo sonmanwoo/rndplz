@@ -28,13 +28,17 @@ def validate_text(value, limit=20000, empty=False):
 
 
 GEMINI_SCOPE_ID = 'gemini_public_papers.v1'
+RUNTIME_SCOPE_ID = 'runtime_public_papers.v1'
+GEMINI_DOCUMENT_SCOPE_ID = 'gemini_public_papers.v2'
+RUNTIME_DOCUMENT_SCOPE_ID = 'runtime_public_papers.v2'
+RUNTIME_SCOPE_PROVIDERS = ('codex_oauth', 'openai_api')
 
 
 class ProviderScopeError(ValueError):
     code = 'provider_scope_restricted'
 
 
-def public_paper_corpus(base):
+def public_paper_corpus(base, scope_id=GEMINI_SCOPE_ID):
     """Project only the currently accessible public papers; never load full data."""
     personal = set((getattr(base, 'demo_pool', None) or {}).get('personal_person_ids', []))
     personal.update(pid for pid in base.people if pid.startswith('LOCAL-'))
@@ -55,11 +59,13 @@ def public_paper_corpus(base):
     view.topics = [copy.deepcopy(row) for row in base.topics if row['id'] in active]
     view.topic_by_id = {row['id']: row for row in view.topics}
     base_version = str((getattr(base, 'demo_pool', None) or {}).get('version', 'public'))
-    view.demo_pool = {'schema_version': 1, 'version': base_version + ':' + GEMINI_SCOPE_ID,
+    view.demo_pool = {'schema_version': 1, 'version': base_version + ':' + scope_id,
                      'person_ids': sorted(view.people), 'record_ids': sorted(view.records),
                      'personal_person_ids': [], 'personal_record_ids': [],
-                     'note': (f'이 대화는 공개 논문 {len(records)}건과 연결된 연구자 {len(linked)}명만 조회합니다. '
-                              '개인 제공 프로필·경력·첨부 자료는 제외했습니다. '
+                     'note': (f'이 대화는 공개 논문 {len(records)}건과 연결된 연구자 {len(linked)}명만 조회합니다. ' +
+                              ('등록된 개인 제공 프로필·경력은 제외하며, 직접 첨부한 자료는 공개 논문 근거와 구분합니다. '
+                               if scope_id in (GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID) else
+                               '개인 제공 프로필·경력·첨부 자료는 제외했습니다. ') +
                               '논문 연결은 현장 수행 경력이나 현재 협업 가능성의 확인을 뜻하지 않습니다.')}
     return view
 
@@ -69,8 +75,10 @@ def provider_scope(session):
     if value is None:
         return None
     if (not isinstance(value, dict) or set(value) != {'id', 'provider', 'model_id'}
-            or value.get('id') != GEMINI_SCOPE_ID or value.get('provider') != 'gemini'
-            or not isinstance(value.get('model_id'), str) or not value['model_id'].startswith('gemini:')):
+            or not ((value.get('id') in (GEMINI_SCOPE_ID, GEMINI_DOCUMENT_SCOPE_ID) and value.get('provider') == 'gemini'
+                     and isinstance(value.get('model_id'), str) and value['model_id'].startswith('gemini:'))
+                    or (value.get('id') in (RUNTIME_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID) and value.get('provider') in RUNTIME_SCOPE_PROVIDERS
+                        and value.get('model_id') == 'runtime'))):
         raise ProviderScopeError('이 대화의 자료 범위를 확인할 수 없습니다. 새 대화를 시작해 주세요.')
     return value
 
@@ -89,7 +97,7 @@ class Service:
         if getattr(self, '_provider_scope', None) == scope:
             return self
         view = copy.copy(self)
-        view.corpus = public_paper_corpus(self.corpus)
+        view.corpus = public_paper_corpus(self.corpus, scope['id'])
         view.engine = Engine(view.corpus)
         view._provider_scope = copy.deepcopy(scope)
         return view

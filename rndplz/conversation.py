@@ -10,9 +10,9 @@ from .attachments import Attachments
 from .chat_models import ChatModels
 from .chat_actions import ChatActions
 from .discovery import Discovery, DiscoveryError, DEFER_SEARCH, CONTROL_ONLY, FAMILIES
-from .service import now, validate_text, GEMINI_SCOPE_ID, ProviderScopeError, provider_scope
+from .service import now, validate_text, GEMINI_SCOPE_ID, RUNTIME_SCOPE_ID, GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID, RUNTIME_SCOPE_PROVIDERS, ProviderScopeError, provider_scope
 from .diagnostics import capture_scope, event as diagnostic_event, scope as diagnostic_scope
-from .model_conversation import ModelConversation, proposal_brief, attachment_metadata, attachment_reading_notes
+from .model_conversation import ModelConversation, proposal_brief, attachment_metadata, attachment_reading_notes, runtime_messages, model_was_called
 
 
 def _guide_request_spec(request, discovery, turn_id):
@@ -77,6 +77,8 @@ class Conversation(ModelConversation):
             self.store.transaction(recover)
 
     def _scoped_image_items(self, ids):
+        if ids and (getattr(self, '_provider_scope', None) or {}).get('id') == RUNTIME_SCOPE_ID:
+            raise ProviderScopeError('이 외부 모델 대화에는 이미지·문서·링크를 첨부할 수 없습니다.')
         if (not isinstance(ids, list) or len(ids) > 4 or any(not isinstance(value, str) for value in ids)
                 or len(set(ids)) != len(ids)):
             raise ProviderScopeError('이미지는 한 번에 4개까지 선택해 주세요.')
@@ -90,27 +92,53 @@ class Conversation(ModelConversation):
                 raise ProviderScopeError('저장된 이미지 형식을 확인하지 못했습니다.')
         return items
 
+    def _scoped_attachment_items(self, ids, scope=None):
+        """Load only request-selected visitor attachments; no history migration."""
+        scope = scope or getattr(self, '_provider_scope', None) or {}
+        if scope.get('id') not in (GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID):
+            if scope.get('id') == RUNTIME_SCOPE_ID and ids:
+                raise ProviderScopeError('이전 대화의 첨부 범위는 유지됩니다. 문서는 새 대화에서 선택해 주세요.')
+            return self._scoped_image_items(ids)
+        if (not isinstance(ids, list) or len(ids) > 4 or any(not isinstance(value, str) for value in ids)
+                or len(set(ids)) != len(ids)):
+            raise ProviderScopeError('첨부는 한 번에 4개까지 선택해 주세요.')
+        items = [self.attachments.load(value) for value in ids]
+        for item in items:
+            if item.get('image'):
+                if scope['provider'] != 'gemini':
+                    raise ProviderScopeError('이 외부 모델은 이미지 입력을 지원하지 않습니다. 텍스트 문서를 선택해 주세요.')
+                self._scoped_image_items([item['id']])
+            elif not isinstance(item.get('text'), str) or not item['text'].strip():
+                raise ProviderScopeError('본문을 추출한 문서를 다시 선택해 주세요.')
+        return items
+
     def _scoped_session_check(self, session):
         scope = provider_scope(session)
         if scope != getattr(self, '_provider_scope', None):
             raise ProviderScopeError('이 대화의 자료 범위가 달라졌습니다. 새 대화를 시작해 주세요.')
         if scope is None:
             return
+        if scope['id'] in (RUNTIME_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID):
+            option = self.models.get(scope['model_id'])
+            if option.get('provider') != scope['provider'] or option.get('vision') is not False:
+                raise ProviderScopeError('이 대화의 외부 모델 연결이 바뀌었습니다. 새 대화를 시작해 주세요.')
         if session.get('model_id') not in (None, scope['model_id']):
-            raise ProviderScopeError('Gemini 대화에서는 모델을 바꿀 수 없습니다. 새 대화를 시작해 주세요.')
+            raise ProviderScopeError('공개 논문 대화에서는 모델을 바꿀 수 없습니다. 새 대화를 시작해 주세요.')
         messages = session.get('messages') or []
         if any(m.get('kind') == 'self_profile' for m in messages):
-            raise ProviderScopeError('Gemini 대화에는 내 프로필 이력을 연결할 수 없습니다.')
+            raise ProviderScopeError('공개 논문 대화에는 내 프로필 이력을 연결할 수 없습니다.')
         for message in messages:
             refs = message.get('attachments') or []
             if refs:
                 ids = [ref.get('id') for ref in refs]
-                if message.get('role') != 'user' or message.get('explicit_image_ids') != ids:
-                    raise ProviderScopeError('이전 첨부를 Gemini 이미지 입력으로 자동 전환하지 않습니다.')
-                self._scoped_image_items(ids)
+                marker = ('explicit_attachment_ids' if scope['id'] in
+                          (GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID) else 'explicit_image_ids')
+                if message.get('role') != 'user' or message.get(marker) != ids:
+                    raise ProviderScopeError('이전에 연결되지 않은 첨부를 자동 전송하지 않습니다. 새 대화에서 다시 선택해 주세요.')
+                self._scoped_attachment_items(ids, scope)
         first = next((m for m in messages if m.get('role') == 'user'), None)
         if first and first.get('model_selection_origin') not in ('explicit', 'automatic'):
-            raise ProviderScopeError('Gemini는 새 대화에서 직접 선택해 주세요.')
+            raise ProviderScopeError('외부 모델은 새 대화에서 선택해 주세요.')
         for key in ('result', 'scout_result'):
             result = session.get(key) or {}
             for row in result.get('candidates', []) + result.get('choices', []):
@@ -132,13 +160,13 @@ class Conversation(ModelConversation):
     def _check_scoped_dispatch(self, identifier, messages):
         scope = self._provider_scope
         if identifier != scope['model_id'] or any(m.get('attachments') for m in messages):
-            raise ProviderScopeError('Gemini 전송 범위와 선택한 모델이 일치하지 않습니다.')
+            raise ProviderScopeError('공개 논문 전송 범위와 선택한 모델이 일치하지 않습니다.')
         session = next((s for s in self.store.read()['sessions'] if s['id'] == self._provider_session_id), None)
         if session is None:
-            raise ProviderScopeError('Gemini 대화를 찾을 수 없습니다.')
+            raise ProviderScopeError('공개 논문 대화를 찾을 수 없습니다.')
         self._scoped_session_check(session)
         expected = [item['image'] for row in session.get('messages', []) for item in
-                    self._scoped_image_items([ref['id'] for ref in row.get('attachments', [])])]
+                    self._scoped_attachment_items([ref['id'] for ref in row.get('attachments', [])], scope) if item.get('image')]
         actual = []
         for row in messages:
             images = row.get('images', [])
@@ -158,22 +186,27 @@ class Conversation(ModelConversation):
         scope = provider_scope(current) if current else None
         identifier = current.get('model_id') if preparing and current else payload.get('model_id')
         gemini = isinstance(identifier, str) and identifier.startswith('gemini:')
+        runtime_option = self.models.get(identifier) if identifier == 'runtime' else None
+        remote_runtime = runtime_option is not None and runtime_option.get('provider') in RUNTIME_SCOPE_PROVIDERS
+        if runtime_option is not None and not remote_runtime and runtime_option.get('provider') != 'mock':
+            raise ProviderScopeError('외부 런타임의 자료 범위를 확인할 수 없습니다.')
         if scope:
             if identifier != scope['model_id']:
-                raise ProviderScopeError('이 대화는 Gemini 공개 논문 범위로 고정돼 있습니다. 모델 변경은 새 대화에서 해 주세요.')
-        elif gemini:
+                raise ProviderScopeError('이 대화는 선택한 외부 모델의 공개 논문 범위로 고정돼 있습니다. 모델 변경은 새 대화에서 해 주세요.')
+        elif gemini or remote_runtime:
             if (current or sid or preparing or not (payload.get('model_selection_origin') == 'explicit' or
                     (payload.get('model_selection_origin') == 'automatic' and self.models.catalog().get('default') == identifier))):
-                raise ProviderScopeError('Gemini는 이전 이력이 없는 새 대화에서 직접 선택해 주세요.')
-            scope = {'id': GEMINI_SCOPE_ID, 'provider': 'gemini', 'model_id': identifier}
-        elif current and str(current.get('model_id', '')).startswith('gemini:'):
-            raise ProviderScopeError('자료 범위가 없는 이전 Gemini 대화는 이어갈 수 없습니다. 새 대화를 시작해 주세요.')
+                raise ProviderScopeError('외부 모델은 이전 이력이 없는 새 대화에서 선택해 주세요.')
+            scope = ({'id': GEMINI_DOCUMENT_SCOPE_ID, 'provider': 'gemini', 'model_id': identifier} if gemini else
+                     {'id': RUNTIME_DOCUMENT_SCOPE_ID, 'provider': runtime_option['provider'], 'model_id': identifier})
+        elif current and (str(current.get('model_id', '')).startswith('gemini:') or current.get('model_id') == 'runtime'):
+            raise ProviderScopeError('자료 범위가 없는 이전 외부 모델 대화는 이어갈 수 없습니다. 새 대화를 시작해 주세요.')
         if scope is None:
             return self
         if payload.get('attachments'):
-            self._scoped_image_items(payload['attachments'])
+            self._scoped_attachment_items(payload['attachments'], scope)
         if not current and payload.get('person_id') is not None:
-            raise ProviderScopeError('Gemini 새 대화에 이전 인물 선택을 가져올 수 없습니다.')
+            raise ProviderScopeError('외부 모델 새 대화에 이전 인물 선택을 가져올 수 없습니다.')
         if getattr(self, '_provider_scope', None) == scope:
             if current: self._scoped_session_check(current)
             return self
@@ -189,8 +222,8 @@ class Conversation(ModelConversation):
 
     def require_profile_context(self, sid):
         session = next((s for s in self.store.read()['sessions'] if s['id'] == sid), None)
-        if session and (session.get('provider_scope') or str(session.get('model_id', '')).startswith('gemini:')):
-            raise ProviderScopeError('Gemini 대화에 내 프로필을 연결할 수 없습니다. 별도 대화를 시작해 주세요.')
+        if session and (session.get('provider_scope') or str(session.get('model_id', '')).startswith('gemini:') or session.get('model_id') == 'runtime'):
+            raise ProviderScopeError('공개 논문 대화에 내 프로필을 연결할 수 없습니다. 별도 대화를 시작해 주세요.')
 
     def history(self):
         return [{'id':s['id'],'title':s['original'][:60],'updated':s['updated'],'model_id':s.get('model_id'),'model_selection_origin':s.get('model_selection_origin','legacy_unknown'), **({'provider_scope':copy.deepcopy(provider_scope(s))} if s.get('provider_scope') else {})}
@@ -684,10 +717,10 @@ class Conversation(ModelConversation):
             if getattr(self, '_provider_scope', None):
                 self._provider_session_id = s['id']
                 self._scoped_session_check(s)
-                self._scoped_image_items(ids)
+                self._scoped_attachment_items(ids)
                 if any(ref.get('id') in ids for other in state['sessions'] if other is not s
                        for message in other.get('messages', []) for ref in message.get('attachments', [])):
-                    raise ProviderScopeError('다른 대화의 첨부는 가져오지 않습니다. 이미지를 새로 선택해 주세요.')
+                    raise ProviderScopeError('다른 대화의 첨부는 가져오지 않습니다. 자료를 새로 선택해 주세요.')
             existing=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='user'),None)
             if existing and existing.get('digest')!=digest:raise ValueError('다른 내용으로 이미 사용한 메시지 식별자입니다.')
             completed=next((m for m in s['messages'] if m.get('turn_id')==turn_id and m['role']=='assistant' and m.get('status')=='complete'),None)
@@ -717,7 +750,10 @@ class Conversation(ModelConversation):
             s['messages']=[m for m in s['messages'] if not(m.get('turn_id')==turn_id and m['role']=='assistant')]
             if not existing:
                 s['messages'].append({'role':'user','input_text':text,'text':text or '첨부한 자료를 함께 검토해 주세요.','turn_id':turn_id,'digest':digest,'attachments':[self.attachments.public(x) for x in items],'model_selection_origin':selection_origin})
-                if getattr(self, '_provider_scope', None):s['messages'][-1]['explicit_image_ids']=list(ids)
+                if getattr(self, '_provider_scope', None):
+                    if self._provider_scope['id'] in (GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID):
+                        s['messages'][-1]['explicit_attachment_ids'] = list(ids)
+                    s['messages'][-1]['explicit_image_ids'] = [item['id'] for item in items if item.get('image')]
                 s['turns']+=1
                 if selected:s['messages'][-1]['person_id']=selected
             s['model_selection_origin']=selection_origin
@@ -911,7 +947,7 @@ class Conversation(ModelConversation):
         action=session.get('pending_action');kind=((action or {}).get('context') or {}).get('kind','')
         route=('cancel' if kind=='stopped' else 'clarify' if kind in ('request_clarification','person_choice','discovery') else 'records') if action else ('guide' if option.get('provider')=='guide' else 'model')
         execution='records' if action else option.get('provider','unknown')
-        if execution in ('openai','claude','gemini'):execution='api'
+        if execution in ('openai','claude','gemini','codex_oauth','openai_api'):execution='api'
         try:
             request=self.request_context(session)
             if action and action.get('query'):request={**request,'query':action['query']}
@@ -957,9 +993,10 @@ class Conversation(ModelConversation):
                     pieces=['현재 정보로 조회 범위를 정리했어요. 인물과 근거는 “이 정보로 수소문하기”를 누르면 확인할 수 있어요.']
                 elif action:pieces=[action['reply']]
                 else:
+                    messages=runtime_messages(messages,self.models)
                     if option.get('provider')!='guide':
                         model_dispatched=True
-                        diagnostic_event('model_dispatch_started',model_called=True)
+                        diagnostic_event('model_dispatch_started',model_called=model_was_called(messages,True))
                     pieces=self.models.stream(option['id'],messages)
                 for piece in pieces:
                     reply+=piece
@@ -973,7 +1010,7 @@ class Conversation(ModelConversation):
                 status='error';error=str(exc) if isinstance(exc,ValueError) else '응답 생성 중 오류가 발생했습니다. 다시 시도해 주세요.'
             finally:
                 session=self.finish(session['id'],payload['turn_id'],reply,status,option,error,time.monotonic()-started)
-                diagnostic_event('turn_finished',status=status,model_called=model_dispatched,output_chars=len(reply),elapsed_ms=round((time.monotonic()-started)*1000),
+                diagnostic_event('turn_finished',status=status,model_called=model_was_called(messages,model_dispatched),output_chars=len(reply),elapsed_ms=round((time.monotonic()-started)*1000),
                                  partial_output=bool(reply) and status!='complete',next_mode=session.get('mode','advice'),
                                  error_kind='client_disconnect' if status=='cancelled' else 'generation_error' if status=='error' else None,
                                  failure_stage='stream' if status!='complete' else None,content={'assistant_text':reply})

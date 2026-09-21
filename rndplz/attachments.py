@@ -9,7 +9,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
-from .https_documents import FetchError, fetch_document
+from .https_documents import FetchError, fetch_document, extract_web_text
 
 
 # MAX_BYTES remains the legacy profile limit imported by Profiles.
@@ -39,7 +39,7 @@ class AttachmentError(ValueError):
         'empty_text':'읽을 수 있는 본문이 없습니다. 텍스트가 포함된 문서를 선택해 주세요.',
         'locked':'암호가 걸린 문서입니다. 잠금을 해제한 사본을 첨부해 주세요.',
         'corrupt':'문서 내용을 읽지 못했습니다. 정상적으로 열리는 파일을 다시 선택해 주세요.',
-        'unsupported':'PDF, TXT, MD, PPTX, DOCX 또는 기존 지원 파일 형식을 선택해 주세요.',
+        'unsupported':'PDF, TXT, MD, HTML, HTM, PPTX, DOCX 또는 기존 지원 파일 형식을 선택해 주세요.',
         'unsupported_text':'UTF-8 또는 한글 텍스트 파일을 선택해 주세요.',
         'resource_limit':'문서 내부 내용이 안전한 처리 범위를 넘었습니다. 문서를 나누어 첨부해 주세요.',
         'parser_unavailable':'문서 읽기 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
@@ -167,6 +167,19 @@ def _office(raw,suffix):
         return _office_limitations(_collect(slides(),len(ids),'slide',MAX_SLIDES,'ooxml_slide_paragraphs'),limitations)
 
 
+def _html(raw):
+    # Reuse static HTTPS extraction; local files never fetch embedded resources.
+    try:
+        try:text=extract_web_text(raw,'text/html')
+        except FetchError as exc:
+            if exc.code!='https_invalid_response':raise
+            text=extract_web_text(raw,'text/html; charset=cp949')
+    except FetchError as exc:
+        raise AttachmentError('empty_text' if exc.code=='https_empty' else 'unsupported_text') from None
+    lines=text.splitlines(keepends=True)
+    return _collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,'html_static_text_lines',joiner='')
+
+
 def _pdf(raw):
     try:
         from pypdf import PdfReader
@@ -244,6 +257,7 @@ class Attachments:
             if '\x00' in text:raise AttachmentError('unsupported_text')
             lines=text.splitlines(keepends=True)
             text,spans,extraction=_collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,'decoded_text_lines',joiner='')
+        elif suffix in ('.html','.htm'):text,spans,extraction=_html(raw)
         elif suffix=='.pdf':text,spans,extraction=_pdf(raw)
         elif suffix in ('.docx','.pptx'):text,spans,extraction=_office(raw,suffix)
         elif suffix in ('.png','.jpg','.jpeg','.webp'):
