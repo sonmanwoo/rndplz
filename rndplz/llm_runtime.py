@@ -26,6 +26,7 @@ CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
 MOCK_TEXT = "[MOCK] 실제 모델을 호출하지 않은 테스트 응답입니다."
 OAUTH_RUNTIMES = frozenset({"local", "hosted_demo"})
+HOSTED_SECRET_MOUNT = "/etc/secrets/codex-auth.json"
 OAUTH_AUTH_ERRORS = frozenset({"auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized"})
 NONRETRYABLE_RUNTIME_ERRORS = frozenset({
     "auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized",
@@ -99,6 +100,13 @@ def _safe_string(value, name):
     return value
 
 
+def _hosted_secret_mount(runtime, path):
+    # Trust this single operator-managed POSIX mount, not arbitrary symlinks.
+    # Preserve its logical name so secret rotation is read on the next request.
+    return (runtime == "hosted_demo" and str(path) == HOSTED_SECRET_MOUNT
+            and Path(path).is_absolute())
+
+
 @dataclass(frozen=True)
 class RuntimeConfig:
     runtime: str
@@ -132,6 +140,8 @@ class RuntimeConfig:
             max_calls = int(raw_limit)
         model = _safe_string(env.get("CODEX_MODEL"), "CODEX_MODEL")
         raw_path = _safe_string(env.get("CODEX_AUTH_FILE"), "CODEX_AUTH_FILE")
+        if _hosted_secret_mount(runtime, raw_path):
+            return cls(runtime, provider, model, auth_file=Path(raw_path), max_calls=max_calls)
         path = Path(raw_path).expanduser()
         if not path.is_absolute():
             if runtime == "hosted_demo":
@@ -155,11 +165,12 @@ class RuntimeConfig:
                 "auth_configured": present}
 
 
-def read_codex_auth(path):
+def read_codex_auth(path, *, runtime=None):
     """Read each request; consume access_token/account_id only, never refresh."""
     try:
+        managed_mount = _hosted_secret_mount(runtime, path)
         path = Path(path)
-        if any(p.is_symlink() or bool(getattr(p, "is_junction", lambda: False)()) for p in (path, *path.parents)):
+        if not managed_mount and any(p.is_symlink() or bool(getattr(p, "is_junction", lambda: False)()) for p in (path, *path.parents)):
             _fail("auth_invalid", "codex_oauth")
         with path.open("rb") as stream:
             raw = stream.read(128 * 1024 + 1)
@@ -262,7 +273,7 @@ class ResponsesRuntime:
                  mock_responses=None):
         self.config = config
         self._transport = transport or _http_chunks
-        self._auth_loader = auth_loader or read_codex_auth
+        self._auth_loader = auth_loader or (lambda path: read_codex_auth(path, runtime=config.runtime))
         self._budget = budget_guard
         self._mock_responses = dict(mock_responses or {})
 

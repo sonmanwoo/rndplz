@@ -13,7 +13,7 @@ function composerSendLocked(){return composerClientLocked()||!!session?.pending;
 function setComposerDraft(value){$("message").value=value;composerInputRevision++;}
 function consumeComposerDraft(){const text=$("message").value,stagedEdit=briefEditor?.stagedText===text&&composerInputRevision===briefEditor.stagedComposerRevision?briefEditor:null;setComposerDraft("");return {text,revision:composerInputRevision,attachmentIds:[],stagedEdit};}
 function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accountInvalidated&&composerInputRevision===draft.revision&&$("message").value===""){setComposerDraft(draft.text);if(draft.stagedEdit&&briefEditor===draft.stagedEdit&&briefEditor.stagedText===draft.text)briefEditor.stagedComposerRevision=composerInputRevision;}}
-let ciBusyStarted=null;
+let ciBusyStarted=null,retryDisplay=null;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
 async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
@@ -73,7 +73,15 @@ function explicitScopedAttachment(item,id,saved){
  return allowsScopedImages(id,saved)&&explicitImageAttachment(item);
 }
 function blocksScopedLinks(){return isPublicPaperContext()&&!allowsScopedDocuments();}
-function publicPaperNotice(){return (option()?.name||"선택한 모델")+"로 이 대화와 공개 논문 근거"+(allowsScopedDocuments()?", 직접 선택해 보낸 문서의 추출 본문·출처":"")+"를 전송합니다. 등록된 개인 프로필·다른 대화의 자료는 포함하지 않습니다. "+(allowsScopedDocuments()?"일부만 추출된 자료는 표시된 범위만 읽습니다. ":"문서·링크는 이 대화에 추가하지 않습니다. ")+(allowsScopedImages()?"직접 선택한 이미지도 전송됩니다. ":"이미지는 이 선택에서 지원하지 않습니다. ")+"민감정보 전송에 유의해 주세요. 프로필 작업은 새 대화를 이용해 주세요.";}
+function modelExecutionLabel(id=selectedModel){
+ const model=catalog.find(m=>m.id===id),name=model?.name||id||"선택한 모델";
+ if(model?.provider==="bridge")return "운영자 PC의 "+name;
+ if(model?.local||model?.provider==="ollama")return "이 기기의 "+name;
+ if(model?.provider==="guide")return "이 서비스의 "+name+" (AI 미사용)";
+ const provider={gemini:"Google Gemini",openai:"OpenAI API",openai_api:"OpenAI API",codex_oauth:"Codex 연결"}[model?.provider];
+ return (provider||"선택한 연결")+"의 "+name;
+}
+function publicPaperNotice(){return modelExecutionLabel()+"로 이 대화와 공개 논문 근거"+(allowsScopedDocuments()?", 직접 선택해 보낸 문서의 추출 본문·출처":"")+"를 전송합니다. 등록된 개인 프로필·다른 대화의 자료는 포함하지 않습니다. "+(allowsScopedDocuments()?"일부만 추출된 자료는 표시된 범위만 읽습니다. ":"문서·링크는 이 대화에 추가하지 않습니다. ")+(allowsScopedImages()?"직접 선택한 이미지도 전송됩니다. ":"이미지는 이 선택에서 지원하지 않습니다. ")+"민감정보 전송에 유의해 주세요. 프로필 작업은 새 대화를 이용해 주세요.";}
 function publicPaperLabel(saved){return catalog.find(m=>m.id===saved?.model_id)?.name||"선택한 모델";}
 function modelBoundaryMessage(id,attached=files,saved=session,turnId=null){
  if(saved?.id&&isPublicPaperModel(id)&&!hasPublicPaperScope(saved))return "이 대화의 자료 범위는 바꿀 수 없어요. ‘새 대화’를 누른 뒤 사용할 모델을 선택해 주세요.";
@@ -94,6 +102,10 @@ function canRetryMessage(message,saved=session){
  if(message.retry_available!==false)return true;
  const latestUser=saved?.messages?.findLast(m=>m.role==="user"),latestAssistant=saved?.messages?.findLast(m=>m.role==="assistant");
  return saved?.model_switch_retry_available===true&&message.status==="error"&&message.turn_id===latestUser?.turn_id&&message.turn_id===latestAssistant?.turn_id&&modelSelectionOrigin==="explicit"&&selectedModel!==saved.model_id&&option()?.enabled===true;
+}
+function retryButtonLabel(message){
+ const name=busy&&retryDisplay?.turn_id===message.turn_id?retryDisplay.name:option()?.name||selectedModel||"선택한 모델";
+ return name+"로 다시 시도";
 }
 function responseModelLabel(message){return message.source==="guide"?"기록 탐색 안내 · AI 미사용":message.model||"수소문";}
 function selectionOrigin(value){return ["automatic","explicit","legacy_unknown"].includes(value)?value:"legacy_unknown";}
@@ -488,8 +500,8 @@ function busyCiAttributes(){
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
- if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
+ if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(retryDisplay?retryDisplay.name+"로 다시 시도 중…":"응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
 }
@@ -564,7 +576,7 @@ async function send(payload,submission=null){
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
- prepareTicket++;error();streamText="";busy=true;ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",stopBusyCi,{once:true});retryPayload=payload;
+ prepareTicket++;error();streamText="";busy=true;ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",stopBusyCi,{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
  render();let accepted=false,finished=false;
  try{
@@ -604,7 +616,7 @@ async function send(payload,submission=null){
    if(session.pending)error("모델 응답 정리를 기다리고 있어요. 잠시 후 이전 대화에서 다시 열어 주세요.");
    else if(e.name==="AbortError"&&session.messages?.some(m=>m.role==="assistant"&&m.turn_id===payload.turn_id&&m.status==="cancelled")&&$("composerError").textContent==="응답을 중지하고 있어요…")error();
   }
- }finally{stopBusyCi();busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
+ }finally{stopBusyCi();busy=false;retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
 function newChat(){if(composerClientLocked())return;attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
