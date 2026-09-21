@@ -226,15 +226,22 @@ class Conversation(ModelConversation):
         identifier = payload.get('model_id', current.get('model_id') if current else None)
         gemini = isinstance(identifier, str) and identifier.startswith('gemini:')
         runtime_option = self.models.get(identifier) if identifier == 'runtime' and not stopping else None
+        if stopping and identifier == 'runtime' and scope is None:
+            # Establish only the data policy from server configuration; do not
+            # probe availability or dispatch for an initial stop control.
+            config = getattr(getattr(self.models, 'runtime', None), 'config', None)
+            if getattr(config, 'provider', None) not in RUNTIME_SCOPE_PROVIDERS:
+                raise ProviderScopeError('외부 런타임의 자료 범위를 확인할 수 없습니다.')
+            runtime_option = {'provider': config.provider}
         remote_runtime = runtime_option is not None and runtime_option.get('provider') in RUNTIME_SCOPE_PROVIDERS
         if runtime_option is not None and not remote_runtime and runtime_option.get('provider') != 'mock':
             raise ProviderScopeError('외부 런타임의 자료 범위를 확인할 수 없습니다.')
         if scope:
             if not stopping:
                 self._execution_option(current, payload)
-        elif (gemini or remote_runtime) and not stopping:
+        elif gemini or remote_runtime:
             if (current or sid or preparing or not (payload.get('model_selection_origin') == 'explicit' or
-                    (payload.get('model_selection_origin') == 'automatic' and self.models.catalog().get('default') == identifier))):
+                    (payload.get('model_selection_origin') == 'automatic' and (stopping or self.models.catalog().get('default') == identifier)))):
                 raise ProviderScopeError('외부 모델은 이전 이력이 없는 새 대화에서 선택해 주세요.')
             scope = ({'id': GEMINI_DOCUMENT_SCOPE_ID, 'provider': 'gemini', 'model_id': identifier} if gemini else
                      {'id': RUNTIME_DOCUMENT_SCOPE_ID, 'provider': runtime_option['provider'], 'model_id': identifier})
