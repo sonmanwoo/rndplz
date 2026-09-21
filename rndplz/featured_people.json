@@ -9511,7 +9511,7 @@
   "project_records": [
     {
       "id": "PROJECT-HACKATHON-2026",
-      "title": "GS 해커톤 개발자리그",
+      "title": "GS 해커톤 개발자 리그",
       "date": "2026",
       "person_ids": [
         "LOCAL-MANWOO",
@@ -9519,7 +9519,7 @@
         "LOCAL-DASOL",
         "LOCAL-HONG"
       ],
-      "summary": "사용자가 등록 참여자의 GS 해커톤 개발자리그 참여 사실을 제공했습니다. 참여 역할·성과·수상·정확한 일정·주최는 기재되지 않았습니다.",
+      "summary": "사용자가 등록 참여자의 GS 해커톤 개발자 리그 참여 사실을 제공했습니다. 참여 역할·성과·수상·정확한 일정·주최는 기재되지 않았습니다.",
       "source_label": "사용자 제공 참여 정보",
       "checked_at": "2026-09-21",
       "team_membership_basis": "user_provided_project_participation"

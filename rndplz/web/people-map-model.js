@@ -132,6 +132,26 @@
         return {id: link.id, scope: link.scope, recordIds: link.recordIds.filter(function (id) { return available.has(id); })};
       }).filter(function (link) { return link.recordIds.length; })};
   });
+  // Project participation shares the filter UI, not an expertise classification.
+  // Resolve every person and edge from the same currently exposed project record.
+  var projectCategories = new Map();
+  people.forEach(function (person) {
+    if (person.sourcePerson.team_member !== true) return;
+    var ids = Array.isArray(person.sourcePerson.team_project_ids) ? person.sourcePerson.team_project_ids : [];
+    unique(ids).forEach(function (id) {
+      var record = person.records.find(function (item) { return item.id === id && item.type === 'project_record'; });
+      if (!record || !text(record.title)) return;
+      var category = projectCategories.get(id);
+      if (!category) {
+        category = {id: 'project:' + id, kind: 'project', label: record.title,
+          description: [record.recordDate, record.title, '참여 멤버'].filter(Boolean).join(' '), people: []};
+        projectCategories.set(id, category);
+      }
+      if (category.label !== record.title) throw new TypeError('Conflicting project title: ' + id);
+      category.people.push({id: person.id, kind: 'project', scope: '사용자 제공 프로젝트 참여 정보 · 역할·성과 미기재', recordIds: [record.id]});
+    });
+  });
+  projectCategories.forEach(function (category) { capabilities.push(category); });
   freeze(capabilities);
   function capabilityLink(state, person) {
     var capability = capabilities.find(function (item) { return item.id === state.capability; });
@@ -159,7 +179,7 @@
       (!state.capability || Boolean(capabilityLink(state, person))) &&
       (!state.topic || person.records.some(function (record) {
         var link = capabilityLink(state, person);
-        return record.topics.indexOf(state.topic) !== -1 && (!state.capability || link && link.recordIds.indexOf(record.id) !== -1);
+        return record.topics.indexOf(state.topic) !== -1 && (!state.capability || link && (link.kind === 'project' || link.recordIds.indexOf(record.id) !== -1));
       }));
   }
   function visiblePeople(state) {
@@ -177,7 +197,7 @@
     if (!found) return [];
     return found.records.filter(function (record) {
       var link = capabilityLink(state, found);
-      return (!state.capability || link && link.recordIds.indexOf(record.id) !== -1) &&
+      return (!state.capability || link && (link.kind === 'project' || link.recordIds.indexOf(record.id) !== -1)) &&
         (!state.topic || record.topics.indexOf(state.topic) !== -1);
     });
   }

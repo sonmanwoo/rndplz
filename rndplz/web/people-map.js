@@ -15,9 +15,7 @@
    if(!award||award.name!=="Nobel Prize"||award.recognition_kind!=="nobel"||typeof award.facts_url!=="string")return false;
    try{const url=new URL(award.facts_url);return url.protocol==="https:"&&(url.hostname==="nobelprize.org"||url.hostname==="www.nobelprize.org")&&!url.username&&!url.password&&!url.port;}catch{return false;}
   }),team=p.sourcePerson?.team_member===true;
-  const teamIds=Array.isArray(p.sourcePerson?.team_project_ids)?p.sourcePerson.team_project_ids:[],projects=Array.isArray(p.sourceProfile?.projects)?p.sourceProfile.projects:[];
-  const teamTitles=projects.filter(project=>project&&teamIds.includes(project.id)&&typeof project.title==="string").map(project=>project.title.trim()).filter(Boolean);
-  const teamLabel=team?([...new Set(teamTitles)].join(" · ")||"우리 팀"):"";
+  const teamLabel=team?"우리 팀":"";
   return {nobel,team,teamLabel,classes:(nobel?" mp-person-nobel":"")+(team?" mp-person-team":""),labels:[nobel?"노벨상 수상자":"",teamLabel].filter(Boolean)};
  }
  const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.(png|jpg|jpeg)$/i.test(p.portrait.path||"")?p.portrait.path.replace(/\.(?:png|jpe?g)$/i,'-thumb.webp'):null;
@@ -26,7 +24,7 @@
  const recordDate=r=>r.recordDate||"자료 날짜 미기재";
  const checked=(s,p)=>C.selectedEvidence(s,p);
  const currentCapability=s=>C.capabilities.find(c=>c.id===s.capability)||null;
- const shortScope=(s,p)=>C.capabilityLink(s,p)?.scope||p.sourceProfile?.tagline||C.visibleEvidence(s,p)[0]?.title||"연결된 근거를 확인해 주세요";
+ const shortScope=(s,p)=>(currentCapability(s)?.kind==='project'?null:C.capabilityLink(s,p)?.scope)||p.sourceProfile?.tagline||C.visibleEvidence(s,p)[0]?.title||"연결된 근거를 확인해 주세요";
  const PAGE_SIZE=25;
  const G=(GraphFactory||globalThis.createPeopleMapGraph)(C);
 
@@ -109,7 +107,7 @@
 
 
  function renderCapabilities(s){
-  return C.capabilities.map((c,index)=>'<button type="button" class="mp-capability" data-capability="'+esc(c.id)+'" aria-pressed="'+(s.capability===c.id)+'" aria-controls="people-map person-detail"><span class="mp-capability-index">'+String(index+1).padStart(2,"0")+'</span><span class="mp-capability-label">'+esc(c.label)+'</span><span class="mp-capability-count">'+C.visiblePeople({...s,capability:c.id}).length+'명</span></button>').join("");
+  return C.capabilities.map((c,index)=>'<button type="button" class="mp-capability" data-capability="'+esc(c.id)+'" aria-pressed="'+(s.capability===c.id)+'" aria-controls="people-map person-detail"><span class="mp-capability-index">'+String(index+1).padStart(2,"0")+'</span><span class="mp-capability-label">'+esc(c.label)+(c.kind==='project'?'<small class="mp-capability-kind">프로젝트 참여</small>':'')+'</span><span class="mp-capability-count">'+C.visiblePeople({...s,capability:c.id}).length+'명</span></button>').join("");
  }
  function personCard(p,s){
   const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=portraitPath(p),distinction=personDistinction(p),scope=shortScope(s,p);
@@ -124,7 +122,7 @@
    const groups=new Map();shown.forEach(p=>{const org=p.organizationGroupName||p.organization||'소속 미기재';if(!groups.has(org))groups.set(org,[]);groups.get(org).push(p);});
    cards=[...groups].map(([org,group])=>'<section class="mp-org-group"><h3>자료상 '+esc(org)+'</h3>'+group.map(p=>personCard(p,s)).join('')+'</section>').join('');
   }
-  let html='<div class="mp-graph"><svg class="mp-lines" aria-hidden="true" focusable="false"></svg><div class="mp-capability-node"><span class="mp-node-mark">↗</span><span class="mp-node-eyebrow">'+(capability?'선택한 역량':'등록 자료')+'</span><strong class="mp-node-title">'+esc(capability?.label||"등록된 연구 경험")+'</strong><span class="mp-node-count">'+people.length+'명의 연결 기록</span></div><div class="mp-people">'+cards+'</div></div>';
+  let html='<div class="mp-graph"><svg class="mp-lines" aria-hidden="true" focusable="false"></svg><div class="mp-capability-node"><span class="mp-node-mark">↗</span><span class="mp-node-eyebrow">'+(capability?.kind==='project'?'선택한 프로젝트':capability?'선택한 역량':'등록 자료')+'</span><strong class="mp-node-title">'+esc(capability?.label||"등록된 연구 경험")+'</strong><span class="mp-node-count">'+people.length+'명의 연결 기록</span></div><div class="mp-people">'+cards+'</div></div>';
   if(people.length>PAGE_SIZE)html+='<div class="mp-pager"><button type="button" data-page="'+(page-1)+'"'+(!page?' disabled':'')+'>이전</button><span>'+(page*PAGE_SIZE+1)+'–'+Math.min(people.length,(page+1)*PAGE_SIZE)+' / '+people.length+'명</span><button type="button" data-page="'+(page+1)+'"'+((page+1)*PAGE_SIZE>=people.length?' disabled':'')+'>다음</button></div>';
   return html;
  }
@@ -152,7 +150,7 @@
     return '<button type="button" class="mp-spatial-node mp-spatial-person'+distinction.classes+'" data-map-node="'+esc(n.key)+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-controls="person-detail" aria-label="'+esc(label)+'" title="'+esc(title(p)+' · '+scope)+'"><span class="mp-face-shell"><span class="mp-node-face">'+(path?'<img src="'+esc(path)+'" alt="" decoding="async" width="150" height="200">':'<span aria-hidden="true">'+esc(Array.from(title(p))[0])+'</span>')+'</span>'+(distinction.team?'<span class="mp-team-marker" aria-hidden="true">'+esc(distinction.teamLabel)+'</span>':'')+'</span><span class="mp-node-name">'+esc(title(p))+'</span><span class="mp-node-field">'+esc(scope)+'</span></button>';
    }
    const filter=n.filter||{type:'CAPABILITY',value:n.id};
-   return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
+   return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(n.kind==='project'?'프로젝트 참여':filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
   }).join('');
   const edges=graph.edges.map(e=>'<path class="mp-spatial-edge" style="--field-color:'+fieldColor(e.from)+'" data-from="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-record-ids="'+esc(e.recordIds.join(','))+'"></path>').join('');
   return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">드래그로 이동 · + / − 확대 · 방향키 이동 · Home 화면 맞춤. 전체 보기에서 글자가 작으면 확대해 주세요.</p></div></div>';
@@ -229,8 +227,9 @@
    $('people-map-content').dataset.mpCount=String(people.length);
    $('map-title').textContent=capability?.label||'연구 경험의 연결';
    $('map-explanation').textContent=(capability?.description||'이름과 자료 주제로 찾거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
-   $('map-count').textContent=people.length+'명 · 연결 기록 '+ids.size+'개';
-   $('results-summary').textContent=people.length+'명'+(capability?' · '+capability.label:'')+(state.query?' · 이름 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
+   const peopleCount=capability?.kind==='project'&&(state.query||state.topic)?people.length+'/'+capability.people.length:people.length;
+   $('map-count').textContent=peopleCount+'명 · 연결 기록 '+ids.size+'개';
+   $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 이름 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
    $('view-control').value=state.view;$('topic-controls').value=state.topic;if($('name-search').value!==state.query)$('name-search').value=state.query;
    detail();mobile();pointers.clear();drag=null;pinch=null;
    observer?.disconnect();const stage=$('mp-graph-stage');if(stage)observer?.observe(stage);schedule();

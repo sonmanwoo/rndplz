@@ -35,14 +35,15 @@
       function addField(field, kind, links) {
         if (!links.length) return;
         const key = kind + ':' + field.id;
-        const basisType = kind === 'topic' ? 'registered_record_topic' : 'verified_seed_record_links';
-        nodes.push({key, type: 'capability', kind, id: field.id, label: field.label,
-          group: kind, basisType, count: links.length,
+        const relationKind = field.kind === 'project' ? 'project' : kind;
+        const basisType = relationKind === 'project' ? 'user_provided_project_participation' : kind === 'topic' ? 'registered_record_topic' : 'verified_seed_record_links';
+        nodes.push({key, type: 'capability', kind: relationKind, id: field.id, label: field.label,
+          group: relationKind, basisType, count: links.length,
           filter: {type: kind === 'topic' ? 'TOPIC' : 'CAPABILITY', value: field.id},
           x: 0, y: 0, ...Layout.SIZE.capability});
         links.forEach(link => edges.push({
           key: 'field-person:' + kind + ':' + field.id + ':' + link.id,
-          from: key, to: 'person:' + link.id, type: 'field-person', kind,
+          from: key, to: 'person:' + link.id, type: 'field-person', kind: relationKind,
           capabilityId: kind === 'capability' ? field.id : null,
           topicId: kind === 'topic' ? field.id : null,
           personId: link.id, recordIds: unique(link.recordIds),
