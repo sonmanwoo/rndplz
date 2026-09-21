@@ -15,7 +15,10 @@
    if(!award||award.name!=="Nobel Prize"||award.recognition_kind!=="nobel"||typeof award.facts_url!=="string")return false;
    try{const url=new URL(award.facts_url);return url.protocol==="https:"&&(url.hostname==="nobelprize.org"||url.hostname==="www.nobelprize.org")&&!url.username&&!url.password&&!url.port;}catch{return false;}
   }),team=p.sourcePerson?.team_member===true;
-  return {nobel,team,classes:(nobel?" mp-person-nobel":"")+(team?" mp-person-team":""),labels:[nobel?"노벨상 수상자":"",team?"우리 팀":""].filter(Boolean)};
+  const teamIds=Array.isArray(p.sourcePerson?.team_project_ids)?p.sourcePerson.team_project_ids:[],projects=Array.isArray(p.sourceProfile?.projects)?p.sourceProfile.projects:[];
+  const teamTitles=projects.filter(project=>project&&teamIds.includes(project.id)&&typeof project.title==="string").map(project=>project.title.trim()).filter(Boolean);
+  const teamLabel=team?([...new Set(teamTitles)].join(" · ")||"우리 팀"):"";
+  return {nobel,team,teamLabel,classes:(nobel?" mp-person-nobel":"")+(team?" mp-person-team":""),labels:[nobel?"노벨상 수상자":"",teamLabel].filter(Boolean)};
  }
  const portraitPath=p=>p.portrait&&/^\/portraits\/[a-z0-9-]+\.(png|jpg|jpeg)$/i.test(p.portrait.path||"")?p.portrait.path.replace(/\.(?:png|jpe?g)$/i,'-thumb.webp'):null;
  const recordType=r=>r.typeLabel||r.type||"기록";
@@ -111,7 +114,7 @@
  function personCard(p,s){
   const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=portraitPath(p),distinction=personDistinction(p),scope=shortScope(s,p);
   const label=[title(p),...distinction.labels,scope,'근거 '+records.length+'개 보기',p.virtual?'가상 사례':''].filter(Boolean).join(' · ');
-  return '<button type="button" class="mp-person'+distinction.classes+'" data-person="'+esc(p.id)+'" aria-pressed="'+active+'" aria-controls="person-detail" aria-label="'+esc(label)+'"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(scope)+'</span><span class="mp-person-records">'+(distinction.team?'<span class="mp-list-team-marker" aria-hidden="true">우리 팀</span> · ':'')+'근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
+  return '<button type="button" class="mp-person'+distinction.classes+'" data-person="'+esc(p.id)+'" aria-pressed="'+active+'" aria-controls="person-detail" aria-label="'+esc(label)+'"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(scope)+'</span><span class="mp-person-records">'+(distinction.team?'<span class="mp-list-team-marker" aria-hidden="true">'+esc(distinction.teamLabel)+'</span> · ':'')+'근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
  }
  function renderLegacyMap(s){
   const people=C.visiblePeople(s),capability=currentCapability(s),page=Math.min(s.page||0,Math.max(0,Math.ceil(people.length/PAGE_SIZE)-1)),shown=people.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
@@ -146,7 +149,7 @@
    if(n.type==='person'){
     const p=graph.visible.find(p=>p.id===n.id),path=portraitPath(p),scope=shortScope(s,p),distinction=personDistinction(p);
     const label=[title(p),...distinction.labels,scope,'근거 '+C.visibleEvidence(s,p).length+'개 보기',p.virtual?'가상 사례':'','인물과 근거 보기'].filter(Boolean).join(' · ');
-    return '<button type="button" class="mp-spatial-node mp-spatial-person'+distinction.classes+'" data-map-node="'+esc(n.key)+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-controls="person-detail" aria-label="'+esc(label)+'" title="'+esc(title(p)+' · '+scope)+'"><span class="mp-face-shell"><span class="mp-node-face">'+(path?'<img src="'+esc(path)+'" alt="" decoding="async" width="150" height="200">':'<span aria-hidden="true">'+esc(Array.from(title(p))[0])+'</span>')+'</span>'+(distinction.team?'<span class="mp-team-marker" aria-hidden="true">우리 팀</span>':'')+'</span><span class="mp-node-name">'+esc(title(p))+'</span><span class="mp-node-field">'+esc(scope)+'</span></button>';
+    return '<button type="button" class="mp-spatial-node mp-spatial-person'+distinction.classes+'" data-map-node="'+esc(n.key)+'" data-person="'+esc(p.id)+'" aria-pressed="'+(s.selectedId===p.id)+'" aria-controls="person-detail" aria-label="'+esc(label)+'" title="'+esc(title(p)+' · '+scope)+'"><span class="mp-face-shell"><span class="mp-node-face">'+(path?'<img src="'+esc(path)+'" alt="" decoding="async" width="150" height="200">':'<span aria-hidden="true">'+esc(Array.from(title(p))[0])+'</span>')+'</span>'+(distinction.team?'<span class="mp-team-marker" aria-hidden="true">'+esc(distinction.teamLabel)+'</span>':'')+'</span><span class="mp-node-name">'+esc(title(p))+'</span><span class="mp-node-field">'+esc(scope)+'</span></button>';
    }
    const filter=n.filter||{type:'CAPABILITY',value:n.id};
    return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
