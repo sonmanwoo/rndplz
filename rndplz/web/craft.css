@@ -387,3 +387,15 @@ html[data-theme="dark"] .chat-page .message-meta .avatar { --ci-surface:var(--de
 .letter-postmark > span { min-width:0; overflow-wrap:anywhere; }
 .letter-postmark > .service-name { flex:0 0 auto; font-family:inherit; font-style:normal; }
 .envelope > .service-name { font-size:18px; letter-spacing:0; }
+
+/* Answer wait/stream only. The fixed ring and H keep their existing appearance.
+   Motion 02: one clockwise orbit in 2400ms/ease-in-out, repeated while active.
+   The current dot already rests near 45deg; rotate relative to that position.
+   Origin derives from the existing 1px ring and proportional dot offsets. */
+.message-meta .susomun-ci--busy::after {
+  transform-origin:calc(-.207317em + 1px) calc(.548780em - 1px);
+  animation:susomun-ci-orbit 2400ms ease-in-out infinite;
+  animation-delay:var(--ci-busy-delay,0ms);
+}
+@keyframes susomun-ci-orbit { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+/* Existing OS reduction and app data-motion-toggle -> body.no-motion rules apply. */

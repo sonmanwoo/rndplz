@@ -13,6 +13,7 @@ function composerSendLocked(){return composerClientLocked()||!!session?.pending;
 function setComposerDraft(value){$("message").value=value;composerInputRevision++;}
 function consumeComposerDraft(){const text=$("message").value,stagedEdit=briefEditor?.stagedText===text&&composerInputRevision===briefEditor.stagedComposerRevision?briefEditor:null;setComposerDraft("");return {text,revision:composerInputRevision,attachmentIds:[],stagedEdit};}
 function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accountInvalidated&&composerInputRevision===draft.revision&&$("message").value===""){setComposerDraft(draft.text);if(draft.stagedEdit&&briefEditor===draft.stagedEdit&&briefEditor.stagedText===draft.text)briefEditor.stagedComposerRevision=composerInputRevision;}}
+let ciBusyStarted=null;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
 async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
@@ -308,11 +309,21 @@ async function prepareDiscovery(button,keyboard=false){
   }
  }
 }
+function stopBusyCi(){
+ ciBusyStarted=null;
+ $("thread").querySelectorAll(".susomun-ci--busy").forEach(mark=>{mark.classList.remove("susomun-ci--busy");mark.style.removeProperty("--ci-busy-delay");});
+}
+function busyCiAttributes(){
+ if(!busy||ciBusyStarted===null||controller?.signal.aborted)return 'class="susomun-ci"';
+ // Each streamed render creates a new node; its negative delay preserves this attempt's phase.
+ const elapsed=Math.max(0,performance.now()-ciBusyStarted)%2400;
+ return 'class="susomun-ci susomun-ci--busy" style="--ci-busy-delay:-'+elapsed.toFixed(1)+'ms"';
+}
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
- if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
+ if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
 }
@@ -380,7 +391,7 @@ async function send(payload,submission=null){
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
- prepareTicket++;error();streamText="";busy=true;autoScroll=true;controller=new AbortController();retryPayload=payload;
+ prepareTicket++;error();streamText="";busy=true;ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",stopBusyCi,{once:true});retryPayload=payload;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
  render();let accepted=false,finished=false;
  try{
@@ -398,13 +409,14 @@ async function send(payload,submission=null){
   const event=line=>{if(!line.trim())return;const data=JSON.parse(line);
    if(data.type==="start"){session=data.session;accepted=true;updateHistory();optimistic=null;if(submission)files=files.filter(f=>!submission.attachmentIds.includes(f.id));renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
    if(data.type==="delta")streamText+=data.text;
-   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
+   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;stopBusyCi();streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
    render();
   };
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let end;while((end=buffer.indexOf("\n"))>=0){event(buffer.slice(0,end));buffer=buffer.slice(end+1);}}
   buffer+=decoder.decode();if(buffer.trim())event(buffer);
   if(!finished)throw new Error("응답 연결이 끝났어요. 저장된 대화를 확인하고 다시 시도해 주세요.");
  }catch(e){
+  stopBusyCi();
   if(finished){if(e.name!=="AbortError")error(e.message);return;}
   if(!accepted)restoreComposerDraft(submission);
   failBriefSubmission(briefSubmission,briefSubmissionSession);
@@ -419,7 +431,7 @@ async function send(payload,submission=null){
    if(session.pending)error("모델 응답 정리를 기다리고 있어요. 잠시 후 이전 대화에서 다시 열어 주세요.");
    else if(e.name==="AbortError"&&session.messages?.some(m=>m.role==="assistant"&&m.turn_id===payload.turn_id&&m.status==="cancelled")&&$("composerError").textContent==="응답을 중지하고 있어요…")error();
   }
- }finally{busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
+ }finally{stopBusyCi();busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
 function newChat(){if(composerClientLocked())return;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했어요."));reader.readAsDataURL(file);});}
