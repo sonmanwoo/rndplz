@@ -13,7 +13,7 @@ function composerSendLocked(){return composerClientLocked()||!!session?.pending;
 function setComposerDraft(value){$("message").value=value;composerInputRevision++;}
 function consumeComposerDraft(){const text=$("message").value,stagedEdit=briefEditor?.stagedText===text&&composerInputRevision===briefEditor.stagedComposerRevision?briefEditor:null;setComposerDraft("");return {text,revision:composerInputRevision,attachmentIds:[],stagedEdit};}
 function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accountInvalidated&&composerInputRevision===draft.revision&&$("message").value===""){setComposerDraft(draft.text);if(draft.stagedEdit&&briefEditor===draft.stagedEdit&&briefEditor.stagedText===draft.text)briefEditor.stagedComposerRevision=composerInputRevision;}}
-let ciBusyStarted=null,retryDisplay=null;
+let ciBusyStarted=null,retryDisplay=null,responseProgress="";
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
 async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
@@ -143,7 +143,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("linkAttachButton").disabled=locked||blocksScopedLinks()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("linkAttachButton").disabled=locked||blocksScopedLinks()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();}
 const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
 let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
 function pendingAttachment(item){return !!(item.file||item.source_url);}
@@ -497,11 +497,23 @@ function busyCiAttributes(){
  const elapsed=Math.max(0,performance.now()-ciBusyStarted)%2400;
  return 'class="susomun-ci susomun-ci--busy" style="--ci-busy-delay:-'+elapsed.toFixed(1)+'ms"';
 }
+const responseProgressLabels={preparing:"요청을 준비하고 있어요",submitting:"요청을 보내고 있어요",waiting:"응답을 기다리고 있어요",interpreting:"요청 해석 단계",searching:"등록 자료 조회 단계",answering:"답변을 준비하고 있어요",receiving:"답변을 받고 있어요"};
+function responseProgressLabel(){
+ const label=busy&&!controller?.signal.aborted?responseProgressLabels[responseProgress]||"":"";
+ return label&&retryDisplay?retryDisplay.name+"로 다시 시도 · "+label:label;
+}
+function syncResponseProgress(){
+ // Keep one live node outside the replaced thread; announce only actual state changes.
+ let live=$("responseProgressLive");
+ if(!live){live=document.createElement("span");live.id="responseProgressLive";live.className="sr-only";live.setAttribute("role","status");live.setAttribute("aria-live","polite");live.setAttribute("aria-atomic","true");$("thread").before(live);}
+ const label=responseProgressLabel();if(live.textContent!==label)live.textContent=label;
+}
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
  $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
- if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(retryDisplay?retryDisplay.name+"로 다시 시도 중…":"응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
+ if(busy&&(responseProgress||streamText))$("thread").innerHTML+='<article class="message assistant" data-response-progress><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span aria-hidden="true" style="font-size:12px;line-height:1.6;letter-spacing:0;min-width:0">'+esc(responseProgressLabel())+'</span></div>'+(streamText?'<div class="message-body">'+formatted(streamText)+'</div>':"")+'</article>';
+ syncResponseProgress();
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
 }
@@ -568,6 +580,99 @@ function renderCandidates(){
  }).catch(()=>{if(epoch===drawEpoch&&!accountNavigationPending&&!accountInvalidated){drawRenderKey="";$("scoutDrawHost").textContent='인물 카드를 불러오지 못했어요. 화면을 새로고침해 주세요.';}}).finally(()=>{metadataController.abort();clearTimeout(metadataTimeout);if(drawMetadataController===metadataController)drawMetadataController=null;});
 }
 new MutationObserver(()=>drawController?.setQuiet()).observe(document.body,{attributes:true,attributeFilter:['class']});
+// Status recovery reads the same saved turn; it never submits a model request.
+const RECOVERY_GET_TIMEOUT_MS=8000,RECOVERY_WINDOW_MS=24000,RECOVERY_INTERVAL_MS=1500;
+let recoveryEpoch=0,recoveryState=null;
+const recoveryReports=new Set();
+function recoveryTurn(saved){return Array.isArray(saved?.messages)?saved.messages.filter(m=>m.role==="user").at(-1)?.turn_id:null;}
+function recoveryCurrent(state,ticket=state?.epoch){return !!state&&recoveryState===state&&ticket===recoveryEpoch&&!accountNavigationPending&&!accountInvalidated&&session?.id===state.sessionId&&recoveryTurn(session)===state.turnId;}
+function clearRecoveryNotice(state){if(state?.notice&&$("composerError").textContent===state.notice)error();}
+function invalidateRecovery(clearNotice=false){
+ const old=recoveryState;recoveryEpoch++;recoveryState=null;old?.controller?.abort();
+ for(const c of recoveryReports)c.abort();recoveryReports.clear();
+ if(clearNotice)clearRecoveryNotice(old);renderRecoveryControl();return old;
+}
+function renderRecoveryControl(){
+ let button=$("recoveryCheckButton");
+ if(!button){button=document.createElement("button");button.id="recoveryCheckButton";button.type="button";button.className="text-button";button.dataset.action="recovery-status";$("composerError").after(button);}
+ const state=recoveryState;button.hidden=!recoveryCurrent(state)||!['pending','unavailable'].includes(state.outcome);
+ button.disabled=!!state?.active||composerClientLocked();button.textContent=state?.active?"응답 상태를 확인하고 있어요…":"응답 상태 다시 확인";
+}
+function recoveryNotice(state,outcome){
+ if(!recoveryCurrent(state))return;
+ state.outcome=outcome;state.notice=outcome==="pending"?"저장된 응답이 아직 처리 중이에요. 상태를 다시 확인하거나 이전 대화에서 열어 주세요.":"저장된 응답 상태를 확인하지 못했어요. 상태를 다시 확인해 주세요. 질문은 다시 전송하지 않습니다.";
+ error(state.notice);renderRecoveryControl();
+}
+function reportRecovery(state,outcome,errorKind,httpStatus){
+ if(!recoveryCurrent(state)||!token||!/^[-A-Za-z0-9]{16,80}$/.test(state.sessionId)||!/^[-A-Za-z0-9]{16,80}$/.test(state.turnId))return;
+ const data={session_id:state.sessionId,turn_id:state.turnId,outcome,elapsed_ms:Math.min(3600000,Math.max(0,Math.round(performance.now()-state.started))),poll_count:Math.min(100,state.pollCount)};
+ if(/^[a-f0-9]{32}$/.test(state.requestId||""))data.request_id=state.requestId;
+ if(['eof','aborted','stream_error','http','network','timeout','invalid_response'].includes(errorKind))data.error_kind=errorKind;
+ if(Number.isInteger(httpStatus)&&httpStatus>=100&&httpStatus<=599)data.http_status=httpStatus;
+ const body=JSON.stringify(data);if(new TextEncoder().encode(body).length>2048)return;
+ const c=new AbortController();recoveryReports.add(c);const timer=setTimeout(()=>c.abort(),2000);
+ // Diagnostics are silent and best effort; their response cannot change the conversation.
+ Promise.resolve().then(()=>{if(!recoveryCurrent(state))return;return fetch('/api/chat/recovery-report',{method:'POST',headers:{'Content-Type':'application/json','X-RnDplz-Token':token},body,signal:c.signal});}).catch(()=>{}).finally(()=>{clearTimeout(timer);recoveryReports.delete(c);});
+}
+function recoveryReadError(kind,status){const e=new Error(kind);e.recoveryKind=kind;if(status)e.httpStatus=status;return e;}
+async function readRecoverySession(state,ticket,remaining){
+ const c=new AbortController();state.controller=c;let timedOut=false,timer,onAbort;
+ const cancelled=new Promise((_,reject)=>{onAbort=()=>reject(recoveryReadError(timedOut?'timeout':'aborted'));c.signal.addEventListener('abort',onAbort,{once:true});timer=setTimeout(()=>{timedOut=true;c.abort();},Math.min(RECOVERY_GET_TIMEOUT_MS,remaining));});
+ const read=async()=>{
+  let response;try{response=await fetch('/api/chat/session?id='+encodeURIComponent(state.sessionId),{signal:c.signal,cache:'no-store'});}catch(e){if(c.signal.aborted)throw recoveryReadError(timedOut?'timeout':'aborted');throw recoveryReadError('network');}
+  if(!response.ok)throw recoveryReadError('http',response.status);
+  let saved;try{saved=await response.json();}catch(e){if(c.signal.aborted)throw recoveryReadError(timedOut?'timeout':'aborted');throw recoveryReadError('invalid_response',response.status);}
+  if(!recoveryCurrent(state,ticket))throw recoveryReadError('aborted');
+  if(saved?.id!==state.sessionId||recoveryTurn(saved)!==state.turnId||!(saved.pending===null||saved.pending===state.turnId))throw recoveryReadError('invalid_response',response.status);
+  return saved;
+ };
+ try{return await Promise.race([read(),cancelled]);}finally{clearTimeout(timer);c.signal.removeEventListener('abort',onAbort);if(state.controller===c)state.controller=null;}
+}
+async function recoverSavedTurn(state){
+ if(!recoveryCurrent(state)||state.active)return;
+ const ticket=state.epoch,deadline=performance.now()+RECOVERY_WINDOW_MS;state.active=true;state.pollCount=0;let last={kind:'unavailable',error:'timeout'};renderRecoveryControl();
+ try{
+  while(recoveryCurrent(state,ticket)&&performance.now()<deadline&&state.pollCount<100){
+   state.pollCount++;
+   try{
+    const saved=await readRecoverySession(state,ticket,deadline-performance.now());if(!recoveryCurrent(state,ticket))return;
+    if(saved.pending===null){
+     session=saved;updateHistory();clearRecoveryNotice(state);state.outcome='recovered';reportRecovery(state,'recovered');
+     state.active=false;render();return;
+    }
+    last={kind:'pending'};
+   }catch(e){
+    if(!recoveryCurrent(state,ticket))return;
+    last={kind:'unavailable',error:e.recoveryKind||'network',status:e.httpStatus};
+    if(e.recoveryKind==='http'&&[400,401,403,404].includes(e.httpStatus))break;
+   }
+   const remaining=deadline-performance.now();if(remaining<=0)break;
+   await new Promise(resolve=>setTimeout(resolve,Math.min(RECOVERY_INTERVAL_MS,remaining)));
+  }
+  if(!recoveryCurrent(state,ticket))return;
+  recoveryNotice(state,last.kind);reportRecovery(state,last.kind,last.error,last.status);
+ }finally{if(recoveryCurrent(state,ticket)){state.active=false;renderRecoveryControl();}}
+}
+async function beginStreamRecovery(payload,requestId,kind){
+ invalidateRecovery();
+ if(!session?.id||recoveryTurn(session)!==payload.turn_id)return;
+ const state={epoch:recoveryEpoch,sessionId:session.id,turnId:payload.turn_id,requestId,started:performance.now(),pollCount:0,active:false,notice:$("composerError").textContent,outcome:null,controller:null};
+ recoveryState=state;reportRecovery(state,'stream_interrupted',kind);await recoverSavedTurn(state);
+}
+function restoreRecoveryAfterHistory(prior,saved){
+ clearRecoveryNotice(prior);
+ if(!prior||saved.id!==prior.sessionId||recoveryTurn(saved)!==prior.turnId)return;
+ const state={...prior,epoch:recoveryEpoch,active:false,controller:null,notice:null,pollCount:0};recoveryState=state;
+ if(saved.pending===null){state.outcome='recovered';reportRecovery(state,'recovered');}
+ else if(saved.pending===state.turnId)recoveryNotice(state,'pending');
+ renderRecoveryControl();
+}
+
+function restoreRecoveryAfterHistoryFailure(prior,previousSession,navigationEpoch){
+ if(!prior||navigationEpoch!==recoveryEpoch||accountNavigationPending||accountInvalidated||session!==previousSession||session?.id!==prior.sessionId||recoveryTurn(session)!==prior.turnId)return;
+ recoveryState={...prior,epoch:recoveryEpoch,active:false,controller:null};renderRecoveryControl();
+}
+
 function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated,model_id:session.model_id,model_selection_origin:selectionOrigin(session.model_selection_origin),...(hasPublicPaperScope(session)?{provider_scope:{...session.provider_scope}}:{})};history=[row,...history.filter(s=>s.id!==row.id)];}
 async function retryTurn(id){
  const user=session?.messages.find(m=>m.turn_id===id&&m.role==="user"),assistant=session?.messages.find(m=>m.turn_id===id&&m.role==="assistant");
@@ -583,9 +688,9 @@ async function send(payload,submission=null){
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
- prepareTicket++;error();streamText="";busy=true;ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",stopBusyCi,{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
+ invalidateRecovery(true);prepareTicket++;error();streamText="";busy=true;responseProgress="preparing";ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",()=>{stopBusyCi();responseProgress="";render();},{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
- render();let accepted=false,finished=false;
+ render();let accepted=false,finished=false,recoveryRequestId=null;
  try{
   // Only a new request with a known automatic guide choice checks recovery.
   // Retry preserves the original request and uses the current model selection; no input is auto-resubmitted.
@@ -595,37 +700,33 @@ async function send(payload,submission=null){
    payload={...payload,model_id:next.id,model_selection_origin:next.origin};retryPayload=payload;
    if(epoch===modelSelectionEpoch){selectedModel=next.id;modelSelectionOrigin=next.origin;renderModelSelect();}
   }
+  if(controller.signal.aborted){const stopped=new Error("응답을 중지했어요.");stopped.name="AbortError";throw stopped;}
+  responseProgress="submitting";render();
   const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(payload),signal:controller.signal});
+  const rid=response.headers?.get("X-Rndplz-Request-Id");if(/^[a-f0-9]{32}$/.test(rid||""))recoveryRequestId=rid;
   if(!response.ok){const data=await response.json();throw new Error(data.error||"대화를 시작하지 못했어요.");}
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   const event=line=>{if(!line.trim())return;const data=JSON.parse(line);
-   if(data.type==="start"){session=data.session;accepted=true;updateHistory();optimistic=null;if(submission)files=files.filter(f=>!submission.attachmentIds.includes(f.id));renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
-   if(data.type==="delta")streamText+=data.text;
-   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;stopBusyCi();streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
+   if(data.type==="start"){if(!finished)responseProgress="waiting";session=data.session;if(/^[a-f0-9]{32}$/.test(data.request_id||""))recoveryRequestId=data.request_id;accepted=true;updateHistory();optimistic=null;if(submission)files=files.filter(f=>!submission.attachmentIds.includes(f.id));renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
+   if(!finished&&data.type==="phase"&&["interpreting","searching","answering"].includes(data.phase))responseProgress=data.phase;
+   if(data.type==="delta"){streamText+=data.text;if(!finished&&data.text)responseProgress="receiving";}
+   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;responseProgress="";stopBusyCi();streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
    render();
   };
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let end;while((end=buffer.indexOf("\n"))>=0){event(buffer.slice(0,end));buffer=buffer.slice(end+1);}}
   buffer+=decoder.decode();if(buffer.trim())event(buffer);
-  if(!finished)throw new Error("응답 연결이 끝났어요. 저장된 대화를 확인하고 다시 시도해 주세요.");
+  if(!finished){const failure=new Error("응답 연결이 끝났어요. 저장된 대화를 확인하고 다시 시도해 주세요.");failure.recoveryKind="eof";throw failure;}
  }catch(e){
-  stopBusyCi();
+  stopBusyCi();responseProgress="";render();
   if(finished){if(e.name!=="AbortError")error(e.message);return;}
   if(!accepted)restoreComposerDraft(submission);
   failBriefSubmission(briefSubmission,briefSubmissionSession);
   if(e.name==="AbortError"){error("응답을 중지하고 있어요…");}
   else error(e.message);
-  if(accepted&&session){
-   for(let i=0;i<30;i++){
-    const saved=await api("/api/chat/session?id="+session.id).catch(()=>null);
-    if(saved&&!saved.pending){session=saved;break;}
-    await new Promise(resolve=>setTimeout(resolve,700));
-   }
-   if(session.pending)error("모델 응답 정리를 기다리고 있어요. 잠시 후 이전 대화에서 다시 열어 주세요.");
-   else if(e.name==="AbortError"&&session.messages?.some(m=>m.role==="assistant"&&m.turn_id===payload.turn_id&&m.status==="cancelled")&&$("composerError").textContent==="응답을 중지하고 있어요…")error();
-  }
- }finally{stopBusyCi();busy=false;retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
+  if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
+ }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(composerClientLocked())return;attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(composerClientLocked())return;invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
  const reader=new FileReader(),finish=(fn,value)=>{signal?.removeEventListener("abort",stop);fn(value);};
  const stop=()=>{if(reader.readyState===1)reader.abort();finish(reject,attachmentAbortError());};
@@ -690,7 +791,7 @@ profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,ge
  onBusy:value=>{profileBusy=value;controls();},
  onClose:()=>{autoScroll=false;render();$("message").focus({preventScroll:true});},
  onSession:value=>{
-  session=value;updateHistory();window.history.replaceState(null,"","/?chat="+session.id);
+  invalidateRecovery(true);session=value;updateHistory();window.history.replaceState(null,"","/?chat="+session.id);
   if(profileSubmission){if(composerInputRevision===profileSubmission.revision&&$("message").value===profileSubmission.text)setComposerDraft("");files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
   autoScroll=false;render();resizeInput();
  }});
@@ -703,6 +804,7 @@ window.addEventListener("rndplz:before-account-navigation",event=>{
 });
 window.addEventListener("rndplz:account-navigation",event=>{
  accountNavigationPending=event.detail?.phase!=="cancel";
+ if(accountNavigationPending)invalidateRecovery(true);
  if(accountNavigationPending&&!drawController){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawRenderKey="";}
  if(event.detail?.phase==="invalidate"){
   accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
@@ -736,7 +838,21 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   if(action==="profile-receipt"){autoScroll=false;if(button.dataset.version)await profileUI.showReceipt(Number(button.dataset.version));else await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});}
  else if(action==="remove-file"){removeAttachment(id);}
  else if(action==="preview-file"){await previewAttachment(id,button);}
-  else if(action==="history"){attachmentPreviewTicket++;try{prepareTicket++;profileUI.close();const epoch=modelSelectionEpoch,previousSessionId=session?.id;session=await api("/api/chat/session?id="+id);restoreModelSelection(session,epoch);if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}finally{attachmentPreviewTicket++;}}
+  else if(action==="history"){
+   attachmentPreviewTicket++;prepareTicket++;profileUI.close();
+   const epoch=modelSelectionEpoch,previousSession=session,previousSessionId=session?.id,priorRecovery=invalidateRecovery(),navigationEpoch=recoveryEpoch;
+   try{
+    const saved=await api("/api/chat/session?id="+id);
+    if(navigationEpoch!==recoveryEpoch||accountNavigationPending||accountInvalidated)return;
+    session=saved;restoreRecoveryAfterHistory(priorRecovery,saved);restoreModelSelection(session,epoch);
+    if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();
+   }catch(e){
+    if(navigationEpoch!==recoveryEpoch||accountNavigationPending||accountInvalidated||session!==previousSession)return;
+    restoreRecoveryAfterHistoryFailure(priorRecovery,previousSession,navigationEpoch);
+    if(!$("composerError").textContent)error(e.message);
+   }finally{if(navigationEpoch===recoveryEpoch)attachmentPreviewTicket++;}
+  }
+  else if(action==="recovery-status")await recoverSavedTurn(recoveryState);
   else if(action==="retry")await retryTurn(id);
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}

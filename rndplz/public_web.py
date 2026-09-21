@@ -31,7 +31,7 @@ from .llm_runtime import RuntimeLegacyModel
 from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError
 from .people_map import build_people_map
-from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
+from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
@@ -376,35 +376,71 @@ class PublicModels(ChatModels):
 
 
 class _VisitorStream:
-    """Release visitor admission even if WSGI closes before the first iteration."""
-    def __init__(self, iterator, first, release):
-        self.iterator = iterator
-        self.events = itertools.chain([first], iterator)
-        self.release = release
-        self.closed = False
+    """Release admission once; lifecycle metadata is not a delivery acknowledgement."""
+    def __init__(self, iterator, first, release, *, observe=None, request_id=None):
+        self.iterator=iterator
+        self.events=itertools.chain([first],iterator)
+        self.release=release
+        self.observe=observe
+        self.request_id=request_id
+        self.closed=False
+        self.started=time.monotonic()
+        self.terminal_yielded=False
+        self.first_delta=False
+        self.phase=None
+        self.close_reason='closed'
 
-    def __iter__(self):
-        return self
+    def _emit(self, kind, **metadata):
+        if self.observe is not None:
+            try:self.observe({'event_type':kind,'elapsed_ms':round((time.monotonic()-self.started)*1000),**metadata})
+            except Exception:pass
+
+    def __iter__(self):return self
 
     def __next__(self):
-        if self.closed:
-            raise StopIteration
+        if self.closed:raise StopIteration
         try:
-            event = next(self.events)
-            if isinstance(event, dict) and 'session' in event:
-                event = {**event, 'session': project_session(event['session'])}
-            return (json.dumps(event, ensure_ascii=False) + '\n').encode()
+            event=next(self.events)
+            if isinstance(event,dict) and 'session' in event:
+                event={**event,'session':project_session(event['session'])}
+            if isinstance(event,dict) and event.get('type')=='start' and self.request_id:
+                event={**event,'request_id':self.request_id}
+            raw=(json.dumps(event,ensure_ascii=False)+'\n').encode()
+            if isinstance(event,dict):
+                session=event.get('session') or {}
+                identity={'session_id':session.get('id')} if isinstance(session,dict) else {}
+                kind=event.get('type')
+                if kind=='start':self._emit('stream_started',**identity)
+                elif kind=='phase' and event.get('phase')!=self.phase:
+                    self.phase=event.get('phase');self._emit('stream_phase',phase=self.phase)
+                elif kind=='delta' and not self.first_delta:
+                    self.first_delta=True;self._emit('stream_first_delta')
+                elif kind in ('done','error'):
+                    self.terminal_yielded=True
+                    self._emit('stream_terminal_yielded',terminal_type=kind,terminal_yielded=True,**identity)
+            return raw
+        except StopIteration:
+            self.close_reason='eof'
+            self._emit('stream_eof',eof=True,terminal_yielded=self.terminal_yielded)
+            self.close()
+            raise
         except BaseException:
+            self.close_reason='iteration_error'
+            self._emit('stream_error',error_kind='stream_iteration_failed',failure_stage='stream')
             self.close()
             raise
 
     def close(self):
         if not self.closed:
-            self.closed = True
-            try:
-                self.iterator.close()
+            self.closed=True
+            try:self.iterator.close()
+            except BaseException:
+                self.close_reason='cleanup_error'
+                self._emit('stream_error',error_kind='stream_cleanup_failed',failure_stage='stream')
+                raise
             finally:
-                self.release()
+                try:self.release()
+                finally:self._emit('stream_closed',close_reason=self.close_reason,terminal_yielded=self.terminal_yielded)
 
 
 class PublicApp:
@@ -436,6 +472,8 @@ class PublicApp:
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
+        self.observation = (OperationalDiagnostics(self.diagnostics, provider=self.models.runtime.config.provider,
+                            model=self.models.runtime.config.model) if self.env.get('APP_RUNTIME') in ('hosted_public','hosted_demo') else self.diagnostics)
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
@@ -681,12 +719,43 @@ class PublicApp:
         return context, 'rndplz_visitor=' + value + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400' + ('; Secure' if self.secure else '')
 
     def _diagnostic_observe(self, metadata, content=None):
-        if self.diagnostics is None:return
-        try:self.diagnostics.record(metadata,content)
+        if self.observation is None:return
+        try:self.observation.record(metadata,content)
         except Exception:
             try:
                 with self.diagnostics.lock:self.diagnostics._problem('write_errors','diagnostic_callback_failed')
             except Exception:pass
+
+    def _recovery_report(self, context, chat, payload, send, probe):
+        allowed={'session_id','turn_id','request_id','outcome','error_kind','http_status','elapsed_ms','poll_count'}
+        if (set(payload)-allowed or not {'session_id','turn_id','outcome'}<=set(payload)
+                or any(not isinstance(payload.get(k),str) or not re.fullmatch(r'[A-Za-z0-9-]{16,80}',payload[k]) for k in ('session_id','turn_id'))
+                or payload['outcome'] not in ('stream_interrupted','recovered','pending','unavailable')):
+            return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
+        if 'error_kind' in payload and payload['error_kind'] not in ('eof','aborted','stream_error','http','network','timeout','invalid_response'):
+            return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
+        for key,lower,upper in (('elapsed_ms',0,3600000),('poll_count',0,100),('http_status',100,599)):
+            if key in payload and (type(payload[key]) is not int or not lower<=payload[key]<=upper):
+                return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
+        request_id=payload.get('request_id')
+        if request_id is not None and (not isinstance(request_id,str) or not re.fullmatch('[a-f0-9]{32}',request_id)):
+            return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
+        session=chat.get(payload['session_id'])
+        if not any(m.get('role')=='user' and m.get('turn_id')==payload['turn_id'] for m in session.get('messages',[])):
+            return send(403,{'error':'현재 방문자의 요청만 확인할 수 있습니다.','code':'recovery_report_scope'})
+        probe['session_verified']=True
+        with self.lock:
+            now=time.monotonic()
+            reports=[t for t in context.get('recovery_reports',[]) if now-t<60]
+            if len(reports)>=6:return send(429,{'error':'상태 확인 보고가 많습니다. 잠시 후 확인해 주세요.','code':'recovery_report_rate'})
+            if request_id is not None and context.get('request_refs',{}).get(request_id)!=(payload['session_id'],payload['turn_id']):
+                return send(400,{'error':'회복 관측의 요청 연결을 확인해 주세요.','code':'recovery_report_request'})
+            probe['request_verified']=request_id is not None
+            context['recovery_reports']=[*reports,now]
+        meta={k:payload[k] for k in ('outcome','elapsed_ms','poll_count','http_status') if k in payload}
+        if 'error_kind' in payload:meta['client_error_kind']=payload['error_kind']
+        self._diagnostic_observe({**probe,**meta,'event_type':'client_recovery_report'})
+        return send(200,{'ok':True})
 
     def _operator(self,environ,path,method,send):
         if not self.diagnostic_auth.enabled:return send(404,{'error':'경로를 찾을 수 없습니다.'})
@@ -733,7 +802,11 @@ class PublicApp:
                    ('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
         diagnostic_request=None;diagnostic_content=None;diagnostic_error='request_rejected';received=time.monotonic()
         diagnostic_model_called=False
+        diagnostic_probe=None
         def send(status, value, mime='application/json; charset=utf-8'):
+            if status>=400 and diagnostic_probe is not None:
+                self._diagnostic_observe({**diagnostic_probe,'http_status':status,'error_kind':diagnostic_error,
+                    'elapsed_ms':round((time.monotonic()-received)*1000)})
             if status>=400 and diagnostic_request is not None:
                 self._diagnostic_observe({**diagnostic_request,'event_type':'request_rejected','status':'rejected',
                     'route':'reject','route_reason':'model_response_failure' if diagnostic_model_called else 'request_validation','http_status':status,'error_kind':diagnostic_error,
@@ -812,11 +885,22 @@ class PublicApp:
             token = context['token']
             query = parse_qs(environ.get('QUERY_STRING', ''))
             identifier = query.get('id', [''])[0]
+            if (method,path) in (('GET','/api/chat/session'),('POST','/api/chat/recovery-report')):
+                probe_id=uuid.uuid4().hex
+                diagnostic_probe={'event_type':'session_read_failed' if method=='GET' else 'recovery_report_rejected',
+                    'request_id':probe_id,'visitor_ref':context['visitor_ref'],
+                    'session_verified':False,'request_verified':False,
+                    'code_fingerprint':self.diagnostic_runtime['code_fingerprint'],
+                    'deployment_revision':self.diagnostic_runtime['deployment_revision']}
+                if method=='GET':diagnostic_probe['claimed_session_id']=identifier
+                headers.append(('X-RNDPLZ-Request-Id',probe_id))
             if method=='POST' and path in ('/api/chat','/api/chat/prepare','/api/attachments'):
                 request_id=uuid.uuid4().hex
                 diagnostic_request={'visitor_ref':context['visitor_ref'],'request_id':request_id,'attempt_id':uuid.uuid4().hex,
                                     'trace_id':uuid.uuid4().hex,'session_id':'request-'+request_id,
-                                    'code_fingerprint':self.diagnostic_runtime['code_fingerprint']}
+                                    'code_fingerprint':self.diagnostic_runtime['code_fingerprint'],
+                                    'deployment_revision':self.diagnostic_runtime['deployment_revision']}
+                headers.append(('X-RNDPLZ-Request-Id',request_id))
                 marker=environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC_RUN','')
                 if isinstance(marker,str) and re.fullmatch(r'[a-f0-9]{32}',marker):diagnostic_request['diagnostic_run']=marker
             session_mode = context.get('session_mode', 'visitor')
@@ -833,7 +917,12 @@ class PublicApp:
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/chat/models': return send(200, {**self.models.catalog(), 'public': True})
-                if path == '/api/chat/session': return send(200, project_session(chat.get(identifier)))
+                if path == '/api/chat/session':
+                    session=chat.get(identifier)
+                    self._diagnostic_observe({**diagnostic_probe,'event_type':'session_read_completed',
+                        'session_verified':True,'pending_present':bool(session.get('pending')),
+                        'http_status':200,'elapsed_ms':round((time.monotonic()-received)*1000)})
+                    return send(200,project_session(session))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/people-map': return send(200, build_people_map(service.engine))
                 if path == '/api/admin': return send(200, service.admin())
@@ -863,7 +952,7 @@ class PublicApp:
             length = int(environ.get('CONTENT_LENGTH') or '0')
             if path == '/auth/google/enroll' and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
-            body_limit = MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
+            body_limit = 2048 if path == '/api/chat/recovery-report' else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
             if not 0 < length <= body_limit:
                 if path == '/api/attachments/https':
                     return send(413, {'error':'링크 주소의 크기를 확인해 주세요.', 'code':'https_request_too_large'})
@@ -871,8 +960,16 @@ class PublicApp:
                     return send(413, {'error':str(AttachmentError('too_large')), 'code':'attachment_too_large'})
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
-            payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https') else json.loads(raw_payload)
+            try:
+                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report') else json.loads(raw_payload)
+            except AuthError:
+                if path == '/api/chat/recovery-report':
+                    return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
+                raise
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
+            if diagnostic_probe is not None:
+                for original,claimed in (('session_id','claimed_session_id'),('turn_id','claimed_turn_id'),('request_id','client_request_id')):
+                    if isinstance(payload.get(original),str):diagnostic_probe[claimed]=payload[original]
             if path == '/api/logout':
                 if payload:
                     return send(400, {'error': '방문자 세션 종료 요청에는 추가 항목을 넣지 마세요.'})
@@ -899,6 +996,9 @@ class PublicApp:
                 if len(context['requests']) >= 20:
                     diagnostic_error='rate_limit';return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
                 context['requests'].append(now)
+            if path == '/api/chat/recovery-report':
+                if environ.get('QUERY_STRING',''):return send(400,{'error':'회복 관측에는 추가 주소 조건을 넣지 마세요.','code':'recovery_report_invalid'})
+                return self._recovery_report(context,chat,payload,send,diagnostic_probe)
             if path == '/auth/google/enroll':
                 if set(payload) != {'invitation'} or not isinstance(payload.get('invitation'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', payload['invitation']):
                     return send(400, {'error': '받은 초대 코드를 확인해 주세요.'})
@@ -920,8 +1020,9 @@ class PublicApp:
                 if not self.request_slots.acquire(blocking=False):
                     diagnostic_error='busy';return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 시도해 주세요.'})
                 def observed_iterator():
-                    with diagnostic_scope(self.diagnostics,diagnostic_request or {}):
+                    with diagnostic_scope(self.observation,diagnostic_request or {}):
                         yield from chat.stream(payload)
+                self._diagnostic_observe({**(diagnostic_request or {}),'event_type':'request_received'})
                 iterator = observed_iterator()
                 try:
                     first = next(iterator)
@@ -936,7 +1037,16 @@ class PublicApp:
                             context['inflight'] -= 1
                     finally:
                         self.request_slots.release()
-                response = _VisitorStream(iterator, first, release_stream)
+                def observe_stream(meta):
+                    if meta.get('session_id') and diagnostic_request is not None:
+                        diagnostic_request['session_id']=meta['session_id']
+                        with self.lock:
+                            refs=context.setdefault('request_refs',{})
+                            refs[diagnostic_request['request_id']]=(meta['session_id'],diagnostic_request.get('turn_id'))
+                            while len(refs)>16:refs.pop(next(iter(refs)))
+                    self._diagnostic_observe({**(diagnostic_request or {}),**meta})
+                response = _VisitorStream(iterator, first, release_stream, observe=observe_stream,
+                                          request_id=(diagnostic_request or {}).get('request_id'))
                 streaming = True
                 try:
                     start_response('200 OK', headers + [('Content-Type', 'application/x-ndjson; charset=utf-8')])
@@ -951,7 +1061,7 @@ class PublicApp:
                 with self.lock:context['active']+=1
                 try:
                     if diagnostic_request is not None:
-                        with diagnostic_scope(self.diagnostics,diagnostic_request):
+                        with diagnostic_scope(self.observation,diagnostic_request):
                             return send(200,project_session(chat.prepare(payload)))
                     return send(200,project_session(chat.prepare(payload)))
                 finally:
@@ -969,7 +1079,7 @@ class PublicApp:
                     if path == '/api/attachments/https':
                         return send(200, chat.attachments.upload_url(payload))
                     if diagnostic_request is not None:
-                        with diagnostic_scope(self.diagnostics,diagnostic_request):
+                        with diagnostic_scope(self.observation,diagnostic_request):
                             return send(200,chat.attachments.upload(payload))
                     return send(200,chat.attachments.upload(payload))
                 finally:
@@ -990,7 +1100,7 @@ class PublicApp:
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})
             if diagnostic_request is not None:
-                with diagnostic_scope(self.diagnostics,diagnostic_request):
+                with diagnostic_scope(self.observation,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
         except ProviderScopeError as exc:

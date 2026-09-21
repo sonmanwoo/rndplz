@@ -34,15 +34,17 @@ _STATUSES = {'started','complete','error','cancelled','rejected','pending'}
 _ID_FIELDS = {'diagnostic_run','visitor_ref','session_id','turn_id','attempt_id','request_id','trace_id','job_id','event_id',
               'route_reason','error_kind','failure_stage','code_fingerprint','prompt_sha256',
               'worker_source_fingerprint','worker_input_fingerprint','worker_instance','credential_id','event_type','previous_mode','next_mode',
-              'generation_contract','model_phase','plan_sha256','tool_call_id'}
+              'generation_contract','model_phase','plan_sha256','tool_call_id','deployment_revision',
+              'client_request_id','claimed_session_id','claimed_turn_id'}
 _PROVIDER_REASONS = frozenset(('http_error','provider_error','prompt_blocked','candidate_count',
     'incomplete','content_role','content_parts','content_part','nontext_content','text_limit',
     'invalid_json','deadline','response_type','response_size','response_json','transport_failure',
     'process_call_cap','chat_minimum_calls'))
 _MODEL_FIELDS = {'model_selected','model_job','provider_model_observed'}
 _NUMBER_FIELDS = {'input_chars','output_chars','attachment_count','elapsed_ms','queue_ms','first_delta_ms',
-                  'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict'}
-_BOOL_FIELDS = {'partial_output','cached','model_called','truncated'}
+                  'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict','storage_elapsed_ms','poll_count'}
+_BOOL_FIELDS = {'partial_output','cached','model_called','truncated','eof','terminal_yielded',
+                'session_verified','request_verified','pending_present','pending_cleared'}
 _SELECTION_SOURCES = {'lexical_search','record_id_read','registered_name'}
 # Current summary values are replaceable; immutable event_contents retains every
 # observed original/response attempt, including a superseded first response.
@@ -112,7 +114,9 @@ def _metadata(values):
     result={}
     for key,value in values.items():
         if not isinstance(key,str) or _SECRET_KEY.search(key):continue
-        if key=='provider_error_reason':
+        if key in _OPERATION_ENUMS and key not in _ID_FIELDS:
+            if isinstance(value,str) and value in _OPERATION_ENUMS[key]:result[key]=value
+        elif key=='provider_error_reason':
             if isinstance(value,str) and value in _PROVIDER_REASONS:result[key]=value
         elif key=='provider_http_status':
             if type(value) is int and 100<=value<=599:result[key]=value
@@ -129,6 +133,8 @@ def _metadata(values):
         elif key=='route' and value in _ROUTES:result[key]=value
         elif key=='execution_kind' and value in _EXECUTIONS:result[key]=value
         elif key=='status' and value in _STATUSES:result[key]=value
+    if result.get('event_type') in _PHASE_EVENTS and result.get('status') in ('complete','error','rejected','cancelled'):
+        result['phase_status']=result['status'];result['status']='started'
     return result
 
 
@@ -879,3 +885,109 @@ def replay_fixture(snapshot):
             'snapshot_id':snapshot.get('snapshot_id'),'session_ref':snapshot.get('session_ref'),
             'redaction_changed_input':any(x.get('redaction_applied') or x.get('content_status')!='recorded' for x in snapshot['attempts'] if isinstance(x,dict)),
             'attempts':attempts,'missing_fields':['no_automatic_model_replay','actual_weight_identity_not_verified']}
+
+
+_PHASE_EVENTS = frozenset(('model_dispatch_started', 'model_provider_rejected', 'model_provider_error',
+    'model_plan_validated', 'model_plan_rejected', 'model_lookup_attempt', 'model_tool_completed',
+    'model_consultation_rejected', 'model_response_validated', 'model_response_rejected'))
+_OPERATION_EVENTS = _PHASE_EVENTS | frozenset(('request_received', 'request_rejected', 'turn_started',
+    'cached_return', 'turn_storage_completed', 'turn_storage_failed', 'turn_finished', 'prepare_completed',
+    'stream_started', 'stream_phase', 'stream_first_delta', 'stream_terminal_yielded', 'stream_eof',
+    'stream_error', 'stream_closed', 'client_recovery_report', 'recovery_report_rejected',
+    'session_read_failed', 'session_read_completed', 'capture_failed'))
+_OPERATION_ENUMS = {
+    'provider_observed': frozenset(('codex_oauth','openai_api','gemini','mock')),
+    'phase_status': _STATUSES,
+    'model_phase': frozenset(('interpret','repair','tool','consultation','answer','complete')),
+    'phase': frozenset(('interpreting','searching','answering')),
+    'storage_status': frozenset(('committed','stale_ignored','failed')),
+    'terminal_type': frozenset(('done','error')),
+    'close_reason': frozenset(('eof','closed','iteration_error','cleanup_error')),
+    'outcome': frozenset(('stream_interrupted','recovered','pending','unavailable')),
+    'client_error_kind': frozenset(('eof','aborted','stream_error','http','network','timeout','invalid_response')),
+    'failure_stage': frozenset(('predispatch','provider','request','stream','storage','model_response','context_capture')),
+}
+_OPERATION_ERRORS = frozenset(('storage_write_failed','stream_iteration_failed','stream_cleanup_failed',
+    'diagnostic_write_failed','generation_error','validation','server_error','rate_limit','busy','message_limit',
+    'context_input_too_large','client_disconnect','runtime_config_invalid','auth_missing','auth_invalid',
+    'auth_expired','oauth_unauthorized','model_access_denied','process_call_cap','timeout','transport_error',
+    'provider_http_error','rate_limited','incomplete_response','invalid_structured_output','cancelled',
+    'provider_error','http_error','prompt_blocked','invalid_json','deadline','response_json','transport_failure'))
+
+
+def operation_metadata(values):
+    """Bounded stdout schema: never render arbitrary content, models, URLs or exceptions."""
+    if not isinstance(values, dict) or values.get('event_type') not in _OPERATION_EVENTS:
+        return None
+    result = {'event_type': values['event_type']}
+    for key in ('request_id','attempt_id','trace_id','session_id','turn_id',
+                'client_request_id','claimed_session_id','claimed_turn_id'):
+        value = values.get(key)
+        # Browser UUIDs and server UUIDs only. Legacy custom IDs are omitted from stdout.
+        if isinstance(value, str) and re.fullmatch(r'(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})', value):
+            result[key] = value
+    for key, length in (('deployment_revision',40),('code_fingerprint',64),('visitor_ref',64)):
+        value=values.get(key)
+        if isinstance(value,str) and re.fullmatch('[a-f0-9]{'+str(length)+'}',value):result[key]=value
+    for key, allowed in _OPERATION_ENUMS.items():
+        value=values.get(key)
+        if isinstance(value,str) and value in allowed:result[key]=value
+    if isinstance(values.get('status'),str) and values['status'] in _STATUSES:result['status']=values['status']
+    for key in ('model_called','eof','terminal_yielded','session_verified','request_verified','pending_present','pending_cleared'):
+        if type(values.get(key)) is bool:result[key]=values[key]
+    for key in ('elapsed_ms','storage_elapsed_ms','poll_count'):
+        value=values.get(key)
+        if type(value) is int and 0<=value<=3600000:result[key]=value
+    for key in ('http_status','provider_http_status'):
+        value=values.get(key)
+        if type(value) is int and 100<=value<=599:result[key]=value
+    for key in ('error_kind','provider_error_reason'):
+        value=values.get(key)
+        if isinstance(value,str) and value in _OPERATION_ERRORS:result[key]=value
+        elif value is not None:result[key]='other_code'
+    value=values.get('generation_contract')
+    if value in ('dialogue_plan.v1','dialogue_plan.v2','dialogue_answer.v1','dialogue_response.v1','dialogue_refine.v1','dialogue_assessment.v1'):
+        result['generation_contract']=value
+    if values.get('model_selected') in ('runtime','guide'):result['model_selected']=values['model_selected']
+    if result['event_type'] in ('request_received','request_rejected'):
+        for key in ('session_id','turn_id'):
+            if key in result:result['claimed_'+key]=result.pop(key)
+    return result
+
+
+class OperationalDiagnostics:
+    """Metadata-only stdout plus an optional unchanged private diagnostic store."""
+    def __init__(self, private=None, *, provider=None, model=None, writer=None):
+        self.private=private
+        self.lock=private.lock if private is not None else threading.RLock()
+        self._active=private._active if private is not None else set()
+        self.provider=provider if provider in ('codex_oauth','openai_api','gemini','guide') else 'unknown'
+        # Model identity is server configuration, never incoming request text.
+        self.model=model if isinstance(model,str) and re.fullmatch(r'[a-z][a-z0-9.-]{0,79}',model) else None
+        self.writer=writer
+
+    def _problem(self, kind, code):
+        if self.private is not None:self.private._problem(kind,code)
+
+    def record(self, metadata, content=None):
+        try:clean=_metadata(metadata)
+        except Exception:return False
+        try:safe=operation_metadata(clean)
+        except Exception:safe=None
+        wrote=False
+        if safe is not None:
+            safe.update(schema='rndplz.operation.v1', observed_at=_stamp(time.time()), provider=self.provider)
+            if self.model is not None:safe['model_configured']=self.model
+            if self.model is not None and clean.get('provider_model_observed')==self.model:
+                safe['provider_model_observed']=self.model
+            try:
+                line=json.dumps(safe,ensure_ascii=True,separators=(',',':'))
+                with self.lock:
+                    if self.writer is None:print(line,flush=True)
+                    else:self.writer(line)
+                wrote=True
+            except Exception:pass
+        if self.private is not None:
+            try:return bool(self.private.record(clean,content)) or wrote
+            except Exception:return wrote
+        return wrote

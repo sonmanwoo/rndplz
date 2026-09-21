@@ -311,7 +311,9 @@ class ObservedRuntimeChatModels(RuntimeChatModels):
             if target is not None:
                 target['dispatched'] = True
             diagnostic_event('model_dispatch_started', model_called=True,
-                             execution_kind='api', generation_contract=contract)
+                             execution_kind='api', generation_contract=contract, provider_observed=provider,
+                             provider_model_observed=(payload.get('model') if isinstance(payload,dict)
+                                 and payload.get('model')==self.runtime.config.model else None))
             if callable(prior):
                 prior(provider, payload)
         adapter.diagnostic_observer = dispatched
@@ -1182,10 +1184,13 @@ class ModelConversation:
             executed = assessment['execution']
             plan, raw_plan, raw_plan_contract = executed['plan'], executed['raw'], executed['raw_contract']
             revision, result, request = executed['revision'], executed['result'], executed['request']
+        applied=False
         def update(state):
+            nonlocal applied
             session = next(s for s in state['sessions'] if s['id'] == sid)
             if session.get('pending') != turn_id:
                 return self.service.present_session(session)
+            applied=True
             # Model-led scope lives in model_plan; legacy compiler state is
             # retained only as the current successful proposal-policy snapshot.
             retained = (self._request_continuity(session, turn_id)
@@ -1332,7 +1337,19 @@ class ModelConversation:
                     if not self._prepare_response_available(session, plan_source_turn):
                         session['discovery']['lookup_ready'] = False
             return self.service.present_session(session)
-        return self.store.transaction(update)
+        saved_at=time.monotonic()
+        try:
+            saved=self.store.transaction(update)
+        except BaseException:
+            diagnostic_event('turn_storage_failed',session_id=sid,turn_id=turn_id,status='error',
+                storage_status='failed',error_kind='storage_write_failed',failure_stage='storage',
+                storage_elapsed_ms=round((time.monotonic()-saved_at)*1000))
+            raise
+        diagnostic_event('turn_storage_completed',session_id=sid,turn_id=turn_id,
+            storage_status='committed' if applied else 'stale_ignored',
+            pending_cleared=applied and saved.get('pending') is None,
+            storage_elapsed_ms=round((time.monotonic()-saved_at)*1000))
+        return saved
 
     def _lookup_attempt(self, attempts, plan, revision, result):
         attempts.append({'attempt':len(attempts)+1, 'tool_call_id':result['tool_call_id'],
