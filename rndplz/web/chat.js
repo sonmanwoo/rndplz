@@ -16,6 +16,54 @@ function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accou
 let ciBusyStarted=null,retryDisplay=null,responseProgress="";
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
+// Literal address navigation only; this does not verify a source or a claim.
+function formattedAnswer(text,status){
+ const raw=String(text??'');
+ if(status!=='complete')return formatted(raw);
+ let marker='RNDPLZANSWERSOURCELINK';while(raw.includes(marker))marker+='X';
+ const links=[],scan=/`+|~{3,}|<|https:\/\//gi;
+ let cursor=0,prepared='',match;
+ while((match=scan.exec(raw))){
+  const start=match.index,token=match[0];
+  if(token[0]==='`'||token[0]==='~'){
+   const lineStart=raw.lastIndexOf('\n',start-1)+1;
+   const fence=token.length>=3&&/^ {0,3}$/.test(raw.slice(lineStart,start));
+   if(fence){
+    const closing=new RegExp('^ {0,3}'+token[0]+'{'+token.length+',}[ \\t]*\\r?$','gm');
+    closing.lastIndex=start+token.length;
+    const end=closing.exec(raw);scan.lastIndex=end?end.index+end[0].length:raw.length;
+   }else if(token[0]==='`'){
+    const closing=/`+/g;closing.lastIndex=start+token.length;let end;
+    while((end=closing.exec(raw))&&end[0].length!==token.length){}
+    scan.lastIndex=end?end.index+end[0].length:raw.length;
+   }
+   continue;
+  }
+  if(token==='<'){
+   const end=raw.indexOf('>',start+1);scan.lastIndex=end<0?raw.length:end+1;continue;
+  }
+  if(start&&/[A-Za-z0-9_:/@.\\-]/.test(raw[start-1]))continue;
+  const found=/^https:\/\/[^\s\u0000-\u001f\u007f<>"'`\\*“”‘’]+/i.exec(raw.slice(start));
+  if(!found)continue;
+  let address=found[0];
+  // Sentence punctuation and unmatched outer brackets are not part of the URL.
+  let previous;
+  do{
+   previous=address;address=address.replace(/[.,!?;:。，！？、…]+$/u,'');
+   for(const [open,close] of [['(',')'],['[',']'],['{','}']]){
+    const count=char=>Array.from(address).filter(value=>value===char).length;
+    while(address.endsWith(close)&&count(close)>count(open))address=address.slice(0,-1);
+   }
+  }while(address!==previous);
+  let parsed;try{parsed=new URL(address);}catch{continue;}
+  if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password)continue;
+  const key=marker+links.length+'END';
+  links.push('<a href="'+esc(address)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:underline;text-underline-offset:2px">'+esc(address)+'</a>');
+  prepared+=raw.slice(cursor,start)+key;cursor=start+address.length;scan.lastIndex=cursor;
+ }
+ if(!links.length)return formatted(raw);
+ return formatted(prepared+raw.slice(cursor)).replace(new RegExp(marker+'(\\d+)END','g'),(_,index)=>links[Number(index)]);
+}
 async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
 function displayError(message){return message==="http_503"?"일시적으로 응답할 수 없습니다. 잠시 후 다시 시도해 주세요.":message;}
 function error(message=""){$("composerError").textContent=displayError(message);$("composerError").hidden=!message;}
@@ -527,7 +575,7 @@ function syncResponseProgress(){
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formattedAnswer(m.text||"",m.role==="assistant"?m.status:null)+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
  if(busy&&(responseProgress||streamText))$("thread").innerHTML+='<article class="message assistant" data-response-progress><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span aria-hidden="true" style="font-size:12px;line-height:1.6;letter-spacing:0;min-width:0">'+esc(responseProgressLabel())+'</span></div>'+(streamText?'<div class="message-body">'+formatted(streamText)+'</div>':"")+'</article>';
  syncResponseProgress();
  renderBrief();

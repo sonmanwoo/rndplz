@@ -42,6 +42,48 @@ export function deriveRecommendationFocus(graph, rows) {
   };
 }
 
+// Fail closed before listeners/camera when the mounted layout contract is absent.
+// This is containment, not a diagnosis of why a stylesheet did not take effect.
+function requireRecommendationMapLayout(win, root, stage, nodeElements) {
+  const fail = part => {
+    const error = new Error('연구맵 배치 스타일을 확인하지 못했습니다.');
+    error.code = 'recommendation_map_layout_not_ready'; error.layoutPart = part;
+    throw error;
+  };
+  const close = (value, expected) => Number.isFinite(Number.parseFloat(value)) && Math.abs(Number.parseFloat(value) - expected) <= .5;
+  const positive = value => Number.isFinite(value) && value > 0;
+  const origin = (style, x, y) => {
+    const parts = style.transformOrigin.split(/\s+/);
+    return close(parts[0], x) && close(parts[1], y);
+  };
+  const clipped = style => ['hidden', 'clip'].includes(style.overflowX) && ['hidden', 'clip'].includes(style.overflowY);
+  if (!root.isConnected || !stage.isConnected) fail('mount');
+  const stageStyle = win.getComputedStyle(stage), box = stage.getBoundingClientRect();
+  if (stageStyle.position !== 'relative' || !clipped(stageStyle) ||
+      !positive(stage.clientWidth) || !positive(stage.clientHeight) || !positive(box.width) || !positive(box.height)) fail('stage');
+  const nodes = stage.querySelector('.mp-spatial-nodes'), edges = stage.querySelector('.mp-spatial-edges');
+  for (const layer of [nodes, edges]) {
+    if (!layer || layer.parentElement !== stage) fail('layer-structure');
+    const style = win.getComputedStyle(layer);
+    if (style.position !== 'absolute' || !origin(style, 0, 0) || !close(style.left, 0) || !close(style.top, 0)) fail('layer-style');
+  }
+  for (const node of nodeElements) {
+    const style = win.getComputedStyle(node), width = Number.parseFloat(style.width), height = Number.parseFloat(style.height);
+    if (node.parentElement !== nodes || style.position !== 'absolute' || !positive(width) || !positive(height) || !origin(style, width / 2, height / 2)) fail('node');
+    if (!node.classList.contains('mp-spatial-person')) continue;
+    if (!close(style.width, 128) || !close(style.height, 124)) fail('person-size');
+    const shell = node.querySelector('.mp-face-shell'), face = shell?.querySelector('.mp-node-face');
+    if (!shell || !face) fail('face-structure');
+    const shellStyle = win.getComputedStyle(shell), faceStyle = win.getComputedStyle(face);
+    if (shellStyle.position !== 'relative' || !close(shellStyle.width, 48) || !close(shellStyle.height, 48) ||
+        !close(faceStyle.width, 48) || !close(faceStyle.height, 48) || !clipped(faceStyle)) fail('face-style');
+    for (const image of face.querySelectorAll('img')) {
+      const imageStyle = win.getComputedStyle(image);
+      if (!close(imageStyle.width, 48) || !close(imageStyle.height, 48) || imageStyle.objectFit !== 'cover') fail('face-image');
+    }
+  }
+}
+
 export function initRecommendationMap(host, {
   mapData, rows, records, onDetail, quiet = false, animateOnShow = true,
   bottomBoundary = null, onBoundaryFit,
@@ -454,9 +496,12 @@ export function initRecommendationMap(host, {
     if (boundaryInFlow) { boundaryInFlow = false; onBoundaryFit?.(true); }
   }
   const controller = { show, cancel, finish, dispose, refreshBoundary, setQuiet };
-  // Everything that may reject the map is checked before replacing old cards.
+  // Data is checked above; mounted CSS must be ready before listeners/camera.
   instances.get(host)?.dispose();
-  host.replaceChildren(root); instances.set(host, controller);
+  host.replaceChildren(root);
+  try { requireRecommendationMapLayout(win, root, stage, nodeElements); }
+  catch (error) { observer?.disconnect(); root.remove(); throw error; }
+  instances.set(host, controller);
   measuredWidth = stage.clientWidth; measuredHeight = stage.clientHeight;
   listen(root, 'click', click);
   listen(stage, 'keydown', keydown);
