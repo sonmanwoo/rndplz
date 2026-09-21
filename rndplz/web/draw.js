@@ -261,7 +261,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     const back = document.createElement('span');
     back.className = 'cd-back';
     back.setAttribute('aria-hidden', 'true');
-    back.innerHTML = '<span class="cd-back-border"></span><span class="cd-back-corner cd-back-corner--top">✧</span><span class="cd-back-emblem"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 49V26M32 38C18 38 14 26 17 17c12 0 19 9 15 21ZM32 32c-3-14 5-23 18-24 3 13-3 23-18 24ZM24 53h16"/><circle cx="32" cy="32" r="29"/></svg></span><span class="cd-back-word">수소문</span><span class="cd-back-corner cd-back-corner--bottom">✧</span>';
+    back.innerHTML = '<span class="cd-back-border"></span><span class="cd-back-corner cd-back-corner--top"><span class="susomun-ci susomun-ci--back" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span class="cd-back-emblem"><span class="susomun-ci susomun-ci--back susomun-ci--emblem" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span class="cd-back-word">수소문</span><span class="cd-back-corner cd-back-corner--bottom"><span class="susomun-ci susomun-ci--back" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span>';
     return back;
   }
 

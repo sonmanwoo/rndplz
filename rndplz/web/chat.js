@@ -7,6 +7,12 @@ let profileBusy=false,profileSubmission=null;
 let profileUI=null;
 let accountNavigationPending=false,accountInvalidated=false;
 let prepareBusy=false,prepareTicket=0;
+let composerInputRevision=0,composerComposing=false;
+function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading;}
+function composerSendLocked(){return composerClientLocked()||!!session?.pending;}
+function setComposerDraft(value){$("message").value=value;composerInputRevision++;}
+function consumeComposerDraft(){const text=$("message").value,stagedEdit=briefEditor?.stagedText===text&&composerInputRevision===briefEditor.stagedComposerRevision?briefEditor:null;setComposerDraft("");return {text,revision:composerInputRevision,attachmentIds:[],stagedEdit};}
+function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accountInvalidated&&composerInputRevision===draft.revision&&$("message").value===""){setComposerDraft(draft.text);if(draft.stagedEdit&&briefEditor===draft.stagedEdit&&briefEditor.stagedText===draft.text)briefEditor.stagedComposerRevision=composerInputRevision;}}
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="";
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
 async function api(path,body){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
@@ -53,7 +59,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=accountNavigationPending||busy||profileBusy||prepareBusy,profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("message").disabled=locked;$("newButton").disabled=locked;$("historyButton").disabled=locked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked;$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
 function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
@@ -128,7 +134,7 @@ function ensureBriefHost(){
   if(button.dataset.briefAction==="edit")openBriefEditor();
   if(button.dataset.briefAction==="stage")stageBriefCorrection();
   if(button.dataset.briefAction==="cancel"){
-   if(briefEditor?.stagedText&&$("message").value===briefEditor.stagedText)$("message").value=briefEditor.composerBefore;
+   if(briefEditor?.stagedText&&composerInputRevision===briefEditor.stagedComposerRevision&&$("message").value===briefEditor.stagedText)setComposerDraft(briefEditor.composerBefore);
    briefEditor=null;briefRenderKey="";renderBrief();resizeInput();controls();host.querySelector('[data-brief-action="edit"]')?.focus({preventScroll:true});
   }
  });
@@ -239,7 +245,7 @@ function stageBriefCorrection(){
  const text=(before?before+"\n\n":"")+correction;
  if(text.length>$("message").maxLength){failure.textContent="수정문이 입력창의 허용 길이를 넘어요. 수정 내용을 줄여 주세요.";failure.hidden=false;return;}
  edit.composerBefore=before;edit.stagedText=text;edit.phase="staged";edit.turnId=null;
- $("message").value=text;autoScroll=false;resizeInput();controls();updateBriefNotice();$("message").focus({preventScroll:true});
+ setComposerDraft(text);edit.stagedComposerRevision=composerInputRevision;autoScroll=false;resizeInput();controls();updateBriefNotice();$("message").focus({preventScroll:true});
 }
 function beginBriefSubmission(payload){
  if(!briefEditor||briefEditor.sessionId!==payload.session_id||!briefEditor.stagedText)return null;
@@ -250,7 +256,7 @@ function beginBriefSubmission(payload){
  return briefEditor;
 }
 function failBriefSubmission(edit,sid){
- if(session?.id!==sid)return;
+ if(!session||session.id!==sid)return;
  briefFailure={sessionId:sid,revision:session.request_spec?.revision||null,sourceTurnId:session.request_spec?.source_turn_id||null};
  if(edit&&briefEditor===edit)edit.phase="failed";
 }
@@ -287,8 +293,8 @@ async function prepareDiscovery(button,keyboard=false){
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar">✳</span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
- if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar">✳</span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(m.error||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
+ if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
 }
@@ -333,14 +339,14 @@ function renderCandidates(){
 }
 new MutationObserver(()=>drawController?.setQuiet()).observe(document.body,{attributes:true,attributeFilter:['class']});
 function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated,model_id:session.model_id,model_selection_origin:selectionOrigin(session.model_selection_origin)};history=[row,...history.filter(s=>s.id!==row.id)];}
-async function send(payload){
- if(busy||profileBusy||uploading||prepareBusy)return;
+async function send(payload,submission=null){
+ if(composerSendLocked()){restoreComposerDraft(submission);return;}
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
  prepareTicket++;error();streamText="";busy=true;autoScroll=true;controller=new AbortController();retryPayload=payload;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
- render();let accepted=false;
+ render();let accepted=false,finished=false;
  try{
   // Only a new request with a known automatic guide choice checks recovery.
   // Replay uses its original model and origin; no old input is auto-resubmitted.
@@ -352,17 +358,19 @@ async function send(payload){
   }
   const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(payload),signal:controller.signal});
   if(!response.ok){const data=await response.json();throw new Error(data.error||"대화를 시작하지 못했어요.");}
-  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="",finished=false;
+  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   const event=line=>{if(!line.trim())return;const data=JSON.parse(line);
-   if(data.type==="start"){session=data.session;accepted=true;optimistic=null;$("message").value="";files=[];renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
+   if(data.type==="start"){session=data.session;accepted=true;updateHistory();optimistic=null;if(submission)files=files.filter(f=>!submission.attachmentIds.includes(f.id));renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
    if(data.type==="delta")streamText+=data.text;
-   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;busy=false;streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
+   if(data.type==="done"||data.type==="error"){session=data.session;finished=true;streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
    render();
   };
   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let end;while((end=buffer.indexOf("\n"))>=0){event(buffer.slice(0,end));buffer=buffer.slice(end+1);}}
   buffer+=decoder.decode();if(buffer.trim())event(buffer);
   if(!finished)throw new Error("응답 연결이 끝났어요. 저장된 대화를 확인하고 다시 시도해 주세요.");
  }catch(e){
+  if(finished){if(e.name!=="AbortError")error(e.message);return;}
+  if(!accepted)restoreComposerDraft(submission);
   failBriefSubmission(briefSubmission,briefSubmissionSession);
   if(e.name==="AbortError"){error("응답을 중지하고 있어요…");}
   else error(e.message);
@@ -373,10 +381,11 @@ async function send(payload){
     await new Promise(resolve=>setTimeout(resolve,700));
    }
    if(session.pending)error("모델 응답 정리를 기다리고 있어요. 잠시 후 이전 대화에서 다시 열어 주세요.");
+   else if(e.name==="AbortError"&&session.messages?.some(m=>m.role==="assistant"&&m.turn_id===payload.turn_id&&m.status==="cancelled")&&$("composerError").textContent==="응답을 중지하고 있어요…")error();
   }
  }finally{busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(busy||profileBusy||uploading||prepareBusy)return;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(composerClientLocked())return;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했어요."));reader.readAsDataURL(file);});}
 async function upload(list){
  if(busy||profileBusy||uploading||prepareBusy)return;error();if(files.length+list.length>4){error("파일은 한 번에 4개까지 첨부할 수 있어요.");return;}
@@ -384,19 +393,22 @@ async function upload(list){
  catch(e){error(e.message);}finally{$("fileInput").value="";renderFiles();}
 }
 async function submitComposer(){
- if(busy||profileBusy||uploading||prepareBusy)return;
+ if(composerSendLocked()||composerComposing)return;
  const text=$("message").value.trim();if(!text&&!files.length)return;
  if(profileUI.shouldHandle(text)){
   if(files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
-  profileSubmission={text:$("message").value,ids:files.map(f=>f.id)};
+  profileSubmission={text:$("message").value,revision:composerInputRevision,ids:files.map(f=>f.id)};
   try{await profileUI.submit(text,files.map(f=>f.file));}catch(e){error(e.message);}finally{if(!profileUI.hasPendingRequest())profileSubmission=null;render();resizeInput();}
   return;
  }
- uploading=true;controls();
+ const submittedFiles=[...files],submission=consumeComposerDraft();
+ const payload={text,session_id:session?.id,attachments:[],model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()};
+ uploading=true;resizeInput();
  try{
-  for(let i=0;i<files.length;i++){const f=files[i];if(f.file){files[i]=await api("/api/attachments",{name:f.name,data:await dataUrl(f.file)});renderFiles();}}
- }catch(e){error(e.message);return;}finally{uploading=false;controls();}
- await send({text,session_id:session?.id,attachments:files.map(f=>f.id),model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});
+  for(let i=0;i<submittedFiles.length;i++){const f=submittedFiles[i];if(f.file){const uploaded=await api("/api/attachments",{name:f.name,data:await dataUrl(f.file)});submittedFiles[i]=uploaded;files=files.map(item=>item.id===f.id?uploaded:item);renderFiles();}}
+ }catch(e){restoreComposerDraft(submission);error(e.message);resizeInput();return;}finally{uploading=false;controls();}
+ submission.attachmentIds=submittedFiles.map(f=>f.id);
+ await send({...payload,attachments:[...submission.attachmentIds]},submission);
 }
 function safeUrl(url){try{return ["https:","http:"].includes(new URL(url).protocol);}catch{return false;}}
 async function showPerson(id,opener=document.activeElement){
@@ -423,7 +435,7 @@ profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,ge
  onClose:()=>{autoScroll=false;render();$("message").focus({preventScroll:true});},
  onSession:value=>{
   session=value;updateHistory();window.history.replaceState(null,"","/?chat="+session.id);
-  if(profileSubmission){if($("message").value===profileSubmission.text)$("message").value="";files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
+  if(profileSubmission){if(composerInputRevision===profileSubmission.revision&&$("message").value===profileSubmission.text)setComposerDraft("");files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
   autoScroll=false;render();resizeInput();
  }});
 window.addEventListener("rndplz:before-account-navigation",event=>{
@@ -442,8 +454,10 @@ window.addEventListener("rndplz:account-navigation",event=>{
 });
 $ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy)return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
-$ ("message").addEventListener("input",resizeInput);
-$ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!$("sendButton").disabled)$("chatForm").requestSubmit();}});
+$ ("message").addEventListener("input",()=>{composerInputRevision++;resizeInput();});
+$ ("message").addEventListener("compositionstart",()=>{composerComposing=true;composerInputRevision++;});
+$ ("message").addEventListener("compositionend",()=>{composerComposing=false;composerInputRevision++;controls();});
+$ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
 $ ("stopButton").addEventListener("click",()=>controller?.abort());
 $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
@@ -455,12 +469,12 @@ $ ("refreshModels").addEventListener("click",async()=>{try{if(!await refreshMode
 $ ("configForm").addEventListener("submit",async e=>{e.preventDefault();$("saveConfig").disabled=true;$("configMessage").textContent="";try{const provider=$("provider").value,epoch=modelSelectionEpoch,ticket=++modelCatalogTicket;const data=await api("/api/chat/configure",{provider,model:$("apiModel").value,key:$("apiKey").value});$("apiKey").value="";if(epoch===modelSelectionEpoch){selectedModel=provider;modelSelectionOrigin="explicit";modelSelectionEpoch++;}if(ticket===modelCatalogTicket)modelOptions(data);else{renderModelSelect();controls();}$("configMessage").textContent="설정을 저장했어요. 다음 메시지에는 현재 선택한 모델을 사용합니다.";}catch(e){$("configMessage").textContent=e.message;}finally{$("saveConfig").disabled=false;}});
 $ ("draftButton").addEventListener("click",()=>saveLetter("draft"));
 $ ("proposeButton").addEventListener("click",()=>saveLetter("sent"));
-document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||busy||profileBusy||prepareBusy)return;
+document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||composerClientLocked())return;
  try{
   if(action==="profile-receipt"){autoScroll=false;if(button.dataset.version)await profileUI.showReceipt(Number(button.dataset.version));else await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});}
-  else if(action==="remove-file"){files=files.filter(f=>f.id!==id);renderFiles();}
+  else if(action==="remove-file"){if(composerSendLocked())return;files=files.filter(f=>f.id!==id);renderFiles();}
   else if(action==="preview-file"){const pending=files.find(f=>f.id===id&&f.file);if(pending){$("fileTitle").textContent=pending.name;$("fileInfo").textContent="전송 대기 · 메시지를 보낼 때 일반 대화 또는 프로필 용도로 처리합니다.";$("filePreview").textContent="파일 크기: "+pending.file.size.toLocaleString()+" bytes";modal("fileDialog");return;}const item=await api("/api/attachment?id="+id);$("fileTitle").textContent=item.name;$("fileInfo").textContent=item.kind==="image"?"이미지 지원 모델에서만 대화에 사용할 수 있어요.":"읽은 텍스트 "+item.characters.toLocaleString()+"자"+(item.truncated?" · 길이 제한으로 앞부분만 읽었습니다.":"");$("filePreview").innerHTML=item.image?'<img alt="첨부 이미지" src="data:'+item.mime+';base64,'+item.image+'">':'<pre>'+esc(item.text)+'</pre>';modal("fileDialog");}
-  else if(action==="history"){prepareTicket++;profileUI.close();const epoch=modelSelectionEpoch;session=await api("/api/chat/session?id="+id);restoreModelSelection(session,epoch);files=[];$("message").value="";renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
+  else if(action==="history"){prepareTicket++;profileUI.close();const epoch=modelSelectionEpoch,previousSessionId=session?.id;session=await api("/api/chat/session?id="+id);restoreModelSelection(session,epoch);if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
   else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");const modelId=assistant?.model_id||session.model_id,origin=selectionOrigin(user.model_selection_origin??assistant?.model_selection_origin);await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:modelId,model_selection_origin:origin,turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});}
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}

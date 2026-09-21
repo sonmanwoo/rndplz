@@ -185,7 +185,7 @@ async function openInbox(){
 function renderRecipient(opened=false){
  const p=received;
  if(!opened){
-  $("recipientContent").innerHTML='<button class="received-envelope" data-action="open-received" aria-label="'+esc(p.recipient_name)+'님에게 온 시연 편지 펼치기"><span>TO.</span><strong>'+esc(p.recipient_name)+'</strong><b>H:문</b><small>편지 펼치기 ↗</small></button>';
+  $("recipientContent").innerHTML='<button class="received-envelope" data-action="open-received" aria-label="'+esc(p.recipient_name)+'님에게 온 시연 편지 펼치기"><span>TO.</span><strong>'+esc(p.recipient_name)+'</strong><b class="service-name">수소문</b><small>편지 펼치기 ↗</small></button>';
   return;
  }
  const actions=p.state==="sent"?[["accepted","수락 · 시연"],["declined","거절 · 시연"],["closed","종료 · 시연"]]:["accepted","declined"].includes(p.state)?[["closed","종료 · 시연"]]:[];

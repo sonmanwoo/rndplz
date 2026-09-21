@@ -33,7 +33,7 @@
   </section>
   <div class="profile-layout">
     <aside class="profile-sidebar">
-      <div class="identity-note"><span class="eyebrow">YOUR RESEARCH NOTE</span><span class="identity-mark" aria-hidden="true">✳</span><h2 id="previewName">당신의 이름</h2><p id="previewRole">지금 하는 일부터 적어보세요.</p><span class="draft-tag">본인 연결 미확인</span><p class="identity-footnote">이름을 입력하거나 자료를 채택해도<br>본인·경력 확인으로 표시하지 않습니다.</p></div>
+      <div class="identity-note"><span class="eyebrow">YOUR RESEARCH NOTE</span><span class="identity-mark" aria-hidden="true"><span class="susomun-ci susomun-ci--identity" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><h2 id="previewName">당신의 이름</h2><p id="previewRole">지금 하는 일부터 적어보세요.</p><span class="draft-tag">본인 연결 미확인</span><p class="identity-footnote">이름을 입력하거나 자료를 채택해도<br>본인·경력 확인으로 표시하지 않습니다.</p></div>
       <nav class="section-nav" aria-label="프로필 구역"><a href="#basics"><span>01</span>기본 정보</a><a href="#expertise"><span>02</span>전문 분야와 관심</a><a href="#careers"><span>03</span>경력·프로젝트</a><a href="#sources"><span>04</span>근거 자료</a><a href="#review"><span>05</span>자료 제안 검토 <b id="reviewCount">0</b></a></nav>
       <p id="savedVersion" class="version-note">저장된 프로필 없음</p>
     </aside>
@@ -55,7 +55,7 @@
   </div>
   <div class="save-bar"><div><strong id="changeCount">변경 없음</strong><span id="saveScope">이 방문자의 초안에 저장 · 외부 비공유</span></div><button id="saveProfile" type="submit" form="profileForm" class="primary-button" disabled>변경 저장 <span aria-hidden="true">↗</span></button></div>
 </main>
-<footer class="craft-footer"><span><b>H:문</b> — EXPERIENCE, IN YOUR OWN WORDS.</span><span>자료의 주장과 나의 기록을 함께 살펴봅니다.</span></footer>
+<footer class="craft-footer"><span><b class="service-name">수소문</b> — EXPERIENCE, IN YOUR OWN WORDS.</span><span>자료의 주장과 나의 기록을 함께 살펴봅니다.</span></footer>
 <dialog id="sourceDialog" aria-labelledby="sourceTitle"><div class="dialog-heading"><h2 id="sourceTitle">읽은 내용</h2><button type="button" class="close-button" data-close="sourceDialog" aria-label="읽은 내용 닫기">×</button></div><p id="sourceInfo" class="section-help"></p><pre id="sourceText"></pre></dialog>
 <dialog id="actionDialog" aria-labelledby="actionTitle"><div class="dialog-heading"><h2 id="actionTitle">자료 변경 확인</h2><button type="button" class="close-button" data-close="actionDialog" aria-label="자료 변경 닫기">×</button></div><p id="actionDescription"></p><div id="actionImpact" class="impact-note"></div><div id="replacementField" hidden><label for="replacementSource">대신 연결할 등록 자료</label><select id="replacementSource" data-lock></select><p class="section-help">새 파일은 먼저 자료 추가로 등록하세요. 교체 후에도 새 자료의 제안을 따로 검토해야 합니다.</p></div><p id="actionError" role="alert" class="profile-error" hidden></p><div class="button-row"><button type="button" id="cancelAction" class="secondary-button" data-close="actionDialog">돌아가기</button><button type="button" id="confirmAction" class="primary-button" data-lock>확인</button></div></dialog>
 </body>
