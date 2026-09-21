@@ -16,7 +16,7 @@ function restoreComposerDraft(draft){if(draft&&!accountNavigationPending&&!accou
 let ciBusyStarted=null;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="",drawMetadataController=null;
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
+async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
 function displayError(message){return message==="http_503"?"일시적으로 응답할 수 없습니다. 잠시 후 다시 시도해 주세요.":message;}
 function error(message=""){$("composerError").textContent=displayError(message);$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
@@ -26,13 +26,39 @@ function modal(id,returnFocus=document.activeElement){
  dialog.showModal();
 }
 const GEMINI_ID="gemini:gemini-3.6-flash";
-const GEMINI_NOTICE="Google Gemini로 이 대화와 공개 논문 근거를 전송합니다. 등록된 개인 프로필·첨부는 제외되며, 개인정보는 입력하지 마세요. 프로필 작업이나 모델 변경은 새 대화에서 다른 모델을 선택해 주세요.";
+const GEMINI_NOTICE="Google Gemini로 이 대화·공개 논문 근거와 직접 선택해 보내는 이미지를 전송합니다. 등록된 개인 프로필·문서·링크·다른 대화의 첨부는 제외됩니다. 민감정보가 담긴 이미지는 보내지 마세요. 프로필 작업이나 모델 변경은 새 대화에서 다른 모델을 선택해 주세요.";
+const CLIPBOARD_IMAGE_TYPES={"image/png":"png","image/jpeg":"jpg","image/webp":"webp"};
+let pastedImageNumber=0;
+function explicitImageAttachment(item){
+ if(!item||typeof item!=="object"||item.source_url||item.source)return false;
+ return item.file?!!CLIPBOARD_IMAGE_TYPES[item.file.type]||(!item.file.type&&/\.(png|jpe?g|webp)$/i.test(item.file.name)):item.kind==="image";
+}
+function clipboardImages(event){
+ const data=event.clipboardData;if(!data)return [];
+ const items=Array.from(data.items||[]);
+ const supplied=items.length?items.filter(item=>item.kind==="file").map(item=>item.getAsFile()).filter(Boolean):Array.from(data.files||[]);
+ const images=[...new Set(supplied)].filter(file=>file.type.startsWith("image/"));
+ if(images.some(file=>!CLIPBOARD_IMAGE_TYPES[file.type]))throw new Error("붙여넣기는 PNG, JPEG, WebP 이미지를 지원합니다.");
+ return images.map(file=>{
+  const suffix=CLIPBOARD_IMAGE_TYPES[file.type],matches=suffix==="jpg"?/\.jpe?g$/i.test(file.name):file.name?.toLowerCase().endsWith("."+suffix);
+  return matches&&file.name.length<=240?file:new File([file],"붙여넣은-이미지-"+(++pastedImageNumber)+"."+suffix,{type:file.type,lastModified:file.lastModified});
+ });
+}
+function pasteImages(event){
+ if(event.isTrusted===false)return;
+ try{
+  const images=clipboardImages(event);if(!images.length)return;
+  if(composerSendLocked()){error("이미지는 응답 처리가 끝난 뒤 붙여넣어 주세요. 작성 중인 글은 유지됩니다.");return;}
+  upload(images);
+ }catch(e){error(e.message);}
+ // Keep the browser's native plain-text/caret/IME insertion and input event.
+}
 function isGeminiModel(id=selectedModel){return id===GEMINI_ID;}
 function hasGeminiScope(saved){const scope=saved?.provider_scope;return scope?.id==="gemini_public_papers.v1"&&scope.provider==="gemini"&&scope.model_id===GEMINI_ID;}
 function isGeminiSession(saved=session){return hasGeminiScope(saved)||isGeminiModel(saved?.model_id);}
-function modelBoundaryMessage(id,attached=files,saved=session){
+function modelBoundaryMessage(id,attached=files,saved=session,turnId=null){
  if(saved?.id&&((isGeminiModel(id)&&!isGeminiSession(saved))||(isGeminiSession(saved)&&id!==saved.model_id)))return "이 대화의 자료 범위는 바꿀 수 없어요. ‘새 대화’를 누른 뒤 사용할 모델을 선택해 주세요.";
- if(isGeminiModel(id)&&attached.length)return "Gemini는 첨부를 처리하지 않습니다. 첨부를 제거하거나 다른 모델을 선택해 주세요.";
+ if(isGeminiModel(id)&&attached.some(item=>{if(typeof item==="string"){const prior=saved?.messages?.find(m=>m.role==="user"&&m.turn_id===turnId);item=(prior?prior.attachments||[]:files).find(f=>f.id===item);}return !explicitImageAttachment(item);} ))return "Gemini에는 직접 선택한 새 PNG, JPEG, WebP 이미지만 보낼 수 있어요. 문서·링크는 다른 모델에서 사용해 주세요.";
  return "";
 }
 function selectModel(id){
@@ -78,9 +104,120 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||isGeminiModel();$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isGeminiModel();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=isGeminiModel()?GEMINI_NOTICE:profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading;$("linkAttachButton").disabled=locked||isGeminiModel()||profileIntent;$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isGeminiModel();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=isGeminiModel()?GEMINI_NOTICE:profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.";syncDiscoveryControls();updateBriefNotice();}
+const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
+let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
+function pendingAttachment(item){return !!(item.file||item.source_url);}
+function attachmentSummary(item){
+ if(pendingAttachment(item))return "전송 대기";
+ return item.truncated||item.extraction?.status==="partial"?"일부만 읽음":"자료 준비됨";
+}
+function attachmentBatchIssue(list){
+ if(files.length+list.length>4)return "파일과 링크는 합쳐서 한 번에 4개까지 첨부할 수 있어요.";
+ const rejected=[];
+ for(const file of list){
+  let reason="";
+  if(!file.name||file.name.length>240)reason="파일 이름을 확인해 주세요";
+  else if(!/\.(txt|md|csv|json|log|pdf|docx|pptx|png|jpe?g|webp)$/i.test(file.name))reason="지원하지 않는 형식";
+  else if(!Number.isSafeInteger(file.size)||file.size<=0)reason="빈 파일";
+  else if(file.size>ATTACHMENT_MAX_BYTES)reason="10MiB 초과";
+  if(reason)rejected.push(file.name+" · "+reason);
+ }
+ return rejected.length?"이번 선택은 추가하지 않았어요: "+rejected.join(" / "):"";
+}
+function documentUrl(value){
+ const raw=String(value||"").trim();if(!raw||raw.length>2048||/[\u0000-\u0020\u007f]/.test(raw))return null;
+ try{const url=new URL(raw);return url.protocol==="https:"&&!url.username&&!url.password&&!url.hash&&(!url.port||url.port==="443")?raw:null;}catch{return null;}
+}
+function queueAttachmentLink(){
+ if(composerSendLocked()||isGeminiModel()||profileUI?.shouldHandle($("message").value))return;
+ const url=documentUrl($("attachmentUrl").value);
+ if(!url){$("attachmentLinkError").textContent="인증정보가 없는 공개 HTTPS 문서 주소를 입력해 주세요.";return;}
+ if(files.length>=4){$("attachmentLinkError").textContent="파일과 링크는 합쳐서 4개까지 첨부할 수 있어요.";return;}
+ if(files.some(f=>f.source_url===url)){ $("attachmentLinkError").textContent="이미 선택한 링크예요.";return;}
+ files.push({id:"pending-"+crypto.randomUUID(),name:url,source_url:url});
+ $("attachmentLinkDialog").close();$("attachmentUrl").value="";error();renderFiles();$("message").focus();
+}
+function abortAttachment(){if(attachmentTransfer){attachmentTransfer.cancelled=true;attachmentTransfer.controller?.abort();}}
+function attachmentAbortError(){const error=new Error("첨부 처리를 중지했어요.");error.name="AbortError";return error;}
+function withAttachmentAbort(work,signal){
+ if(signal.aborted)return Promise.reject(attachmentAbortError());
+ return new Promise((resolve,reject)=>{
+  const stop=()=>reject(attachmentAbortError());signal.addEventListener("abort",stop,{once:true});
+  Promise.resolve(work).then(resolve,reject).finally(()=>signal.removeEventListener("abort",stop));
+ });
+}
+function requireAttachmentTransfer(transfer){
+ if(attachmentTransfer!==transfer||transfer.cancelled||accountNavigationPending||accountInvalidated)throw attachmentAbortError();
+}
+async function transmitAttachment(item,transfer,index,total){
+ requireAttachmentTransfer(transfer);
+ const aborter=new AbortController();transfer.controller=aborter;let timedOut=false;
+ attachmentStatus=item.name+" · 자료를 보내고 읽고 있어요… ("+index+"/"+total+")";controls();
+ const timer=setTimeout(()=>{timedOut=true;aborter.abort();},ATTACHMENT_TIMEOUT_MS);
+ try{
+  const work=async()=>{
+   if(item.source_url)return api("/api/attachments/https",{url:item.source_url},aborter.signal);
+   const data=await dataUrl(item.file,aborter.signal);requireAttachmentTransfer(transfer);
+   return api("/api/attachments",{name:item.name,data},aborter.signal);
+  };
+  const value=await withAttachmentAbort(work(),aborter.signal);requireAttachmentTransfer(transfer);
+  if(!value||typeof value.id!=="string"||!/^[a-f0-9]{32}$/.test(value.id)||typeof value.name!=="string")throw new Error("첨부 처리 결과를 확인하지 못했어요.");
+  return value;
+ }catch(error){
+  if(timedOut)throw new Error(item.name+" · 45초 안에 처리 결과를 확인하지 못했어요. 작성한 글과 선택은 남아 있어요. 서버에 저장됐을 수 있으며 자동 재전송하지 않습니다.");
+  if(error.name==="AbortError")throw new Error(item.name+" · 첨부 처리를 취소했어요. 작성한 글과 선택은 남아 있어요. 서버의 저장 취소나 삭제는 보장되지 않습니다.");
+  throw new Error(item.name+" · "+error.message);
+ }finally{clearTimeout(timer);aborter.abort();if(transfer.controller===aborter)transfer.controller=null;}
+}
+function removeAttachment(id){
+ if(composerSendLocked())return;
+ const index=files.findIndex(f=>f.id===id);files=files.filter(f=>f.id!==id);renderFiles();
+ const next=files[Math.min(Math.max(0,index),files.length-1)];
+ const target=next?Array.from($("attachmentList").querySelectorAll('[data-action="preview-file"]')).find(b=>b.dataset.id===next.id):null;
+ (target||$("attachButton")).focus();
+}
+function attachmentPreviewInfo(item){
+ if(item.kind==="image")return "이미지 지원 모델에서만 대화에 사용할 수 있어요.";
+ const extraction=item.extraction,unit={page:"쪽",slide:"슬라이드",paragraph:"문단",line:"줄"}[extraction?.unit];
+ let note="읽은 텍스트 "+Number(item.characters||0).toLocaleString()+"자";
+ if(unit&&Number.isSafeInteger(extraction.processed_units)&&Number.isSafeInteger(extraction.total_units))note+=" · "+extraction.processed_units+"/"+extraction.total_units+unit+" 처리";
+ if(item.truncated||extraction?.status==="partial")note+=" · 일부만 읽음 · 전체 문서를 확인하지 못했어요";
+ const limits=Array.isArray(extraction?.limits)?extraction.limits:[];
+ if(limits.includes("math_structure"))note+=" · 수식의 글자는 읽었지만 배치·연산 구조는 일부 보존되지 않았어요";
+ if(limits.includes("text_limit"))note+=" · 텍스트 길이 제한에 도달했어요";
+ if(limits.some(limit=>["page_limit","slide_limit","paragraph_limit","line_limit"].includes(limit)))note+=" · 문서 처리 개수 제한에 도달했어요";
+ return note;
+}
+function attachmentPreviewHTML(item){
+ const source=item.source,original=documentUrl(source?.original_url),final=documentUrl(source?.final_url);
+ let html=original?'<p class="attachment-source">원 URL: <a href="'+esc(original)+'" target="_blank" rel="noopener noreferrer">'+esc(original)+'</a>'+(final&&final!==original?'<br>최종 URL: <a href="'+esc(final)+'" target="_blank" rel="noopener noreferrer">'+esc(final)+'</a>':"")+(typeof source?.acquired_at==="string"?'<br>가져온 시각: '+esc(source.acquired_at):"")+'<br>외부 제공 자료 · 내용의 사실성은 확인되지 않았어요.</p>':"";
+ if(item.image&&["image/png","image/jpeg","image/webp"].includes(item.mime))return html+'<img alt="첨부 이미지" src="data:'+item.mime+';base64,'+esc(item.image)+'">';
+ const text=typeof item.text==="string"?item.text:"",labels={page:"페이지",slide:"슬라이드",paragraph:"문단",line:"줄"};
+ const characters=Array.from(text); // Server offsets count Unicode code points.
+ const spans=(Array.isArray(item.source_spans)?item.source_spans:[]).filter(s=>labels[s.kind]&&Number.isSafeInteger(s.index)&&s.index>0&&Number.isSafeInteger(s.start)&&Number.isSafeInteger(s.end)&&s.start>=0&&s.start<s.end&&s.end<=characters.length).slice(0,1000);
+ if(spans.length)html+='<details class="attachment-locations"><summary>추출 위치 '+spans.length+'개 보기</summary>'+spans.map(s=>'<details><summary>'+labels[s.kind]+' '+s.index+'</summary><pre>'+esc(characters.slice(s.start,s.end).join(""))+'</pre></details>').join("")+'</details>';
+ return html+'<pre>'+esc(text)+'</pre>';
+}
+async function previewAttachment(id,opener){
+ const ticket=++attachmentPreviewTicket,pending=files.find(f=>f.id===id&&pendingAttachment(f));
+ if(pending){
+  if(pending.file&&CLIPBOARD_IMAGE_TYPES[pending.file.type]){
+   let data;try{data=await dataUrl(pending.file);}catch(e){if(ticket===attachmentPreviewTicket&&!accountNavigationPending&&!accountInvalidated)throw e;return;}
+   if(ticket!==attachmentPreviewTicket||accountNavigationPending||accountInvalidated||!files.includes(pending))return;
+   $("fileTitle").textContent=pending.name;$("fileInfo").textContent="내 기기의 이미지 미리보기 · 아직 전송하지 않았어요.";
+   $("filePreview").innerHTML='<img alt="전송 대기 이미지" src="data:'+pending.file.type+';base64,'+esc(data)+'">';modal("fileDialog",opener);return;
+  }
+  $("fileTitle").textContent=pending.name;$("fileInfo").textContent="전송 대기 · 메시지를 보낼 때 자료를 가져오고 읽습니다.";$("filePreview").textContent=pending.source_url?"원 URL: "+pending.source_url+"\n아직 링크 내용을 읽지 않았어요.":"파일 크기: "+pending.file.size.toLocaleString()+" bytes";modal("fileDialog",opener);return;
+ }
+ let item;try{item=await api("/api/attachment?id="+encodeURIComponent(id));}
+ catch(e){if(ticket===attachmentPreviewTicket&&!accountNavigationPending&&!accountInvalidated)throw e;return;}
+ if(ticket!==attachmentPreviewTicket||accountNavigationPending||accountInvalidated)return;
+ $("fileTitle").textContent=item.name;$("fileInfo").textContent=attachmentPreviewInfo(item);$("filePreview").innerHTML=attachmentPreviewHTML(item);modal("fileDialog",opener);
+}
+
 function resizeInput(){$("message").style.height="auto";$("message").style.height=Math.min(200,$("message").scrollHeight)+"px";controls();}
-function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+f.id+'" title="읽은 첨부 내용 보기">▤ '+esc(f.name)+(f.truncated?' <small>앞부분</small>':"")+'</button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+f.id+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
+function fileChips(items,removable=false){return items.map(f=>'<span class="file-chip"><button type="button" data-action="preview-file" data-id="'+esc(f.id)+'" title="첨부 자료 확인">▤ '+esc(f.name)+' <small>'+esc(attachmentSummary(f))+'</small></button>'+(removable?'<button type="button" class="remove" data-action="remove-file" data-id="'+esc(f.id)+'" aria-label="'+esc(f.name)+' 첨부 제거">×</button>':"")+'</span>').join("");}
 function renderFiles(){$("attachmentList").hidden=!files.length;$("attachmentList").innerHTML=fileChips(files,true);controls();}
 function scrollBottom(){if(autoScroll)requestAnimationFrame(()=>{if(autoScroll&&!briefEditor)window.scrollTo({top:document.documentElement.scrollHeight,behavior:"instant"});});}
 // lookup_ready and summary/question describe server-compiled search clues.
@@ -322,7 +459,7 @@ function busyCiAttributes(){
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p><button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>':m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formatted(m.text||"")+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(m.retry_available===false?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">다시 시도</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
  if(busy)$("thread").innerHTML+='<article class="message assistant"><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc("응답 처리 중")+'</span></div><div class="message-body">'+(streamText?formatted(streamText):'<span class="typing">답변을 준비하고 있어요</span>')+'</div></article>';
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
@@ -386,7 +523,7 @@ new MutationObserver(()=>drawController?.setQuiet()).observe(document.body,{attr
 function updateHistory(){if(!session)return;const row={id:session.id,title:session.original.slice(0,60),updated:session.updated,model_id:session.model_id,model_selection_origin:selectionOrigin(session.model_selection_origin),...(hasGeminiScope(session)?{provider_scope:{...session.provider_scope}}:{})};history=[row,...history.filter(s=>s.id!==row.id)];}
 async function send(payload,submission=null){
  if(composerSendLocked()){restoreComposerDraft(submission);return;}
- const boundary=modelBoundaryMessage(payload.model_id,payload.attachments||[]);if(boundary){restoreComposerDraft(submission);error(boundary);return;}
+ const boundary=modelBoundaryMessage(payload.model_id,payload.attachments||[],session,payload.turn_id);if(boundary){restoreComposerDraft(submission);error(boundary);return;}
  if(isGeminiModel(payload.model_id)&&((payload.person_id&&!isGeminiSession())||(payload.model_selection_origin!=="explicit"&&!(payload.model_selection_origin==="automatic"&&(isGeminiSession()||(!session?.id&&modelDefault===payload.model_id)))))){restoreComposerDraft(submission);error("Gemini는 새 대화에서 공개 논문을 조회해 주세요.");return;}
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
@@ -433,14 +570,21 @@ async function send(payload,submission=null){
   }
  }finally{stopBusyCi();busy=false;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(composerClientLocked())return;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
-function dataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했어요."));reader.readAsDataURL(file);});}
+function newChat(){if(composerClientLocked())return;attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function dataUrl(file,signal){return new Promise((resolve,reject)=>{
+ const reader=new FileReader(),finish=(fn,value)=>{signal?.removeEventListener("abort",stop);fn(value);};
+ const stop=()=>{if(reader.readyState===1)reader.abort();finish(reject,attachmentAbortError());};
+ reader.onload=()=>signal?.aborted?finish(reject,attachmentAbortError()):finish(resolve,String(reader.result).split(",")[1]);
+ reader.onerror=()=>finish(reject,new Error("파일을 읽지 못했어요."));reader.onabort=()=>finish(reject,attachmentAbortError());
+ signal?.addEventListener("abort",stop,{once:true});if(signal?.aborted){stop();return;}reader.readAsDataURL(file);
+});}
 async function upload(list){
- if(busy||profileBusy||uploading||prepareBusy)return;
- if(isGeminiModel()){error("Gemini는 첨부를 처리하지 않습니다. 새 대화에서 다른 모델을 선택해 주세요.");$("fileInput").value="";return;}
- error();if(files.length+list.length>4){error("파일은 한 번에 4개까지 첨부할 수 있어요.");return;}
- try{for(const file of list){if(file.size>(publicMode?1024*1024:8*1024*1024))throw new Error(publicMode?"공개 시연은 파일당 1MB까지 첨부할 수 있어요.":"파일당 8MB까지 첨부할 수 있어요.");files.push({id:"pending-"+crypto.randomUUID(),name:file.name,file});}}
- catch(e){error(e.message);}finally{$("fileInput").value="";renderFiles();}
+ try{
+  if(composerSendLocked())return;
+  if(isGeminiModel()&&list.some(file=>!explicitImageAttachment({file}))){error("Gemini에는 새 PNG, JPEG, WebP 이미지만 추가할 수 있어요. 문서·링크는 제외됩니다.");return;}
+  const issue=attachmentBatchIssue(list);if(issue){error(issue);return;}
+  error();files.push(...list.map(file=>({id:"pending-"+crypto.randomUUID(),name:file.name,file})));
+ }finally{$("fileInput").value="";renderFiles();}
 }
 async function submitComposer(){
  if(composerSendLocked()||composerComposing)return;
@@ -448,6 +592,7 @@ async function submitComposer(){
  const boundary=modelBoundaryMessage(selectedModel);if(boundary){error(boundary);return;}
  if(isGeminiModel()&&profileUI.shouldHandle(text)){error("내 프로필 작업은 Gemini로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
  if(profileUI.shouldHandle(text)){
+  if(files.some(f=>f.source_url||f.source?.kind==="https_document")){error("링크 자료는 프로필로 전송하지 않습니다. 링크를 제거하고 프로필용 파일을 직접 선택해 주세요.");return;}
   if(files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
   profileSubmission={text:$("message").value,revision:composerInputRevision,ids:files.map(f=>f.id)};
   try{await profileUI.submit(text,files.map(f=>f.file));}catch(e){error(e.message);}finally{if(!profileUI.hasPendingRequest())profileSubmission=null;render();resizeInput();}
@@ -455,10 +600,13 @@ async function submitComposer(){
  }
  const submittedFiles=[...files],submission=consumeComposerDraft();
  const payload={text,session_id:session?.id,attachments:[],model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()};
- uploading=true;resizeInput();
+ const transfer={controller:null,cancelled:false};attachmentTransfer=transfer;uploading=true;resizeInput();let failed=false;
  try{
-  for(let i=0;i<submittedFiles.length;i++){const f=submittedFiles[i];if(f.file){const uploaded=await api("/api/attachments",{name:f.name,data:await dataUrl(f.file)});submittedFiles[i]=uploaded;files=files.map(item=>item.id===f.id?uploaded:item);renderFiles();}}
- }catch(e){restoreComposerDraft(submission);error(e.message);resizeInput();return;}finally{uploading=false;controls();}
+  for(let i=0;i<submittedFiles.length;i++){const f=submittedFiles[i];if(pendingAttachment(f)){const uploaded=await transmitAttachment(f,transfer,i+1,submittedFiles.length);requireAttachmentTransfer(transfer);submittedFiles[i]=uploaded;files=files.map(item=>item.id===f.id?uploaded:item);renderFiles();}}
+  requireAttachmentTransfer(transfer);
+ }catch(e){restoreComposerDraft(submission);error(e.message);failed=true;}
+ finally{transfer.controller?.abort();if(attachmentTransfer===transfer)attachmentTransfer=null;uploading=false;attachmentStatus="";controls();}
+ if(failed){resizeInput();if(!accountNavigationPending&&!accountInvalidated)$("message").focus();return;}
  submission.attachmentIds=submittedFiles.map(f=>f.id);
  await send({...payload,attachments:[...submission.attachmentIds]},submission);
 }
@@ -501,13 +649,14 @@ window.addEventListener("rndplz:account-navigation",event=>{
  accountNavigationPending=event.detail?.phase!=="cancel";
  if(accountNavigationPending&&!drawController){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawRenderKey="";}
  if(event.detail?.phase==="invalidate"){
-  accountInvalidated=true;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
+  accountInvalidated=true;abortAttachment();attachmentPreviewTicket++;prepareTicket++;modelSelectionEpoch++;controller?.abort();token="";
  }
  controls();
  if(!accountNavigationPending&&!accountInvalidated)renderCandidates();
 });
 $ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy||isGeminiModel())return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
+$ ("message").addEventListener("paste",pasteImages);
 $ ("message").addEventListener("input",()=>{composerInputRevision++;resizeInput();});
 $ ("message").addEventListener("compositionstart",()=>{composerComposing=true;composerInputRevision++;});
 $ ("message").addEventListener("compositionend",()=>{composerComposing=false;composerInputRevision++;controls();});
@@ -516,6 +665,9 @@ $ ("stopButton").addEventListener("click",()=>controller?.abort());
 $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
+$ ("attachmentCancel").addEventListener("click",abortAttachment);
+$ ("linkAttachButton").addEventListener("click",()=>{if(composerSendLocked()||isGeminiModel()||profileUI?.shouldHandle($("message").value))return;$("attachmentLinkError").textContent="";modal("attachmentLinkDialog");$("attachmentUrl").focus();});
+$ ("attachmentLinkForm").addEventListener("submit",event=>{event.preventDefault();queueAttachmentLink();});
 $ ("modelSelect").addEventListener("change",e=>selectModel(e.target.value));
 $ ("settingsButton").addEventListener("click",()=>modal("settingsDialog"));
 $ ("historyButton").addEventListener("click",()=>{$("historyList").innerHTML=history.length?history.map(h=>'<button class="history-item" data-action="history" data-id="'+h.id+'">'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasGeminiScope(h)?" · Gemini · 공개 논문":"")+'</small></button>').join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';modal("historyDialog");});
@@ -526,10 +678,10 @@ $ ("proposeButton").addEventListener("click",()=>saveLetter("sent"));
 document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||composerClientLocked())return;
  try{
   if(action==="profile-receipt"){autoScroll=false;if(button.dataset.version)await profileUI.showReceipt(Number(button.dataset.version));else await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});}
-  else if(action==="remove-file"){if(composerSendLocked())return;files=files.filter(f=>f.id!==id);renderFiles();}
-  else if(action==="preview-file"){const pending=files.find(f=>f.id===id&&f.file);if(pending){$("fileTitle").textContent=pending.name;$("fileInfo").textContent="전송 대기 · 메시지를 보낼 때 일반 대화 또는 프로필 용도로 처리합니다.";$("filePreview").textContent="파일 크기: "+pending.file.size.toLocaleString()+" bytes";modal("fileDialog");return;}const item=await api("/api/attachment?id="+id);$("fileTitle").textContent=item.name;$("fileInfo").textContent=item.kind==="image"?"이미지 지원 모델에서만 대화에 사용할 수 있어요.":"읽은 텍스트 "+item.characters.toLocaleString()+"자"+(item.truncated?" · 길이 제한으로 앞부분만 읽었습니다.":"");$("filePreview").innerHTML=item.image?'<img alt="첨부 이미지" src="data:'+item.mime+';base64,'+item.image+'">':'<pre>'+esc(item.text)+'</pre>';modal("fileDialog");}
-  else if(action==="history"){prepareTicket++;profileUI.close();const epoch=modelSelectionEpoch,previousSessionId=session?.id;session=await api("/api/chat/session?id="+id);restoreModelSelection(session,epoch);if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}
-  else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");const modelId=assistant?.model_id||session.model_id,origin=selectionOrigin(user.model_selection_origin??assistant?.model_selection_origin);await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:modelId,model_selection_origin:origin,turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});}
+ else if(action==="remove-file"){removeAttachment(id);}
+ else if(action==="preview-file"){await previewAttachment(id,button);}
+  else if(action==="history"){attachmentPreviewTicket++;try{prepareTicket++;profileUI.close();const epoch=modelSelectionEpoch,previousSessionId=session?.id;session=await api("/api/chat/session?id="+id);restoreModelSelection(session,epoch);if(session.id!==previousSessionId){files=[];setComposerDraft("");}renderFiles();$("historyDialog").close();window.history.replaceState(null,"","/?chat="+id);autoScroll=true;render();}finally{attachmentPreviewTicket++;}}
+  else if(action==="retry"){const user=session.messages.find(m=>m.turn_id===id&&m.role==="user");const assistant=session.messages.find(m=>m.turn_id===id&&m.role==="assistant");if(assistant?.retry_available===false)return;const modelId=assistant?.model_id||session.model_id,origin=selectionOrigin(user.model_selection_origin??assistant?.model_selection_origin);await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),model_id:modelId,model_selection_origin:origin,turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});}
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}
   else if(action==="person")await showPerson(id,button);

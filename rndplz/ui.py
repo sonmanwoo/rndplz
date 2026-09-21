@@ -14,6 +14,9 @@ if __package__ in (None,""):
 from rndplz.service import Service, ProviderScopeError
 from rndplz.people_map import build_people_map
 from rndplz.conversation import Conversation
+from rndplz.attachments import AttachmentError, MAX_UPLOAD_BODY, MAX_HTTPS_BODY
+from rndplz.https_documents import FetchError
+from rndplz.auth_service import strict_json
 from rndplz.build_vault import export_vault
 from rndplz.profiles import Profiles, ProfileError
 from rndplz.profile_chat import ProfileChat
@@ -100,8 +103,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 if parsed.path=="/api/chat/models":
                     return self.send(200,chat.models.catalog(refresh=query.get("refresh")==["1"]))
                 if parsed.path=="/api/attachment":
-                    item=chat.attachments.load(query.get("id",[""])[0])
-                    return self.send(200,{**chat.attachments.public(item),"text":item["text"],"image":item["image"],"mime":item["mime"]})
+                    return self.send(200,chat.attachments.source(query.get("id",[""])[0]))
                 if parsed.path=="/api/bootstrap":
                     return self.send(200,{**service.bootstrap(),"token":token})
                 if parsed.path=="/api/people-map":
@@ -146,9 +148,15 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
             try:
                 path=urlparse(self.path).path
                 length=int(self.headers.get("Content-Length","0"))
-                if length<1 or length>(12*1024*1024 if path in ("/api/attachments","/api/self-profile/upload","/api/self-profile/chat") else 200000):
+                body_limit=MAX_HTTPS_BODY if path=="/api/attachments/https" else MAX_UPLOAD_BODY if path=="/api/attachments" else (12*1024*1024 if path in ("/api/self-profile/upload","/api/self-profile/chat") else 200000)
+                if length<1 or length>body_limit:
+                    if path=="/api/attachments/https":
+                        return self.send(413,{"error":"링크 주소의 크기를 확인해 주세요.","code":"https_request_too_large"})
+                    if path=="/api/attachments":
+                        return self.send(413,{"error":str(AttachmentError("too_large")),"code":"attachment_too_large"})
                     return self.send(413,{"error":"요청 크기가 허용 범위를 넘었습니다."})
-                payload=json.loads(self.rfile.read(length).decode("utf-8"))
+                raw_payload=self.rfile.read(length).decode("utf-8")
+                payload=strict_json(raw_payload) if path=="/api/attachments/https" else json.loads(raw_payload)
                 if not isinstance(payload,dict):
                     raise ValueError("요청 형식이 올바르지 않습니다.")
                 if path=="/api/chat":
@@ -170,7 +178,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                     finally:
                         iterator.close()
                     return
-                routes={"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:project_session(chat.prepare(payload)),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
+                routes={"/api/attachments/https":lambda:chat.attachments.upload_url(payload),"/api/attachments":lambda:chat.attachments.upload(payload),"/api/chat/configure":lambda:chat.models.configure(payload),"/api/chat/prepare":lambda:project_session(chat.prepare(payload)),"/api/converse":lambda:service.converse(payload),"/api/ai/structure":lambda:service.ai_structure(payload),"/api/ai/draft":lambda:service.ai_draft(payload),"/api/slots":lambda:service.update_slots(payload),"/api/draft":lambda:service.draft(payload.get("session_id"),payload.get("candidate_id")),"/api/proposals":lambda:service.save_proposal(payload),"/api/transition":lambda:service.transition(payload.get("id"),payload.get("state")),"/api/export":lambda:export_vault(service)}
                 if path=="/api/self-profile/chat":
                     chat.require_profile_context(payload.get("session_id"))
                 routes.update({"/api/self-profile/chat":lambda:ProfileChat(service,profiles).handle(payload),"/api/self-profile/save":lambda:profiles.save(payload),"/api/self-profile/upload":lambda:profiles.upload(payload),"/api/self-profile/suggest":lambda:profiles.suggest(payload),"/api/self-profile/source-action":lambda:profiles.source_action(payload)})
@@ -190,6 +198,10 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 self.send(503,{"error":str(exc),"code":exc.code,"request_preserved":exc.request_preserved,"retry_available":exc.retry_available})
             except DiscoveryError as exc:
                 self.send(409,{"error":str(exc),"code":exc.code})
+            except FetchError as exc:
+                self.send(exc.status,{"error":str(exc),"code":exc.code})
+            except AttachmentError as exc:
+                self.send(exc.status,{"error":str(exc),"code":exc.code})
             except (ValueError,KeyError,TypeError) as exc:
                 self.send(400,{"error":str(exc)})
             except Exception:

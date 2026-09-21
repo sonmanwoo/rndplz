@@ -31,6 +31,59 @@ def _strings(value):
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
 
+def _attachment_summary(item):
+    """Bounded, server-stored extraction/provenance only; no body or credentials."""
+    def text(value, maximum):
+        return isinstance(value, str) and len(value) <= maximum and not any(ord(c) < 32 for c in value)
+    def number(value):
+        return type(value) is int and 0 <= value <= 2**53-1
+    def sha(value):
+        return isinstance(value, str) and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
+    def url(value):
+        return text(value, 2048) and value.startswith('https://')
+    result = {}
+    extraction = item.get('extraction')
+    if isinstance(extraction, dict):
+        value = {}
+        for key, allowed in (('status', ('complete', 'partial')),
+                             ('unit', ('page', 'slide', 'paragraph', 'line')),
+                             ('location_basis', ('extracted_text_offsets',))):
+            if extraction.get(key) in allowed: value[key] = extraction[key]
+        if text(extraction.get('method'), 80): value['method'] = extraction['method']
+        for key in ('total_units', 'processed_units', 'character_limit', 'unit_limit'):
+            if number(extraction.get(key)): value[key] = extraction[key]
+        if type(extraction.get('ocr')) is bool: value['ocr'] = extraction['ocr']
+        if isinstance(extraction.get('limits'), list):
+            value['limits'] = [v for v in extraction['limits'] if text(v, 80)][:8]
+        result['extraction'] = value
+    source = item.get('source')
+    if isinstance(source, dict) and source.get('kind') == 'https_document' and source.get('trust') == 'untrusted':
+        value = {'kind': 'https_document', 'trust': 'untrusted'}
+        for key in ('original_url', 'final_url'):
+            if url(source.get(key)): value[key] = source[key]
+        if text(source.get('acquired_at'), 64): value['acquired_at'] = source['acquired_at']
+        for key in ('sha256', 'extracted_text_sha256'):
+            if sha(source.get(key)): value[key] = source[key]
+        if number(source.get('bytes')): value['bytes'] = source['bytes']
+        if isinstance(source.get('redirects'), list):
+            value['redirects'] = [v for v in source['redirects'] if url(v)][:3]
+        conversion = source.get('conversion')
+        if isinstance(conversion, dict) and conversion.get('method') in ('html_static_text', 'charset_decoded_text'):
+            converted = {'method': conversion['method']}
+            if conversion.get('encoding') == 'utf-8': converted['encoding'] = 'utf-8'
+            if sha(conversion.get('sha256')): converted['sha256'] = conversion['sha256']
+            if number(conversion.get('bytes')): converted['bytes'] = conversion['bytes']
+            value['conversion'] = converted
+        result['source'] = value
+    return result
+
+
+def _attachment(item):
+    value = _pick(item, ('id', 'name', 'kind', 'mime', 'characters', 'truncated', 'bytes', 'size'))
+    value.update(_attachment_summary(item))
+    return value
+
+
 def _request_spec(value, session):
     if not isinstance(value, dict):
         return None
@@ -186,6 +239,10 @@ def _messages(value, *, disclosed, revision, historical_disclosures=None):
             continue
         message = _pick(item, ("role", "text", "turn_id", "created", "status", "source", "kind", "error",
                               "model", "model_id", "model_selection_origin", "elapsed", "elapsed_ms", "audience", "scout_revision"))
+        if role=="assistant" and item.get("status")=="error":
+            if type(item.get("retry_available")) is bool:message["retry_available"]=item["retry_available"]
+            if item.get("error_code") in ("model_generation_unavailable","model_generation_budget_exhausted"):
+                message["error_code"]=item["error_code"]
         if historical:
             message["historical_assistant"] = True
         if role == "assistant" and item.get("kind") == "self_profile" and isinstance(item.get("profile_receipt"), dict):
@@ -193,8 +250,7 @@ def _messages(value, *, disclosed, revision, historical_disclosures=None):
         if role == "user":
             if isinstance(item.get("input_text"), str):
                 message["input_text"] = item["input_text"]
-            message["attachments"] = _rows(item.get("attachments"),
-                lambda attachment: _pick(attachment, ("id", "name", "kind", "mime", "characters", "truncated", "bytes")))
+            message["attachments"] = _rows(item.get("attachments"), _attachment)
         messages.append(message)
     return messages
 

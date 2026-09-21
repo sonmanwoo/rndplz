@@ -17,6 +17,8 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from .chat_models import ChatModels
+from .attachments import AttachmentError, MAX_UPLOAD_BODY, MAX_HTTPS_BODY
+from .https_documents import FetchError
 from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
 from .model_conversation import ModelResponseUnavailable, ModelResponseBudgetExhausted, ScoutSourceChanged
@@ -817,8 +819,7 @@ class PublicApp:
                 if path == '/api/person': return send(200, service.person(identifier))
                 if path == '/api/proposals': return send(200, service.store.read()['proposals'])
                 if path == '/api/attachment':
-                    item = chat.attachments.load(identifier)
-                    return send(200, {**chat.attachments.public(item), 'text': item['text'], 'image': item['image'], 'mime': item['mime']})
+                    return send(200, chat.attachments.source(identifier))
                 if path == '/api/record':
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
@@ -841,10 +842,15 @@ class PublicApp:
             length = int(environ.get('CONTENT_LENGTH') or '0')
             if path == '/auth/google/enroll' and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
-            if not 0 < length <= (1500000 if path in ('/api/attachments','/api/self-profile/upload','/api/self-profile/chat') else 200000):
+            body_limit = MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
+            if not 0 < length <= body_limit:
+                if path == '/api/attachments/https':
+                    return send(413, {'error':'링크 주소의 크기를 확인해 주세요.', 'code':'https_request_too_large'})
+                if path == '/api/attachments':
+                    return send(413, {'error':str(AttachmentError('too_large')), 'code':'attachment_too_large'})
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
-            payload = strict_json(raw_payload) if path == '/auth/google/enroll' else json.loads(raw_payload)
+            payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https') else json.loads(raw_payload)
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
             if path == '/api/logout':
                 if payload:
@@ -930,8 +936,23 @@ class PublicApp:
                 finally:
                     with self.lock:context['active']-=1
                     self.request_slots.release()
-            if path == '/api/attachments' and len(list(chat.attachments.directory.glob('*.json'))) >= 12:
-                return send(429, {'error': '공개 시연의 첨부 개수 한도에 도달했습니다.'})
+            if path in ('/api/attachments','/api/attachments/https'):
+                # Serialize a visitor's attachment commits and retain logout's active/inflight guard.
+                with self.lock:
+                    if context['active'] or context['inflight'] != 1:
+                        return send(409, {'error':'진행 중인 요청이 끝난 뒤 자료를 추가해 주세요.', 'code':'attachment_context_busy'})
+                    if len(list(chat.attachments.directory.glob('*.json'))) >= 12:
+                        return send(429, {'error':'공개 시연의 첨부 개수 한도에 도달했습니다.'})
+                    context['active']+=1
+                try:
+                    if path == '/api/attachments/https':
+                        return send(200, chat.attachments.upload_url(payload))
+                    if diagnostic_request is not None:
+                        with diagnostic_scope(self.diagnostics,diagnostic_request):
+                            return send(200,chat.attachments.upload(payload))
+                    return send(200,chat.attachments.upload(payload))
+                finally:
+                    with self.lock:context['active']-=1
             if path == '/api/self-profile/chat':
                 chat.require_profile_context(payload.get('session_id'))
             routes = {
@@ -940,7 +961,6 @@ class PublicApp:
                 '/api/self-profile/upload': lambda: profile.upload(payload),
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
-                '/api/attachments': lambda: chat.attachments.upload(payload),
                 '/api/converse': lambda: project_session(service.converse(payload)),
                 '/api/slots': lambda: project_session(service.update_slots(payload)),
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id')),
@@ -965,7 +985,7 @@ class PublicApp:
             diagnostic_error=exc.code
             diagnostic_model_called=True
             message = (str(exc) + ' 잠시 후 버튼으로 다시 시도할 수 있습니다.' if exc.retry_available else
-                       str(exc) + ' 이번 요청의 처리 한도에 도달했어요. 의뢰서는 유지되니 새 메시지로 조건을 확인해 주세요.')
+                       str(exc) + ' 지금 이 요청을 다시 처리할 수 없습니다. 의뢰서는 유지되며, 이 오류 때문에 조건을 바꾸실 필요는 없습니다.')
             return send(503, {'error':message, 'code':exc.code,
                               'request_preserved':exc.request_preserved, 'retry_available':exc.retry_available})
         except ScoutSourceChanged as exc:
@@ -977,6 +997,12 @@ class PublicApp:
             return send(409, {'error':str(exc), 'code':exc.code})
         except ProfileError as exc:
             return send(exc.status, {'error':str(exc), 'code':exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
+        except FetchError as exc:
+            diagnostic_error=exc.code
+            return send(exc.status, {'error':str(exc), 'code':exc.code})
+        except AttachmentError as exc:
+            diagnostic_error=exc.code
+            return send(exc.status, {'error':str(exc), 'code':exc.code})
         except ValueError as exc:
             # Only fixed, user-actionable validation messages may cross this boundary.
             safe_messages = {
@@ -984,6 +1010,11 @@ class PublicApp:
                 '이 대화에는 이미지가 있습니다. 이미지 지원 모델을 선택하거나 새 대화를 시작해 주세요.',
             }
             message = str(exc)
+            if message in (
+                    '이 대화의 모델 입력 범위를 넘었습니다. 첨부를 줄이거나 필요한 부분을 새 대화에 넣어 주세요.',
+                    '대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.'):
+                diagnostic_error='context_input_too_large'
+                return send(400, {'error':message, 'code':diagnostic_error})
             diagnostic_error='unsupported_image' if message in safe_messages else 'validation'
             return send(400, {'error': message if message in safe_messages else
                              '요청을 처리하지 못했습니다. 현재 방문자의 대화·첨부를 확인해 주세요.'})

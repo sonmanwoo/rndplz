@@ -1,4 +1,4 @@
-"""Native Gemini text generation; one HTTP attempt per product reservation.
+"""Native Gemini explicit-image and text generation; one HTTP attempt per product reservation.
 
 Only server-owned contract systems are supplied by ChatModels. JSON MIME is
 requested for structured contracts; full schema/evidence enforcement remains
@@ -6,6 +6,7 @@ in the existing system instructions and application parsers. No transport retry,
 credential file loading, alternate provider, or raw provider-response logging.
 """
 import json
+import base64
 import re
 import time
 import urllib.error
@@ -16,6 +17,27 @@ from .models import NoRedirect
 
 ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/'
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_REQUEST_BYTES = 20_000_000
+
+
+def image_part(value):
+    """Only explicit inline PNG/JPEG/WebP bytes, never a URL or file reference."""
+    if not isinstance(value, str) or not value or len(value) > 4*((MAX_IMAGE_BYTES+2)//3):
+        raise ValueError('이미지 크기나 형식을 확인해 주세요.')
+    try:
+        raw = base64.b64decode(value, validate=True)
+    except (ValueError, TypeError):
+        raise ValueError('이미지 인코딩을 확인해 주세요.') from None
+    if not raw or len(raw) > MAX_IMAGE_BYTES:
+        raise ValueError('이미지는 10MiB 이하로 선택해 주세요.')
+    if raw.startswith(b'\x89PNG\r\n\x1a\n'): mime = 'image/png'
+    elif raw.startswith(b'\xff\xd8\xff'): mime = 'image/jpeg'
+    elif raw[:4] == b'RIFF' and raw[8:12] == b'WEBP': mime = 'image/webp'
+    else: raise ValueError('PNG, JPEG, WebP 이미지만 사용할 수 있습니다.')
+    return {'inlineData': {'mimeType': mime, 'data': value}}
 
 
 class GeminiError(ValueError):
@@ -43,10 +65,18 @@ def make_payload(messages, *, system, max_tokens, structured):
     config = {'maxOutputTokens': max_tokens}
     if structured:
         config['responseMimeType'] = 'application/json'
-    return {'systemInstruction': {'parts': [{'text': system}]},
-            'contents': [{'role': 'model' if row['role'] == 'assistant' else 'user',
-                          'parts': [{'text': row['content']}]} for row in messages],
-            'generationConfig': config}
+    contents = []
+    for row in messages:
+        images = row.get('images', [])
+        if not isinstance(images, list) or (images and row['role'] != 'user'):
+            raise ValueError('이미지는 사용자 메시지에만 포함할 수 있습니다.')
+        parts = [{'text': row['content']}]+[image_part(value) for value in images]
+        contents.append({'role': 'model' if row['role'] == 'assistant' else 'user', 'parts': parts})
+    payload = {'systemInstruction': {'parts': [{'text': system}]},
+               'contents': contents, 'generationConfig': config}
+    if len(json.dumps(payload, ensure_ascii=False, allow_nan=False).encode('utf-8')) >= MAX_REQUEST_BYTES:
+        raise ValueError('이미지와 대화의 합계가 Gemini 입력 크기 제한을 넘었습니다. 이미지를 줄여 주세요.')
+    return payload
 
 
 def _strict_json(raw):

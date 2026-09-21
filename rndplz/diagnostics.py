@@ -35,6 +35,10 @@ _ID_FIELDS = {'diagnostic_run','visitor_ref','session_id','turn_id','attempt_id'
               'route_reason','error_kind','failure_stage','code_fingerprint','prompt_sha256',
               'worker_source_fingerprint','worker_input_fingerprint','worker_instance','credential_id','event_type','previous_mode','next_mode',
               'generation_contract','model_phase','plan_sha256','tool_call_id'}
+_PROVIDER_REASONS = frozenset(('http_error','provider_error','prompt_blocked','candidate_count',
+    'incomplete','content_role','content_parts','content_part','nontext_content','text_limit',
+    'invalid_json','deadline','response_type','response_size','response_json','transport_failure',
+    'process_call_cap','chat_minimum_calls'))
 _MODEL_FIELDS = {'model_selected','model_job','provider_model_observed'}
 _NUMBER_FIELDS = {'input_chars','output_chars','attachment_count','elapsed_ms','queue_ms','first_delta_ms',
                   'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict'}
@@ -108,7 +112,11 @@ def _metadata(values):
     result={}
     for key,value in values.items():
         if not isinstance(key,str) or _SECRET_KEY.search(key):continue
-        if key in _ID_FIELDS:
+        if key=='provider_error_reason':
+            if isinstance(value,str) and value in _PROVIDER_REASONS:result[key]=value
+        elif key=='provider_http_status':
+            if type(value) is int and 100<=value<=599:result[key]=value
+        elif key in _ID_FIELDS:
             if value is None:result[key]=None
             elif isinstance(value,str) and _ID.fullmatch(value) and redact_text(value)==value:result[key]=value
         elif key in _MODEL_FIELDS:

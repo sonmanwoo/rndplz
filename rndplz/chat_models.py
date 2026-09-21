@@ -7,6 +7,7 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 from .models import NoRedirect
+from .diagnostics import event as diagnostic_event
 
 
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
@@ -64,6 +65,13 @@ CHAT_SYSTEM='''당신은 수소문이라는 연구 협업 대화 도우미입니
 답변은 보통 2~5문장 이내로 간결하게 하되, 대안별 비교에는 짧은 목록이나 표를 써도 됩니다. 요청을 외부인에게 보내거나 실행했다고 말하지 마세요.'''
 
 
+class ModelProviderCapacity(ValueError):
+    code = 'model_generation_budget_exhausted'
+
+    def __init__(self):
+        super().__init__('이 서버의 모델 처리 한도에 도달해 지금은 응답을 진행할 수 없습니다.')
+
+
 class ChatModels:
     def __init__(self,env=None):
         self.env=os.environ if env is None else env
@@ -89,7 +97,7 @@ class ChatModels:
         config=self.configs.get('gemini')
         if not config:return None
         return {'id':'gemini:'+config['model'],'provider':'gemini','model':config['model'],
-                'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':False}
+                'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':True}
 
     def catalog(self,refresh=False):
         if refresh or time.monotonic()-self.refreshed>60:
@@ -122,6 +130,12 @@ class ChatModels:
         if not option or not option['enabled']:raise ValueError('사용할 모델을 연결하거나 다른 모델을 선택해 주세요.')
         return option
 
+    def has_call_capacity(self,identifier,*,provider,required_calls=1):
+        # Read-only availability hint. The locked dispatch guard remains authoritative.
+        if type(required_calls) is not int or required_calls<1:return False
+        with self.lock:
+            return provider=='ollama' or self.calls.get(identifier,0)+required_calls<=20
+
     def stream(self,identifier,messages,*,contract=None):
         deadline=getattr(messages,'generation_deadline',None)
         def remaining():
@@ -135,11 +149,15 @@ class ChatModels:
         option=self.get(identifier);provider=option['provider']
         with self.lock:
             # The lifetime budget protects paid APIs; local models can keep serving.
-            if provider!='ollama' and self.calls.get(identifier,0)>=20:raise ValueError('이 서버 실행의 모델 호출 한도에 도달했습니다.')
+            if provider!='ollama' and self.calls.get(identifier,0)>=20:
+                diagnostic_event('model_provider_rejected',status='rejected',model_called=False,
+                    failure_stage='predispatch',provider_error_reason='process_call_cap',
+                    generation_contract=contract)
+                raise ModelProviderCapacity()
             self.calls[identifier]=self.calls.get(identifier,0)+1
             config=dict(self.configs.get(provider,{}))
         if provider=='gemini':
-            from .gemini_native import make_payload,generate
+            from .gemini_native import GeminiError,make_payload,generate
             payload=make_payload(messages,system=system,
                                  max_tokens=spec['max_tokens'] if spec is not None else 1800,
                                  structured=schema is not None)
@@ -148,10 +166,18 @@ class ChatModels:
                 try:observer(provider,copy.deepcopy(payload))
                 except Exception:pass
             # Exactly one HTTP attempt uses the caller's existing origin reservation.
-            text=generate(config['model'],config['key'],payload,
-                          deadline=deadline if deadline is not None else time.monotonic()+180,
-                          structured=schema is not None,
-                          max_chars=8000 if contract=='dialogue_answer.v1' else 24000)
+            try:
+                text=generate(config['model'],config['key'],payload,
+                              deadline=deadline if deadline is not None else time.monotonic()+180,
+                              structured=schema is not None,
+                              max_chars=8000 if contract=='dialogue_answer.v1' else 24000)
+            except GeminiError as exc:
+                # No exception prose, native body, headers, key or payload is copied.
+                # Absent HTTP status stays absent; it is not inferred from the app status.
+                diagnostic_event('model_provider_error',status='error',failure_stage='provider',
+                    generation_contract=contract,provider_error_reason=exc.reason,
+                    provider_http_status=exc.http_status)
+                raise
             response_observer=getattr(self,'diagnostic_response_observer',None)
             if callable(response_observer):
                 # Only completed visible text; raw native parts/thoughts stay private.
