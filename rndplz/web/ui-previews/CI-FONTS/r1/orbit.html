@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>수소문 · 전자 모션 비교</title>
+  <link rel="stylesheet" href="orbit.css">
+  <script src="orbit.js" defer></script>
+</head>
+<body>
+  <a class="om-skip" href="#motion-comparison">비교로 바로 가기</a>
+  <main class="om-page">
+    <header class="om-header">
+      <a class="om-back" href="index.html">← 글꼴 비교</a>
+      <span class="om-eyebrow">SUSOMUN · MOTION STUDY</span>
+    </header>
+    <section class="om-intro" aria-labelledby="page-title">
+      <p class="om-kicker">팀 제공 시안에서 이어지는 움직임</p>
+      <h1 id="page-title">한 바퀴, 두 가지 리듬</h1>
+      <p class="om-lead">원형 H와 빨간 점은 그대로. 같은 크기에서 속도와 시작·끝의 느낌을 비교합니다.</p>
+      <p class="om-boundary">독립 브랜드 모션 시안입니다. 실제 수소문 실행이나 응답 대기 상태를 표시하지 않습니다.</p>
+    </section>
+    <section id="motion-comparison" class="om-comparison" aria-label="두 모션 비교" tabindex="-1">
+      <div class="om-toolbar">
+        <div class="om-global-actions">
+          <button id="om-play-both" class="om-button om-button-primary" type="button">두 안 함께 재생</button>
+          <button id="om-stop-all" class="om-button" type="button">모두 정지</button>
+        </div>
+        <p class="om-toolbar-note">자동 재생 없음 · 한 번에 한 바퀴</p>
+      </div>
+      <p id="om-motion-notice" class="om-motion-notice" hidden>기기의 ‘동작 줄이기’ 설정에 따라 정지된 심볼로 비교합니다. 재생하지 않습니다.</p>
+      <noscript><p class="om-motion-notice">JavaScript가 꺼져 있어 정지된 심볼을 표시합니다.</p></noscript>
+      <div class="om-panels">
+        <article class="om-panel" data-orbit-panel="original" aria-labelledby="original-title">
+          <div class="om-panel-heading">
+            <span class="om-number" aria-hidden="true">01</span>
+            <div><p class="om-panel-type">원본 리듬</p><h2 id="original-title">일정하게, 2초</h2></div>
+          </div>
+          <p class="om-description">처음부터 끝까지 같은 속도 · linear</p>
+          <figure class="om-large-view">
+            <div class="om-magnified" aria-hidden="true"><span class="om-symbol">H<span class="om-electron"></span></span></div>
+            <figcaption>2.8배 확대 · 같은 비율</figcaption>
+          </figure>
+          <figure class="om-actual-view">
+            <div class="om-brand"><span class="om-symbol" aria-hidden="true">H<span class="om-electron"></span></span><span class="om-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></div>
+            <figcaption>실제 크기<br><strong>41px</strong></figcaption>
+          </figure>
+          <div class="om-panel-actions">
+            <button type="button" class="om-button om-play" data-play="original" aria-describedby="original-status">원본 재생</button>
+            <button type="button" class="om-text-button" data-stop="original">원본 정지</button>
+            <span id="original-status" class="om-status">정지</span>
+          </div>
+        </article>
+        <article class="om-panel om-panel-recommended" data-orbit-panel="recommended" aria-labelledby="recommended-title">
+          <div class="om-panel-heading">
+            <span class="om-number" aria-hidden="true">02</span>
+            <div><p class="om-panel-type">적용 추천</p><h2 id="recommended-title">부드럽게, 2.4초</h2></div>
+          </div>
+          <p class="om-description">천천히 시작하고 천천히 멈춤 · ease-in-out</p>
+          <figure class="om-large-view">
+            <div class="om-magnified" aria-hidden="true"><span class="om-symbol">H<span class="om-electron"></span></span></div>
+            <figcaption>2.8배 확대 · 같은 비율</figcaption>
+          </figure>
+          <figure class="om-actual-view">
+            <div class="om-brand"><span class="om-symbol" aria-hidden="true">H<span class="om-electron"></span></span><span class="om-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></div>
+            <figcaption>실제 크기<br><strong>41px</strong></figcaption>
+          </figure>
+          <div class="om-panel-actions">
+            <button type="button" class="om-button om-play" data-play="recommended" aria-describedby="recommended-status">추천안 재생</button>
+            <button type="button" class="om-text-button" data-stop="recommended">추천안 정지</button>
+            <span id="recommended-status" class="om-status">정지</span>
+          </div>
+        </article>
+      </div>
+      <p id="om-announcement" class="om-announcement" role="status" aria-live="polite" aria-atomic="true">재생 버튼을 누르면 실제 크기와 확대 심볼이 함께 한 바퀴 움직입니다.</p>
+    </section>
+    <aside class="om-application" aria-labelledby="application-title">
+      <h2 id="application-title">제품에 적용한다면</h2>
+      <p>첫 진입 때 한 번, 또는 사용자가 ‘수소문하기’를 누른 순간에 짧게 사용하는 안을 제안합니다. 계속 도는 장식은 읽기와 대화에 주의를 분산시켜 권하지 않습니다.</p>
+      <p class="om-application-note">이 페이지에는 자동 재생·반복·제품 연결이 없습니다. 정지를 누르면 그 위치에서 멈추고, 다시 재생하면 출발점부터 시작합니다.</p>
+    </aside>
+    <footer class="om-footer"><span>출처 · 팀 제공 시안의 전자 궤도 CSS를 바탕으로 만든 파생 비교</span><a href="index.html">글꼴 비교로 돌아가기 ↗</a></footer>
+  </main>
+</body>
+</html>

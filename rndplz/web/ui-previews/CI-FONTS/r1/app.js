@@ -1,0 +1,20 @@
+'use strict';
+const variants=[
+ {id:'a',name:'문헌의 깊이',mood:'차분한 · 학술적인',ko:'Noto Serif KR',en:'Cormorant Garamond',kw:600,ew:600,description:'명조의 단정한 획과 부드러운 영문 세리프. 기존 H 심볼과 종이색 화면이 가장 자연스럽게 이어집니다.',limit:'현재 분위기를 이어갈 때 추천'},
+ {id:'b',name:'연구 도구의 정확함',mood:'명료한 · 균형 잡힌',ko:'IBM Plex Sans KR',en:'IBM Plex Sans',kw:600,ew:600,description:'같은 계열의 한글과 영문으로 높이와 밀도를 맞췄습니다. 작은 상단 로고에서도 이름이 분명합니다.',limit:'작은 크기와 한·영 일관성을 우선할 때 추천'},
+ {id:'c',name:'서가의 온기',mood:'섬세한 · 사람다운',ko:'Gowun Batang',en:'Libre Baskerville',kw:700,ew:400,description:'손으로 쓰고 다듬은 듯한 한글과 고전적인 영문. 연구자에게 보내는 편지 같은 인상을 줍니다.',limit:'차분한 소개·편지에 어울림 · 영문은 여유 있게'},
+ {id:'d',name:'새로운 연결',mood:'간결한 · 현대적인',ko:'Gothic A1',en:'Space Grotesk',kw:600,ew:500,description:'조밀한 한글 고딕과 개성 있는 영문 구조. 연구 서비스의 현대적인 면을 조금 더 드러냅니다.',limit:'새로운 기술 서비스 인상을 강조할 때'},
+ {id:'e',name:'편안한 대화',mood:'가벼운 · 친근한',ko:'Gowun Dodum',en:'DM Sans',kw:400,ew:500,description:'둥글고 열린 한글에 편안한 영문을 붙였습니다. 처음 찾아온 사람에게 말을 걸기 쉬운 분위기입니다.',limit:'부드러운 인상 · 작은 로고에서는 존재감이 약함'},
+ {id:'f',name:'확실한 존재감',mood:'힘 있는 · 선명한',ko:'Black Han Sans',en:'Archivo',kw:400,ew:800,description:'굵은 한글과 단단한 영문으로 이름을 강하게 남깁니다. 행사와 큰 표제에서 대비가 뚜렷합니다.',limit:'큰 표제·행사에 적합 · 상단 로고로는 다소 무거움'}
+];
+const symbol='<span class="symbol" aria-hidden="true">H</span>';
+const specimens=document.getElementById('specimens');
+specimens.innerHTML=variants.map(v=>`<article class="specimen ci-${v.id}" id="${v.id.toUpperCase()}" aria-labelledby="name-${v.id}"><div class="specimen-top"><h3 id="name-${v.id}"><span class="variant-letter">${v.id.toUpperCase()}</span>${v.name}</h3><span class="descriptor">${v.mood}</span></div><div class="display"><div class="lockup">${symbol}<span class="ko">수소문</span></div><p class="en">Susomun</p></div><div class="fontnames"><span>한글 · ${v.ko}<br>${v.kw}</span><span>영문 · ${v.en}<br>${v.ew}</span></div><p class="specimen-description">${v.description}</p><span class="mini-label">상단 적용 크기</span><div class="mini-app"><div class="mini-brand">${symbol}<span><span class="ko">수소문</span><span class="tagline">RESEARCH, TOGETHER.</span></span></div><span class="mini-nav">대화 연구 맵</span></div><div class="specimen-bottom"><p>${v.limit}</p><button type="button" class="compare-add" data-variant="${v.id}" aria-label="${v.id.toUpperCase()} ${v.name} 비교하기">비교하기 ↗</button></div></article>`).join('');
+const left=document.getElementById('leftFont'),right=document.getElementById('rightFont');
+for(const select of [left,right])select.innerHTML=variants.map(v=>`<option value="${v.id}">${v.id.toUpperCase()} · ${v.name}</option>`).join('');
+left.value='a';right.value='b';
+function panel(id){const v=variants.find(v=>v.id===id),word=document.getElementById('uppercase').checked?'SUSOMUN':'Susomun';return `<article class="comparison-panel ci-${v.id}" aria-label="${v.id.toUpperCase()} ${v.name}"><p class="compare-caption">${v.id.toUpperCase()} · ${v.name}</p><div class="lockup">${symbol}<span class="ko">수소문</span></div><p class="en">${word}</p><div class="small-lockup">${symbol}<span class="ko">수소문</span></div></article>`;}
+function renderComparison(){document.getElementById('compareLeft').innerHTML=panel(left.value);document.getElementById('compareRight').innerHTML=panel(right.value);document.getElementById('comparison').classList.toggle('ink',document.querySelector('input[name="surface"]:checked').value==='ink');document.getElementById('comparisonStatus').textContent=`${left.value.toUpperCase()}안과 ${right.value.toUpperCase()}안을 비교하고 있습니다. 화면 조작은 제품 선택으로 기록되지 않습니다.`;}
+for(const control of [left,right,document.getElementById('uppercase'),...document.querySelectorAll('input[name="surface"]')])control.addEventListener('change',renderComparison);
+specimens.addEventListener('click',e=>{const b=e.target.closest('button[data-variant]');if(!b)return;right.value=b.dataset.variant;if(left.value===right.value)left.value=right.value==='a'?'b':'a';renderComparison();document.getElementById('compare').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth'});right.focus({preventScroll:true});});
+renderComparison();
