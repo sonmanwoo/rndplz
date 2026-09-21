@@ -35,7 +35,7 @@ _ID_FIELDS = {'diagnostic_run','visitor_ref','session_id','turn_id','attempt_id'
               'route_reason','error_kind','failure_stage','code_fingerprint','prompt_sha256',
               'worker_source_fingerprint','worker_input_fingerprint','worker_instance','credential_id','event_type','previous_mode','next_mode',
               'generation_contract','model_phase','plan_sha256','tool_call_id','deployment_revision',
-              'client_request_id','claimed_session_id','claimed_turn_id'}
+              'client_request_id','claimed_session_id','claimed_turn_id','client_event_id'}
 _PROVIDER_REASONS = frozenset(('http_error','provider_error','prompt_blocked','candidate_count',
     'incomplete','content_role','content_parts','content_part','nontext_content','text_limit',
     'invalid_json','deadline','response_type','response_size','response_json','transport_failure',
@@ -44,7 +44,7 @@ _MODEL_FIELDS = {'model_selected','model_job','provider_model_observed'}
 _NUMBER_FIELDS = {'input_chars','output_chars','attachment_count','elapsed_ms','queue_ms','first_delta_ms',
                   'model_ms','http_status','candidate_count','evidence_count','sequence','num_ctx','num_predict','storage_elapsed_ms','poll_count'}
 _BOOL_FIELDS = {'partial_output','cached','model_called','truncated','eof','terminal_yielded',
-                'session_verified','request_verified','pending_present','pending_cleared'}
+                'session_verified','request_verified','pending_present','pending_cleared','client_reported'}
 _SELECTION_SOURCES = {'lexical_search','record_id_read','registered_name'}
 # Current summary values are replaceable; immutable event_contents retains every
 # observed original/response attempt, including a superseded first response.
@@ -116,6 +116,9 @@ def _metadata(values):
         if not isinstance(key,str) or _SECRET_KEY.search(key):continue
         if key in _OPERATION_ENUMS and key not in _ID_FIELDS:
             if isinstance(value,str) and value in _OPERATION_ENUMS[key]:result[key]=value
+        elif key.startswith('client_') and key[7:] in _ATTACHMENT_CLIENT_NUMBERS:
+            lower,upper=_ATTACHMENT_CLIENT_NUMBERS[key[7:]]
+            if type(value) is int and lower<=value<=upper:result[key]=value
         elif key=='provider_error_reason':
             if isinstance(value,str) and value in _PROVIDER_REASONS:result[key]=value
         elif key=='provider_http_status':
@@ -890,12 +893,41 @@ def replay_fixture(snapshot):
 _PHASE_EVENTS = frozenset(('model_dispatch_started', 'model_provider_rejected', 'model_provider_error',
     'model_plan_validated', 'model_plan_rejected', 'model_lookup_attempt', 'model_tool_completed',
     'model_consultation_rejected', 'model_response_validated', 'model_response_rejected'))
+# Client attachment failures are unverified browser claims, never stored files or turns.
+_ATTACHMENT_CLIENT_ENUMS = {'reason': ('image_path_unsupported', 'scope_attachment_restricted', 'unsupported_file_type', 'batch_limit', 'name_invalid', 'empty_file', 'file_too_large'), 'category': ('document', 'image', 'other', 'mixed'), 'extension': ('txt', 'md', 'csv', 'json', 'log', 'pdf', 'docx', 'pptx', 'html', 'htm', 'png', 'jpg', 'jpeg', 'webp', 'other', 'none'), 'mime': ('text/plain', 'text/markdown', 'text/csv', 'application/json', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/html', 'image/png', 'image/jpeg', 'image/webp', 'other', 'none'), 'selected_model': ('runtime', 'guide', 'gemini', 'openai', 'claude', 'bridge', 'ollama', 'other', 'none')}
+_ATTACHMENT_CLIENT_NUMBERS = {'size_bytes': (0, 9007199254740991), 'batch_index': (1, 10000), 'batch_count': (1, 10000)}
+
+
+def attachment_client_metadata(payload):
+    allowed = {'client_event_id', *_ATTACHMENT_CLIENT_ENUMS, *_ATTACHMENT_CLIENT_NUMBERS}
+    if not isinstance(payload, dict) or set(payload) != allowed:
+        raise ValueError('attachment_client_report_invalid')
+    event_id = payload['client_event_id']
+    if not isinstance(event_id, str) or not re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', event_id):
+        raise ValueError('attachment_client_report_invalid')
+    result = {'client_event_id': event_id, 'client_reported': True}
+    for key, allowed_values in _ATTACHMENT_CLIENT_ENUMS.items():
+        value = payload[key]
+        if not isinstance(value, str) or value not in allowed_values:
+            raise ValueError('attachment_client_report_invalid')
+        result['client_' + key] = value
+    for key, (lower, upper) in _ATTACHMENT_CLIENT_NUMBERS.items():
+        value = payload[key]
+        if type(value) is not int or not lower <= value <= upper:
+            raise ValueError('attachment_client_report_invalid')
+        result['client_' + key] = value
+    if payload['batch_index'] > payload['batch_count']:
+        raise ValueError('attachment_client_report_invalid')
+    return result
+
+
 _OPERATION_EVENTS = _PHASE_EVENTS | frozenset(('request_received', 'request_rejected', 'turn_started',
     'cached_return', 'turn_storage_completed', 'turn_storage_failed', 'turn_finished', 'prepare_completed',
     'stream_started', 'stream_phase', 'stream_first_delta', 'stream_terminal_yielded', 'stream_eof',
     'stream_error', 'stream_closed', 'client_recovery_report', 'recovery_report_rejected',
-    'session_read_failed', 'session_read_completed', 'capture_failed'))
+    'session_read_failed', 'session_read_completed', 'capture_failed', 'attachment_client_rejected'))
 _OPERATION_ENUMS = {
+    **{'client_'+key:frozenset(values) for key,values in _ATTACHMENT_CLIENT_ENUMS.items()},
     'provider_observed': frozenset(('codex_oauth','openai_api','gemini','mock')),
     'phase_status': _STATUSES,
     'model_phase': frozenset(('interpret','repair','tool','consultation','answer','complete')),
@@ -920,6 +952,17 @@ def operation_metadata(values):
     if not isinstance(values, dict) or values.get('event_type') not in _OPERATION_EVENTS:
         return None
     result = {'event_type': values['event_type']}
+    if values['event_type']=='attachment_client_rejected':
+        # Revalidate even direct sink callers; this event cannot carry session, turn, attempt or content.
+        try:
+            claim=attachment_client_metadata({'client_event_id':values.get('client_event_id'),
+                **{key:values.get('client_'+key) for key in (*_ATTACHMENT_CLIENT_ENUMS,*_ATTACHMENT_CLIENT_NUMBERS)}})
+        except ValueError:return None
+        result.update(claim)
+        for key,length in (('request_id',32),('visitor_ref',64),('deployment_revision',40),('code_fingerprint',64)):
+            value=values.get(key)
+            if isinstance(value,str) and re.fullmatch('[a-f0-9]{'+str(length)+'}',value):result[key]=value
+        return result
     for key in ('request_id','attempt_id','trace_id','session_id','turn_id',
                 'client_request_id','claimed_session_id','claimed_turn_id'):
         value = values.get(key)
@@ -978,7 +1021,7 @@ class OperationalDiagnostics:
         if safe is not None:
             safe.update(schema='rndplz.operation.v1', observed_at=_stamp(time.time()), provider=self.provider)
             if self.model is not None:safe['model_configured']=self.model
-            if self.model is not None and clean.get('provider_model_observed')==self.model:
+            if safe['event_type']!='attachment_client_rejected' and self.model is not None and clean.get('provider_model_observed')==self.model:
                 safe['provider_model_observed']=self.model
             try:
                 line=json.dumps(safe,ensure_ascii=True,separators=(',',':'))

@@ -177,7 +177,7 @@ function queueAttachmentLink(){
  files.push({id:"pending-"+crypto.randomUUID(),name:url,source_url:url});
  $("attachmentLinkDialog").close();$("attachmentUrl").value="";error();renderFiles();$("message").focus();
 }
-function abortAttachment(){if(attachmentTransfer){attachmentTransfer.cancelled=true;attachmentTransfer.controller?.abort();}}
+function abortAttachment(){cancelAttachmentClientReports();if(attachmentTransfer){attachmentTransfer.cancelled=true;attachmentTransfer.controller?.abort();}}
 function attachmentAbortError(){const error=new Error("첨부 처리를 중지했어요.");error.name="AbortError";return error;}
 function withAttachmentAbort(work,signal){
  if(signal.aborted)return Promise.reject(attachmentAbortError());
@@ -588,6 +588,7 @@ function recoveryTurn(saved){return Array.isArray(saved?.messages)?saved.message
 function recoveryCurrent(state,ticket=state?.epoch){return !!state&&recoveryState===state&&ticket===recoveryEpoch&&!accountNavigationPending&&!accountInvalidated&&session?.id===state.sessionId&&recoveryTurn(session)===state.turnId;}
 function clearRecoveryNotice(state){if(state?.notice&&$("composerError").textContent===state.notice)error();}
 function invalidateRecovery(clearNotice=false){
+ cancelAttachmentClientReports();
  const old=recoveryState;recoveryEpoch++;recoveryState=null;old?.controller?.abort();
  for(const c of recoveryReports)c.abort();recoveryReports.clear();
  if(clearNotice)clearRecoveryNotice(old);renderRecoveryControl();return old;
@@ -734,11 +735,72 @@ function dataUrl(file,signal){return new Promise((resolve,reject)=>{
  reader.onerror=()=>finish(reject,new Error("파일을 읽지 못했어요."));reader.onabort=()=>finish(reject,attachmentAbortError());
  signal?.addEventListener("abort",stop,{once:true});if(signal?.aborted){stop();return;}reader.readAsDataURL(file);
 });}
+// Pre-upload metadata is a client observation, never file content or model dispatch.
+const ATTACHMENT_REPORT_EXTENSIONS=new Set(["txt","md","csv","json","log","pdf","docx","pptx","html","htm","png","jpg","jpeg","webp"]);
+const ATTACHMENT_REPORT_MIMES=new Set(["text/plain","text/markdown","text/csv","application/json","application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.presentationml.presentation","text/html","image/png","image/jpeg","image/webp"]);
+const ATTACHMENT_REPORT_REASONS=new Set(["image_path_unsupported","scope_attachment_restricted","unsupported_file_type","batch_limit","name_invalid","empty_file","file_too_large"]);
+let attachmentReportEpoch=0;
+const attachmentClientReports=new Set();
+function cancelAttachmentClientReports(){attachmentReportEpoch++;for(const c of attachmentClientReports)c.abort();attachmentClientReports.clear();}
+function attachmentReportType(file){
+ const suffix=typeof file?.name==="string"?file.name.match(/\.([^.]+)$/)?.[1]?.toLowerCase():null;
+ const extension=!suffix?"none":ATTACHMENT_REPORT_EXTENSIONS.has(suffix)?suffix:"other";
+ const suppliedMime=typeof file?.type==="string"?file.type.trim().toLowerCase():"";
+ const mime=!suppliedMime?"none":ATTACHMENT_REPORT_MIMES.has(suppliedMime)?suppliedMime:"other";
+ const category=["png","jpg","jpeg","webp"].includes(extension)||suppliedMime.startsWith("image/")?"image":
+  (["txt","md","csv","json","log","pdf","docx","pptx","html","htm"].includes(extension)||["text/plain","text/markdown","text/csv","application/json","application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.presentationml.presentation","text/html"].includes(mime))?"document":"other";
+ return {extension,mime,category};
+}
+function attachmentReportModel(){
+ if(!selectedModel)return "none";
+ const chosen=catalog.find(m=>m.id===selectedModel);if(!chosen)return "other";
+ if(chosen.id==="runtime")return "runtime";
+ return ["guide","gemini","openai","claude","bridge","ollama"].includes(chosen.provider)?chosen.provider:"other";
+}
+function attachmentRejectionMessage(reason){
+ const detail={
+  image_path_unsupported:allowsScopedDocuments()?"이 대화에서는 이미지 첨부를 지원하지 않아요. 텍스트가 들어 있는 PDF·DOCX 등 지원 문서를 선택해 주세요.":"이 대화에서는 이미지와 문서를 첨부할 수 없어요. 문서는 새 대화에서 선택해 주세요.",
+  scope_attachment_restricted:"이 대화에는 문서를 추가할 수 없어요. 새 대화에서 문서를 선택해 주세요.",
+  unsupported_file_type:"지원하지 않는 파일 형식이에요. 문서는 TXT, MD, CSV, JSON, LOG, PDF, DOCX, PPTX, HTML, HTM을 지원해요."+(allowsScopedImages()?" 이미지는 PNG·JPEG·WebP를 지원해요.":"")
+ }[reason];
+ return "이번 선택은 추가하지 않았어요. "+detail+" 기존 첨부와 글은 유지돼요.";
+}
+function attachmentBatchDiagnostic(list){
+ if(files.length+list.length>4)return {index:0,reason:"batch_limit"};
+ for(let index=0;index<list.length;index++){
+  const file=list[index];let reason="";
+  if(!file.name||file.name.length>240)reason="name_invalid";
+  else if(!/\.(txt|md|csv|json|log|pdf|docx|pptx|html?|htm|png|jpe?g|webp)$/i.test(file.name))reason="unsupported_file_type";
+  else if(!Number.isSafeInteger(file.size)||file.size<=0)reason="empty_file";
+  else if(file.size>ATTACHMENT_MAX_BYTES)reason="file_too_large";
+  if(reason)return {index,reason};
+ }
+ return null;
+}
+function reportAttachmentRejection(list,index,reason){
+ try{
+ if(!token||accountNavigationPending||accountInvalidated||!ATTACHMENT_REPORT_REASONS.has(reason)||!Number.isInteger(index)||index<0||index>=list.length||list.length>10000)return;
+ const file=list[index],kind=attachmentReportType(file),categories=new Set(list.map(attachmentReportType).map(x=>x.category));
+ const data={client_event_id:crypto.randomUUID(),reason,category:categories.size>1?"mixed":kind.category,
+  extension:kind.extension,mime:kind.mime,size_bytes:Number.isSafeInteger(file?.size)&&file.size>=0?file.size:0,
+  batch_index:index+1,batch_count:list.length,selected_model:attachmentReportModel()};
+ const body=JSON.stringify(data);if(new TextEncoder().encode(body).length>2048)return;
+ const epoch=attachmentReportEpoch,selection=modelSelectionEpoch,currentSession=session,csrf=token;
+ const c=new AbortController();attachmentClientReports.add(c);const timer=setTimeout(()=>c.abort(),2000);
+ Promise.resolve().then(()=>{
+  if(c.signal.aborted||epoch!==attachmentReportEpoch||selection!==modelSelectionEpoch||session!==currentSession||token!==csrf||accountNavigationPending||accountInvalidated)return;
+  return fetch("/api/attachments/client-report",{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":csrf},body,signal:c.signal});
+ }).catch(()=>{}).finally(()=>{clearTimeout(timer);attachmentClientReports.delete(c);});
+ }catch{} // Best-effort diagnostics must never replace the original attachment error.
+}
+
 async function upload(list){
  try{
   if(composerSendLocked())return;
-  if(isPublicPaperContext()&&list.some(file=>!explicitScopedAttachment({file},selectedModel,session))){error(allowsScopedDocuments()?"지원하는 문서 형식과 이미지 지원 여부를 확인해 주세요.":"이전 대화의 첨부 범위는 유지됩니다. 문서는 새 대화에서 선택해 주세요.");return;}
-  const issue=attachmentBatchIssue(list);if(issue){error(issue);return;}
+  cancelAttachmentClientReports();
+  const rejectedIndex=isPublicPaperContext()?list.findIndex(file=>!explicitScopedAttachment({file},selectedModel,session)):-1;
+  if(rejectedIndex>=0){const reason=explicitImageAttachment({file:list[rejectedIndex]})?"image_path_unsupported":!allowsScopedDocuments()?"scope_attachment_restricted":"unsupported_file_type";error(attachmentRejectionMessage(reason));reportAttachmentRejection(list,rejectedIndex,reason);return;}
+  const issue=attachmentBatchIssue(list);if(issue){error(issue);const rejected=attachmentBatchDiagnostic(list);if(rejected)reportAttachmentRejection(list,rejected.index,rejected.reason);return;}
   error();files.push(...list.map(file=>({id:"pending-"+crypto.randomUUID(),name:file.name,file})));
  }finally{$("fileInput").value="";renderFiles();}
 }

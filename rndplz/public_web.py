@@ -31,7 +31,7 @@ from .llm_runtime import RuntimeLegacyModel
 from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError
 from .people_map import build_people_map
-from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, scope as diagnostic_scope
+from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
@@ -757,6 +757,24 @@ class PublicApp:
         self._diagnostic_observe({**probe,**meta,'event_type':'client_recovery_report'})
         return send(200,{'ok':True})
 
+    def _attachment_client_report(self, context, payload, send, request_id):
+        # The existing visitor/CSRF/Origin and global POST budget run before this method.
+        # Share the six-per-minute report allowance with recovery reports, including invalid attempts.
+        with self.lock:
+            now=time.monotonic()
+            reports=[t for t in context.get('recovery_reports',[]) if now-t<60]
+            if len(reports)>=6:
+                return send(429,{'error':'상태 확인 보고가 많습니다. 잠시 후 확인해 주세요.','code':'attachment_client_report_rate'})
+            context['recovery_reports']=[*reports,now]
+        try:metadata=attachment_client_metadata(payload)
+        except ValueError:
+            return send(400,{'error':'첨부 관측 형식을 확인해 주세요.','code':'attachment_client_report_invalid'})
+        self._diagnostic_observe({**metadata,'event_type':'attachment_client_rejected',
+            'request_id':request_id,'visitor_ref':context['visitor_ref'],
+            'code_fingerprint':self.diagnostic_runtime['code_fingerprint'],
+            'deployment_revision':self.diagnostic_runtime['deployment_revision']})
+        return send(200,{'ok':True})
+
     def _operator(self,environ,path,method,send):
         if not self.diagnostic_auth.enabled:return send(404,{'error':'경로를 찾을 수 없습니다.'})
         if not self.diagnostic_auth.authorized(environ.get('HTTP_X_RNDPLZ_DIAGNOSTIC','')):
@@ -803,6 +821,7 @@ class PublicApp:
         diagnostic_request=None;diagnostic_content=None;diagnostic_error='request_rejected';received=time.monotonic()
         diagnostic_model_called=False
         diagnostic_probe=None
+        attachment_report_request_id=None
         def send(status, value, mime='application/json; charset=utf-8'):
             if status>=400 and diagnostic_probe is not None:
                 self._diagnostic_observe({**diagnostic_probe,'http_status':status,'error_kind':diagnostic_error,
@@ -894,6 +913,9 @@ class PublicApp:
                     'deployment_revision':self.diagnostic_runtime['deployment_revision']}
                 if method=='GET':diagnostic_probe['claimed_session_id']=identifier
                 headers.append(('X-RNDPLZ-Request-Id',probe_id))
+            if method=='POST' and path=='/api/attachments/client-report':
+                attachment_report_request_id=uuid.uuid4().hex
+                headers.append(('X-RNDPLZ-Request-Id',attachment_report_request_id))
             if method=='POST' and path in ('/api/chat','/api/chat/prepare','/api/attachments'):
                 request_id=uuid.uuid4().hex
                 diagnostic_request={'visitor_ref':context['visitor_ref'],'request_id':request_id,'attempt_id':uuid.uuid4().hex,
@@ -952,8 +974,10 @@ class PublicApp:
             length = int(environ.get('CONTENT_LENGTH') or '0')
             if path == '/auth/google/enroll' and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
-            body_limit = 2048 if path == '/api/chat/recovery-report' else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
+            body_limit = 2048 if path in ('/api/chat/recovery-report','/api/attachments/client-report') else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
             if not 0 < length <= body_limit:
+                if path=='/api/attachments/client-report':
+                    return send(413,{'error':'첨부 관측 크기를 확인해 주세요.','code':'attachment_client_report_invalid'})
                 if path == '/api/attachments/https':
                     return send(413, {'error':'링크 주소의 크기를 확인해 주세요.', 'code':'https_request_too_large'})
                 if path == '/api/attachments':
@@ -961,8 +985,10 @@ class PublicApp:
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
             try:
-                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report') else json.loads(raw_payload)
+                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') else json.loads(raw_payload)
             except AuthError:
+                if path=='/api/attachments/client-report':
+                    return send(400,{'error':'첨부 관측 형식을 확인해 주세요.','code':'attachment_client_report_invalid'})
                 if path == '/api/chat/recovery-report':
                     return send(400,{'error':'회복 관측 형식을 확인해 주세요.','code':'recovery_report_invalid'})
                 raise
@@ -996,6 +1022,10 @@ class PublicApp:
                 if len(context['requests']) >= 20:
                     diagnostic_error='rate_limit';return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
                 context['requests'].append(now)
+            if path=='/api/attachments/client-report':
+                if environ.get('QUERY_STRING',''):
+                    return send(400,{'error':'첨부 관측에는 추가 주소 조건을 넣지 마세요.','code':'attachment_client_report_invalid'})
+                return self._attachment_client_report(context,payload,send,attachment_report_request_id)
             if path == '/api/chat/recovery-report':
                 if environ.get('QUERY_STRING',''):return send(400,{'error':'회복 관측에는 추가 주소 조건을 넣지 마세요.','code':'recovery_report_invalid'})
                 return self._recovery_report(context,chat,payload,send,diagnostic_probe)
