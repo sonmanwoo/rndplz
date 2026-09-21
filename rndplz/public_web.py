@@ -439,7 +439,8 @@ class PublicApp:
 
     def _account_context(self, environ):
         protected = (environ.get('REQUEST_METHOD') == 'POST' or
-                     environ.get('PATH_INFO', '').startswith('/api/self-profile'))
+                     environ.get('PATH_INFO', '').startswith('/api/self-profile') or
+                     environ.get('PATH_INFO', '') == '/api/account/mole')
         try:
             cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME)
         except AuthError:
@@ -701,6 +702,12 @@ class PublicApp:
             account_view = {'account': self._public_account(context['account'])} if context.get('account') else {}
             if method == 'GET':
                 if path == '/api/account/session': return send(200, self._account_status(context, environ))
+                if path == '/api/account/mole':
+                    if not context.get('account'):
+                        return send(401, {'error': '로그인 후 참여 포인트를 확인할 수 있습니다.', 'code': 'account_required'})
+                    if environ.get('QUERY_STRING', ''):
+                        return send(400, {'error': '참여 포인트 조회에는 추가 조건을 넣지 마세요.', 'code': 'mole_query_not_allowed'})
+                    return send(200, profile.store.mole_summary())
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'session_mode': session_mode, 'logout_supported': True, **account_view})

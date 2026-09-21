@@ -1,5 +1,6 @@
 """Private account/profile persistence candidate; no public corpus or chat migration."""
 from contextlib import contextmanager
+from datetime import datetime, timezone
 import hashlib
 import hmac
 import json
@@ -9,6 +10,23 @@ import secrets
 import sqlite3
 import time
 import uuid
+
+
+MOLE_RULE = 'profile_first_experience'
+MOLE_POLICY_VERSION = 'v1'
+MOLE_AMOUNT = 1
+MOLE_LIMIT = 20
+
+
+def mole_time(timestamp):
+    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
+
+
+def mole_entry(row):
+    return {'id': row['id'], 'delta': row['delta'], 'kind': row['kind'],
+            'activity': '첫 경험 프로필 등록' if row['kind'] == 'grant' else '적립 정정',
+            'occurred_at': row['created_at'], 'event_id': row['event_id'],
+            'reverses_id': row['reverses_id']}
 
 
 class AuthError(ValueError):
@@ -58,6 +76,26 @@ class AccountStorage:
                     invitation_hash TEXT NOT NULL REFERENCES invitations(token_hash));
                 CREATE TABLE IF NOT EXISTS profile_state(
                     account_id TEXT PRIMARY KEY REFERENCES accounts(id), payload TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS mole_ledger(
+                    id TEXT PRIMARY KEY,
+                    account_id TEXT NOT NULL REFERENCES accounts(id),
+                    rule_key TEXT NOT NULL, policy_version TEXT NOT NULL,
+                    delta INTEGER NOT NULL CHECK(typeof(delta)='integer'),
+                    kind TEXT NOT NULL CHECK(kind IN ('grant','reversal')),
+                    created_at TEXT NOT NULL, actor TEXT NOT NULL, reason TEXT NOT NULL,
+                    profile_id TEXT, profile_version INTEGER, career_id TEXT,
+                    request_id TEXT, event_id TEXT,
+                    reverses_id TEXT UNIQUE REFERENCES mole_ledger(id),
+                    CHECK((kind='grant' AND delta=1 AND reverses_id IS NULL) OR
+                          (kind='reversal' AND delta=-1 AND reverses_id IS NOT NULL)));
+                CREATE UNIQUE INDEX IF NOT EXISTS mole_once_per_account_rule
+                    ON mole_ledger(account_id,rule_key) WHERE kind='grant';
+                CREATE INDEX IF NOT EXISTS mole_account_history
+                    ON mole_ledger(account_id,created_at DESC,id DESC);
+                CREATE TRIGGER IF NOT EXISTS mole_no_update BEFORE UPDATE ON mole_ledger
+                    BEGIN SELECT RAISE(ABORT,'mole_ledger_append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS mole_no_delete BEFORE DELETE ON mole_ledger
+                    BEGIN SELECT RAISE(ABORT,'mole_ledger_append_only'); END;
             ''')
 
     @contextmanager
@@ -261,6 +299,29 @@ class AccountStorage:
     def profile_store(self, account_id, session_cookie=None):
         return AccountStateStore(self, account_id, session_cookie=session_cookie)
 
+    def reverse_mole_entry(self, grant_id, reason='incorrect_award'):
+        """Trusted local operator only; never expose this method over HTTP."""
+        if not isinstance(grant_id, str) or not re.fullmatch('[a-f0-9]{32}', grant_id):
+            raise AuthError('mole_entry_id_invalid', 400)
+        if reason != 'incorrect_award':
+            raise AuthError('mole_reversal_reason_invalid', 400)
+        with self.transaction() as db:
+            grant = db.execute('SELECT * FROM mole_ledger WHERE id=? AND kind=?',
+                               (grant_id, 'grant')).fetchone()
+            if grant is None:
+                raise AuthError('mole_grant_not_found', 404)
+            existing = db.execute('SELECT * FROM mole_ledger WHERE reverses_id=?', (grant_id,)).fetchone()
+            if existing is not None:
+                return {'status': 'already_reversed', 'entry': mole_entry(existing)}
+            identifier = uuid.uuid4().hex
+            db.execute('''INSERT INTO mole_ledger
+                (id,account_id,rule_key,policy_version,delta,kind,created_at,actor,reason,reverses_id)
+                VALUES(?,?,?,?,?,?,?,?,?,?)''',
+                (identifier, grant['account_id'], grant['rule_key'], grant['policy_version'],
+                 -grant['delta'], 'reversal', mole_time(self.clock()), 'local_operator', reason, grant_id))
+            row = db.execute('SELECT * FROM mole_ledger WHERE id=?', (identifier,)).fetchone()
+            return {'status': 'reversed', 'entry': mole_entry(row)}
+
 
 class AccountStateStore:
     """Profiles-compatible JSON adapter. All writes remain inside one account row.
@@ -302,10 +363,88 @@ class AccountStateStore:
             self._guard(db)
             return self._read(db)
 
+    def mole_summary(self):
+        # A trusted offline/import store is not an authenticated balance viewer.
+        if self.session_cookie is None:
+            raise AuthError('mole_account_session_required', 401)
+        with self.storage.connection() as db:
+            db.execute('BEGIN')
+            try:
+                self._guard(db)
+                balance = db.execute('SELECT COALESCE(SUM(delta),0) FROM mole_ledger WHERE account_id=?',
+                                     (self.account_id,)).fetchone()[0]
+                if type(balance) is not int or not 0 <= balance <= 9007199254740991:
+                    raise AuthError('mole_ledger_invalid', 503)
+                rows = db.execute('SELECT * FROM mole_ledger WHERE account_id=? '
+                                  'ORDER BY created_at DESC,id DESC LIMIT ?',
+                                  (self.account_id, MOLE_LIMIT + 1)).fetchall()
+                result = {'account_id': self.account_id, 'unit': 'mole', 'balance': balance,
+                          'as_of': mole_time(self.storage.clock()),
+                          'entries': [mole_entry(row) for row in rows[:MOLE_LIMIT]],
+                          'has_more': len(rows) > MOLE_LIMIT, 'limit': MOLE_LIMIT,
+                          'policy': {'first_experience_amount': MOLE_AMOUNT,
+                                     'once_per_account': True, 'non_cash': True}}
+                db.execute('COMMIT')
+                return result
+            except BaseException:
+                db.execute('ROLLBACK')
+                raise
+
+    def _award_first_experience(self, db, before, state, result):
+        # The callback is the existing server-side Profiles.save. No client award
+        # fields enter this adapter, and imports without a session never qualify.
+        if self.session_cookie is None or not isinstance(result, dict):
+            return
+        operation = result.get('operation', {})
+        if not isinstance(operation, dict) or operation.get('action') != 'save' or operation.get('replayed') is not False:
+            return
+        after = state.get('self_profile', {})
+        profile = after.get('profile', {})
+        prior_profile = before.get('profile', {})
+        version = profile.get('version')
+        request_id = operation.get('request_id')
+        event_ids = operation.get('event_ids')
+        if (type(version) is not int or version != prior_profile.get('version', 0) + 1 or
+                operation.get('version') != version or not isinstance(request_id, str) or
+                request_id in before.get('requests', {}) or not isinstance(event_ids, list) or not event_ids):
+            return
+        request = after.get('requests', {}).get(request_id, {})
+        if request.get('action') != 'save' or request.get('version') != version or request.get('event_ids') != event_ids:
+            return
+        previous_ids = {event.get('id') for event in before.get('history', [])}
+        careers = {row['id']: row for row in profile.get('careers', [])}
+        for event in after.get('history', []):
+            if (event.get('id') not in event_ids or event.get('id') in previous_ids or
+                    event.get('version') != version or event.get('actor') != self.account_id or
+                    event.get('action') not in ('edit', 'adopt')):
+                continue
+            field = event.get('field', '')
+            if not isinstance(field, str) or not field.startswith('career:'):
+                continue
+            career_id = field[7:]
+            career = careers.get(career_id)
+            provenance = profile.get('provenance', {}).get(field, {})
+            if (not isinstance(career, dict) or event.get('after') != career or event.get('before') == career or
+                    any(not isinstance(career.get(key), str) or not career[key].strip() for key in ('role', 'description')) or
+                    provenance.get('reviewer') != self.account_id or
+                    provenance.get('review') not in ('accepted', 'edited_accepted')):
+                continue
+            db.execute('''INSERT INTO mole_ledger
+                (id,account_id,rule_key,policy_version,delta,kind,created_at,actor,reason,
+                 profile_id,profile_version,career_id,request_id,event_id)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(account_id,rule_key) WHERE kind='grant' DO NOTHING''',
+                (uuid.uuid4().hex, self.account_id, MOLE_RULE, MOLE_POLICY_VERSION, MOLE_AMOUNT,
+                 'grant', mole_time(self.storage.clock()), self.account_id, 'first_experience',
+                 profile.get('id'), version, career_id, request_id, event['id']))
+            return
+
     def transaction(self, fn):
         with self.storage.transaction() as db:
             self._guard(db)
             state = self._read(db)
+            # Preserve the pre-write evidence before the callback mutates it.
+            before = json.loads(json.dumps(state.get('self_profile', {})))
             result = fn(state)
             if set(state) - {'version', 'sessions', 'proposals', 'idempotency', 'self_profile'} or state.get('version') != 1 or state.get('sessions') != [] or state.get('proposals') != [] or state.get('idempotency') != {}:
                 raise AuthError('profile_only_storage_boundary', 400)
@@ -315,5 +454,6 @@ class AccountStateStore:
                     raise AuthError('profile_state_too_large', 413)
                 db.execute('INSERT INTO profile_state VALUES(?,?) ON CONFLICT(account_id) DO UPDATE SET payload=excluded.payload',
                            (self.account_id, raw))
+            self._award_first_experience(db, before, state, result)
             # Logout and writes serialize through BEGIN IMMEDIATE on the same DB.
             return result

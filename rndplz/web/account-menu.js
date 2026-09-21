@@ -15,6 +15,84 @@
   const show=(node,visible)=>{if(node){node.hidden=!visible;node.style.display=visible?'':'none';}};
   const close=(focus=false)=>{menu.hidden=true;toggle.setAttribute('aria-expanded','false');if(focus)toggle.focus();};
   const fire=(type,detail)=>window.dispatchEvent(new CustomEvent(type,{detail}));
+  // Read-only account credit view. Never derive a balance from the recent rows.
+  let moleAccount=null,moleEpoch=0,moleController=null,moleBusy=false,moleLoadAfterSession=false;
+  const moleNode=(tag,id,className,text)=>{
+    const node=document.createElement(tag);if(id)node.id=id;if(className)node.className=className;
+    if(text)node.textContent=text;return node;
+  };
+  const moleEntry=moleNode('button','moleEntry','mole-entry');moleEntry.type='button';
+  moleEntry.setAttribute('aria-haspopup','dialog');moleEntry.setAttribute('aria-controls','moleDialog');
+  const moleEntryValue=moleNode('span','moleEntryValue','','확인 중');
+  moleEntry.append(moleNode('span','','','mole'),moleEntryValue);
+  const moleUnavailable=moleNode('p','moleUnavailable','account-note','계정 확인 중');
+  show(moleEntry,false);menu.insertBefore(moleEntry,identity?.nextSibling||menu.firstChild);moleEntry.after(moleUnavailable);
+  const moleDialog=moleNode('dialog','moleDialog','mole-dialog');
+  moleDialog.setAttribute('aria-labelledby','moleTitle');moleDialog.setAttribute('aria-describedby','moleMeaning');
+  const moleHeading=moleNode('header','','mole-heading'),moleTitle=moleNode('h2','moleTitle','','내 mole');
+  const moleClose=moleNode('button','moleClose','mole-close','×');moleClose.type='button';moleClose.autofocus=true;moleClose.setAttribute('aria-label','mole 내역 닫기');
+  moleHeading.append(moleTitle,moleClose);
+  const moleBalance=moleNode('p','moleBalance','mole-balance','확인 중');moleBalance.setAttribute('aria-live','polite');
+  const moleMeaning=moleNode('p','moleMeaning','mole-note','참여 포인트 · 현금 가치 없음');
+  const molePolicy=moleNode('p','','mole-note mole-policy','경험 내용과 내 역할을 처음 등록하면 1 mole · 계정당 1회');
+  const moleHistory=moleNode('div','','mole-history-heading'),moleRefresh=moleNode('button','moleRefresh','mole-refresh','다시 확인');moleRefresh.type='button';
+  moleHistory.append(moleNode('h3','','','적립 내역'),moleRefresh);
+  const moleStatus=moleNode('p','moleStatus','mole-status');moleStatus.setAttribute('role','status');
+  const moleExtent=moleNode('p','moleExtent','mole-note'),moleEntries=moleNode('ol','moleEntries','mole-entries');
+  moleDialog.append(moleHeading,moleBalance,moleMeaning,molePolicy,moleHistory,moleStatus,moleExtent,moleEntries);document.body.append(moleDialog);
+  function clearMole(label){
+    moleEpoch++;moleController?.abort();moleController=null;moleBusy=false;
+    moleEntryValue.textContent=label;moleBalance.textContent=label;moleEntries.replaceChildren();moleExtent.textContent='';moleStatus.textContent='';
+    moleRefresh.removeAttribute('aria-busy');moleRefresh.removeAttribute('aria-disabled');
+  }
+  function closeMole(){if(moleDialog.open)moleDialog.close();}
+  function setMoleAccount(id,message=''){
+    const focusedEntry=document.activeElement===moleEntry;
+    if(id!==moleAccount){clearMole(id?'확인 전':'확인할 수 없음');moleAccount=id;closeMole();}
+    show(moleEntry,!!id);show(moleUnavailable,!id);moleUnavailable.textContent=id?'':message;
+    if(!id&&focusedEntry&&!ending&&!invalidated)toggle.focus({preventScroll:true});
+  }
+  function validMole(value,id){
+    const utc=value=>typeof value==='string'&&value.endsWith('Z')&&Number.isFinite(Date.parse(value));
+    if(!value||value.account_id!==id||value.unit!=='mole'||!Number.isSafeInteger(value.balance)||value.balance<0||!utc(value.as_of)||value.limit!==20||typeof value.has_more!=='boolean'||!Array.isArray(value.entries)||value.entries.length>20)return false;
+    if(value.policy?.first_experience_amount!==1||value.policy?.once_per_account!==true||value.policy?.non_cash!==true)return false;
+    const ids=new Set();return value.entries.every(row=>{
+      if(!row||typeof row.id!=='string'||!row.id||ids.has(row.id)||!['grant','reversal'].includes(row.kind)||row.delta!==(row.kind==='grant'?1:-1)||typeof row.activity!=='string'||!row.activity.trim()||!utc(row.occurred_at))return false;
+      ids.add(row.id);return true;
+    });
+  }
+  async function loadMole(){
+    if(!moleAccount||ending||invalidated||moleBusy)return;
+    clearMole('확인 중');moleBusy=true;moleRefresh.setAttribute('aria-busy','true');moleRefresh.setAttribute('aria-disabled','true');
+    moleStatus.textContent='잔액과 내역을 불러오고 있어요.';
+    const id=moleAccount,epoch=moleEpoch,controller=new AbortController();moleController=controller;
+    const current=()=>epoch===moleEpoch&&id===moleAccount&&principal==='account:'+id&&!ending&&!invalidated;
+    try{
+      const response=await fetch('/api/account/mole',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
+      if(!current())return;
+      if(response.status===401){setMoleAccount(null,'로그인 상태를 다시 확인하고 있어요.');await refreshSession();return;}
+      if(!response.ok)throw new Error('read');
+      const value=await response.json();if(!current())return;
+      if(value?.account_id!==id){setMoleAccount(null,'계정 상태를 다시 확인하고 있어요.');await refreshSession();return;}
+      if(!validMole(value,id))throw new Error('schema');
+      const amount=value.balance.toLocaleString('ko-KR')+' mole';moleEntryValue.textContent=amount;moleBalance.textContent=amount;
+      moleStatus.textContent=value.entries.length?'':'아직 적립 내역이 없습니다.';
+      moleExtent.textContent=(value.has_more?'최근 '+value.entries.length+'건 · ':'')+new Date(value.as_of).toLocaleString('ko-KR')+' 기준';
+      for(const row of value.entries){
+        const item=moleNode('li'),label=moleNode('span','','mole-activity',row.activity),time=moleNode('time','','mole-time',new Date(row.occurred_at).toLocaleString('ko-KR'));
+        time.dateTime=row.occurred_at;
+        const delta=moleNode('span','','mole-delta'+(row.delta<0?' mole-negative':''),(row.delta>0?'+':'−')+Math.abs(row.delta)+' mole');
+        item.append(label,time,delta);moleEntries.append(item);
+      }
+    }catch(exc){if(!current()||exc.name==='AbortError')return;moleEntryValue.textContent='조회 불가';moleBalance.textContent='조회 불가';moleStatus.textContent='잔액과 내역을 확인하지 못했어요. 잠시 후 다시 확인해 주세요.';}
+    finally{if(current()){moleBusy=false;moleController=null;moleRefresh.removeAttribute('aria-busy');moleRefresh.removeAttribute('aria-disabled');}}
+  }
+  moleEntry.addEventListener('click',()=>{if(!moleAccount||ending||invalidated)return;close();moleDialog.showModal();loadMole();});
+  moleClose.addEventListener('click',closeMole);
+  moleDialog.addEventListener('close',()=>{if(!ending&&!invalidated&&toggle.isConnected)toggle.focus({preventScroll:true});});
+  moleRefresh.addEventListener('click',loadMole);
+  window.addEventListener('rndplz:account-navigation',event=>{if(['begin','invalidate'].includes(event.detail?.phase)){clearMole('확인 전');closeMole();}});
+
   function permitNavigation(action){
     const detail={action,dirty:false,message:'',checkedScopes:[]};
     const event=new CustomEvent('rndplz:before-account-navigation',{cancelable:true,detail});
@@ -75,6 +153,8 @@
     const next=value.authenticated?'account:'+account.id:'visitor:'+value.token;
     if(principal!==null&&next!==principal){replaceAccountContext();return;}
     principal=next;token=value.token;supported=true;logout.disabled=ending;
+    setMoleAccount(value.authenticated?account.id:null,value.enabled?'로그인 후 확인할 수 있어요.':'팀원 로그인 준비 중');
+    if(moleLoadAfterSession){moleLoadAfterSession=false;if(value.authenticated&&!menu.hidden)loadMole();}
     if(announceLogin){announceLogin=false;if(value.authenticated)broadcast();}
     show(identity,value.authenticated);show(login,false);show(unavailable,false);
     if(value.authenticated){
@@ -92,6 +172,7 @@
     const value=await response.json();if(epoch!==requestEpoch||invalidated)return;
     const nextToken=typeof value.token==='string'?value.token:'';
     if(principal!==null&&principal!=='visitor:'+nextToken){replaceAccountContext();return;}
+    setMoleAccount(null,'로그인 연결을 확인한 뒤 이용할 수 있어요.');
     token=nextToken;principal='visitor:'+token;supported=value.logout_supported===true&&!!token;logout.disabled=ending||!supported;
     show(identity,false);show(login,false);show(unavailable,false);
     note.textContent=supported?'임시 방문자 세션입니다. 로그아웃하면 이 화면에서 저장 기록에 다시 접근할 수 없어요.':'로컬 단일 사용자 모드 · 별도 로그인 세션이 없습니다.';
@@ -113,10 +194,10 @@
         logoutUncertain=false;show(verifySession,false);cancelNavigation();
         error.textContent='같은 세션이 유지되고 있습니다. 작성 중인 내용을 계속할 수 있어요.';
       }
-    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
+    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);moleLoadAfterSession=false;setMoleAccount(null,'계정 상태를 확인하지 못했어요. 메뉴를 다시 열면 다시 확인합니다.');note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
     finally{if(epoch===requestEpoch){checking=false;if(verifySession)verifySession.disabled=false;}}
   }
-  toggle.addEventListener('click',()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)Array.from(menu.querySelectorAll('button:not(:disabled),a')).find(node=>!node.hidden&&node.style.display!=='none')?.focus();});
+  toggle.addEventListener('click',()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){if(moleAccount)loadMole();else{moleLoadAfterSession=true;refreshSession();}Array.from(menu.querySelectorAll('button:not(:disabled),a')).find(node=>!node.hidden&&node.style.display!=='none')?.focus();}});
   document.addEventListener('click',event=>{if(!event.target.closest('.account-control'))close();else if(event.target.closest('#accountMenu a,#accountMenu button:not(#logoutButton)')&&!event.defaultPrevented)close();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden){event.preventDefault();close(true);}});
   login?.addEventListener('click',event=>{event.preventDefault();if(login.hidden||ending||invalidated||!permitNavigation('login'))return;beginNavigation('login');location.assign('/auth/google/start');});

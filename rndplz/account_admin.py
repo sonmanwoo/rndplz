@@ -12,6 +12,9 @@ def main(argv=None):
     issue.add_argument('--ttl', type=int, default=600, help='Invitation lifetime in seconds (60..3600)')
     for name in ('invitation-status', 'revoke-invitation', 'revoke-account'):
         commands.add_parser(name).add_argument('--id', required=True)
+    reverse = commands.add_parser('reverse-mole')
+    reverse.add_argument('--id', required=True, help='Original grant UUID')
+    reverse.add_argument('--reason', required=True, choices=('incorrect_award',))
     args = parser.parse_args(argv)
     service = AuthService.from_env(os.environ)
     try:
@@ -26,6 +29,8 @@ def main(argv=None):
         elif args.command == 'revoke-invitation':
             service.storage.revoke_invitation(args.id)
             result = {'status': 'revoked', 'invitation_id': args.id}
+        elif args.command == 'reverse-mole':
+            result = service.storage.reverse_mole_entry(args.id, reason=args.reason)
         else:
             service.storage.revoke_account(args.id)
             result = {'status': 'revoked', 'account_id': args.id}
