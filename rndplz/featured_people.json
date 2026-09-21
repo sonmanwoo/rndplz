@@ -9727,6 +9727,417 @@
         "impact": "UNCONFIRMED",
         "retry": 0
       }
+    },
+    {
+      "id": "PC04-PAPER-SPIKES-2015",
+      "kind": "paper",
+      "title": "On the Commonality Between Theoretical Models for Fluid and Solid Friction, Wear and Tribochemistry",
+      "summary": "마찰을 다루는 Prandtl·Eyring 두 모형의 가정 차이를 비교한다. 전자는 유연한 스프링을 통한 힘, 후자는 일정한 힘에서의 미끄럼을 가정하는 차이를 설명한다.",
+      "date": "2015-06-04",
+      "authors": [
+        {
+          "name": "Hugh Spikes",
+          "person_id": "PUB-SPIKES",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Wilfred Tysoe",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [],
+      "field": "tribology",
+      "scope": "public_research_case",
+      "url": "https://link.springer.com/article/10.1007/s11249-015-0544-z",
+      "doi": "10.1007/s11249-015-0544-z",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공된 출판사 유형 표기는 보존하되 선택 구절만으로 연구 수행 유형을 추가 확정하지 않습니다."
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Authors visibly returned; no contribution inference",
+      "publication_type": "Original Paper",
+      "metadata_sources": [
+        {
+          "url": "https://link.springer.com/article/10.1007/s11249-015-0544-z",
+          "checked_at": "2026-09-21",
+          "checked_at_basis": "Date of provided source transfer; no new source fetch.",
+          "scope": "Direct returned publisher HTML: title, author names and Abstract lines 43–49; selected technical statements. Indexed publication-time affiliation read separately. Full paper not reviewed.",
+          "metadata_access": {
+            "access_level": "PROVIDED_DIRECT_SELECTED_PASSAGE",
+            "actually_read_scope_as_reported": "Direct returned publisher HTML: title, author names and Abstract lines 43–49; selected technical statements. Indexed publication-time affiliation read separately. Full paper not reviewed.",
+            "source_access_as_reported": {
+              "direct": "SELECTED_PASSAGE_READ",
+              "error": null,
+              "retries": 0,
+              "alternative_routes": 0,
+              "opens": 1
+            },
+            "full_paper_reviewed": false,
+            "new_fetch_in_this_unit": false,
+            "independent_original_verification": false
+          },
+          "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGE",
+          "evidence_anchors": [
+            {
+              "id": "PC04-SPIKES-2015-Q1",
+              "quote": "Prandtl model assumes that the force is exerted through a compliant spring",
+              "word_count": 12,
+              "source_url": "https://link.springer.com/article/10.1007/s11249-015-0544-z",
+              "locator": "HTML Abstract line 47, Prandtl assumption clause",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "db8a15a21576519f42bf32cb2e5e85e87b73c88556f0ea332a37118477db65f3"
+            },
+            {
+              "id": "PC04-SPIKES-2015-Q2",
+              "quote": "constant force sliding is assumed by Eyring",
+              "word_count": 7,
+              "source_url": "https://link.springer.com/article/10.1007/s11249-015-0544-z",
+              "locator": "HTML Abstract line 47, Eyring assumption clause",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "5a2f78d8041dff69cb6da9b75a1c80ca2310cdfd5d62407281088b554ed310a4"
+            },
+            {
+              "id": "PC04-SPIKES-2015-Q3",
+              "quote": "different assumptions and constraints",
+              "word_count": 4,
+              "source_url": "https://link.springer.com/article/10.1007/s11249-015-0544-z",
+              "locator": "HTML Abstract line 47, comparison clause",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "bf657bc50de126db17eb2219ee4e1d564af88c18fb90d58c8f6d279228930828"
+            }
+          ],
+          "summary_claims": [
+            {
+              "claim": "Prandtl·Eyring 모형의 서로 다른 가정 비교",
+              "supports": [
+                "title",
+                "PC04-SPIKES-2015-Q3"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            },
+            {
+              "claim": "Prandtl의 유연한 스프링을 통한 힘 가정",
+              "supports": [
+                "PC04-SPIKES-2015-Q1"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            },
+            {
+              "claim": "Eyring의 일정 힘에서 미끄럼 가정",
+              "supports": [
+                "PC04-SPIKES-2015-Q2"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            }
+          ],
+          "limitations": [
+            "열적 활성화 이론 전체나 실제 윤활재 성능을 검증한 요약이 아니다.",
+            "논문의 두 모형 가정 비교만 요약하며 개인별 연구 수행·현재 직함·자문 가능성을 추정하지 않는다."
+          ],
+          "correction_review": {
+            "status": "NOT_EXHAUSTIVELY_CHECKED",
+            "correction_content": null,
+            "impact": "UNCONFIRMED",
+            "note": "Selected returned passages did not establish a correction impact. Absence of correction is not asserted; no separate correction search/open performed."
+          },
+          "query_topic_drift": {
+            "observed": false,
+            "note": "No positive claim of full topical coverage; selected source scope only"
+          },
+          "existing_availability_snapshot": "unverified",
+          "existing_real_contact_enabled_snapshot": false,
+          "existing_availability_snapshot_as_of": "Selection-input roster snapshot, not reverified live",
+          "advisory_availability": "KEEP_EXISTING_RECORD_NO_NEW_CLAIM",
+          "canonical_link": {
+            "person_id": "PUB-SPIKES",
+            "canonical_name": "Hugh Spikes",
+            "observed_author_name": "Hugh Spikes",
+            "name_match_rule": "NFKC + casefold + retain alphanumeric; punctuation/spacing only for these exact supplied names; no fuzzy or initials-only matching."
+          },
+          "provided_transfer": {
+            "path": "D:\\0_Agent AI\\24_RnDplz\\reviews\\strategy\\prospective-corpus-20260921\\batch-04\\transfer\\papers-prospective.json",
+            "sha256": "e09f9060e3cab3a8b9010732a7b7acb0ea74199b88efb64036a94b72f0d3a5a6",
+            "record_locator": "records[candidate_key=PC04-SPIKES-2015]"
+          }
+        }
+      ],
+      "source_access_note": "Direct returned publisher HTML: title, author names and Abstract lines 43–49; selected technical statements. Indexed publication-time affiliation read separately. Full paper not reviewed. 제공 전달본만 읽었으며 신규 원출처 확인·전문 검토는 하지 않았습니다.",
+      "boundary_note": "열적 활성화 이론 전체나 실제 윤활재 성능을 검증한 요약이 아니다. 논문의 두 모형 가정 비교만 요약하며 개인별 연구 수행·현재 직함·자문 가능성을 추정하지 않는다. 전달된 출판사 초록 선택 구절에 근거한 요약 제안입니다. 이 단위에서 원사이트를 새로 열거나 전문·독립 재현을 검증하지 않았습니다. 저자 연결은 개인별 수행·현재 소속·자문 가용성 확인을 뜻하지 않습니다. 기존 인물 프로필과 가용성·연락 차단 표시는 변경하지 않습니다. 정정 여부를 전수 조사하지 않았으며 영향은 미확인입니다.",
+      "contribution_note": "전달된 출판사 초록 선택 구절에 근거한 요약 제안입니다. 이 단위에서 원사이트를 새로 열거나 전문·독립 재현을 검증하지 않았습니다. 저자 연결은 개인별 수행·현재 소속·자문 가용성 확인을 뜻하지 않습니다. 기존 인물 프로필과 가용성·연락 차단 표시는 변경하지 않습니다. 정정 여부를 전수 조사하지 않았으며 영향은 미확인입니다. 기존 canonical 인물 한 명만 연결하고 모든 공동저자 person_id는 null로 둡니다.",
+      "candidate_key": "PC04-SPIKES-2015",
+      "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGE",
+      "metadata_access": {
+        "access_level": "PROVIDED_DIRECT_SELECTED_PASSAGE",
+        "actually_read_scope_as_reported": "Direct returned publisher HTML: title, author names and Abstract lines 43–49; selected technical statements. Indexed publication-time affiliation read separately. Full paper not reviewed.",
+        "source_access_as_reported": {
+          "direct": "SELECTED_PASSAGE_READ",
+          "error": null,
+          "retries": 0,
+          "alternative_routes": 0,
+          "opens": 1
+        },
+        "full_paper_reviewed": false,
+        "new_fetch_in_this_unit": false,
+        "independent_original_verification": false
+      },
+      "limitations": [
+        "열적 활성화 이론 전체나 실제 윤활재 성능을 검증한 요약이 아니다.",
+        "논문의 두 모형 가정 비교만 요약하며 개인별 연구 수행·현재 직함·자문 가능성을 추정하지 않는다."
+      ],
+      "correction_review": {
+        "status": "NOT_EXHAUSTIVELY_CHECKED",
+        "correction_content": null,
+        "impact": "UNCONFIRMED",
+        "note": "Selected returned passages did not establish a correction impact. Absence of correction is not asserted; no separate correction search/open performed."
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "KEEP_EXISTING_RECORD_NO_NEW_CLAIM",
+      "product_application": "NOT_APPLIED_PROPOSAL_ONLY"
+    },
+    {
+      "id": "PC04-PAPER-WILSON-2015",
+      "kind": "paper",
+      "title": "A portable extensional rheometer for measuring the viscoelasticity of pitcher plant and other sticky liquids in the field",
+      "summary": "현장에서 생물학적 유체를 조사하기 위한 휴대형 저비용 신장 유변계를 제시하고 개념 검증을 보고한다.",
+      "date": "2015-03-07",
+      "authors": [
+        {
+          "name": "Catherine Collett",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Alia Ardron",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Ulrike Bauer",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Gary Chapman",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Elodie Chaudan",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Bart Hallmark",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Lee Pratt",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "Maria Dolores Torres-Perez",
+          "person_id": null,
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        },
+        {
+          "name": "D Ian Wilson",
+          "person_id": "PUB-WILSON-DI",
+          "role": "unknown",
+          "corresponding": false,
+          "corresponding_status": "not_newly_verified",
+          "individual_performance_verified": false
+        }
+      ],
+      "tags": [],
+      "field": "rheology",
+      "scope": "public_research_case",
+      "url": "https://link.springer.com/article/10.1186/s13007-015-0059-5",
+      "doi": "10.1186/s13007-015-0059-5",
+      "checked_at": "2026-09-21",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공된 출판사 유형 표기는 보존하되 선택 구절만으로 연구 수행 유형을 추가 확정하지 않습니다."
+      ],
+      "text_kind": "editorial_summary",
+      "author_coverage": "Authors visibly returned; no contribution inference",
+      "publication_type": "Methodology",
+      "metadata_sources": [
+        {
+          "url": "https://link.springer.com/article/10.1186/s13007-015-0059-5",
+          "checked_at": "2026-09-21",
+          "checked_at_basis": "Date of provided source transfer; no new source fetch.",
+          "scope": "Direct returned publisher HTML: title, author names and Abstract lines 51–61. Selected Background and Conclusion statements only summarized. Indexed author affiliation read separately. Full paper not reviewed.",
+          "metadata_access": {
+            "access_level": "PROVIDED_DIRECT_SELECTED_PASSAGE",
+            "actually_read_scope_as_reported": "Direct returned publisher HTML: title, author names and Abstract lines 51–61. Selected Background and Conclusion statements only summarized. Indexed author affiliation read separately. Full paper not reviewed.",
+            "source_access_as_reported": {
+              "direct": "SELECTED_PASSAGE_READ",
+              "error": null,
+              "retries": 0,
+              "alternative_routes": 0,
+              "opens": 1
+            },
+            "full_paper_reviewed": false,
+            "new_fetch_in_this_unit": false,
+            "independent_original_verification": false
+          },
+          "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGE",
+          "evidence_anchors": [
+            {
+              "id": "PC04-WILSON-2015-Q1",
+              "quote": "portable, low-cost extensional rheometer",
+              "word_count": 4,
+              "source_url": "https://link.springer.com/article/10.1186/s13007-015-0059-5",
+              "locator": "HTML Abstract line 54, device description fragment",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "1740c868c3a335a108b6f977877d86b143b5d73a41ad32d4c7373c202c29d579"
+            },
+            {
+              "id": "PC04-WILSON-2015-Q2",
+              "quote": "in situ studies of biological fluids in the field",
+              "word_count": 9,
+              "source_url": "https://link.springer.com/article/10.1186/s13007-015-0059-5",
+              "locator": "HTML Abstract line 54, intended field use fragment",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "d9c4b11c9e1d1872122025df3196e29cded5151e4c71e16bf1462d11ea2a2df4"
+            },
+            {
+              "id": "PC04-WILSON-2015-Q3",
+              "quote": "Proof of concept of the portable rheometer was demonstrated.",
+              "word_count": 9,
+              "source_url": "https://link.springer.com/article/10.1186/s13007-015-0059-5",
+              "locator": "HTML Abstract Conclusion line 61, first sentence",
+              "reading_mode": "DIRECT_SELECTED_PASSAGE",
+              "quote_utf8_sha256": "92167f3fda807d1cbdbb22a904856921251cad79b6023f76085ae18491395918"
+            }
+          ],
+          "summary_claims": [
+            {
+              "claim": "휴대형·저비용 신장 유변계",
+              "supports": [
+                "PC04-WILSON-2015-Q1"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            },
+            {
+              "claim": "현장의 생물학적 유체 조사",
+              "supports": [
+                "PC04-WILSON-2015-Q2"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            },
+            {
+              "claim": "개념 검증을 보고",
+              "supports": [
+                "PC04-WILSON-2015-Q3"
+              ],
+              "level": "SELECTED_AUTHOR_REPORTED_SCOPE_NOT_INDEPENDENT_REPLICATION"
+            }
+          ],
+          "limitations": [
+            "검색 주제는 열교환기 오염이었지만 선정된 논문은 식물 등 생물학적 유체 측정이다. 열교환기 오염 실적·해결 근거로 쓰지 않는다.",
+            "개념 검증 보고이며 모든 유체/현장조건의 성능 보증이나 독립 재현 결과가 아니다.",
+            "기존 인물의 consultancy 불가 표시를 유지하며 이 논문으로 현재 가용성을 갱신하지 않는다."
+          ],
+          "correction_review": {
+            "status": "NOT_EXHAUSTIVELY_CHECKED",
+            "correction_content": null,
+            "impact": "UNCONFIRMED",
+            "note": "Selected returned passages did not establish a correction impact. Absence of correction is not asserted; no separate correction search/open performed."
+          },
+          "query_topic_drift": {
+            "observed": true,
+            "query_topic": "heat exchanger fouling",
+            "selected_topic": "portable extensional rheometry of biological fluids",
+            "counts_as_fouling_evidence": false
+          },
+          "existing_availability_snapshot": "source_reported_unavailable_for_consultancy",
+          "existing_real_contact_enabled_snapshot": false,
+          "existing_availability_snapshot_as_of": "Selection-input roster snapshot, not reverified live",
+          "advisory_availability": "KEEP_EXISTING_RECORD_NO_NEW_CLAIM",
+          "canonical_link": {
+            "person_id": "PUB-WILSON-DI",
+            "canonical_name": "D. Ian Wilson",
+            "observed_author_name": "D Ian Wilson",
+            "name_match_rule": "NFKC + casefold + retain alphanumeric; punctuation/spacing only for these exact supplied names; no fuzzy or initials-only matching."
+          },
+          "provided_transfer": {
+            "path": "D:\\0_Agent AI\\24_RnDplz\\reviews\\strategy\\prospective-corpus-20260921\\batch-04\\transfer\\papers-prospective.json",
+            "sha256": "e09f9060e3cab3a8b9010732a7b7acb0ea74199b88efb64036a94b72f0d3a5a6",
+            "record_locator": "records[candidate_key=PC04-WILSON-2015]"
+          }
+        }
+      ],
+      "source_access_note": "Direct returned publisher HTML: title, author names and Abstract lines 51–61. Selected Background and Conclusion statements only summarized. Indexed author affiliation read separately. Full paper not reviewed. 제공 전달본만 읽었으며 신규 원출처 확인·전문 검토는 하지 않았습니다.",
+      "boundary_note": "검색 주제는 열교환기 오염이었지만 선정된 논문은 식물 등 생물학적 유체 측정이다. 열교환기 오염 실적·해결 근거로 쓰지 않는다. 개념 검증 보고이며 모든 유체/현장조건의 성능 보증이나 독립 재현 결과가 아니다. 기존 인물의 consultancy 불가 표시를 유지하며 이 논문으로 현재 가용성을 갱신하지 않는다. 전달된 출판사 초록 선택 구절에 근거한 요약 제안입니다. 이 단위에서 원사이트를 새로 열거나 전문·독립 재현을 검증하지 않았습니다. 저자 연결은 개인별 수행·현재 소속·자문 가용성 확인을 뜻하지 않습니다. 기존 인물 프로필과 가용성·연락 차단 표시는 변경하지 않습니다. 정정 여부를 전수 조사하지 않았으며 영향은 미확인입니다.",
+      "contribution_note": "전달된 출판사 초록 선택 구절에 근거한 요약 제안입니다. 이 단위에서 원사이트를 새로 열거나 전문·독립 재현을 검증하지 않았습니다. 저자 연결은 개인별 수행·현재 소속·자문 가용성 확인을 뜻하지 않습니다. 기존 인물 프로필과 가용성·연락 차단 표시는 변경하지 않습니다. 정정 여부를 전수 조사하지 않았으며 영향은 미확인입니다. 기존 canonical 인물 한 명만 연결하고 모든 공동저자 person_id는 null로 둡니다.",
+      "candidate_key": "PC04-WILSON-2015",
+      "preparation_status": "PREPARED_DIRECT_SELECTED_PASSAGE",
+      "metadata_access": {
+        "access_level": "PROVIDED_DIRECT_SELECTED_PASSAGE",
+        "actually_read_scope_as_reported": "Direct returned publisher HTML: title, author names and Abstract lines 51–61. Selected Background and Conclusion statements only summarized. Indexed author affiliation read separately. Full paper not reviewed.",
+        "source_access_as_reported": {
+          "direct": "SELECTED_PASSAGE_READ",
+          "error": null,
+          "retries": 0,
+          "alternative_routes": 0,
+          "opens": 1
+        },
+        "full_paper_reviewed": false,
+        "new_fetch_in_this_unit": false,
+        "independent_original_verification": false
+      },
+      "limitations": [
+        "검색 주제는 열교환기 오염이었지만 선정된 논문은 식물 등 생물학적 유체 측정이다. 열교환기 오염 실적·해결 근거로 쓰지 않는다.",
+        "개념 검증 보고이며 모든 유체/현장조건의 성능 보증이나 독립 재현 결과가 아니다.",
+        "기존 인물의 consultancy 불가 표시를 유지하며 이 논문으로 현재 가용성을 갱신하지 않는다."
+      ],
+      "correction_review": {
+        "status": "NOT_EXHAUSTIVELY_CHECKED",
+        "correction_content": null,
+        "impact": "UNCONFIRMED",
+        "note": "Selected returned passages did not establish a correction impact. Absence of correction is not asserted; no separate correction search/open performed."
+      },
+      "individual_contribution_verified": false,
+      "present_affiliation_reverified": false,
+      "advisory_availability": "KEEP_EXISTING_RECORD_NO_NEW_CLAIM",
+      "product_application": "NOT_APPLIED_PROPOSAL_ONLY"
     }
   ],
   "experience_records": [
