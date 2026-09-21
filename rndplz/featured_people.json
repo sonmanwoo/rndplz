@@ -12,7 +12,7 @@
         "Manwoo Son",
         "Son Manwoo"
       ],
-      "org": "GS칼텍스 · 바이오공정팀 · 책임연구원",
+      "org": "GS칼텍스 · 바이오공정팀 · 책임",
       "org_type": "company",
       "curated": true,
       "source_type": "self_reported",
@@ -63,7 +63,7 @@
       "timeline": [
         {
           "date": "2023.01 — 현재",
-          "text": "GS칼텍스 바이오공정팀 · 책임연구원. 2023.01.30 입사. Diols 탈색·탈취 공정 개발: 증류·흡착·수소화반응, 데이터 분석 및 모델링. 프로젝트 Full-time 멤버로 모델링·데이터 분석·실험 수행.",
+          "text": "GS칼텍스 바이오공정팀 · 책임. 2023.01.30 입사. Diols 탈색·탈취 공정 개발: 증류·흡착·수소화반응, 데이터 분석 및 모델링. 프로젝트 Full-time 멤버로 모델링·데이터 분석·실험 수행.",
           "url": ""
         },
         {
@@ -156,7 +156,7 @@
         },
         {
           "date": "2021.08 — 2024.12",
-          "text": "에너지기술개발팀 · 책임연구원. 2021.08.02 입사. CO₂ 전환 기초유분·납사 생산용 CCU 촉매 공정 기술개발.",
+          "text": "에너지기술개발팀 · 책임. 2021.08.02 입사. CO₂ 전환 기초유분·납사 생산용 CCU 촉매 공정 기술개발.",
           "url": ""
         },
         {
@@ -5453,6 +5453,87 @@
       "real_contact_enabled": false,
       "eligible_for_real_advice_request": false,
       "affiliation_policy": "조회 시점 공식 직함·명예직과 논문 당시 소속을 분리. 고용/연락가능성 확인이 아니며 조회일은 재직 확인일이 아님."
+    },
+    {
+      "id": "LOCAL-DASOL",
+      "slug": "dasol",
+      "name": "Jung Da Sol",
+      "display_name": "정다솔",
+      "aliases": [
+        "JUNG DA SOL",
+        "정다솔",
+        "Da Sol Jung"
+      ],
+      "org": "GS칼텍스 · 윤활유기술개발팀",
+      "org_type": "company",
+      "current_role": "책임",
+      "curated": true,
+      "source_type": "provided_resume",
+      "tagline": "산업용 윤활유 개발과 Base Oil 영업·수급 조정 경험",
+      "biography": "제공된 Self-Resume 기준 윤활유기술개발팀에서 산업용 윤활유 제품 개발을 담당합니다. 이전에는 Base Oil 소포장 해외영업과 수급 조정·내항선 운영·탱크터미널 관리를 수행했습니다.",
+      "skills": [
+        "윤활유 산업 이해",
+        "윤활유 제품 지식",
+        "무역 거래/국제 계약에 대한 이해",
+        "윤활유 기술, 원재료 기술 및 시장 트렌드"
+      ],
+      "timeline": [
+        {
+          "date": "2022.01 — 현재",
+          "text": "윤활유기술개발팀 · 책임. 산업용 윤활유 제품 개발. 제공 화면의 상위 기간은 현재, 세부 행은 2026.09까지 기재.",
+          "url": ""
+        },
+        {
+          "date": "2017.07 — 2020.02",
+          "text": "Base Oil 영업2팀 · 선임. Base Oil 소포장 해외영업.",
+          "url": ""
+        },
+        {
+          "date": "2015.05 — 2017.06",
+          "text": "Base Oil 사업운영팀 · 4급사원. Base Oil 수급 조정, 내항선 운영, 탱크터미널 관리.",
+          "url": ""
+        }
+      ],
+      "sources": [
+        {
+          "title": "사용자가 제공한 Self-Resume의 경력 전사 · 2026.09.21",
+          "url": ""
+        },
+        {
+          "title": "사용자가 제공한 보유스킬 현황 4개 항목 · 2026.09.21",
+          "url": ""
+        }
+      ],
+      "portrait": {
+        "path": "/portraits/dasol-illustration.png",
+        "label": "AI ILLUSTRATION",
+        "generated": true,
+        "kind": "personal_illustration",
+        "reference": {
+          "title": "사용자가 제공한 정다솔 프로필 사진",
+          "kind": "user_provided",
+          "usage": "제공된 사진은 외형 참고 자료이며, 카드에는 별도 생성 일러스트를 표시합니다."
+        },
+        "generated_credit": "RnDplz · AI 생성 일러스트",
+        "sha256": "0730284c0b2b3d82978c8a523032396cb50ad2140c087af4eed0cbd5ea7891ed",
+        "width": 1086,
+        "height": 1448
+      },
+      "portrait_note": "제공된 사진을 참고한 AI 생성 초상 일러스트이며 교체할 수 있습니다.",
+      "profile_note": "사용자가 제공한 경력·보유스킬 자료를 바탕으로 구성했습니다. 본인의 직접 제출 여부, 회사 HR, 수행 수준·전문성·현재 협업 가능 여부는 별도로 확인하지 않았습니다. 경력 공백과 미기재 사항은 보완하지 않았습니다.",
+      "profile_observed_as_of": "2026-09-21",
+      "featured_work": "CAREER-DS-LUBE",
+      "topics": [
+        {
+          "name": "산업용 윤활유 제품 개발"
+        },
+        {
+          "name": "Base Oil 해외영업"
+        },
+        {
+          "name": "Base Oil 수급·운영"
+        }
+      ]
     }
   ],
   "papers": [
@@ -8335,7 +8416,7 @@
       "person_id": "LOCAL-MANWOO",
       "title": "Diols 탈색·탈취 공정 개발",
       "date": "2023.01 — 현재",
-      "summary": "GS칼텍스 바이오공정팀 책임연구원. 증류, 흡착, 수소화반응 등을 활용한 Diols 탈색·탈취 공정 개발과 데이터 분석 및 모델링. Full-time 프로젝트 멤버로 모델링·데이터 분석·실험 수행.",
+      "summary": "GS칼텍스 바이오공정팀 책임. 증류, 흡착, 수소화반응 등을 활용한 Diols 탈색·탈취 공정 개발과 데이터 분석 및 모델링. Full-time 프로젝트 멤버로 모델링·데이터 분석·실험 수행.",
       "tags": [
         "PE-BIO",
         "PE-SEP",
@@ -8398,7 +8479,7 @@
       "person_id": "LOCAL-JINHO",
       "title": "CO₂ 전환 촉매 개발 · Lab 반응설비 구축",
       "date": "2021.08 — 2024.12",
-      "summary": "에너지기술개발팀 책임연구원. 2021.08–2022.12 예비타당성 연구: 촉매 설계·제법 개발·활성 평가와 실험실·반응기·유틸리티 설비 구축. 2023.01–2024.12 CO2 to Chemical Project: Lab Scale 기초유분·납사 생산 CCU 촉매 공정 기술개발.",
+      "summary": "에너지기술개발팀 책임. 2021.08–2022.12 예비타당성 연구: 촉매 설계·제법 개발·활성 평가와 실험실·반응기·유틸리티 설비 구축. 2023.01–2024.12 CO2 to Chemical Project: Lab Scale 기초유분·납사 생산 CCU 촉매 공정 기술개발.",
       "tags": [
         "CE-CCU",
         "CE-CAT",
@@ -8446,6 +8527,45 @@
       ],
       "field": "energy_catalysis",
       "scope": "provided_resume"
+    },
+    {
+      "id": "CAREER-DS-LUBE",
+      "person_id": "LOCAL-DASOL",
+      "title": "산업용 윤활유 제품 개발",
+      "date": "2022.01 — 현재",
+      "summary": "제공된 Self-Resume 기준, 2022.01부터 윤활유기술개발팀 책임으로 산업용 윤활유 제품 개발. 제공 자료의 세부 행은 2026.09까지 기재되어 있습니다.",
+      "tags": [
+        "LP-PRODUCT"
+      ],
+      "field": "lubricant_product_development",
+      "scope": "provided_resume",
+      "checked_at": "2026-09-21"
+    },
+    {
+      "id": "CAREER-DS-BASEOIL-SALES",
+      "person_id": "LOCAL-DASOL",
+      "title": "Base Oil 소포장 해외영업",
+      "date": "2017.07 — 2020.02",
+      "summary": "2017.07–2020.02 Base Oil 영업2팀 선임으로 Base Oil 소포장 해외영업을 수행했습니다.",
+      "tags": [
+        "BO-SALES"
+      ],
+      "field": "base_oil_business",
+      "scope": "provided_resume",
+      "checked_at": "2026-09-21"
+    },
+    {
+      "id": "CAREER-DS-BASEOIL-OPERATIONS",
+      "person_id": "LOCAL-DASOL",
+      "title": "Base Oil 수급 조정 · 내항선 운영 · 탱크터미널 관리",
+      "date": "2015.05 — 2017.06",
+      "summary": "2015.05–2017.06 Base Oil 사업운영팀에서 Base Oil 수급 조정, 내항선 운영, 탱크터미널 관리를 수행했습니다.",
+      "tags": [
+        "BO-OPERATIONS"
+      ],
+      "field": "base_oil_operations",
+      "scope": "provided_resume",
+      "checked_at": "2026-09-21"
     }
   ]
 }

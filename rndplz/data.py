@@ -131,7 +131,7 @@ class Corpus:
             person = self.people[raw["person_id"]]
             self.add(self.records, Record(raw["id"], "career_record", raw["title"], raw["summary"], raw["date"],
                 [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw.get("field", "process_engineering"), raw.get("scope", "self_reported"),
-                "user_provided_resume", raw["id"], "", featured["checked_at"], "career_experience",
+                "user_provided_resume", raw["id"], "", raw.get("checked_at", featured["checked_at"]), "career_experience",
                 ["제공된 이력과 경력 보완"], "local_self_reported", False, {"text_kind": "self_reported", "abstract_available": False}))
         questions = self.read("questions.json")["questions"]
         # Runtime receives user-visible prompts only. Evaluation labels and stage notes stay out.

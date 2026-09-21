@@ -799,5 +799,54 @@
     ],
     "boundary_note": "일반 AI·영상인식만으로 산업/검사 로봇 운용 실적으로 확대하지 않음. 이번 활성 자료는 장애물 회피 근거이며 그리퍼 물체 집기 연구는 포함하지 않는다.",
     "color": "#8882a7"
+  },
+  {
+    "id": "LP-PRODUCT",
+    "name": "산업용 윤활유 제품 개발",
+    "field": "lubricant_product_development",
+    "scope": "provided_resume",
+    "keywords": [
+      "산업용 윤활유",
+      "윤활유 제품 개발",
+      "industrial lubricants",
+      "lubricant product development"
+    ],
+    "classification_basis": [
+      "제공된 직무 이력의 산업용 윤활유 제품 개발"
+    ],
+    "boundary_note": "제공 경력의 업무 분류이며 마찰시험·냉각 유체 평가·독립적으로 검증된 전문성을 뜻하지 않습니다.",
+    "color": "#b79754"
+  },
+  {
+    "id": "BO-SALES",
+    "name": "Base Oil 해외영업",
+    "field": "base_oil_business",
+    "scope": "provided_resume",
+    "keywords": [
+      "Base Oil 소포장 해외영업",
+      "Base Oil 해외영업",
+      "base oil sales"
+    ],
+    "classification_basis": [
+      "제공된 과거 직무 이력의 Base Oil 소포장 해외영업"
+    ],
+    "boundary_note": "과거 영업 경력이며 현재 제품 개발 수행 수준이나 현 소속으로 확대하지 않습니다.",
+    "color": "#8c9972"
+  },
+  {
+    "id": "BO-OPERATIONS",
+    "name": "Base Oil 수급·운영",
+    "field": "base_oil_operations",
+    "scope": "provided_resume",
+    "keywords": [
+      "Base Oil 수급 조정",
+      "내항선 운영",
+      "탱크터미널 관리"
+    ],
+    "classification_basis": [
+      "제공된 과거 직무 이력의 수급 조정·내항선 운영·탱크터미널 관리"
+    ],
+    "boundary_note": "과거 수급·운영 경력이며 공정 제어·공정 모델링 경력으로 확대하지 않습니다.",
+    "color": "#8980a2"
   }
 ]

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "gs-business-exp02-ready9-r2",
+  "version": "gs-business-dasol-profile-20260921-r1",
   "person_ids": [
     "PUB-ERTL",
     "PUB-RYOO",
@@ -29,7 +29,8 @@
     "PUB-MACCHIETTO",
     "PUB-RAWLINGS",
     "PUB-MORARI",
-    "PUB-KHATIB"
+    "PUB-KHATIB",
+    "LOCAL-DASOL"
   ],
   "record_ids": [
     "GS-PAPER-GERHARD-ERTL-2008-1",
@@ -75,11 +76,15 @@
     "EXP02-PAPER-RAWLINGS-1992-1",
     "EXP02-PAPER-MORARI-1996-1",
     "EXP02-PAPER-MORARI-1999-2",
-    "EXP02-PAPER-KHATIB-1986-1"
+    "EXP02-PAPER-KHATIB-1986-1",
+    "CAREER-DS-LUBE",
+    "CAREER-DS-BASEOIL-SALES",
+    "CAREER-DS-BASEOIL-OPERATIONS"
   ],
   "personal_person_ids": [
     "LOCAL-MANWOO",
-    "LOCAL-JINHO"
+    "LOCAL-JINHO",
+    "LOCAL-DASOL"
   ],
   "personal_record_ids": [
     "CAREER-MW-BIO",
@@ -90,10 +95,13 @@
     "CAREER-JO-ENERGY",
     "CAREER-JO-LOHC",
     "CAREER-JO-METHANOL",
-    "CAREER-JO-BIO"
+    "CAREER-JO-BIO",
+    "CAREER-DS-LUBE",
+    "CAREER-DS-BASEOIL-SALES",
+    "CAREER-DS-BASEOIL-OPERATIONS"
   ],
   "excluded_person_ids": [
     "PUB-LEE-SANGYUP"
   ],
-  "note": "공개 연구자 26명과 사용자가 제공한 개인 프로필 2명으로 구성한 시연 풀입니다. 활성 근거는 논문 35건과 개인 경력 9건입니다. 사내 인력 명부나 현재 협업 가능성을 확인한 결과가 아닙니다. 이름 조회는 활성 자료로만 제한하며 보관 명단과 원자료는 유지합니다."
+  "note": "공개 연구자 26명과 사용자가 제공한 개인 프로필 3명으로 구성한 시연 풀입니다. 활성 근거는 논문 35건과 개인 경력 12건입니다. 사내 인력 명부나 현재 협업 가능성을 확인한 결과가 아닙니다. 이름 조회는 활성 자료로만 제한하며 보관 명단과 원자료는 유지합니다."
 }
