@@ -252,6 +252,28 @@ PREVIEW_PACKAGES = {
         'orbit.js': ('orbit.js', 'text/javascript; charset=utf-8'),
         'style.css': ('style.css', 'text/css; charset=utf-8'),
     },
+    '/ui-previews/CI-FONTS/r2/': {
+        '': ('index.html', 'text/html; charset=utf-8'),
+        'app.js': ('app.js', 'text/javascript; charset=utf-8'),
+        'fonts/c-en.woff2': ('fonts/c-en.woff2', 'font/woff2'),
+        'fonts/c-ko.woff2': ('fonts/c-ko.woff2', 'font/woff2'),
+        'fonts/h1.woff2': ('fonts/h1.woff2', 'font/woff2'),
+        'fonts/h2.woff2': ('fonts/h2.woff2', 'font/woff2'),
+        'fonts/h3.woff2': ('fonts/h3.woff2', 'font/woff2'),
+        'fonts/h4.woff2': ('fonts/h4.woff2', 'font/woff2'),
+        'fonts/h5.woff2': ('fonts/h5.woff2', 'font/woff2'),
+        'fonts.css': ('fonts.css', 'text/css; charset=utf-8'),
+        'index.html': ('index.html', 'text/html; charset=utf-8'),
+        'licenses/bodonimoda-OFL.txt': ('licenses/bodonimoda-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/cormorantgaramond-OFL.txt': ('licenses/cormorantgaramond-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/ebgaramond-OFL.txt': ('licenses/ebgaramond-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/gowunbatang-OFL.txt': ('licenses/gowunbatang-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/librebaskerville-OFL.txt': ('licenses/librebaskerville-OFL.txt', 'text/plain; charset=utf-8'),
+        'licenses/spacegrotesk-OFL.txt': ('licenses/spacegrotesk-OFL.txt', 'text/plain; charset=utf-8'),
+        'mark.svg': ('mark.svg', 'image/svg+xml'),
+        'motion.js': ('motion.js', 'text/javascript; charset=utf-8'),
+        'style.css': ('style.css', 'text/css; charset=utf-8'),
+    },
 }
 PREVIEW_ROUTES = {
     prefix + suffix: (prefix.strip('/') + '/' + name, mime)

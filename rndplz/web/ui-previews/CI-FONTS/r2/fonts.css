@@ -1,0 +1,7 @@
+@font-face{font-family:"word-ko";src:url("fonts/c-ko.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap;}
+@font-face{font-family:"word-en";src:url("fonts/c-en.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:"h1";src:url("fonts/h1.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap;}
+@font-face{font-family:"h2";src:url("fonts/h2.woff2") format("woff2");font-weight:600;font-style:italic;font-display:swap;}
+@font-face{font-family:"h3";src:url("fonts/h3.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap;}
+@font-face{font-family:"h4";src:url("fonts/h4.woff2") format("woff2");font-weight:500;font-style:italic;font-display:swap;}
+@font-face{font-family:"h5";src:url("fonts/h5.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap;}
