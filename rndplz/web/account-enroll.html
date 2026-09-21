@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f4f2eb">
+  <title>초대로 시작하기 — 수소문</title>
+  <link rel="stylesheet" href="/craft.css">
+  <script src="/account-enroll.js" defer></script>
+  <style>
+    .enrollment-page .craft-header { display:flex; justify-content:space-between; gap:1rem; }
+    .enrollment-shell { width:min(100% - 2rem, 32rem); margin:clamp(2rem, 7vh, 5rem) auto; }
+    .enrollment-shell h1 { font-size:clamp(2rem, 6vw, 3rem); line-height:1.2; margin:.6rem 0 1.5rem; }
+    .enrollment-shell p { line-height:1.7; }
+    .enrollment-card { margin:2rem 0; padding:clamp(1rem, 4vw, 2rem); background:#fffdf7; border:1px solid #dddcd1; border-radius:1rem; }
+    .enrollment-card fieldset { border:0; padding:0; margin:0; min-width:0; }
+    .enrollment-card label { display:block; font-weight:600; margin-bottom:.65rem; }
+    .enrollment-card input { box-sizing:border-box; width:100%; min-height:48px; border:1px solid #9ba697; border-radius:.4rem; padding:.8rem; font:inherit; background:#fff; color:inherit; }
+    .enrollment-card button { box-sizing:border-box; min-height:48px; max-width:100%; padding:.75rem 1rem; font:inherit; border-radius:.4rem; cursor:pointer; }
+    #enrollmentSubmit { width:100%; margin-top:1rem; border:1px solid #385f4c; background:#385f4c; color:#fff; }
+    #checkEnrollment { border:1px solid #9ba697; background:transparent; color:inherit; }
+    .enrollment-card button:disabled,.enrollment-card input:disabled { opacity:.55; cursor:not-allowed; }
+    .enrollment-shell :focus-visible { outline:2px solid #ad4e37; outline-offset:3px; }
+    .enrollment-note { font-size:.9rem; color:#5c6258; }
+    .enrollment-error { color:#913e2e; padding:.8rem; border-left:3px solid currentColor; background:#fff5ef; }
+    .enrollment-shell [hidden] { display:none!important; }
+    .enrollment-footer { display:flex; gap:1rem; flex-wrap:wrap; }
+    @media(max-width:420px) { .enrollment-page .craft-header { padding:1rem; } }
+  </style>
+</head>
+<body class="crafted enrollment-page">
+  <a class="skip-link" href="#enrollmentTitle">가입 안내로 이동</a>
+  <header class="craft-header">
+    <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
+    <a href="/">대화로 돌아가기</a>
+  </header>
+  <main class="enrollment-shell">
+    <p class="eyebrow">함께 연구할 동료에게</p>
+    <h1 id="enrollmentTitle" tabindex="-1">초대로 시작하기</h1>
+    <p>받은 초대 코드를 입력한 뒤 Google 계정으로 로그인해 주세요.</p>
+    <section class="enrollment-card" aria-label="팀원 가입">
+      <p id="enrollmentStatus" role="status" aria-live="polite">가입 가능 여부를 확인하고 있습니다.</p>
+      <p id="enrollmentError" class="enrollment-error" role="alert" tabindex="-1" hidden></p>
+      <form id="enrollmentForm" method="post" action="/auth/google/enroll" autocomplete="off">
+        <fieldset id="enrollmentFields" disabled>
+          <label for="invitationCode">초대 코드</label>
+          <input id="invitationCode" type="password" maxlength="43" autocomplete="off" autocapitalize="none" spellcheck="false" required aria-describedby="invitationHelp">
+          <p id="invitationHelp" class="enrollment-note">초대한 분에게 받은 일회용 코드입니다. Google 계정 비밀번호를 입력하지 마세요.</p>
+          <button id="enrollmentSubmit" type="submit" disabled>Google 계정으로 계속</button>
+        </fieldset>
+      </form>
+      <button id="checkEnrollment" type="button" hidden>가입 가능 여부 다시 확인</button>
+      <a id="enrolledProfile" href="/profile" hidden>내 프로필 열기</a>
+      <noscript><p>가입을 진행하려면 브라우저에서 JavaScript를 켜고 이 페이지를 다시 열어 주세요.</p></noscript>
+    </section>
+    <p class="enrollment-note">로그인 후 내 프로필에서 경험과 관심 분야를 정리할 수 있습니다. 기존 방문자 기록은 새 계정으로 자동 이동하지 않습니다.</p>
+    <nav class="enrollment-footer" aria-label="다른 시작 방법"><a href="/">방문자로 계속 이용</a></nav>
+  </main>
+</body>
+</html>

@@ -28,7 +28,7 @@ from .service import Service
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
-from .auth_service import AuthService, AuthError, AUTHORIZATION
+from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
 
@@ -422,6 +422,7 @@ class PublicApp:
 
     def _account_status(self, context, environ):
         account = context.get('account')
+        login_available = self.auth.login_available
         # An expired account cookie never supplies a new visitor CSRF for writes.
         try:
             has_account_cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME) is not None
@@ -429,8 +430,11 @@ class PublicApp:
             has_account_cookie = True
         return {'enabled': self.auth.enabled, 'authenticated': account is not None,
                 'account': self._public_account(account) if account else None,
-                'login_url': '/auth/google/start' if self.auth.enabled else None,
-                'disabled_reason': None if self.auth.enabled else 'Google 로그인이 아직 설정되지 않았습니다. 방문자로 계속 이용할 수 있습니다.',
+                'login_url': '/auth/google/start' if login_available else None,
+                'enrollment_enabled': self.auth.enabled and self.auth.enrollment_enabled,
+                'enrollment_url': '/auth/google/enroll' if self.auth.enabled and self.auth.enrollment_enabled else None,
+                'disabled_reason': ('Google 로그인이 아직 설정되지 않았습니다. 방문자로 계속 이용할 수 있습니다.' if not self.auth.enabled else
+                                    '초대 코드를 받아 최초 가입 화면에서 먼저 가입해 주세요.' if not login_available else None),
                 'token': context['token'] if account or not has_account_cookie else None}
 
     def _account_context(self, environ):
@@ -492,6 +496,8 @@ class PublicApp:
                 headers.append(('Location', flow['authorization_url']))
                 return send(303, b'', 'text/plain; charset=utf-8')
             if 'error' in query:
+                if query.get('state', [''])[0]:
+                    self.auth.cancel_login(query['state'][0], self._account_cookie(environ, self.auth.LOGIN_COOKIE_NAME))
                 raise AuthError('google_login_not_completed', 403)
             if not query.get('code', [''])[0] or not query.get('state', [''])[0]:
                 raise AuthError('login_query_invalid', 400)
@@ -624,6 +630,11 @@ class PublicApp:
         path, method = environ.get('PATH_INFO', '/'), environ.get('REQUEST_METHOD', 'GET')
         if path in ('/auth/google/start', '/auth/google/callback'):
             return self._google_login(environ, path, method, send, headers)
+        if path == '/auth/google/enroll':
+            headers[:] = [(name, value) for name, value in headers if name.lower() != 'referrer-policy']
+            headers.append(('Referrer-Policy', 'no-referrer'))
+            if environ.get('QUERY_STRING', ''):
+                return send(400, {'error': '초대 코드는 주소에 넣지 말고 입력란에 입력해 주세요.'})
         if path == '/healthz':
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
@@ -707,8 +718,8 @@ class PublicApp:
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
-                files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'draw.js', 'draw.css'):
+                files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html')}
+                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]
@@ -723,9 +734,12 @@ class PublicApp:
             if path in ('/api/chat/configure', '/api/export', '/api/ai/structure', '/api/ai/draft'):
                 return send(403, {'error': '공개 시연에서 제공하지 않는 관리 기능입니다.'})
             length = int(environ.get('CONTENT_LENGTH') or '0')
+            if path == '/auth/google/enroll' and not 0 < length <= 4096:
+                return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
             if not 0 < length <= (1500000 if path in ('/api/attachments','/api/self-profile/upload','/api/self-profile/chat') else 200000):
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
-            payload = json.loads(environ['wsgi.input'].read(length).decode('utf-8'))
+            raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
+            payload = strict_json(raw_payload) if path == '/auth/google/enroll' else json.loads(raw_payload)
             if not isinstance(payload, dict): raise ValueError('요청 형식이 올바르지 않습니다.')
             if path == '/api/logout':
                 if payload:
@@ -753,6 +767,20 @@ class PublicApp:
                 if len(context['requests']) >= 20:
                     diagnostic_error='rate_limit';return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
                 context['requests'].append(now)
+            if path == '/auth/google/enroll':
+                if set(payload) != {'invitation'} or not isinstance(payload.get('invitation'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', payload['invitation']):
+                    return send(400, {'error': '받은 초대 코드를 확인해 주세요.'})
+                if context.get('account') is not None:
+                    return send(409, {'error': '현재 계정에서 로그아웃한 뒤 초대로 가입해 주세요.'})
+                with self.lock:
+                    if context['active'] or context['inflight'] != 1:
+                        return send(409, {'error': '진행 중인 요청이 끝난 뒤 다시 시도해 주세요.'})
+                flow = self.auth.begin_enrollment(payload['invitation'], '/')
+                if not flow['authorization_url'].startswith(AUTHORIZATION + '?'):
+                    raise AuthError('login_destination_invalid', 503)
+                headers.append(('Set-Cookie', self._account_cookie_header(
+                    self.auth.LOGIN_COOKIE_NAME, flow['login_cookie'], flow['cookie_max_age'])))
+                return send(200, {'authorization_url': flow['authorization_url']})
             if path == '/api/chat':
                 state = service.store.read()
                 if sum(s.get('turns', 0) for s in state['sessions']) >= 40:

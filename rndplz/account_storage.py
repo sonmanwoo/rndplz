@@ -29,8 +29,9 @@ def account_view(row):
 
 
 class AccountStorage:
-    def __init__(self, db_path, files_root, *, clock=time.time):
+    def __init__(self, db_path, files_root, *, clock=time.time, allowed_subs=()):
         self.path, self.files_root, self.clock = Path(db_path), Path(files_root), clock
+        self.allowed_subs = frozenset(allowed_subs)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.files_root.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
@@ -44,6 +45,17 @@ class AccountStorage:
                 CREATE TABLE IF NOT EXISTS login_flows(
                     state_hash TEXT PRIMARY KEY, cookie_hash TEXT NOT NULL,
                     nonce TEXT NOT NULL, verifier TEXT NOT NULL, expires INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS subject_approvals(
+                    google_sub TEXT PRIMARY KEY, approved INTEGER NOT NULL DEFAULT 0,
+                    revoked INTEGER NOT NULL DEFAULT 0, approved_at INTEGER);
+                CREATE TABLE IF NOT EXISTS invitations(
+                    id TEXT PRIMARY KEY, token_hash TEXT UNIQUE NOT NULL,
+                    expires INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,
+                    bound_state_hash TEXT, consumed INTEGER NOT NULL DEFAULT 0,
+                    enrolled_sub TEXT);
+                CREATE TABLE IF NOT EXISTS enrollment_flows(
+                    state_hash TEXT PRIMARY KEY REFERENCES login_flows(state_hash) ON DELETE CASCADE,
+                    invitation_hash TEXT NOT NULL REFERENCES invitations(token_hash));
                 CREATE TABLE IF NOT EXISTS profile_state(
                     account_id TEXT PRIMARY KEY REFERENCES accounts(id), payload TEXT NOT NULL);
             ''')
@@ -70,39 +82,154 @@ class AccountStorage:
                 db.execute('ROLLBACK')
                 raise
 
-    def add_flow(self, state, cookie, nonce, verifier):
+    def _authorized(self, db, sub):
+        row = db.execute('SELECT * FROM subject_approvals WHERE google_sub=?', (sub,)).fetchone()
+        if row is not None and row['revoked']:
+            raise AuthError('account_revoked', 401)
+        if sub not in self.allowed_subs and not (row is not None and row['approved']):
+            raise AuthError('team_member_not_allowed', 403)
+
+    def issue_invitation(self, ttl_seconds=600):
+        # Trusted local administrator only; HTTP must never expose this method.
+        if type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 3600:
+            raise AuthError('invitation_ttl_invalid', 400)
+        invitation, iid = secrets.token_urlsafe(32), uuid.uuid4().hex
+        expires = int(self.clock()) + ttl_seconds
+        with self.transaction() as db:
+            db.execute('INSERT INTO invitations(id,token_hash,expires) VALUES(?,?,?)',
+                       (iid, digest(invitation), expires))
+        return {'invitation_id': iid, 'invitation': invitation, 'expires_at': expires}
+
+    def has_active_approvals(self):
+        with self.connection() as db:
+            return db.execute('SELECT 1 FROM subject_approvals JOIN accounts USING(google_sub) '
+                              'WHERE approved=1 AND revoked=0 LIMIT 1').fetchone() is not None
+
+    def has_login_members(self):
+        with self.connection() as db:
+            revoked = {row['google_sub'] for row in db.execute(
+                'SELECT google_sub FROM subject_approvals WHERE revoked=1')}
+            return bool(self.allowed_subs - revoked) or db.execute(
+                'SELECT 1 FROM subject_approvals JOIN accounts USING(google_sub) '
+                'WHERE approved=1 AND revoked=0 LIMIT 1').fetchone() is not None
+
+    def invitation_status(self, invitation_id):
+        if not isinstance(invitation_id, str) or not re.fullmatch('[a-f0-9]{32}', invitation_id):
+            raise AuthError('invitation_id_invalid', 400)
+        with self.connection() as db:
+            row = db.execute('SELECT * FROM invitations WHERE id=?', (invitation_id,)).fetchone()
+            if row is None:
+                raise AuthError('invitation_not_found', 404)
+            status = ('revoked' if row['revoked'] else 'consumed' if row['consumed'] else
+                      'expired' if row['expires'] <= self.clock() else
+                      'bound' if row['bound_state_hash'] is not None else 'available')
+            account = db.execute('SELECT id FROM accounts WHERE google_sub=?',
+                                 (row['enrolled_sub'],)).fetchone() if row['consumed'] else None
+            return {'invitation_id': row['id'], 'status': status, 'expires_at': row['expires'],
+                    'account_id': account['id'] if account is not None else None}
+
+    def _invitation(self, db, token_hash, state_hash=None):
+        row = db.execute('SELECT * FROM invitations WHERE token_hash=?', (token_hash,)).fetchone()
+        if row is None or row['expires'] <= self.clock() or row['revoked'] or row['consumed']:
+            raise AuthError('invitation_unavailable')
+        if row['bound_state_hash'] != state_hash:
+            raise AuthError('invitation_flow_mismatch')
+        return row
+
+    def revoke_invitation(self, invitation_id):
+        if not isinstance(invitation_id, str) or not re.fullmatch('[a-f0-9]{32}', invitation_id):
+            raise AuthError('invitation_id_invalid', 400)
+        with self.transaction() as db:
+            if db.execute('SELECT id FROM invitations WHERE id=?', (invitation_id,)).fetchone() is None:
+                raise AuthError('invitation_not_found', 404)
+            db.execute('UPDATE invitations SET revoked=1 WHERE id=?', (invitation_id,))
+        return True  # Account revocation is separate for an already consumed invitation.
+
+    def revoke_account(self, account_id):
+        if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
+            raise AuthError('account_id_invalid', 400)
+        with self.transaction() as db:
+            row = db.execute('SELECT google_sub FROM accounts WHERE id=?', (account_id,)).fetchone()
+            if row is None:
+                raise AuthError('account_not_found', 404)
+            db.execute('INSERT INTO subject_approvals(google_sub,revoked) VALUES(?,1) '
+                       'ON CONFLICT(google_sub) DO UPDATE SET revoked=1', (row['google_sub'],))
+            db.execute('UPDATE sessions SET revoked=1 WHERE account_id=?', (account_id,))
+        return True
+
+    def add_flow(self, state, cookie, nonce, verifier, *, invitation=None):
+        sh = digest(state)
         with self.transaction() as db:
             db.execute('DELETE FROM login_flows WHERE expires<=?', (int(self.clock()),))
             if db.execute('SELECT count(*) FROM login_flows').fetchone()[0] >= 256:
                 raise AuthError('login_busy', 429)
+            ih = None
+            if invitation is not None:
+                if not isinstance(invitation, str) or not re.fullmatch('[A-Za-z0-9_-]{43}', invitation):
+                    raise AuthError('invitation_invalid', 400)
+                ih = digest(invitation)
+                self._invitation(db, ih)  # A bound invitation can never start another flow.
+                db.execute('UPDATE invitations SET bound_state_hash=? WHERE token_hash=?', (sh, ih))
             db.execute('INSERT INTO login_flows VALUES(?,?,?,?,?)',
-                       (digest(state), digest(cookie), nonce, verifier, int(self.clock()) + 600))
+                       (sh, digest(cookie), nonce, verifier, int(self.clock()) + 600))
+            if ih is not None:
+                db.execute('INSERT INTO enrollment_flows VALUES(?,?)', (sh, ih))
+
+    def _consume_flow(self, db, state, cookie):
+        sh = digest(state)
+        row = db.execute('SELECT * FROM login_flows WHERE state_hash=?', (sh,)).fetchone()
+        if row is None or row['expires'] <= self.clock() or not hmac.compare_digest(row['cookie_hash'], digest(cookie)):
+            raise AuthError('login_state_or_cookie_invalid')
+        invitation = db.execute('SELECT invitation_hash FROM enrollment_flows WHERE state_hash=?', (sh,)).fetchone()
+        result = dict(row)
+        result['invitation_hash'] = invitation['invitation_hash'] if invitation else None
+        db.execute('DELETE FROM login_flows WHERE state_hash=?', (sh,))
+        return result
 
     def consume_flow(self, state, cookie):
         with self.transaction() as db:
-            row = db.execute('SELECT * FROM login_flows WHERE state_hash=?', (digest(state),)).fetchone()
-            if row is None or row['expires'] <= self.clock() or not hmac.compare_digest(row['cookie_hash'], digest(cookie)):
-                raise AuthError('login_state_or_cookie_invalid')
-            db.execute('DELETE FROM login_flows WHERE state_hash=?', (digest(state),))
-            return dict(row)  # One-use even if later provider exchange/verification fails.
+            return self._consume_flow(db, state, cookie)  # One-use even if provider verification fails.
 
-    def issue_session(self, sub, display_name, email, previous_cookie=None):
-        token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    def cancel_flow(self, state, cookie):
         with self.transaction() as db:
-            row = db.execute('SELECT * FROM accounts WHERE google_sub=?', (sub,)).fetchone()
-            if row is None:
-                aid = uuid.uuid4().hex
-                db.execute('INSERT INTO accounts VALUES(?,?,?,?,?)',
-                           (aid, sub, display_name, email, int(self.clock())))
-            else:
-                aid = row['id']
-                db.execute('UPDATE accounts SET display_name=?,email=? WHERE id=?', (display_name, email, aid))
-            if previous_cookie:
-                db.execute('UPDATE sessions SET revoked=1 WHERE token_hash=?', (digest(previous_cookie),))
-            db.execute('INSERT INTO sessions(token_hash,account_id,csrf,expires) VALUES(?,?,?,?)',
-                       (digest(token), aid, csrf, int(self.clock()) + 86400))
-            row = db.execute('SELECT * FROM accounts WHERE id=?', (aid,)).fetchone()
-            return {'session_cookie': token, 'csrf': csrf, 'account': account_view(row)}
+            flow = self._consume_flow(db, state, cookie)
+            if flow['invitation_hash'] is not None:
+                db.execute('UPDATE invitations SET revoked=1 WHERE token_hash=? AND bound_state_hash=?',
+                           (flow['invitation_hash'], flow['state_hash']))
+        return True
+
+    def _issue_session(self, db, sub, display_name, email, previous_cookie):
+        self._authorized(db, sub)
+        token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+        row = db.execute('SELECT * FROM accounts WHERE google_sub=?', (sub,)).fetchone()
+        if row is None:
+            aid = uuid.uuid4().hex
+            db.execute('INSERT INTO accounts VALUES(?,?,?,?,?)',
+                       (aid, sub, display_name, email, int(self.clock())))
+        else:
+            aid = row['id']
+            db.execute('UPDATE accounts SET display_name=?,email=? WHERE id=?', (display_name, email, aid))
+        if previous_cookie:
+            db.execute('UPDATE sessions SET revoked=1 WHERE token_hash=?', (digest(previous_cookie),))
+        db.execute('INSERT INTO sessions(token_hash,account_id,csrf,expires) VALUES(?,?,?,?)',
+                   (digest(token), aid, csrf, int(self.clock()) + 86400))
+        row = db.execute('SELECT * FROM accounts WHERE id=?', (aid,)).fetchone()
+        return {'session_cookie': token, 'csrf': csrf, 'account': account_view(row)}
+
+    def issue_session(self, sub, display_name, email, previous_cookie=None, *, enrollment_flow=None):
+        # Called only after signed Google token/nonce/issuer/audience/time verification.
+        with self.transaction() as db:
+            if enrollment_flow is not None and enrollment_flow.get('invitation_hash') is not None:
+                ih, sh = enrollment_flow['invitation_hash'], enrollment_flow['state_hash']
+                self._invitation(db, ih, sh)
+                revoked = db.execute('SELECT revoked FROM subject_approvals WHERE google_sub=?', (sub,)).fetchone()
+                if revoked is not None and revoked['revoked']:
+                    raise AuthError('account_revoked', 401)
+                db.execute('UPDATE invitations SET consumed=1,enrolled_sub=? WHERE token_hash=?', (sub, ih))
+                db.execute('INSERT INTO subject_approvals(google_sub,approved,approved_at) VALUES(?,1,?) '
+                           'ON CONFLICT(google_sub) DO UPDATE SET approved=1,approved_at=excluded.approved_at',
+                           (sub, int(self.clock())))
+            return self._issue_session(db, sub, display_name, email, previous_cookie)
 
     def principal(self, db, cookie, account_id=None):
         row = db.execute('''SELECT accounts.*,sessions.csrf FROM sessions JOIN accounts
@@ -110,6 +237,7 @@ class AccountStorage:
                          (digest(cookie), self.clock())).fetchone()
         if row is None or (account_id is not None and row['id'] != account_id):
             raise AuthError('session_expired_or_revoked', 401)
+        self._authorized(db, row['google_sub'])
         return row
 
     def authenticate(self, cookie):
@@ -156,8 +284,11 @@ class AccountStateStore:
     def _guard(self, db):
         if self.session_cookie is not None:
             self.storage.principal(db, self.session_cookie, self.account_id)
-        elif db.execute('SELECT id FROM accounts WHERE id=?', (self.account_id,)).fetchone() is None:
-            raise AuthError('account_not_found', 401)
+        else:
+            row = db.execute('SELECT google_sub FROM accounts WHERE id=?', (self.account_id,)).fetchone()
+            if row is None:
+                raise AuthError('account_not_found', 401)
+            self.storage._authorized(db, row['google_sub'])
 
     def _read(self, db):
         state = {'version': 1, 'sessions': [], 'proposals': [], 'idempotency': {}}

@@ -144,6 +144,7 @@ class Config:
     client_secret: str = field(repr=False)
     redirect_uri: str
     allowed_subs: frozenset
+    enrollment_enabled: bool = False
 
 
 class AuthService:
@@ -154,6 +155,9 @@ class AuthService:
         self.config, self.storage = config, storage
         self.transport = transport or GoogleTransport()
         self.enabled, self.reason = config is not None and storage is not None, reason
+        self.enrollment_enabled = bool(self.enabled and config.enrollment_enabled)
+        if self.enabled:
+            self.storage.allowed_subs = frozenset(config.allowed_subs)
         self.storage_deployment_verified = False  # Configuration is not durability evidence.
 
     @classmethod
@@ -169,7 +173,9 @@ class AuthService:
             if env.get('RNDPLZ_PUBLIC_ORIGIN'):
                 require(env['RNDPLZ_PUBLIC_ORIGIN'].rstrip('/') == redirect.scheme + '://' + redirect.netloc, 'redirect_origin_mismatch', 503)
             subs, roots = strict_json(env[keys[3]]), strict_json(env[keys[6]])
-            require(isinstance(subs, list) and 0 < len(subs) <= 100 and all(isinstance(s, str) and 1 <= len(s) <= 255 for s in subs), 'team_allowlist_missing', 503)
+            enrollment_enabled = env.get('RNDPLZ_GOOGLE_ENROLLMENT_ENABLED') == 'true'
+            require(isinstance(subs, list) and len(subs) <= 100 and
+                    all(isinstance(s, str) and 1 <= len(s) <= 255 for s in subs), 'team_allowlist_missing', 503)
             require(isinstance(roots, list) and roots and all(isinstance(x, str) and Path(x).is_absolute() and Path(x).is_dir() for x in roots), 'trusted_storage_roots_missing', 503)
             trusted = [Path(x).resolve() for x in roots]
             paths = [Path(env[keys[4]]), Path(env[keys[5]])]
@@ -183,8 +189,10 @@ class AuthService:
             # Dependencies must be available before exposing a login button.
             from google.auth import jwt
             from cryptography.hazmat.primitives.asymmetric import rsa
-            config = Config(env[keys[0]], env[keys[1]], env[keys[2]], frozenset(subs))
-            return cls(config, AccountStorage(*paths), reason='configured_not_deployment_verified')
+            config = Config(env[keys[0]], env[keys[1]], env[keys[2]], frozenset(subs), enrollment_enabled)
+            storage = AccountStorage(*paths, allowed_subs=config.allowed_subs)
+            require(bool(subs) or enrollment_enabled or storage.has_active_approvals(), 'team_allowlist_missing', 503)
+            return cls(config, storage, reason='configured_not_deployment_verified')
         except AuthError as error:
             return cls(reason=error.code)
         except ImportError:
@@ -195,11 +203,27 @@ class AuthService:
     def _enabled(self):
         require(self.enabled, self.reason, 503)
 
+    @property
+    def login_available(self):
+        return bool(self.enabled and self.storage.has_login_members())
+
     def begin_login(self, return_path='/'):
+        self._enabled()
+        require(self.login_available, 'invitation_required', 403)
+        return self._begin_login(return_path)
+
+    def begin_enrollment(self, invitation, return_path='/'):
+        self._enabled()
+        require(self.enrollment_enabled, 'enrollment_not_enabled', 403)
+        require(isinstance(invitation, str) and re.fullmatch('[A-Za-z0-9_-]{43}', invitation) is not None,
+                'invitation_invalid', 400)
+        return self._begin_login(return_path, invitation=invitation)
+
+    def _begin_login(self, return_path, *, invitation=None):
         self._enabled()
         require(return_path == '/', 'return_path_not_allowed', 400)
         state, cookie, nonce, verifier = [secrets.token_urlsafe(32) for _ in range(4)]
-        self.storage.add_flow(state, cookie, nonce, verifier)
+        self.storage.add_flow(state, cookie, nonce, verifier, invitation=invitation)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode('ascii')).digest()).rstrip(b'=').decode('ascii')
         params = {'client_id': self.config.client_id, 'redirect_uri': self.config.redirect_uri,
             'response_type': 'code', 'scope': 'openid email profile', 'state': state, 'nonce': nonce,
@@ -210,6 +234,7 @@ class AuthService:
         self._enabled()
         require(isinstance(code, str) and 1 <= len(code) <= 4096, 'authorization_code_invalid', 400)
         flow = self.storage.consume_flow(state, login_cookie)
+        require(flow['invitation_hash'] is None or self.enrollment_enabled, 'enrollment_not_enabled')
         token = self.transport.exchange(code=code, verifier=flow['verifier'], client_id=self.config.client_id,
             client_secret=self.config.client_secret, redirect_uri=self.config.redirect_uri)
         try:
@@ -218,25 +243,20 @@ class AuthService:
             if error.code != 'jwks_key_unknown':
                 raise
             claims = verify_google_token(token, self.transport.keys(force=True), self.config.client_id, flow['nonce'])
-        require(claims['sub'] in self.config.allowed_subs, 'team_member_not_allowed')
         def safe_text(value, limit):
             return ''.join(c for c in value if ord(c) >= 32)[:limit] if isinstance(value, str) else ''
         return self.storage.issue_session(claims['sub'], safe_text(claims.get('name'), 200),
-            safe_text(claims.get('email'), 320) if claims.get('email_verified') is True else '', previous_cookie)
+            safe_text(claims.get('email'), 320) if claims.get('email_verified') is True else '', previous_cookie,
+            enrollment_flow=flow)
+
+    def cancel_login(self, state, login_cookie):
+        self._enabled()
+        return self.storage.cancel_flow(state, login_cookie)
 
     def authenticate(self, cookie):
         if not self.enabled:
             return None
-        principal = self.storage.authenticate(cookie)
-        if principal is not None:
-            try:
-                with self.storage.connection() as db:
-                    row = self.storage.principal(db, cookie)
-                    if row['google_sub'] not in self.config.allowed_subs:
-                        return None
-            except AuthError:  # Logout may commit between the two reads.
-                return None
-        return principal
+        return self.storage.authenticate(cookie)
 
     def logout(self, cookie, csrf):
         self._enabled()
