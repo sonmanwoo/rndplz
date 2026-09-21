@@ -6,10 +6,10 @@ from collections import Counter
 from .data import Corpus, matches
 from .demo_pool import project_corpus, historical_person
 
-SCOPE = {"user_provided_project":"사용자 제공 프로젝트 이력","public_profile":"공식 공개 경력·학력","public_research_case":"공개 연구 사례","provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
-KIND = {"project_participation":"제공 프로젝트 이력","public_profile":"공식 공개 경력·학력 기록","career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
+SCOPE = {"provided_bibliography":"사용자 제공 논문·특허 목록","user_provided_project":"사용자 제공 프로젝트 이력","public_profile":"공식 공개 경력·학력","public_research_case":"공개 연구 사례","provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
+KIND = {"patent_bibliography":"제공 특허 목록","project_participation":"제공 프로젝트 이력","public_profile":"공식 공개 경력·학력 기록","career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
 MODE = {"advice":"자문","verify":"검증 요청","member":"프로젝트 멤버","site_request":"현장 의뢰","resource_request":"자원 요청"}
-ROLE = {"participant_unspecified":"참여 · 역할 미기재","first":"1저자","middle":"공저자","last":"마지막 저자","unknown":"저자","recorded_role":"기록상 담당"}
+ROLE = {"co_inventor":"공동발명자","participant_unspecified":"참여 · 역할 미기재","first":"1저자","middle":"공저자","last":"마지막 저자","unknown":"저자","recorded_role":"기록상 담당"}
 
 
 class Engine:
@@ -182,6 +182,11 @@ class Engine:
         if record.scope == "public_profile":
             boundary = "회사·기관의 공식 공개자료를 요약한 경력·학력 기록입니다. 직함·직무는 기록의 기준일에 한정하며 개인 수행 수준·현재 협업 가능성은 확인하지 않았습니다."
             boundary += " " + record.details.get("boundary_note", "")
+        if record.scope == "provided_bibliography":
+            boundary = "사용자가 제공한 논문·특허 서지 목록입니다. 원문·서지와 권리 상태를 독립 확인하지 않았으며, 개인 수행 수준·현재 소속·협업 가능성을 입증하지 않습니다."
+            if record.kind == "patent_record":
+                boundary += " 공동발명자 기재이며 출원인·특허권자는 현재 소속이 아닙니다. 공보별 항목 수는 독립 발명 수가 아닙니다."
+            boundary += " " + " ".join(record.details.get(k, "") for k in ("contribution_note", "boundary_note") if record.details.get(k))
         if record.kind == "project_record":
             boundary = "사용자가 제공한 프로젝트 참여 정보입니다. 역할·성과·수상·정확한 일정·주최는 미기재이며, 특정 기술 전문성·현재 소속·협업 가능성·계정 소유를 입증하지 않습니다."
         if record.kind == "career_record":
@@ -190,7 +195,7 @@ class Engine:
             boundary = "사용자가 제공한 직무 경력입니다. 회사 HR 검증·수행 수준·협업 가능 여부는 별도 확인이 필요합니다."
         if record.kind == "preprint":
             boundary += " 프리프린트이며 심사 완료 논문으로 간주하지 않습니다."
-        return {"id":record.id,"kind":record.kind,"title":record.title,"date":record.date,"url":record.source_url,"scope":SCOPE.get(record.scope,record.scope),"scope_key":record.scope,"evidence_kind":record.evidence_kind,"evidence_label":KIND[record.evidence_kind],"classification_basis":record.classification_basis,"checked_at":record.checked_at,"virtual":record.virtual,"boundary":boundary,"role":ROLE.get(contribution.role,"저자") if contribution else "기록","corresponding":bool(contribution and contribution.corresponding),"metadata_sources":record.details.get("metadata_sources",[]),"publication_type":record.details.get("publication_type"),"access":"사용자 제공 참여 정보" if record.kind == "project_record" else "공식 공개자료의 경력·학력 요약" if record.scope == "public_profile" else "제공된 직무 이력" if record.scope == "provided_resume" else "본인 제공 이력·경력 보완" if record.kind == "career_record" else "서지·편집 요약 (초록 원문 아님)" if record.details.get("text_kind") == "editorial_summary" else "가상 기록" if record.virtual else "메타데이터·초록" if record.text else "메타데이터","tags":record.tags, **({"project_participants": [{"id": item.person_id, "display_name": self.corpus.people[item.person_id].profile.get("display_name") or self.corpus.people[item.person_id].name} for item in record.people if item.person_id in self.corpus.people]} if record.kind == "project_record" else {})}
+        return {"id":record.id,"kind":record.kind,"title":record.title,"date":record.date,"url":record.source_url,"scope":SCOPE.get(record.scope,record.scope),"scope_key":record.scope,"evidence_kind":record.evidence_kind,"evidence_label":"제공 논문 서지" if record.scope == "provided_bibliography" and record.kind == "paper" else KIND[record.evidence_kind],"classification_basis":record.classification_basis,"checked_at":record.checked_at,"virtual":record.virtual,"boundary":boundary,"role":ROLE.get(contribution.role,"저자") if contribution else "기록","corresponding":bool(contribution and contribution.corresponding),"metadata_sources":record.details.get("metadata_sources",[]),"publication_type":record.details.get("publication_type"),"access":"사용자 제공 연구 목록 · 원문 독립 확인 전" if record.scope == "provided_bibliography" else "사용자 제공 참여 정보" if record.kind == "project_record" else "공식 공개자료의 경력·학력 요약" if record.scope == "public_profile" else "제공된 직무 이력" if record.scope == "provided_resume" else "본인 제공 이력·경력 보완" if record.kind == "career_record" else "서지·편집 요약 (초록 원문 아님)" if record.details.get("text_kind") == "editorial_summary" else "가상 기록" if record.virtual else "메타데이터·초록" if record.text else "메타데이터","tags":record.tags, **({"source_system":record.source_system, **{key:record.details[key] for key in ("source_label", "source_locator", "independently_verified", "record_origin", "publication_id", "application_id", "registration_number", "related_publication_ids", "inventors", "applicant", "assignee", "filing_date", "publication_date", "publication_event", "date_kind") if key in record.details}} if record.scope == "provided_bibliography" else {}), **({"project_participants": [{"id": item.person_id, "display_name": self.corpus.people[item.person_id].profile.get("display_name") or self.corpus.people[item.person_id].name} for item in record.people if item.person_id in self.corpus.people]} if record.kind == "project_record" else {})}
 
     def record_scores(self, text, topics, field, mode):
         scored=[]
@@ -245,6 +250,8 @@ class Engine:
             reason = f'요청의 「{focus}」와 연결된 「{best.title}」 경험이 제공된 직무 경력에 기록되어 있습니다.'
         elif best.kind == "public_profile_record":
             reason = f'요청의 「{focus}」와 연결된 「{best.title}」 내용이 공식 공개자료에 기록되어 있습니다.'
+        elif best.scope == "provided_bibliography":
+            reason = f'요청의 「{focus}」와 연결된 「{best.title}」에 {ROLE.get(contribution.role, "저자")}로 기재되어 있습니다. 사용자 제공 연구 목록에 근거하며 원문 독립 확인 전입니다.'
         role = topic_name
         if person.virtual:
             reason = f'요청의 「{focus}」와 연결된 「{best.title}」 경험이 시연용 가상 현장 기록에 있습니다.'

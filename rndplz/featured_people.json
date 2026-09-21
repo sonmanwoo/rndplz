@@ -5645,7 +5645,88 @@
       },
       "portrait_note": "공개 인물 사진을 참고한 AI 생성 일러스트입니다. 배경은 역할의 편집적 상징이며 실제 설비·개인 연구 수행 능력의 근거가 아닙니다.",
       "featured_work": "PUBLIC-KWON-LG-RND"
-    }
+    },
+    {
+      "id": "LOCAL-HONG",
+      "slug": "yoon-ki-hong",
+      "name": "Yoon-Ki Hong",
+      "display_name": "홍윤기",
+      "aliases": [
+        "홍윤기",
+        "Yoon-Ki Hong",
+        "Yoon Ki Hong"
+      ],
+      "org": "소속 미기재",
+      "org_type": "unknown",
+      "current_role": "책임",
+      "curated": true,
+      "source_type": "provided_resume",
+      "tagline": "촉매·고분자·냉동기유 연구",
+      "biography": "사용자가 제공한 연구 이력에 촉매 기반 바이오매스 전환·배출가스 저감 논문과 올레핀·고분자·파라핀·냉동기유 관련 공동발명 항목이 기재되어 있습니다.",
+      "skills": [
+        "촉매·바이오매스 전환 연구",
+        "배출가스·NOx 저감 촉매 연구",
+        "올레핀·고분자 물성 예측 공동발명",
+        "냉동기유 POE 공동발명"
+      ],
+      "timeline": [],
+      "sources": [
+        {
+          "title": "사용자 제공 연구 이력 목록",
+          "type": "user_provided_research_list",
+          "source_locator": "P001–P155",
+          "checked_at": "2026-09-21",
+          "independently_verified": false
+        },
+        {
+          "title": "이름·직함·팀원 및 2026 해커톤 참여 연결에 관한 사용자 지시",
+          "type": "user_instruction",
+          "independently_verified": false
+        }
+      ],
+      "profile_note": "사용자가 제공한 논문·특허 목록으로 구성했습니다. 현재 회사·부서·재직 기간·학위는 미기재이며, 출원인 표기로 보완하지 않았습니다. 논문·공보·동일인·권리 존속·현재 협업 가능성은 독립 검증하지 않았습니다. 특허 19항목은 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다.",
+      "profile_observed_as_of": "2026-09-21",
+      "profile_observed_as_of_semantics": "제공 자료를 읽은 기준일이며 재직 확인일이 아닙니다.",
+      "featured_work": "PAPER-HY-2014-01",
+      "topics": [
+        {
+          "id": "HY-CATALYSIS-BIOMASS",
+          "name": "촉매·바이오매스 전환"
+        },
+        {
+          "id": "HY-CATALYSIS-EMISSIONS",
+          "name": "배출가스·NOx 저감 촉매"
+        },
+        {
+          "id": "HY-OLEFIN-POLYMER",
+          "name": "올레핀·고분자 공동발명"
+        },
+        {
+          "id": "HY-PARAFFIN",
+          "name": "파라핀 조성물 공동발명"
+        },
+        {
+          "id": "HY-REFRIGERATION-OIL",
+          "name": "냉동기유 POE 공동발명"
+        }
+      ],
+  "portrait": {
+    "path": "/portraits/hong-illustration.png",
+    "label": "AI ILLUSTRATION",
+    "generated": true,
+    "kind": "personal_illustration",
+    "reference": {
+      "title": "사용자가 제공한 홍윤기 프로필 사진",
+      "kind": "user_provided",
+      "usage": "제공된 사진은 외형 참고 자료이며, 카드에는 별도 생성 일러스트를 표시합니다."
+    },
+    "generated_credit": "RnDplz · AI 생성 일러스트",
+    "sha256": "2516a0a22f8e62b90d776747538e9d2e0a660232c3065a3bded2f255db7ab0d7",
+    "width": 1086,
+    "height": 1448
+  },
+  "portrait_note": "제공된 사진을 참고한 AI 생성 초상 일러스트이며 교체할 수 있습니다. 배경의 과학 모티프는 연구 주제의 상징적 표현입니다."
+}
   ],
   "papers": [
     {
@@ -8519,6 +8600,669 @@
       "publication_type": "research_article",
       "date_precision": "year",
       "direct_topic_evidence": true
+    },
+    {
+      "id": "PAPER-HY-2014-01",
+      "kind": "paper",
+      "title": "The catalytic activity of Sulfided Ni/W/TiO2 (anatase) for the hydrodeoxygenation of Guaiacol",
+      "summary": "황화 Ni/W/TiO2(anatase) 촉매를 이용한 구아이아콜 수첨탈산소 연구.",
+      "date": "2014",
+      "authors": [
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Eom, H. J.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P011–P013",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.molcata.2014.05.025",
+      "url": "https://doi.org/10.1016/j.molcata.2014.05.025",
+      "venue": "Journal of Molecular Catalysis A: Chemical 392, 241–246 (2014).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2014-02",
+      "kind": "paper",
+      "title": "The catalytic activity of Pd/WOx/γ-Al2O3 for hydrodeoxygenation of guaiacol",
+      "summary": "Pd/WOx/γ-Al2O3 촉매를 이용한 구아이아콜 수첨탈산소 연구.",
+      "date": "2014",
+      "authors": [
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Eom, H. J.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P014–P016",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.apcatb.2013.12.045",
+      "url": "https://doi.org/10.1016/j.apcatb.2013.12.045",
+      "venue": "Applied Catalysis B: Environmental 150–151, 438–445 (2014).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2010-03",
+      "kind": "paper",
+      "title": "Passive NOx Reduction with CO Using Pd/TiO2/Al2O3 + WGSR Catalysts Under Simulated Post-Euro IV Diesel Exhaust Conditions",
+      "summary": "모사 디젤 배출가스 조건에서 Pd/TiO2/Al2O3와 WGSR 촉매를 조합한 CO 기반 NOx 저감 연구.",
+      "date": "2010",
+      "authors": [
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Ko, Y. C.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Li, Y.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Han, H. S.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-EMISSIONS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P017–P019",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1007/s10562-010-0312-5",
+      "url": "https://doi.org/10.1007/s10562-010-0312-5",
+      "venue": "Catalysis Letters 136, 106–115 (2010).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2015-04",
+      "kind": "paper",
+      "title": "Zirconia catalysts (ZrO2 and Na-ZrO2) for the conversion of phenethyl phenyl ether (PPE) in supercritical water",
+      "summary": "초임계수에서 리그닌 모델물질의 에테르 결합 분해를 위한 지르코니아 촉매 연구.",
+      "date": "2015",
+      "authors": [
+        {
+          "name": "Eom, H. J.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Kim, M. S.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Jeong, G.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P022–P025",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.apcata.2014.12.052",
+      "url": "https://doi.org/10.1016/j.apcata.2014.12.052",
+      "venue": "Applied Catalysis A: General 493, 149–157 (2015).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2014-05",
+      "kind": "paper",
+      "title": "Effects of a sodium carbonate (Na2CO3) additive on the conversion of phenethyl phenyl ether (PPE) in high-temperature water",
+      "summary": "고온수에서 리그닌 모델물질 전환에 대한 탄산나트륨 첨가 효과 연구.",
+      "date": "2014",
+      "authors": [
+        {
+          "name": "Eom, H. J.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Chung, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Seo, M. G.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P026–P029",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.apcata.2013.12.007",
+      "url": "https://doi.org/10.1016/j.apcata.2013.12.007",
+      "venue": "Applied Catalysis A: General 472, 152–159 (2014).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2012-06",
+      "kind": "paper",
+      "title": "Oxidation of ammonia to nitrogen over Pt/Fe/ZSM5 catalyst: Influence of catalyst support on the low temperature activity",
+      "summary": "암모니아를 질소로 전환하는 촉매의 저온 활성과 담체 영향 연구.",
+      "date": "2012",
+      "authors": [
+        {
+          "name": "Kim, M. S.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Chung, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Oh, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Cho, I. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-EMISSIONS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P030–P033",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.jhazmat.2012.08.026",
+      "url": "https://doi.org/10.1016/j.jhazmat.2012.08.026",
+      "venue": "Journal of Hazardous Materials 237–238, 153–160 (2012).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2011-07",
+      "kind": "paper",
+      "title": "The CO removal performances of Cr-free Fe/Ni catalysts for high temperature WGSR under LNG reformate condition without additional steam",
+      "summary": "추가 수증기 없는 LNG 개질가스 조건에서 Cr-free Fe/Ni 촉매의 고온 WGSR 및 CO 제거 성능을 다룬 연구.",
+      "date": "2011",
+      "authors": [
+        {
+          "name": "Lee, J. Y.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-EMISSIONS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P034–P036",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.ijhydene.2011.03.164",
+      "url": "https://doi.org/10.1016/j.ijhydene.2011.03.164",
+      "venue": "International Journal of Hydrogen Energy 36(14), 8173–8180 (2011).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2010-08",
+      "kind": "paper",
+      "title": "The enhancement of low-temperature combustion of diesel PM through concerted application of FBC and perovskite",
+      "summary": "FBC와 페로브스카이트의 조합을 통한 디젤 PM 저온 연소 연구.",
+      "date": "2010",
+      "authors": [
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Sung, J. Y.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Park, J. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Oh, S. H.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-EMISSIONS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P037–P039",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1016/j.cattod.2010.02.047",
+      "url": "https://doi.org/10.1016/j.cattod.2010.02.047",
+      "venue": "Catalysis Today 157(1–4), 432–435 (2010).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
+    },
+    {
+      "id": "PAPER-HY-2010-09",
+      "kind": "paper",
+      "title": "Influence of Pd precursors on Pd/TiO2/Al2O3 catalysts for lean NOx reduction with CO and H2",
+      "summary": "CO와 H2를 이용한 희박 조건 NOx 저감에서 Pd 전구체가 Pd/TiO2/Al2O3 촉매에 미치는 영향을 다룬 연구.",
+      "date": "2010",
+      "authors": [
+        {
+          "name": "Li, Y.",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, D. W.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hong, Y. K.",
+          "person_id": "LOCAL-HONG",
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Kim, S. M.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Han, H. S.",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Lee, K. Y.",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "HY-CATALYSIS-EMISSIONS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P040–P042",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "doi": "10.1007/s11144-009-0132-z",
+      "url": "https://doi.org/10.1007/s11144-009-0132-z",
+      "venue": "Reaction Kinetics, Mechanisms and Catalysis 99, 361–369 (2010).",
+      "evidence_kind": "unknown",
+      "classification_basis": [
+        "제공 문서의 논문 목록을 옮김; 원문·공보·동일인 외부 검증 미실행"
+      ],
+      "author_coverage": "supplied_document_author_list_in_original_order",
+      "contribution_note": "제공 문서에 기재된 저자 순서이며 교신저자·개인별 수행 역할은 확인하지 않았습니다.",
+      "boundary_note": "제공된 논문 서지·주제 요약이며 특정 설비의 성능·현재 협업 가능성을 확인한 결과가 아닙니다.",
+      "source_access_note": "문서에 포함된 DOI 링크를 보존했으며 외부 원문은 열람하지 않았습니다.",
+      "date_precision": "year",
+      "abstract_available": false
     }
   ],
   "experience_records": [
@@ -8772,12 +9516,907 @@
       "person_ids": [
         "LOCAL-MANWOO",
         "LOCAL-JINHO",
-        "LOCAL-DASOL"
+        "LOCAL-DASOL",
+        "LOCAL-HONG"
       ],
       "summary": "사용자가 등록 참여자의 2026 해커톤 참여 사실을 제공했습니다. 참여 역할·성과·수상·정확한 일정·주최는 기재되지 않았습니다.",
       "source_label": "사용자 제공 참여 정보",
       "checked_at": "2026-09-21",
       "team_membership_basis": "user_provided_project_participation"
+    }
+  ],
+  "patent_records": [
+    {
+      "id": "PATENT-HY-KR101436429B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "귀금속이 담지된 촉매를 사용하여 리그닌 전환 물질로부터 고리모양 탄화수소를 생성하는 방법",
+      "summary": "귀금속과 산화 텅스텐 또는 산화 몰리브덴을 포함한 알루미나 담지 촉매를 이용해 리그닌 유래 물질을 고리모양 탄화수소로 전환하는 기술.",
+      "date": "2014-09-01",
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P046–P052; P045; P067–P068",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR101436429B1",
+      "registration_number": "10-1436429",
+      "application_id": "10-2013-0144209",
+      "applicant": null,
+      "assignee": "고려대학교 산학협력단",
+      "assignee_source_label": "문서의 특허권자 표기",
+      "filing_date": "2013-11-26",
+      "publication_date": "2014-09-01",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [
+        "10-2014-0095005"
+      ],
+      "inventors": [
+        "이관영",
+        "홍윤기",
+        "엄희준",
+        "이대원"
+      ],
+      "url": "https://patents.google.com/patent/KR101436429B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 등록공보; 현재 권리 존속·기술이전 실적 미확인"
+      ],
+      "boundary_note": "제공 문서의 공동발명 기재이며 출원인·특허권자를 재직·학위·현재 권리의 증명으로 해석하지 않습니다."
+    },
+    {
+      "id": "PATENT-HY-KR101336981B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "텅스텐 산화물 티타니아 촉매를 사용하여 구아이아콜의 수첨탈산소 반응을 통해 카테콜 및 페놀 등 방향족 화합물을 생성하는 방법",
+      "summary": "티타니아 담체의 구조, 니켈 또는 코발트 조촉매 및 황화 처리를 활용한 구아이아콜 전환 기술.",
+      "date": "2013-12-04",
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P053–P059; P045; P067–P068",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR101336981B1",
+      "registration_number": "10-1336981",
+      "application_id": "10-2011-0107191",
+      "applicant": null,
+      "assignee": "고려대학교 산학협력단",
+      "assignee_source_label": "문서의 특허권자 표기",
+      "filing_date": "2011-10-19",
+      "publication_date": "2013-12-04",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [
+        "10-2013-0043000"
+      ],
+      "inventors": [
+        "이관영",
+        "엄희준",
+        "정상호",
+        "홍윤기"
+      ],
+      "url": "https://patents.google.com/patent/KR101336981B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 등록공보; 현재 권리 존속·기술이전 실적 미확인"
+      ],
+      "boundary_note": "제공 문서의 공동발명 기재이며 출원인·특허권자를 재직·학위·현재 권리의 증명으로 해석하지 않습니다."
+    },
+    {
+      "id": "PATENT-HY-KR101336982B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "텅스텐 산화물 알루미나 촉매를 사용하여 구아이아콜의 수첨탈산소 반응을 통해 카테콜 및 페놀 등 방향족 화합물을 생성하는 방법",
+      "summary": "니켈 또는 코발트를 포함한 텅스텐 산화물 알루미나 촉매로 구아이아콜을 방향족 화합물로 전환하는 기술.",
+      "date": "2013-12-04",
+      "tags": [
+        "HY-CATALYSIS-BIOMASS"
+      ],
+      "field": "catalysis_reaction",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P060–P066; P045; P067–P068",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR101336982B1",
+      "registration_number": "10-1336982",
+      "application_id": "10-2011-0072352",
+      "applicant": null,
+      "assignee": "고려대학교 산학협력단",
+      "assignee_source_label": "문서의 특허권자 표기",
+      "filing_date": "2011-07-21",
+      "publication_date": "2013-12-04",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [
+        "10-2013-0011296"
+      ],
+      "inventors": [
+        "이관영",
+        "홍윤기",
+        "엄희준",
+        "정상호"
+      ],
+      "url": "https://patents.google.com/patent/KR101336982B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 등록공보; 현재 권리 존속·기술이전 실적 미확인"
+      ],
+      "boundary_note": "제공 문서의 공동발명 기재이며 출원인·특허권자를 재직·학위·현재 권리의 증명으로 해석하지 않습니다."
+    },
+    {
+      "id": "PATENT-HY-US10688482B2",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "올레핀 올리고머화 방법",
+      "summary": "연속교반탱크 반응기에서 올레핀과 용매의 공급 유량비를 제어하는 올리고머화 공정.",
+      "date": "2020-06-23",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P071–P075; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "US10688482B2",
+      "registration_number": null,
+      "application_id": "US15/544,236",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2016-02-05",
+      "publication_date": "2020-06-23",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Yoon Ki Hong",
+        "Yong Ho Lee",
+        "Eun Ji Shin",
+        "Ki Soo Lee",
+        "Jin Young Park",
+        "Seok Pil SA",
+        "Seul Ki IM"
+      ],
+      "url": "https://patents.google.com/patent/US10688482B2/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR20160123213A",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "올레핀 올리고머의 연속 제조 방법",
+      "summary": "올레핀 올리고머를 연속적으로 제조하는 공정.",
+      "date": "2016-10-25",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P076–P080; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR20160123213A",
+      "registration_number": null,
+      "application_id": "KR1020150173236A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2015-12-07",
+      "publication_date": "2016-10-25",
+      "publication_event": "출원공개",
+      "date_kind": "application_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "홍윤기",
+        "신은지",
+        "사석필",
+        "이기수",
+        "이용호",
+        "박진영",
+        "임슬기"
+      ],
+      "url": "https://patents.google.com/patent/KR20160123213A/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR101757370B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "1-옥텐 조성물",
+      "summary": "1-옥텐 조성물 관련 기술.",
+      "date": "2017-07-12",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P081–P085; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR101757370B1",
+      "registration_number": null,
+      "application_id": "KR1020150125688A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2015-09-04",
+      "publication_date": "2017-07-12",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "이용호",
+        "사석필",
+        "신은지",
+        "이기수",
+        "박진영",
+        "임슬기",
+        "홍윤기"
+      ],
+      "url": "https://patents.google.com/patent/KR101757370B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-US10173948B2",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "올레핀 올리고머화 방법",
+      "summary": "활성 조절제를 포함한 촉매계를 사용하는 올레핀 올리고머화 기술.",
+      "date": "2019-01-08",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P086–P090; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "US10173948B2",
+      "registration_number": null,
+      "application_id": "US15/738,068",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2016-08-16",
+      "publication_date": "2019-01-08",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Seul Ki IM",
+        "Yong Ho Lee",
+        "Eun Ji Shin",
+        "Ki Soo Lee",
+        "Jin Young Park",
+        "Seok Pil SA",
+        "Yoon Ki Hong"
+      ],
+      "url": "https://patents.google.com/patent/US10173948B2/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102058142B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "리간드 화합물 및 올레핀 올리고머화 촉매계",
+      "summary": "리간드 화합물, 이를 포함하는 촉매계 및 올레핀 올리고머화 방법.",
+      "date": "2019-12-20",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P092–P096; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102058142B1",
+      "registration_number": null,
+      "application_id": "KR1020150124380A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2015-09-02",
+      "publication_date": "2019-12-20",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "이용호",
+        "임슬기",
+        "신은지",
+        "이기수",
+        "박진영",
+        "사석필",
+        "홍윤기"
+      ],
+      "url": "https://patents.google.com/patent/KR102058142B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR101982789B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "리간드·유기 크롬 화합물 및 올레핀 올리고머화 촉매계",
+      "summary": "리간드와 유기 크롬 화합물을 이용하는 올리고머화 촉매 기술.",
+      "date": "2019-05-27",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P097–P101; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR101982789B1",
+      "registration_number": null,
+      "application_id": "KR1020150172686A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2015-12-04",
+      "publication_date": "2019-05-27",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "임슬기",
+        "이용호",
+        "이기수",
+        "신은지",
+        "박진영",
+        "사석필",
+        "홍윤기"
+      ],
+      "url": "https://patents.google.com/patent/KR101982789B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102068795B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "고분자의 물성 예측 방법 — 장기 안정성",
+      "summary": "분자량 분포 곡선을 활용한 고분자 장기 안정성 예측. 미국 대응 공보: US10634605B2.",
+      "date": "2020-01-21",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P102–P106; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102068795B1",
+      "registration_number": null,
+      "application_id": "KR1020160157723A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2016-11-24",
+      "publication_date": "2020-01-21",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [
+        "US10634605B2"
+      ],
+      "inventors": [
+        "홍윤기",
+        "권혁주",
+        "송은경",
+        "홍대식",
+        "이예진",
+        "김중수",
+        "신은영",
+        "유영석",
+        "이기수"
+      ],
+      "url": "https://patents.google.com/patent/KR102068795B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102095523B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "고분자의 물성 예측 방법 — 가공성",
+      "summary": "분자량 분포 곡선을 활용한 고분자 가공성 예측. 미국 대응 공보: US10962522B2.",
+      "date": "2020-03-31",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P107–P111; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102095523B1",
+      "registration_number": null,
+      "application_id": "KR1020160157724A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2016-11-24",
+      "publication_date": "2020-03-31",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [
+        "US10962522B2"
+      ],
+      "inventors": [
+        "홍윤기",
+        "권혁주",
+        "송은경",
+        "홍대식",
+        "이예진",
+        "김중수",
+        "신은영",
+        "유영석",
+        "이기수"
+      ],
+      "url": "https://patents.google.com/patent/KR102095523B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102215024B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "폴리올레핀의 제조 방법",
+      "summary": "고분자량과 내응력 균열성을 갖는 폴리올레핀 제조 기술.",
+      "date": "2021-02-09",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P113–P117; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102215024B1",
+      "registration_number": null,
+      "application_id": "KR1020160162034A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2016-11-30",
+      "publication_date": "2021-02-09",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "권혁주",
+        "홍윤기",
+        "송은경",
+        "홍대식",
+        "이예진",
+        "김중수",
+        "신은영",
+        "유영석",
+        "이기수"
+      ],
+      "url": "https://patents.google.com/patent/KR102215024B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-EP3476870B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "올레핀 중합체의 제조 방법",
+      "summary": "유럽 등록공보 명칭: Method for preparing an olefin polymer.",
+      "date": "2026-01-28",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P118–P122; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "EP3476870B1",
+      "registration_number": null,
+      "application_id": "EP17890923.0A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2017-12-06",
+      "publication_date": "2026-01-28",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Joong Soo Kim",
+        "Eun Kyoung Song",
+        "Nak-Kyu SONG",
+        "Dae Sik Hong",
+        "Si Yong Kim",
+        "Eun Young Shin",
+        "Young Suk You",
+        "Yoon Ki Hong"
+      ],
+      "url": "https://patents.google.com/patent/EP3476870B1/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102521452B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "파라핀 혼합물 및 이의 제조 방법",
+      "summary": "황 및 방향족 함량이 낮은 파라핀 혼합물과 그 제조 기술.",
+      "date": "2023-04-13",
+      "tags": [
+        "HY-PARAFFIN"
+      ],
+      "field": "paraffin_composition",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P123–P127; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102521452B1",
+      "registration_number": null,
+      "application_id": "KR1020180135448A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2018-11-06",
+      "publication_date": "2023-04-13",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "홍윤기",
+        "신은지",
+        "사석필",
+        "이정석",
+        "이기수"
+      ],
+      "url": "https://patents.google.com/patent/KR102521452B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-EP3747920A1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "블록 공중합체 조성물 — 열분해 특성",
+      "summary": "폴리올레핀계·폴리스티렌계 블록을 포함하는 이중·삼중 블록 공중합체 조성물.",
+      "date": "2020-12-09",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P128–P132; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "EP3747920A1",
+      "registration_number": null,
+      "application_id": "EP19776148.9A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2019-03-29",
+      "publication_date": "2020-12-09",
+      "publication_event": "출원공개",
+      "date_kind": "application_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Hyun Mo Lee",
+        "Eun Ji Shin",
+        "Seok Pil Sa",
+        "Yoon Ki Hong",
+        "Ki Soo Lee",
+        "Bun Yeoul Lee"
+      ],
+      "url": "https://patents.google.com/patent/EP3747920A1/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-EP3747922A1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "블록 공중합체 조성물 — 가공성",
+      "summary": "분자량, 분산도, 유리전이온도 및 용융지수 조건을 갖는 블록 공중합체 조성물.",
+      "date": "2020-12-09",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P134–P138; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "EP3747922A1",
+      "registration_number": null,
+      "application_id": "EP19778223.8A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2019-03-29",
+      "publication_date": "2020-12-09",
+      "publication_event": "출원공개",
+      "date_kind": "application_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Yoon Ki Hong",
+        "Seok Pil Sa",
+        "Hyun Mo Lee",
+        "Eun Ji Shin",
+        "Ki Soo Lee",
+        "Bun Yeoul Lee"
+      ],
+      "url": "https://patents.google.com/patent/EP3747922A1/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-EP3747921B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "블록 공중합체 조성물",
+      "summary": "유럽 등록공보 명칭: Block copolymer composition.",
+      "date": "2023-12-06",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P139–P143; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "EP3747921B1",
+      "registration_number": null,
+      "application_id": "EP19776273.5A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2019-03-29",
+      "publication_date": "2023-12-06",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Eun Ji Shin",
+        "Ki Soo Lee",
+        "Seok Pil Sa",
+        "Yoon Ki Hong",
+        "Bun Yeoul Lee"
+      ],
+      "url": "https://patents.google.com/patent/EP3747921B1/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-EP3750931B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "블록 공중합체 조성물의 제조 방법",
+      "summary": "유럽 등록공보 명칭: Method for producing block copolymer composition.",
+      "date": "2023-12-06",
+      "tags": [
+        "HY-OLEFIN-POLYMER"
+      ],
+      "field": "materials_polymers",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P144–P148; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "EP3750931B1",
+      "registration_number": null,
+      "application_id": "EP19775609.1A",
+      "applicant": "LG화학",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2019-03-29",
+      "publication_date": "2023-12-06",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "Seok Pil Sa",
+        "Eun Ji Shin",
+        "Yoon Ki Hong",
+        "Hyun Mo Lee",
+        "Ki Soo Lee",
+        "Bun Yeoul Lee"
+      ],
+      "url": "https://patents.google.com/patent/EP3750931B1/en",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
+    },
+    {
+      "id": "PATENT-HY-KR102958116B1",
+      "kind": "patent_record",
+      "person_id": "LOCAL-HONG",
+      "role": "co_inventor",
+      "title": "냉동기유용 폴리올에스테르계 베이스 오일 및 이의 제조방법",
+      "summary": "펜타에리스리톨·디펜타에리스리톨과 C4–C12 지방산을 활용한 냉동기유 베이스 오일.",
+      "date": "2026-04-27",
+      "tags": [
+        "HY-REFRIGERATION-OIL"
+      ],
+      "field": "refrigeration_oil",
+      "source_system": "user_provided_research_list",
+      "record_origin": "user_provided_research_list",
+      "scope": "provided_bibliography",
+      "checked_at": "2026-09-21",
+      "source_label": "사용자 제공 연구 이력 목록",
+      "source_locator": "P149–P153; P070; P154",
+      "independently_verified": false,
+      "text_kind": "provided_bibliographic_summary",
+      "publication_id": "KR102958116B1",
+      "registration_number": null,
+      "application_id": "KR1020230174939A",
+      "applicant": "GS칼텍스",
+      "assignee": null,
+      "applicant_source_label": "제공 문서의 기업별 출원 목록 표기",
+      "filing_date": "2023-12-05",
+      "publication_date": "2026-04-27",
+      "publication_event": "등록공고",
+      "date_kind": "registration_publication_date",
+      "related_publication_ids": [],
+      "inventors": [
+        "최인창",
+        "김동신",
+        "정다솔",
+        "정상철",
+        "홍윤기"
+      ],
+      "url": "https://patents.google.com/patent/KR102958116B1/ko",
+      "evidence_kind": "patent_bibliography",
+      "classification_basis": [
+        "사용자 제공 목록의 대표 공보 항목; 국외 대응 공보를 별도 독립 발명으로 합산하지 않음"
+      ],
+      "boundary_note": "제공된 공동발명 목록이며 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 출원인 표기는 재직 기간·현재 소속 확인이 아닙니다."
     }
   ]
 }

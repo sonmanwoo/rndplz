@@ -134,8 +134,13 @@ function projectParticipantsHtml(e,currentPersonId=null){
  }
  return items.length?'<div class="project-participants"><p class="detail-note">함께한 사람 · 사용자 제공 참여 정보</p>'+items.join(' · ')+'</div>':"";
 }
+function evidenceDatesHtml(e){
+ if(e.kind!=='patent_record')return '<dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd>';
+ const label=({application_publication_date:'출원공개일',registration_publication_date:'등록공고일'})[e.date_kind]||'공보일(유형 미기재)';
+ return '<dt>출원일</dt><dd>'+esc(e.filing_date||'미기재')+'</dd><dt>'+esc(label)+'</dt><dd>'+esc(e.publication_date||e.date||'미기재')+'</dd><dt>공보번호</dt><dd>'+esc(e.publication_id||'미기재')+'</dd>';
+}
 function evidenceHtml(e,currentPersonId=null){
- return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl><dt>기록 날짜·기간</dt><dd>'+esc(e.date)+'</dd><dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
+ return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl>'+evidenceDatesHtml(e)+'<dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
 function showPerson(p,candidate=false){

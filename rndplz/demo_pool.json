@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "gs-business-kwon-hackathon-20260921-r1",
+  "version": "gs-business-hong-research-20260921-r1",
   "person_ids": [
     "PUB-ERTL",
     "PUB-RYOO",
@@ -31,7 +31,8 @@
     "PUB-MORARI",
     "PUB-KHATIB",
     "LOCAL-DASOL",
-    "PUB-KWON-YOUNGWOON"
+    "PUB-KWON-YOUNGWOON",
+    "LOCAL-HONG"
   ],
   "record_ids": [
     "GS-PAPER-GERHARD-ERTL-2008-1",
@@ -85,12 +86,41 @@
     "PUBLIC-KWON-SNU-EDUCATION",
     "PUBLIC-KWON-GS-ROLE",
     "PUBLIC-KWON-WHITEBIO-COLLABORATION",
-    "PROJECT-HACKATHON-2026"
+    "PROJECT-HACKATHON-2026",
+    "PAPER-HY-2014-01",
+    "PAPER-HY-2014-02",
+    "PAPER-HY-2010-03",
+    "PAPER-HY-2015-04",
+    "PAPER-HY-2014-05",
+    "PAPER-HY-2012-06",
+    "PAPER-HY-2011-07",
+    "PAPER-HY-2010-08",
+    "PAPER-HY-2010-09",
+    "PATENT-HY-KR101436429B1",
+    "PATENT-HY-KR101336981B1",
+    "PATENT-HY-KR101336982B1",
+    "PATENT-HY-US10688482B2",
+    "PATENT-HY-KR20160123213A",
+    "PATENT-HY-KR101757370B1",
+    "PATENT-HY-US10173948B2",
+    "PATENT-HY-KR102058142B1",
+    "PATENT-HY-KR101982789B1",
+    "PATENT-HY-KR102068795B1",
+    "PATENT-HY-KR102095523B1",
+    "PATENT-HY-KR102215024B1",
+    "PATENT-HY-EP3476870B1",
+    "PATENT-HY-KR102521452B1",
+    "PATENT-HY-EP3747920A1",
+    "PATENT-HY-EP3747922A1",
+    "PATENT-HY-EP3747921B1",
+    "PATENT-HY-EP3750931B1",
+    "PATENT-HY-KR102958116B1"
   ],
   "personal_person_ids": [
     "LOCAL-MANWOO",
     "LOCAL-JINHO",
-    "LOCAL-DASOL"
+    "LOCAL-DASOL",
+    "LOCAL-HONG"
   ],
   "personal_record_ids": [
     "CAREER-MW-BIO",
@@ -105,10 +135,38 @@
     "CAREER-DS-LUBE",
     "CAREER-DS-BASEOIL-SALES",
     "CAREER-DS-BASEOIL-OPERATIONS",
-    "PROJECT-HACKATHON-2026"
+    "PROJECT-HACKATHON-2026",
+    "PAPER-HY-2014-01",
+    "PAPER-HY-2014-02",
+    "PAPER-HY-2010-03",
+    "PAPER-HY-2015-04",
+    "PAPER-HY-2014-05",
+    "PAPER-HY-2012-06",
+    "PAPER-HY-2011-07",
+    "PAPER-HY-2010-08",
+    "PAPER-HY-2010-09",
+    "PATENT-HY-KR101436429B1",
+    "PATENT-HY-KR101336981B1",
+    "PATENT-HY-KR101336982B1",
+    "PATENT-HY-US10688482B2",
+    "PATENT-HY-KR20160123213A",
+    "PATENT-HY-KR101757370B1",
+    "PATENT-HY-US10173948B2",
+    "PATENT-HY-KR102058142B1",
+    "PATENT-HY-KR101982789B1",
+    "PATENT-HY-KR102068795B1",
+    "PATENT-HY-KR102095523B1",
+    "PATENT-HY-KR102215024B1",
+    "PATENT-HY-EP3476870B1",
+    "PATENT-HY-KR102521452B1",
+    "PATENT-HY-EP3747920A1",
+    "PATENT-HY-EP3747922A1",
+    "PATENT-HY-EP3747921B1",
+    "PATENT-HY-EP3750931B1",
+    "PATENT-HY-KR102958116B1"
   ],
   "excluded_person_ids": [
     "PUB-LEE-SANGYUP"
   ],
-  "note": "공개자료 인물 27명과 사용자가 제공한 개인 프로필 3명으로 구성한 시연 풀입니다. 활성 근거는 논문 35건, 제공 경력 12건, 공식 공개 경력·학력 기록 4건입니다. 사내 인력 명부나 현재 협업 가능성을 확인한 결과가 아닙니다. 이름 조회는 활성 자료로만 제한하며 보관 명단과 원자료는 유지합니다. 별도로 사용자가 제공한 2026 해커톤 참여 이력 1건을 세 인물에 공통 연결합니다. 역할·성과·수상·정확한 일정·주최는 미기재입니다."
+  "note": "공개자료 인물 27명과 사용자가 제공한 개인 프로필 4명으로 구성한 시연 풀입니다. 활성 근거는 기존 공개 논문 35건, 사용자 제공 목록의 논문 9편·특허 공보 19항목, 제공 경력 12건, 공식 공개 경력·학력 기록 4건, 공유 프로젝트 참여 기록 1건입니다. 특허 항목 수는 전체 보유·등록 특허 수 또는 독립 발명 수를 뜻하지 않습니다. 회사 출원인으로 재직·학위를 추정하지 않습니다. 사용자가 제공한 2026 해커톤 참여 이력 1건을 네 인물에 공통 연결하며 역할·성과·수상·정확한 일정·주최는 미기재입니다."
 }

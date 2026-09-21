@@ -866,5 +866,102 @@
       "회사·기관 공개 보직과 사업 협력 자료"
     ],
     "boundary_note": "공개 경력의 연결 분류이며 직접 실험·발명·기술 숙련도 또는 현재 자문 가용성을 뜻하지 않습니다."
+  },
+  {
+    "id": "HY-CATALYSIS-BIOMASS",
+    "name": "촉매·바이오매스 전환",
+    "field": "catalysis_reaction",
+    "scope": "provided_bibliography",
+    "keywords": [
+      "촉매",
+      "바이오매스 전환",
+      "리그닌",
+      "구아이아콜",
+      "수첨탈산소",
+      "hydrodeoxygenation",
+      "guaiacol",
+      "Ni/W/TiO2"
+    ],
+    "classification_basis": [
+      "사용자 제공 연구 목록의 논문·특허 주제 연결: P003, P008–016, P022–029, P046–068"
+    ],
+    "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
+    "color": "#8b9278"
+  },
+  {
+    "id": "HY-CATALYSIS-EMISSIONS",
+    "name": "배출가스·NOx 저감 촉매",
+    "field": "catalysis_reaction",
+    "scope": "provided_bibliography",
+    "keywords": [
+      "배출가스",
+      "NOx 저감",
+      "WGSR",
+      "CO 제거",
+      "암모니아",
+      "디젤 PM",
+      "Pd/TiO2/Al2O3"
+    ],
+    "classification_basis": [
+      "사용자 제공 연구 목록의 논문·특허 주제 연결: P017–019, P030–042"
+    ],
+    "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
+    "color": "#8b9278"
+  },
+  {
+    "id": "HY-OLEFIN-POLYMER",
+    "name": "올레핀·고분자 공동발명",
+    "field": "materials_polymers",
+    "scope": "provided_bibliography",
+    "keywords": [
+      "올레핀",
+      "올리고머화",
+      "리간드",
+      "유기 크롬",
+      "고분자 물성 예측",
+      "분자량 분포",
+      "블록 공중합체",
+      "polyolefin",
+      "olefin polymer"
+    ],
+    "classification_basis": [
+      "사용자 제공 연구 목록의 논문·특허 주제 연결: P071–122, P128–148"
+    ],
+    "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
+    "color": "#8b9278"
+  },
+  {
+    "id": "HY-PARAFFIN",
+    "name": "파라핀 조성물 공동발명",
+    "field": "paraffin_composition",
+    "scope": "provided_bibliography",
+    "keywords": [
+      "파라핀 혼합물",
+      "파라핀 조성물",
+      "paraffin mixture"
+    ],
+    "classification_basis": [
+      "사용자 제공 연구 목록의 논문·특허 주제 연결: P123–127"
+    ],
+    "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
+    "color": "#8b9278"
+  },
+  {
+    "id": "HY-REFRIGERATION-OIL",
+    "name": "냉동기유 POE 공동발명",
+    "field": "refrigeration_oil",
+    "scope": "provided_bibliography",
+    "keywords": [
+      "냉동기유",
+      "폴리올에스테르",
+      "POE 베이스 오일",
+      "refrigeration oil",
+      "polyol ester"
+    ],
+    "classification_basis": [
+      "사용자 제공 연구 목록의 논문·특허 주제 연결: P149–153"
+    ],
+    "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
+    "color": "#8b9278"
   }
 ]

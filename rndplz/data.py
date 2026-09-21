@@ -112,6 +112,7 @@ class Corpus:
         for raw in featured["people"]:
             self.add(self.people, Person(raw["id"], raw["name"], org=raw["org"], org_type=raw["org_type"], profile=raw))
         for raw in featured["papers"]:
+            provided = raw.get("source_system") == "user_provided_research_list"
             contributions = [Contribution(a["person_id"], a["name"], a["role"], a.get("corresponding", False)) for a in raw["authors"]]
             for c in contributions:
                 if c.person_id and c.person_id not in self.people:
@@ -123,10 +124,28 @@ class Corpus:
                        "author_coverage": raw.get("author_coverage", "selected_curated_profiles"), "all_authors": [a["name"] for a in raw["authors"]]}
             for key in ("contribution_note", "boundary_note", "metadata_sources", "venue", "doi", "publication_type", "source_access_note"):
                 if key in raw: details[key] = raw[key]
+            if provided:
+                for key in ("source_label", "source_locator", "independently_verified", "record_origin"):
+                    if key in raw: details[key] = raw[key]
             self.add(self.records, Record(raw["id"], raw["kind"], raw["title"], raw["summary"], raw["date"],
-                contributions, raw["tags"], raw.get("field", "ai_foundations"), raw.get("scope", "ai_foundations"), "curated_primary_sources", raw["id"],
+                contributions, raw["tags"], raw.get("field", "ai_foundations"), "provided_bibliography" if provided else raw.get("scope", "ai_foundations"), "user_provided_research_list" if provided else "curated_primary_sources", raw["id"],
                 raw["url"], raw.get("checked_at", featured["checked_at"]), raw["evidence_kind"],
-                raw.get("classification_basis", ["원문 서지·초록을 확인한 편집 요약"]), details=details))
+                raw.get("classification_basis", ["사용자 제공 연구 목록"] if provided else ["원문 서지·초록을 확인한 편집 요약"]), details=details))
+        for raw in featured.get("patent_records", []):
+            person = self.people[raw["person_id"]]
+            for tag in raw["tags"]:
+                if tag not in self.topic_by_id:
+                    self.errors.append("미해결 주제 참조: " + tag)
+            details = {"text_kind": "provided_bibliographic_summary", "abstract_available": False}
+            for key in ("publication_id", "application_id", "registration_number", "related_publication_ids",
+                        "inventors", "applicant", "assignee", "filing_date", "publication_date", "publication_event",
+                        "date_kind", "source_label", "source_locator", "independently_verified", "record_origin",
+                        "boundary_note", "metadata_sources"):
+                if key in raw: details[key] = raw[key]
+            self.add(self.records, Record(raw["id"], "patent_record", raw["title"], raw["summary"], raw["date"],
+                [Contribution(person.id, person.name, "co_inventor")], raw["tags"], raw["field"], "provided_bibliography",
+                "user_provided_research_list", raw["id"], raw["url"], raw.get("checked_at", featured["checked_at"]),
+                "patent_bibliography", raw.get("classification_basis", ["사용자 제공 특허 목록"]), details=details))
         for raw in featured.get("experience_records", []):
             person = self.people[raw["person_id"]]
             self.add(self.records, Record(raw["id"], "career_record", raw["title"], raw["summary"], raw["date"],
