@@ -534,6 +534,12 @@ async function candidateDrawRecords(rows,gemini,historical,signal){
   }catch{return record;}
  }));
 }
+function emptyCandidateNotice(s){
+ const result=s?.result,scout=s?.scout;
+ // Only abbreviate a completed zero-card assessment; keep other result notices intact.
+ if(!s?.pending&&scout?.status==="complete"&&scout.count_status==="known"&&scout.count===0&&Array.isArray(result?.candidates)&&result.candidates.length===0&&result.assessment_status==="accepted"&&result.lookup_resolution==="no_purpose_supported_records"&&!result.inspection_only)return '현재 요청에 맞는 연결 후보를 확정하지 못했어요.';
+ return result?.empty_message||'현재 자료에서 요청을 뒷받침하는 인물을 찾지 못했어요.';
+}
 function renderCandidates(){
  const zone=$("proposalZone");
  const disclosed=session?.scout?.disclosed===true&&session.scout.revision===session.discovery?.revision;
@@ -541,15 +547,16 @@ function renderCandidates(){
  if(zone.hidden){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";zone.replaceChildren();return;}
  if(accountNavigationPending||accountInvalidated)return;
  const rows=session.result?.candidates||[],key=session.id+":"+session.scout.revision;
- const renderKey=key+":"+JSON.stringify(rows);
+ const emptyNotice=rows.length?"":emptyCandidateNotice(session);
+ const renderKey=key+":"+JSON.stringify(rows)+(rows.length?"":":"+JSON.stringify(emptyNotice));
  if(renderKey===drawRenderKey)return;
  drawMetadataController?.abort();
  drawRenderKey=renderKey;const epoch=++drawEpoch;
  drawController?.dispose();drawController=null;
  const animate=animateScoutKey===key;animateScoutKey="";
  zone.classList.add("scout-draw-zone");
- zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2><p>카드를 누르면 자세한 이력과 근거를 볼 수 있어요.</p></div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
- if(!rows.length){$("scoutDrawHost").textContent=session.result?.empty_message||'현재 자료에서 요청을 뒷받침하는 인물을 찾지 못했어요.';if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
+ zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p>카드를 누르면 자세한 이력과 근거를 볼 수 있어요.</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
+ if(!rows.length){$("scoutDrawHost").textContent=emptyNotice;if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
  const metadataTimeout=setTimeout(()=>metadataController.abort(),8000);
  Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(session.result?.historical_result),metadataController.signal),import('/draw.js')]).then(([records,{initDraw}])=>{
