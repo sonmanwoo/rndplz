@@ -8,7 +8,7 @@ let profileUI=null;
 let prepareBusy=false,prepareTicket=0;
 let drawController=null,drawRenderKey="",drawEpoch=0,animateScoutKey="";
 const formatted=text=>esc(text).replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/^[-*] /gm,"• ");
-async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;throw failure;}return data;}
+async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});const data=await response.json();if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;throw failure;}return data;}
 function error(message=""){$("composerError").textContent=message;$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
 function modal(id,returnFocus=document.activeElement){
@@ -267,7 +267,7 @@ async function prepareDiscovery(button,keyboard=false){
   if(!current())return;
   if(prepared?.id!==sid||!(prepared.discovery?.revision===revision||prepared.scout?.disclosed&&prepared.scout.requested_revision===revision))throw new Error("대화 조건이 바뀌었습니다. 현재 조건을 확인한 뒤 다시 수소문해 주세요.");
   session=prepared;animateScoutKey=session.id+":"+session.scout.revision;adopted=true;autoScroll=false;
- }catch(e){if(current()){error(e.message);if(e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};invalidated=true;}}}
+ }catch(e){if(current()){error(e.message);if(((e.code==="model_response_unavailable"||e.code==="model_response_budget_exhausted")&&e.retry_available===false)||e.code==="discovery_not_ready"||e.message==="현재 조건을 새 메시지로 확인한 뒤 수소문을 눌러 주세요."){session.discovery={...session.discovery,lookup_ready:false};invalidated=true;}}}
  finally{
   document.removeEventListener("focusin",focusElsewhere);document.removeEventListener("pointerdown",pointerElsewhere);window.removeEventListener("blur",windowBlur);
   if(ticket===prepareTicket){

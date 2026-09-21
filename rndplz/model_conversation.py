@@ -184,6 +184,23 @@ REPAIRABLE_RESPONSE_ERRORS = frozenset({
 })
 
 
+class ModelResponseUnavailable(ValueError):
+    """An adapter failed before a completed response; not request validation."""
+    code = 'model_response_unavailable'
+    request_preserved = False
+    retry_available = False
+
+    def __init__(self):
+        super().__init__('모델 설명을 완료하지 못했습니다.')
+
+
+class ModelResponseBudgetExhausted(ValueError):
+    code = 'model_response_budget_exhausted'
+
+    def __init__(self):
+        super().__init__('이번 요청의 처리 한도에 도달했어요. 의뢰서는 유지되니 새 메시지로 조건을 확인해 주세요.')
+
+
 class PlanMessages(list):
     """Server-only immutable request basis; JSON providers see a normal list."""
     def __init__(self, values, *, basis, deadline=None):
@@ -777,6 +794,23 @@ class ModelConversation:
             value.update(lookup_resolution='no_purpose_supported_records', empty_message=reply)
         return value
 
+    @staticmethod
+    def _prepare_response_available(session, origin_turn):
+        ledger = session.get('model_generation_budget') or {}
+        calls = ledger.get('calls')
+        return (ledger.get('origin_turn_id') == origin_turn and type(calls) is int
+                and 0 <= calls < 4)
+
+    def _response_chunks(self, option, messages):
+        # Only adapter iteration belongs to this boundary. Parser, source,
+        # deadline and output-size checks remain in the caller.
+        try:
+            yield from self.models.stream(option['id'], messages, contract='dialogue_response.v1')
+        except ModelBasisChanged:
+            raise
+        except Exception:
+            raise ModelResponseUnavailable() from None
+
     def _stream_model_response(self, session, option, plan, result, basis, pending, origin_turn,
                                deadline, state, *, extra=False, validation_feedback=None):
         allow_next = not extra and self._model_feedback_available(session['id'], origin_turn)
@@ -816,7 +850,7 @@ class ModelConversation:
                          generation_contract='dialogue_response.v1',
                          content={'model_messages':messages,
                                   'model_generation_budget':self.get(session['id']).get('model_generation_budget')})
-        for piece in self.models.stream(option['id'], messages, contract='dialogue_response.v1'):
+        for piece in self._response_chunks(option, messages):
             state['raw'] += piece
             attempt['raw'] = state['raw']
             if len(state['raw']) > 24000:
@@ -902,7 +936,7 @@ class ModelConversation:
 
     def _finish_model_turn(self, sid, turn_id, option, reply, status, error, elapsed,
                            *, plan=None, raw_plan='', raw_plan_contract='dialogue_plan.v2', revision=None, result=None, request=None,
-                           kind=None, plan_source_turn=None, plan_attempts=None, search_attempts=None, assessment=None, consultation=None, request_spec=None):
+                           kind=None, plan_source_turn=None, plan_attempts=None, search_attempts=None, assessment=None, consultation=None, request_spec=None, retry_prepare=None):
         if status != 'complete' and (assessment or {}).get('execution'):
             executed = assessment['execution']
             plan, raw_plan, raw_plan_contract = executed['plan'], executed['raw'], executed['raw_contract']
@@ -1007,6 +1041,18 @@ class ModelConversation:
                         failed_result.update(lookup_resolution='assessment_incomplete',
                                       empty_message='자료를 조회했지만 사용자 목적과의 관련성 평가는 완료하지 못했습니다.')
                     session.update(result=failed_result, ready=False, search_context={'kind':'discussion', 'ids':[]})
+                if retry_prepare is not None:
+                    # Restore only the previously validated private request. The
+                    # consumed ledger and failed assistant attempt stay untouched.
+                    for key in ('model_plan', 'model_plan_version', 'model_plan_revision',
+                                'model_plan_source_turn', 'model_plan_corpus_fingerprint',
+                                'discovery', 'request_spec', 'scout_result', 'scout_request'):
+                        if key in retry_prepare:
+                            session[key] = copy.deepcopy(retry_prepare[key])
+                    session['scout'] = {**copy.deepcopy(retry_prepare['scout']),
+                                        'disclosed':False, 'requested_revision':None}
+                    if not self._prepare_response_available(session, plan_source_turn):
+                        session['discovery']['lookup_ready'] = False
             return self.service.present_session(session)
         return self.store.transaction(update)
 
@@ -1135,7 +1181,7 @@ class ModelConversation:
                 return copy.deepcopy(session), 'stale'
             revision = session.get('model_plan_revision')
             plan = session.get('model_plan')
-            if not plan or not revision or payload.get('discovery_revision')!=revision or not (session.get('discovery') or {}).get('lookup_ready'):
+            if not plan or not revision or payload.get('discovery_revision')!=revision:
                 raise DiscoveryError()
             spec = session.get('request_spec') or {}
             source_turn = session.get('model_plan_source_turn')
@@ -1160,6 +1206,10 @@ class ModelConversation:
             if (session.get('scout_authorized_revision')==revision and session.get('scout', {}).get('disclosed') is True
                     and session.get('prepared_discovery_revision')==revision and session.get('result') is not None):
                 return copy.deepcopy(session), True
+            if not self._prepare_response_available(session, source_turn):
+                raise ModelResponseBudgetExhausted()
+            if not (session.get('discovery') or {}).get('lookup_ready'):
+                raise DiscoveryError()
             session['scout_authorized_revision'] = revision
             session.update(pending=operation, pending_model_led=True, can_propose=False)
             return copy.deepcopy(session), False
@@ -1170,6 +1220,7 @@ class ModelConversation:
         plan, revision = session['model_plan'], session['model_plan_revision']
         request_spec = copy.deepcopy(session['request_spec'])
         started = time.monotonic(); reply=''; result=request=None; status='error'; error=''; dispatched=False; assessment={}
+        failure = None; retry_prepare = None
         deadline = started + 180
         source_turn = session['model_plan_source_turn']
         original = next((m for m in reversed(session['messages'])
@@ -1204,12 +1255,22 @@ class ModelConversation:
             self._check_model_basis(sid, operation, basis, deadline)
             status='complete'
         except Exception as exc:
-            error = str(exc) if isinstance(exc, ValueError) else '공개 근거 조회 또는 모델 설명을 완료하지 못했습니다.'
+            failure = exc
+            if isinstance(exc, ModelResponseUnavailable):
+                try:
+                    self._check_model_basis(sid, operation, basis, deadline)
+                except Exception as changed:
+                    failure = changed
+                else:
+                    retry_prepare = session
+                    exc.request_preserved = True
+                    exc.retry_available = self._prepare_response_available(self.get(sid), source_turn)
+            error = str(failure) if isinstance(failure, ValueError) else '공개 근거 조회 또는 모델 설명을 완료하지 못했습니다.'
         finally:
             current = self._finish_model_turn(sid, operation, option, reply, status, error,
                 time.monotonic()-started, plan=plan, raw_plan=raw, raw_plan_contract=raw_contract, revision=revision, result=result,
                 request=request, kind='recommendation', plan_source_turn=source_turn,
-                plan_attempts=attempts, search_attempts=searches, assessment=assessment, request_spec=request_spec)
+                plan_attempts=attempts, search_attempts=searches, assessment=assessment, request_spec=request_spec, retry_prepare=retry_prepare)
             saved = next((m for m in reversed(current['messages'])
                           if m.get('role')=='assistant' and m.get('turn_id')==operation), {})
             diagnostic_event('prepare_completed', session_id=sid, status=status, route='model',
@@ -1226,5 +1287,7 @@ class ModelConversation:
                          'model_generation_budget':current.get('model_generation_budget'),
                          'retrieval':self._diagnostic_retrieval(current)})
         if status != 'complete':
+            if isinstance(failure, ModelResponseUnavailable):
+                raise failure
             raise ValueError(error or '인물과 근거를 공개하지 못했습니다. 상담에서 조건을 다시 확인해 주세요.')
         return current

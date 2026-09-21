@@ -19,6 +19,7 @@ from urllib.parse import parse_qs
 from .chat_models import ChatModels
 from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
+from .model_conversation import ModelResponseUnavailable, ModelResponseBudgetExhausted
 from .discovery import DiscoveryError
 from .data import Corpus, ROOT
 from .engine import Engine
@@ -456,11 +457,12 @@ class PublicApp:
                    ('Referrer-Policy', 'same-origin'),
                    ('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
         diagnostic_request=None;diagnostic_content=None;diagnostic_error='request_rejected';received=time.monotonic()
+        diagnostic_model_called=False
         def send(status, value, mime='application/json; charset=utf-8'):
             if status>=400 and diagnostic_request is not None:
                 self._diagnostic_observe({**diagnostic_request,'event_type':'request_rejected','status':'rejected',
-                    'route':'reject','route_reason':'request_validation','http_status':status,'error_kind':diagnostic_error,
-                    'failure_stage':'request','elapsed_ms':round((time.monotonic()-received)*1000),'model_called':False},diagnostic_content)
+                    'route':'reject','route_reason':'model_response_failure' if diagnostic_model_called else 'request_validation','http_status':status,'error_kind':diagnostic_error,
+                    'failure_stage':'model_response' if diagnostic_model_called else 'request','elapsed_ms':round((time.monotonic()-received)*1000),'model_called':diagnostic_model_called},diagnostic_content)
             if (isinstance(value, dict) and 'session' in value
                     and not environ.get('PATH_INFO', '').startswith('/api/operator/diagnostics/')):
                 value = {**value, 'session': project_session(value['session'])}
@@ -657,6 +659,17 @@ class PublicApp:
                 with diagnostic_scope(self.diagnostics,diagnostic_request):
                     return send(200,routes[path]())
             return send(200, routes[path]())
+        except ModelResponseBudgetExhausted as exc:
+            diagnostic_error=exc.code
+            return send(409, {'error':str(exc), 'code':exc.code,
+                              'request_preserved':True, 'retry_available':False})
+        except ModelResponseUnavailable as exc:
+            diagnostic_error=exc.code
+            diagnostic_model_called=True
+            message = (str(exc) + ' 잠시 후 버튼으로 다시 시도할 수 있습니다.' if exc.retry_available else
+                       str(exc) + ' 이번 요청의 처리 한도에 도달했어요. 의뢰서는 유지되니 새 메시지로 조건을 확인해 주세요.')
+            return send(503, {'error':message, 'code':exc.code,
+                              'request_preserved':exc.request_preserved, 'retry_available':exc.retry_available})
         except DiscoveryError as exc:
             diagnostic_error='discovery_not_ready'
             return send(409, {'error':str(exc), 'code':exc.code})
