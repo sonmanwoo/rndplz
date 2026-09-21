@@ -432,7 +432,7 @@ class PublicApp:
         from .demo_pool import project_corpus
         corpus = project_corpus(corpus, allow_personal_omission=not approved)
         self.engine = Engine(corpus)
-        self.models = ObservedRuntimeChatModels(self.env) if self.hosted_demo_policy is not None else PublicModels(self.env)
+        self.models = ObservedRuntimeChatModels(self.env) if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public') else PublicModels(self.env)
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
@@ -464,7 +464,7 @@ class PublicApp:
                 self.images.update(stem + '-' + size + '.webp' for size in ('thumb', 'detail'))
 
     def _runtime_legacy_model(self, directory):
-        if self.hosted_demo_policy is not None:
+        if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public'):
             return RuntimeLegacyModel(self.models.runtime, audit_path=directory / 'model-events.jsonl')
         return ExternalModel(env={})
 
@@ -778,6 +778,8 @@ class PublicApp:
             except FileNotFoundError: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
             return send(200, raw, 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg')
         if path in ('/api/worker/poll','/api/worker/result'):
+            if self.env.get('APP_RUNTIME') == 'hosted_public':
+                return send(404, {'error': '이 연결 경로는 현재 사용할 수 없습니다.', 'code': 'runtime_worker_unavailable'})
             if method!='POST': return send(405,{'error':'지원하지 않는 요청입니다.'})
             if not self.models.bridge.authorized(environ.get('HTTP_X_RNDPLZ_BRIDGE','')):
                 return send(403,{'error':'연결 인증이 필요합니다.'})

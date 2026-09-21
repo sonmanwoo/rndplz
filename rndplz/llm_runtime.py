@@ -1,4 +1,4 @@
-"""Explicit local/hosted-demo OAuth / deployed Responses / test routing.
+"""Explicit local/hosted OAuth / deployed Responses / test routing.
 
 No SDK, inference CLI, retries, refresh implementation or provider fallback.
 This module is server-only. OAuth is a Codex backend integration, not a promise
@@ -25,7 +25,8 @@ from .responses_stream import LLMError, StreamEvent, iter_response_events
 CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
 MOCK_TEXT = "[MOCK] 실제 모델을 호출하지 않은 테스트 응답입니다."
-OAUTH_RUNTIMES = frozenset({"local", "hosted_demo"})
+HOSTED_OAUTH_RUNTIMES = frozenset({"hosted_demo", "hosted_public"})
+OAUTH_RUNTIMES = HOSTED_OAUTH_RUNTIMES | {"local"}
 HOSTED_SECRET_MOUNT = "/etc/secrets/codex-auth.json"
 OAUTH_AUTH_ERRORS = frozenset({"auth_missing", "auth_invalid", "auth_expired", "oauth_unauthorized"})
 NONRETRYABLE_RUNTIME_ERRORS = frozenset({
@@ -49,7 +50,7 @@ class RuntimeFailure(LLMError):
     def __init__(self, code, *, provider=None, http_status=None, runtime=None):
         super().__init__(code, provider=provider, http_status=http_status)
         if code in OAUTH_AUTH_ERRORS:
-            if runtime == "hosted_demo":
+            if runtime in HOSTED_OAUTH_RUNTIMES:
                 self.args = ("서버 OAuth 인증을 사용할 수 없습니다. 소유자가 전용 로그인 명령을 다시 실행하고 서버 인증 secret을 갱신해야 합니다.",)
             else:
                 self.args = ("로컬 인증을 사용할 수 없습니다. 로컬 로그인 명령을 다시 실행하세요.",)
@@ -103,7 +104,7 @@ def _safe_string(value, name):
 def _hosted_secret_mount(runtime, path):
     # Trust this single operator-managed POSIX mount, not arbitrary symlinks.
     # Preserve its logical name so secret rotation is read on the next request.
-    return (runtime == "hosted_demo" and str(path) == HOSTED_SECRET_MOUNT
+    return (runtime in HOSTED_OAUTH_RUNTIMES and str(path) == HOSTED_SECRET_MOUNT
             and Path(path).is_absolute())
 
 
@@ -120,9 +121,9 @@ class RuntimeConfig:
     def from_env(cls, env=None, *, repo_root=None):
         env = os.environ if env is None else env
         runtime, provider = env.get("APP_RUNTIME"), env.get("LLM_PROVIDER")
-        if runtime not in {"local", "hosted_demo", "deployed", "test"}:
-            raise RuntimeConfigError("APP_RUNTIME은 local, hosted_demo, deployed, test 중 하나로 명시해야 합니다.")
-        expected = {"local": "codex_oauth", "hosted_demo": "codex_oauth", "deployed": "openai_api", "test": "mock"}[runtime]
+        if runtime not in OAUTH_RUNTIMES | {"deployed", "test"}:
+            raise RuntimeConfigError("APP_RUNTIME은 local, hosted_demo, hosted_public, deployed, test 중 하나로 명시해야 합니다.")
+        expected = "codex_oauth" if runtime in OAUTH_RUNTIMES else {"deployed": "openai_api", "test": "mock"}[runtime]
         if provider != expected:
             raise RuntimeConfigError("APP_RUNTIME과 LLM_PROVIDER 조합이 올바르지 않습니다. test는 mock을 사용합니다.")
         if runtime == "test":
@@ -132,7 +133,7 @@ class RuntimeConfig:
             return cls(runtime, provider, _safe_string(env.get("OPENAI_MODEL"), "OPENAI_MODEL"),
                        api_key=_safe_string(env.get("OPENAI_API_KEY"), "OPENAI_API_KEY"))
         max_calls = 20
-        if runtime == "hosted_demo":
+        if runtime in HOSTED_OAUTH_RUNTIMES:
             raw_limit = env.get("RNDPLZ_DEMO_MAX_CALLS", "20")
             if (not isinstance(raw_limit, str) or not re.fullmatch(r"[0-9]{1,3}", raw_limit)
                     or not 1 <= int(raw_limit) <= 200):
@@ -144,16 +145,16 @@ class RuntimeConfig:
             return cls(runtime, provider, model, auth_file=Path(raw_path), max_calls=max_calls)
         path = Path(raw_path).expanduser()
         if not path.is_absolute():
-            if runtime == "hosted_demo":
+            if runtime in HOSTED_OAUTH_RUNTIMES:
                 raise RuntimeConfigError("CODEX_AUTH_FILE은 저장소 밖 전용 인증 파일의 절대 경로여야 합니다.")
             raise RuntimeConfigError("CODEX_AUTH_FILE은 저장소 밖 전용 auth.json의 절대 경로여야 합니다.")
         root = Path(repo_root).resolve() if repo_root else Path(__file__).resolve().parents[1]
         resolved = path.resolve()
         global_file = (Path.home() / ".codex" / "auth.json").resolve()
-        allowed_names = {"auth.json", "codex-auth.json"} if runtime == "hosted_demo" else {"auth.json"}
+        allowed_names = {"auth.json", "codex-auth.json"} if runtime in HOSTED_OAUTH_RUNTIMES else {"auth.json"}
         if (_inside(resolved, root) or resolved == global_file or resolved.name not in allowed_names
                 or any(p.is_symlink() or bool(getattr(p, "is_junction", lambda: False)()) for p in (path, *path.parents))):
-            if runtime == "hosted_demo":
+            if runtime in HOSTED_OAUTH_RUNTIMES:
                 raise RuntimeConfigError("CODEX_AUTH_FILE은 기존 Codex 인증과 분리된 저장소 밖 전용 auth.json 또는 codex-auth.json이어야 합니다.")
             raise RuntimeConfigError("CODEX_AUTH_FILE은 기존 Codex 인증과 분리된 저장소 밖 전용 auth.json이어야 합니다.")
         # Deliberately never inspect OPENAI_API_KEY for either OAuth runtime.
@@ -317,12 +318,12 @@ class ResponsesRuntime:
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream", "User-Agent": "rndplz-local/1"}
         if config.runtime in OAUTH_RUNTIMES:
             endpoint = CODEX_ENDPOINT
-            if config.runtime == "hosted_demo":
-                headers["User-Agent"] = "rndplz-hosted-demo/1"
+            if config.runtime in HOSTED_OAUTH_RUNTIMES:
+                headers["User-Agent"] = "rndplz-hosted-public/1" if config.runtime == "hosted_public" else "rndplz-hosted-demo/1"
             try:
                 headers.update(self._auth_loader(config.auth_file))
             except LLMError as exc:
-                if config.runtime == "hosted_demo" and exc.code in OAUTH_AUTH_ERRORS:
+                if config.runtime in HOSTED_OAUTH_RUNTIMES and exc.code in OAUTH_AUTH_ERRORS:
                     _fail(exc.code, config.provider, exc.http_status, runtime=config.runtime)
                 raise
             except Exception:
@@ -392,7 +393,7 @@ class ResponsesRuntime:
         except (TimeoutError, socket.timeout):
             _fail("timeout", config.provider)
         except LLMError as exc:
-            if config.runtime == "hosted_demo" and exc.code in OAUTH_AUTH_ERRORS:
+            if config.runtime in HOSTED_OAUTH_RUNTIMES and exc.code in OAUTH_AUTH_ERRORS:
                 _fail(exc.code, config.provider, exc.http_status, runtime=config.runtime)
             raise
         except Exception:
