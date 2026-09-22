@@ -152,7 +152,14 @@ function formattedAnswer(text,status){
   if(lines[i].includes("|")){
    let end=i+1;while(end<lines.length&&lines[end].includes("|")&&lines[end].trim())end++;
    const block=lines.slice(i,end);output.push(table(block)??inline(block.join("\n")));i=end;
-  }else{output.push(inline(lines[i]));i++;}
+  }else{
+   const heading=/^ {0,3}(#{2,3})[ \t]+(\S.*)$/.exec(lines[i]);
+   if(heading){
+    const level=heading[1].length+1;
+    output.push('<h'+level+' class="answer-heading">'+inline(heading[2])+'</h'+level+'>');
+   }else output.push(inline(lines[i]));
+   i++;
+  }
  }
  return output.join("\n").replace(new RegExp(marker+"(\\d+)END","g"),(_,index)=>fragments[Number(index)]);
 }

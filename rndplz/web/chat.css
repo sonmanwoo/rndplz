@@ -105,3 +105,11 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 }
 
 .message-body .answer-table code {white-space:pre-wrap;}
+
+/* Completed answer headings: existing type/color tokens and protected inline content. */
+.message-body .answer-heading {
+  margin:20px 0 8px;font:inherit;font-weight:600;line-height:1.5;
+  white-space:normal;color:inherit;overflow-wrap:anywhere;
+}
+.message-body h3.answer-heading {font-size:1.12em;}
+.message-body h4.answer-heading {font-size:1em;}
