@@ -110,6 +110,8 @@ def redact_text(value, limit=24000):
 
 
 def _metadata(values):
+    if isinstance(values,dict) and values.get('event_type') in _HTTPS_EVENTS:
+        return https_attachment_metadata(values)
     if not isinstance(values,dict) or _bytes_present(values):raise ValueError('진단 메타데이터 형식을 확인해 주세요.')
     result={}
     for key,value in values.items():
@@ -921,7 +923,35 @@ def attachment_client_metadata(payload):
     return result
 
 
-_OPERATION_EVENTS = _PHASE_EVENTS | frozenset(('request_received', 'request_rejected', 'turn_started',
+_HTTPS_EVENTS = frozenset(('attachment_https_started', 'attachment_https_finished'))
+_HTTPS_STAGES = frozenset(('unknown', 'request', 'request_validation', 'url_validation', 'resolution', 'network_open', 'connect_tls', 'request_send', 'response_headers', 'upstream_status', 'redirect', 'body_read', 'document_decode', 'worker_spawn', 'worker_exit', 'worker_protocol', 'worker_deadline', 'attachment_ingest'))
+_HTTPS_ERRORS = frozenset(('https_invalid_url', 'https_private_address', 'https_resolution_failed', 'https_redirect_limit', 'https_timeout', 'https_fetch_failed', 'https_login_required', 'https_too_large', 'https_resource_limit', 'https_empty', 'https_unsupported_type', 'https_invalid_response', 'https_request_too_large', 'attachment_context_busy', 'attachment_busy', 'attachment_archive_quota', 'attachment_archive_unavailable', 'attachment_invalid_name', 'attachment_invalid_encoding', 'attachment_too_large', 'attachment_empty_file', 'attachment_empty_text', 'attachment_locked', 'attachment_corrupt', 'attachment_unsupported', 'attachment_unsupported_text', 'attachment_resource_limit', 'attachment_parser_unavailable', 'attachment_bundled_html_unsupported', 'request_rejected', 'validation', 'server_error', 'rate_limit'))
+
+
+def https_attachment_metadata(values):
+    # Independent strict projection: no URL/host/query/body/session/turn fields.
+    if not isinstance(values, dict) or values.get('event_type') not in _HTTPS_EVENTS:
+        return None
+    result = {'event_type': values['event_type']}
+    for key, size in (('request_id',32),('visitor_ref',64),('code_fingerprint',64),('deployment_revision',40)):
+        value = values.get(key)
+        if isinstance(value,str) and re.fullmatch('[a-f0-9]{'+str(size)+'}',value):
+            result[key] = value
+    if values.get('status') in ('started','complete','error'):
+        result['status'] = values['status']
+    for key in ('http_status','upstream_http_status'):
+        value = values.get(key)
+        if type(value) is int and 100 <= value <= 599: result[key] = value
+    value = values.get('elapsed_ms')
+    if type(value) is int and 0 <= value <= 3600000: result['elapsed_ms'] = value
+    value = values.get('failure_stage')
+    if isinstance(value,str) and value in _HTTPS_STAGES: result['failure_stage'] = value
+    value = values.get('error_kind')
+    if value is not None: result['error_kind'] = value if isinstance(value,str) and value in _HTTPS_ERRORS else 'other_code'
+    return result
+
+
+_OPERATION_EVENTS = _HTTPS_EVENTS | _PHASE_EVENTS | frozenset(('request_received', 'request_rejected', 'turn_started',
     'cached_return', 'turn_storage_completed', 'turn_storage_failed', 'turn_finished', 'prepare_completed',
     'stream_started', 'stream_phase', 'stream_first_delta', 'stream_terminal_yielded', 'stream_eof',
     'stream_error', 'stream_closed', 'client_recovery_report', 'recovery_report_rejected',
@@ -931,7 +961,7 @@ _OPERATION_ENUMS = {
     'provider_observed': frozenset(('codex_oauth','openai_api','gemini','mock')),
     'phase_status': _STATUSES,
     'model_phase': frozenset(('interpret','repair','tool','consultation','answer','complete')),
-    'phase': frozenset(('interpreting','searching','answering')),
+    'phase': frozenset(('interpreting','searching','reading','answering')),
     'storage_status': frozenset(('committed','stale_ignored','failed')),
     'terminal_type': frozenset(('done','error')),
     'close_reason': frozenset(('eof','closed','iteration_error','cleanup_error')),
@@ -951,6 +981,8 @@ def operation_metadata(values):
     """Bounded stdout schema: never render arbitrary content, models, URLs or exceptions."""
     if not isinstance(values, dict) or values.get('event_type') not in _OPERATION_EVENTS:
         return None
+    if values['event_type'] in _HTTPS_EVENTS:
+        return https_attachment_metadata(values)
     result = {'event_type': values['event_type']}
     if values['event_type']=='attachment_client_rejected':
         # Revalidate even direct sink callers; this event cannot carry session, turn, attempt or content.

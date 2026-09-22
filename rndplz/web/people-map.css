@@ -601,3 +601,7 @@
 #peopleMapHost .mp-project-participants p{font-size:11px;color:var(--mp-muted,#62685f);margin:0 0 5px}
 #peopleMapHost .mp-project-participants .text-button{min-height:36px;padding:6px 7px;text-decoration:underline;text-underline-offset:3px;font-size:12px}
 #peopleMapHost .mp-person-nobel.mp-person-team .mp-team-marker{top:-34px}
+
+/* Keep the map viewport in place while its existing person/record dialog is open. */
+html:has(#peopleMapHost):has(#detailDialog[open]),
+body:has(#peopleMapHost):has(#detailDialog[open]){overflow:hidden;overscroll-behavior:none}
