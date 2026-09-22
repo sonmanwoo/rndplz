@@ -1045,6 +1045,8 @@ class ModelConversation:
 
     def _stream_model_consultation(self, session, option, plan, revision, result, basis, deadline, state, request_spec):
         sid, turn_id = session['id'], session['pending']
+        # Server answer-stage entry; this does not claim provider output has arrived.
+        yield {'type':'phase', 'phase':'answering'}
         self._check_model_basis(sid, turn_id, basis, deadline)
         messages = self._model_consultation_messages(self.get(sid), option, plan, revision,
                                                    result, basis, deadline, request_spec, state.get('attachment_tools'))
@@ -1200,6 +1202,8 @@ class ModelConversation:
 
     def _stream_model_response(self, session, option, plan, result, basis, pending, origin_turn,
                                deadline, state, *, extra=False, validation_feedback=None):
+        # Server answer-stage entry; this does not claim provider output has arrived.
+        yield {'type':'phase', 'phase':'answering'}
         allow_next = not extra and self._model_feedback_available(session['id'], origin_turn)
         history = state.setdefault('attempts', [])
         prepared = self._model_answer_messages(session, option, plan, result, basis=basis,
@@ -1245,7 +1249,7 @@ class ModelConversation:
                 raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
             if time.monotonic() >= deadline:
                 raise ValueError('이번 대화의 모델 처리 시간을 초과했습니다.')
-            yield {'type':'phase', 'phase':'interpreting'}
+            yield {'type':'phase', 'phase':'answering'}
         attempt['provider_completed'] = True
         self._check_model_basis(session['id'], pending, basis, deadline)
         try:

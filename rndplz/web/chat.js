@@ -775,7 +775,7 @@ function busyCiAttributes(){
  const elapsed=Math.max(0,performance.now()-ciBusyStarted)%2400;
  return 'class="susomun-ci susomun-ci--busy" style="--ci-busy-delay:-'+elapsed.toFixed(1)+'ms"';
 }
-const responseProgressLabels={preparing:"요청을 준비하고 있어요",submitting:"요청을 보내고 있어요",waiting:"응답을 기다리고 있어요",interpreting:"요청 해석 단계",searching:"등록 자료 조회 단계",reading:"첨부 자료를 읽고 있어요",answering:"답변을 준비하고 있어요",receiving:"답변을 받고 있어요"};
+const responseProgressLabels={preparing:"요청을 준비하고 있어요",submitting:"요청을 보내고 있어요",waiting:"응답을 기다리고 있어요",interpreting:"응답 처리 단계",searching:"자료 조회 단계",reading:"첨부 자료를 읽고 있어요",answering:"답변을 준비하고 있어요",receiving:"답변을 받고 있어요"};
 function responseProgressLabel(){
  const label=busy&&!controller?.signal.aborted?responseProgressLabels[responseProgress]||"":"";
  return label&&retryDisplay?retryDisplay.name+"로 다시 시도 · "+label:label;
@@ -1121,7 +1121,7 @@ async function send(payload,submission=null){
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="";
   const event=line=>{if(!line.trim())return;const data=JSON.parse(line);
    if(data.type==="start"){if(!finished)responseProgress="waiting";session=data.session;if(/^[a-f0-9]{32}$/.test(data.request_id||""))recoveryRequestId=data.request_id;accepted=true;updateHistory();optimistic=null;if(submission){files=files.filter(f=>!submission.attachmentIds.includes(f.id));for(const id of submission.attachmentIds)inlineMessageLinks.delete(id);}renderFiles();window.history.replaceState(null,"","/?chat="+session.id);}
-   if(!finished&&data.type==="phase"&&["interpreting","searching","reading","answering"].includes(data.phase))responseProgress=data.phase;
+   if(!finished&&data.type==="phase")responseProgress=["interpreting","searching","reading","answering","waiting"].includes(data.phase)?data.phase:"waiting";
    if(data.type==="delta"){streamText+=data.text;if(!finished&&data.text)responseProgress="receiving";}
    if(data.type==="done"||data.type==="error"){session=data.session;finished=true;responseProgress="";stopBusyCi();streamText="";optimistic=null;updateHistory();if(data.type==="error")error(data.error);}
    render();
@@ -1134,7 +1134,7 @@ async function send(payload,submission=null){
   if(finished){if(e.name!=="AbortError")error(e.message);return;}
   if(!accepted)restoreComposerDraft(submission);
   failBriefSubmission(briefSubmission,briefSubmissionSession);
-  if(e.name==="AbortError"){error("응답을 중지하고 있어요…");}
+  if(e.name==="AbortError"){error("응답 수신을 중지했어요.");}
   else error(e.message);
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
  }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
