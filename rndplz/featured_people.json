@@ -9322,7 +9322,7 @@
       ],
       "source_access_note": "Publisher-indexed Abstract opening paragraph only; direct article open403. Title and selected author metadata returned by search. 직접 원페이지 열기403; 검색반환 일부를 전체 전문 열람으로 표시하지 않습니다.",
       "boundary_note": "제공 초록 일부의 문제 설명이며 효과 크기·반응 조건·산업 재현성을 확인한 결과가 아니다. 직접 현재 출판사 페이지 열기는403으로 실패; 재시도/대체0. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
-      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다.",
       "candidate_key": "PC03-MATYJASZEWSKI-2002",
       "metadata_access": {
         "access_level": "PRIMARY_SEARCH_INDEX",
@@ -9427,7 +9427,7 @@
       ],
       "source_access_note": "Publisher-indexed Abstract plus survey metadata; direct article open403. 직접 원페이지 열기403; 검색반환 일부를 전체 전문 열람으로 표시하지 않습니다.",
       "boundary_note": "1989년 조사 논문의 설명이며 현재 모델이나 제품 성능의 실증이 아니다. 선정 저자의 실제 실험 수행·자문 수락·가용성은 확인하지 않았다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
-      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다.",
       "candidate_key": "PC03-MORARI-1989",
       "metadata_access": {
         "access_level": "PRIMARY_SEARCH_INDEX",
@@ -9524,7 +9524,7 @@
       ],
       "source_access_note": "Institution-hosted7page PDF textual Abstract and methods selected passages on page1; not all-paper/figure/table review. 선택 구절 확인이며 전문·모든 그림·표 검토가 아닙니다.",
       "boundary_note": "특정 면 형상·시험 유체·시험조건의 결과다. 액침냉각유 전반의 적합성·호환성·시스템 검증으로 일반화하지 않는다. PDF 텍스트가 반환됐지만 전문·모든 그림·수치의 독립 검토는 수행하지 않았다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
-      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다.",
       "candidate_key": "PC03-MUDAWAR-2008",
       "metadata_access": {
         "access_level": "DIRECT_SELECTED_PASSAGES",
@@ -9680,7 +9680,7 @@
       ],
       "source_access_note": "Direct publisher public Abstract lines42–46 and metadata/authors; linked2001erratum open failed, no retry. 선택 구절 확인이며 전문·모든 그림·표 검토가 아닙니다.",
       "boundary_note": "정정문10.1038/35098125가 표시됐으나 연결 열기500/nonretryable실패로 정정 내용·영향 미확인. 현재 사내 공정 적용·성능·가용성으로 승격하지 않는다. 논문 당시 University of Massachusetts 소속 연결이며 현재 소속을 덮지 않는다. 저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. ",
-      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다. 공동저자 중 기존 명단의 한 인물만 연결하고 나머지 인물 ID는 null로 유지합니다.",
+      "contribution_note": "저자 표기는 개인별 수행·현재 소속·자문 가용성·제품 적용 확인을 뜻하지 않습니다.",
       "candidate_key": "PC03-NAIR-2001",
       "metadata_access": {
         "access_level": "DIRECT_PUBLIC_ABSTRACT_CORRECTION_UNREAD",
