@@ -193,6 +193,18 @@ class Service:
             raise ValueError("대화를 찾을 수 없습니다.")
         return self.present_session(session)
 
+    def registered_expert_lookup(self, sid, revision, *, context_builder):
+        from .registered_experts import lookup
+        return lookup(self, sid, revision, context_builder=context_builder)
+
+    def registered_expert_present(self, sid):
+        from .registered_experts import present
+        return present(self, sid)
+
+    def registered_expert_draft(self, sid, cid, snapshot_id, revision):
+        from .registered_experts import draft
+        return draft(self, sid, cid, snapshot_id, revision)
+
     def prepared_draft_response(self, prepared):
         """Same-request review text only; caller supplies the trusted prepare result."""
         from .scout_projection import project_session
@@ -243,6 +255,11 @@ class Service:
         if c.get("lookup_only"):
             raise ValueError("지금은 인물 이력 조회입니다. 도움받을 일과 조건을 입력해 관련 근거로 사람을 찾아 주세요.")
         require_proposal_boundary(self.corpus, cid, c.get("evidence"))
+        return self._render_draft(session, c)
+
+    def _render_draft(self, session, c):
+        """Private text template; each caller must validate its own authority."""
+        sid = session["id"]
         slots=session["slots"]
         request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
         refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
