@@ -17,7 +17,7 @@
     if (changed) root.dataset.theme = mode;
     if (root.style.colorScheme !== mode) root.style.colorScheme = mode;
     if (meta) {
-      const color = mode === 'dark' ? '#181d1a' : lightMeta;
+      const color = mode === 'dark' ? '#030409' : lightMeta;
       if (meta.content !== color) meta.content = color;
     }
     document.querySelectorAll('[data-theme-set]').forEach(button => {
