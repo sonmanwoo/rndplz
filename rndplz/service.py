@@ -193,8 +193,50 @@ class Service:
             raise ValueError("대화를 찾을 수 없습니다.")
         return self.present_session(session)
 
+    def prepared_draft_response(self, prepared):
+        """Same-request review text only; caller supplies the trusted prepare result."""
+        from .scout_projection import project_session
+        scoped = self.for_provider_scope(provider_scope(prepared))
+        presented = scoped.present_session(prepared)
+        projected = project_session(presented)
+        if (not projected or projected.get("ready") is not True
+                or projected.get("can_propose") is not True
+                or projected.get("pending")):
+            return projected
+        scout = projected.get("scout") or {}
+        revision = scout.get("revision")
+        if (scout.get("disclosed") is not True or not revision
+                or revision != (projected.get("discovery") or {}).get("revision")
+                or revision != projected.get("prepared_discovery_revision")):
+            return projected
+        items = []
+        seen = set()
+        for candidate in (projected.get("result") or {}).get("candidates", []):
+            if len(items) >= 7:
+                break
+            if (candidate.get("proposal_allowed") is not True
+                    or candidate.get("lookup_only") or candidate.get("id") in seen):
+                continue
+            try:
+                draft = scoped._draft_for_session(presented, candidate["id"])
+                if not isinstance(draft["body"], str) or len(draft["body"]) > 30000:
+                    continue
+                item = {"session_id": projected["id"],
+                        "candidate": {"id": candidate["id"], "name": candidate["name"]},
+                        "body": draft["body"], "request_kind": draft["request_kind"]}
+            except (ValueError, KeyError, TypeError):
+                continue
+            items.append(item)
+            seen.add(candidate["id"])
+        projected["draft_previews"] = {"session_id": projected["id"],
+                                        "revision": revision, "items": items}
+        return projected
+
     def draft(self,sid,cid):
-        session=self.session(sid)
+        return self._draft_for_session(self.session(sid),cid)
+
+    def _draft_for_session(self,session,cid):
+        sid=session["id"]
         c=next((c for c in (session.get("result") or {}).get("candidates",[]) if c["id"]==cid),None)
         if not c:
             raise ValueError("이 질문의 근거 있는 후보를 선택해 주세요.")

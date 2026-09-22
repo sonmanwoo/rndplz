@@ -1108,8 +1108,8 @@ class PublicApp:
                 try:
                     if diagnostic_request is not None:
                         with diagnostic_scope(self.observation,diagnostic_request):
-                            return send(200,project_session(chat.prepare(payload)))
-                    return send(200,project_session(chat.prepare(payload)))
+                            return send(200,service.prepared_draft_response(chat.prepare(payload)))
+                    return send(200,service.prepared_draft_response(chat.prepare(payload)))
                 finally:
                     with self.lock:context['active']-=1
                     self.request_slots.release()
