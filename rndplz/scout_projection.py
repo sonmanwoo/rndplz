@@ -183,6 +183,14 @@ def _candidate(value):
     # The browser's older card renderer treats a missing flag as permission.
     # Projection never manufactures that permission from absence.
     result["proposal_allowed"] = value.get("proposal_allowed") is True
+    # Relation labels describe shown evidence; they never grant proposal rights.
+    relation = value.get("purpose_relation")
+    if type(relation) is str and relation in ("direct", "adjacent"):
+        result["purpose_relation"] = relation
+        missing = value.get("purpose_missing")
+        if (type(missing) is str and len(missing) <= 300
+                and not any(ord(c) < 32 and c not in "\n\r\t" for c in missing)):
+            result["purpose_missing"] = missing
     result["evidence"] = _rows(value.get("evidence"), _evidence)
     result["profile"] = _profile(value.get("profile"))
     return result
@@ -194,6 +202,16 @@ def _result(value):
     result = _pick(value, ("intent", "mode", "query", "pool_version", "current_pool_version", "historical_result",
         "scope_note", "empty_message", "inspection_only", "assessment_status", "lookup_resolution"))
     result["candidates"] = _rows(value.get("candidates"), _candidate)
+    candidates = result["candidates"]
+    if all(card.get("purpose_relation") in ("direct", "adjacent") for card in candidates):
+        for key, relation in (("direct_candidate_count", "direct"), ("adjacent_candidate_count", "adjacent")):
+            count = value.get(key)
+            if (type(count) is int and 0 <= count <= len(candidates)
+                    and count == sum(card.get("purpose_relation") == relation for card in candidates)):
+                result[key] = count
+        total = value.get("matched_candidate_count")
+        if type(total) is int and total == len(candidates):
+            result["matched_candidate_count"] = total
     if "choices" in value:
         result["choices"] = _rows(value["choices"], lambda item: _pick(item, ("id", "name", "org", "virtual", "in_current_pool")))
     # Author strips, raw retrieval IDs, plans, assessments and trace fields are

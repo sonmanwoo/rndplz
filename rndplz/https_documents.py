@@ -23,6 +23,20 @@ import sys
 import time
 from urllib.parse import quote, unquote, urljoin, urlsplit, urlunsplit
 
+# The isolated -I -S fetch worker has no package search path. Load only this
+# server-owned sibling; URLs, document paths and document text never select it.
+if __package__:
+    from .bounded_html import BundledHTMLError, unpack_html_template, is_loading_only
+else:
+    import importlib.util
+    _bundle_spec = importlib.util.spec_from_file_location(
+        '_rndplz_https_bounded_html', Path(__file__).resolve().with_name('bounded_html.py'))
+    _bundle_module = importlib.util.module_from_spec(_bundle_spec)
+    _bundle_spec.loader.exec_module(_bundle_module)
+    BundledHTMLError = _bundle_module.BundledHTMLError
+    unpack_html_template = _bundle_module.unpack_html_template
+    is_loading_only = _bundle_module.is_loading_only
+
 MAX_BYTES = 10 * 1024 * 1024
 # Preserve extraction inside the deadline worker. Its JSON contains raw base64
 # and text: at most six JSON bytes per decoded character, plus bounded metadata.
@@ -46,15 +60,33 @@ _ERRORS = {
     'https_fetch_failed': '이 링크에서 자료를 가져오지 못했어요.',
     'https_login_required': '로그인 없이 열 수 있는 공개 HTTPS 문서를 사용해 주세요.',
     'https_too_large': '링크 자료가 10MiB를 넘어요.',
+    'https_resource_limit': '링크 문서 내부 내용이 안전한 처리 범위를 넘었어요.',
     'https_empty': '이 링크에서 읽을 수 있는 내용을 찾지 못했어요.',
     'https_unsupported_type': '이 링크는 지원하는 문서 형식이 아니에요.',
     'https_invalid_response': '이 링크의 문서 응답을 읽지 못했어요.',
 }
 
 
+_FAILURE_STAGES = frozenset(('unknown', 'request', 'request_validation', 'url_validation', 'resolution', 'network_open', 'connect_tls', 'request_send', 'response_headers', 'upstream_status', 'redirect', 'body_read', 'document_decode', 'worker_spawn', 'worker_exit', 'worker_protocol', 'worker_deadline', 'attachment_ingest'))
+
+
+def _failure_metadata(stage, upstream_status=None):
+    result = {'failure_stage': stage if stage in _FAILURE_STAGES else 'unknown'}
+    if type(upstream_status) is int and 100 <= upstream_status <= 599:
+        result['upstream_http_status'] = upstream_status
+    return result
+
+
+def _progress(observation, stage, upstream_status=None):
+    if observation is not None:
+        observation.clear()
+        observation.update(_failure_metadata(stage, upstream_status))
+
+
 class FetchError(ValueError):
-    def __init__(self, code):
+    def __init__(self, code, *, failure_stage='unknown', upstream_http_status=None):
         self.code = code if code in _ERRORS else 'https_fetch_failed'
+        self.observation = _failure_metadata(failure_stage, upstream_http_status)
         self.status = 400
         super().__init__(_ERRORS[self.code])
 
@@ -163,20 +195,23 @@ class _Reply:
         self.connection.close()
 
 
-def _open(url, host, address, deadline):
+def _open(url, host, address, deadline, *, _observation=None):
     conn = _PinnedHTTPS(host, address, deadline)
     try:
+        _progress(_observation, 'connect_tls')
         conn.connect()
         channel = conn.sock
         parts = urlsplit(url)
         target = parts.path + ('?'+parts.query if parts.query else '')
         channel.settimeout(_remaining(deadline))
+        _progress(_observation, 'request_send')
         conn.request('GET', target, headers={
             'Accept': 'text/plain, text/markdown, text/html, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
             'Accept-Encoding': 'identity', 'User-Agent': 'RnDplz-PublicDocument/1.0',
             'Connection': 'close',
         })
         channel.settimeout(_remaining(deadline))
+        _progress(_observation, 'response_headers')
         return _Reply(conn, conn.getresponse(), channel)
     except BaseException:
         conn.close()
@@ -211,27 +246,34 @@ def _classify(raw, content_type, final_url):
     return basename, mime, kind
 
 
-def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic):
+def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic, _observation=None):
     original = url
+    _progress(_observation, 'url_validation')
     current, _ = validate_url(url)
     deadline = clock() + TOTAL_SECONDS
     visited, redirects = set(), []
     for hop in range(MAX_REDIRECTS+1):
+        _progress(_observation, 'url_validation')
         current, host = validate_url(current)
         _need(current not in visited, 'https_redirect_limit')
         visited.add(current)
         _remaining(deadline, clock)
+        _progress(_observation, 'resolution')
         addresses = resolver(host, deadline)
         _need(bool(addresses), 'https_resolution_failed')
         # Validate every answer, then connect once to the first pinned address. No address retries.
         for address in addresses:
             _public_ip(address)
         _remaining(deadline, clock)
-        reply = opener(current, host, addresses[0], deadline)
+        _progress(_observation, 'network_open')
+        reply = (opener(current, host, addresses[0], deadline, _observation=_observation)
+                 if opener is _open else opener(current, host, addresses[0], deadline))
         try:
+            _progress(_observation, 'upstream_status', reply.status)
             _remaining(deadline, clock)
             if reply.status in (301, 302, 303, 307, 308):
                 _need(hop < MAX_REDIRECTS, 'https_redirect_limit')
+                _progress(_observation, 'redirect', reply.status)
                 location = _header(reply.headers, 'location')
                 _need(bool(location) and len(location) <= MAX_URL, 'https_invalid_response')
                 current, _ = validate_url(urljoin(current, location))
@@ -245,6 +287,7 @@ def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic):
             if length:
                 _need(bool(re.fullmatch(r'[0-9]{1,12}', length)), 'https_invalid_response')
                 _need(int(length) <= MAX_BYTES, 'https_too_large')
+            _progress(_observation, 'body_read', reply.status)
             body = bytearray()
             while True:
                 _remaining(deadline, clock)
@@ -258,6 +301,7 @@ def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic):
             _need(bool(raw), 'https_empty')
             if length:
                 _need(len(raw) == int(length), 'https_invalid_response')
+            _progress(_observation, 'document_decode', reply.status)
             content_type = _header(reply.headers, 'content-type')
             name, mime, kind = _classify(raw, content_type, current)
             result = {'raw': raw, 'name': name, 'mime': mime, 'document_kind': kind,
@@ -266,7 +310,8 @@ def _collect(url, *, resolver=_resolve, opener=_open, clock=time.monotonic):
                                  'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw),
                                  'trust': 'untrusted', 'redirects': redirects}}
             if kind in ('text', 'html'):
-                result['text'] = extract_web_text(raw, content_type)
+                result['text'], bundled = extract_web_text(raw, content_type, _with_bundle_status=True)
+                if bundled:result['html_bundle_template'] = True
             return result
         finally:
             reply.close()
@@ -302,7 +347,7 @@ class _VisibleText(HTMLParser):
             self.output.append(data)
 
 
-def extract_web_text(raw, content_type):
+def extract_web_text(raw, content_type, *, _with_bundle_status=False):
     _need(isinstance(raw, bytes) and len(raw) <= MAX_BYTES and b'\0' not in raw, 'https_unsupported_type')
     match = re.search(r'charset\s*=\s*[\"\']?([a-zA-Z0-9_-]+)', content_type)
     encoding = match.group(1).lower() if match else 'utf-8-sig'
@@ -311,14 +356,28 @@ def extract_web_text(raw, content_type):
         text = raw.decode(encoding)
     except (UnicodeError, LookupError):
         raise FetchError('https_invalid_response') from None
+    bundled = False
     if content_type.split(';', 1)[0].strip().lower() in {'text/html', 'application/xhtml+xml'}:
+        if '__bundler/' in text:
+            try:
+                template = unpack_html_template(text.encode('utf-8'))
+            except BundledHTMLError as exc:
+                code = {'invalid':'https_invalid_response', 'unsupported':'https_unsupported_type',
+                        'empty':'https_empty', 'resource_limit':'https_resource_limit'}[exc.reason]
+                raise FetchError(code) from None
+            if template is not None:
+                text = template.decode('utf-8')
+                bundled = True
         parser = _VisibleText()
         parser.feed(text)
         parser.close()
         text = re.sub(r'\n[ \t]*\n+', '\n\n', ''.join(parser.output))
+    if bundled:
+        text = '\n'.join(line.strip() for line in text.splitlines() if line.strip())
+        _need(not is_loading_only(text), 'https_unsupported_type')
     text = text.strip()
     _need(bool(text), 'https_empty')
-    return text
+    return (text, bundled) if _with_bundle_status else text
 
 
 def fetch_document(url):
@@ -327,38 +386,49 @@ def fetch_document(url):
     The worker is killed after the total bound including DNS/header slow delivery.
     No inherited application secrets/proxy credentials are passed to that process.
     """
-    validate_url(url)
+    try:
+        validate_url(url)
+    except FetchError as exc:
+        exc.observation = _failure_metadata('request_validation')
+        raise
+    stage = 'worker_spawn'
     environment = {key: os.environ[key] for key in ('SystemRoot', 'WINDIR') if key in os.environ}
     try:
         result = subprocess.run([sys.executable, '-I', '-S', '-B', str(Path(__file__).resolve()), '--fetch-worker'],
                                 input=json.dumps({'url': url}).encode('utf-8'), stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL, env=environment, timeout=TOTAL_SECONDS, check=False)
-        _need(result.returncode == 0 and len(result.stdout) <= MAX_WORKER_JSON_BYTES, 'https_fetch_failed')
+        stage = 'worker_exit'
+        _need(result.returncode == 0, 'https_fetch_failed')
+        stage = 'worker_protocol'
+        _need(len(result.stdout) <= MAX_WORKER_JSON_BYTES, 'https_fetch_failed')
         value = json.loads(result.stdout)
         if value.get('error'):
-            raise FetchError(value['error'])
+            raise FetchError(value['error'], **_failure_metadata(value.get('failure_stage'), value.get('upstream_http_status')))
         value['raw'] = base64.b64decode(value.pop('raw_base64'), validate=True)
         _need(0 < len(value['raw']) <= MAX_BYTES, 'https_invalid_response')
         return value
     except subprocess.TimeoutExpired:
-        raise FetchError('https_timeout') from None
-    except FetchError:
+        raise FetchError('https_timeout', failure_stage='worker_deadline') from None
+    except FetchError as exc:
+        if exc.observation['failure_stage'] == 'unknown':
+            exc.observation = _failure_metadata(stage)
         raise
     except Exception:
-        raise FetchError('https_fetch_failed') from None
+        raise FetchError('https_fetch_failed', failure_stage=stage) from None
 
 
 def _worker():
+    observation = _failure_metadata('request_validation')
     try:
         payload = json.loads(sys.stdin.buffer.read(MAX_URL*6+64))
-        value = _collect(payload['url'])
+        value = _collect(payload['url'], _observation=observation)
         value['raw_base64'] = base64.b64encode(value.pop('raw')).decode('ascii')
     except FetchError as exc:
-        value = {'error': exc.code}
+        value = {'error': exc.code, **observation}
     except (TimeoutError, socket.timeout):
-        value = {'error': 'https_timeout'}
+        value = {'error': 'https_timeout', **observation}
     except Exception:
-        value = {'error': 'https_fetch_failed'}
+        value = {'error': 'https_fetch_failed', **observation}
     # Internal parent-worker pipe only, never a diagnostic log or public CLI output.
     sys.stdout.buffer.write(json.dumps(value, ensure_ascii=False).encode('utf-8'))
 

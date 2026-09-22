@@ -64,3 +64,52 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 
 /* R2 attachment queue: extraction readiness is not model understanding. */
 .attachment-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin-bottom:10px}.attachment-actions button{min-height:36px}.attachment-actions [hidden],.attachment-progress[hidden]{display:none!important}.attachment-progress{font-size:12px;line-height:1.6;overflow-wrap:anywhere;color:var(--muted);margin:0 0 10px}.attachment-source,.attachment-locations,#fileTitle{overflow-wrap:anywhere}.attachment-source{font-size:12px;line-height:1.8}.attachment-source a{text-decoration:underline;color:var(--green)}.attachment-locations{margin:12px 0;font-size:13px}.attachment-locations summary{padding:7px 0;cursor:pointer}.attachment-locations>details{padding-left:12px}#attachmentLinkDialog{width:min(560px,94vw)}#attachmentLinkForm{display:flex;flex-direction:column;gap:10px}#attachmentUrl{width:100%;min-width:0;font:inherit;padding:10px;background:var(--paper);color:inherit;border:1px solid var(--line);border-radius:6px}.attachment-actions .text-button:focus-visible,.attachment-locations summary:focus-visible,#attachmentUrl:focus-visible{outline:2px solid var(--green);outline-offset:3px}@media(max-width:700px){.attachment-actions{gap:6px 10px}.attachment-actions .small{font-size:10px}.attachment-actions button{min-height:40px}.attachment-progress{font-size:11px}}
+
+/* Request-specific recommendation context; never a profile availability claim. */
+.candidate-relation-summary { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.candidate-request-context { margin: 16px 0; padding: 14px 0; border-block: 1px solid var(--line); overflow-wrap: anywhere; }
+.candidate-request-context h3 { margin: 0 0 9px; font-size: 15px; font-weight: 600; }
+.candidate-request-context h4 { margin: 14px 0 5px; font-size: 12px; font-weight: 600; }
+.candidate-request-context p, .candidate-request-context li { font-size: 12px; line-height: 1.7; }
+.candidate-request-context p { margin: 5px 0; }
+.candidate-request-context .candidate-purpose-label { color: var(--ink); font-weight: 600; }
+.candidate-request-context ul { margin: 6px 0 0; padding-inline-start: 19px; }
+.candidate-request-context li + li { margin-top: 12px; }
+.candidate-request-context a { color: var(--green); text-decoration: underline; }
+
+/* Existing CI orbit and motion preferences also cover the prepare wait. */
+.scout-prepare-progress{margin:12px 0 0}.scout-prepare-label{font:12px/1.6 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:0;min-width:0;overflow-wrap:anywhere}
+
+/* Completed assistant tables and visible HTTPS destinations; existing palette and type stay. */
+.message-body .answer-table-wrap {
+  box-sizing:border-box;max-width:100%;min-width:0;margin:1rem 0;
+  overflow-x:auto;overscroll-behavior-inline:contain;white-space:normal;
+  border:1px solid var(--line);border-radius:6px;
+}
+.message-body .answer-table {
+  width:100%;min-width:24rem;border-collapse:collapse;font:inherit;font-size:.93em;
+  color:inherit;white-space:normal;
+}
+.message-body .answer-table th,.message-body .answer-table td {
+  min-width:7rem;padding:.65em .8em;text-align:left;vertical-align:top;
+  border-bottom:1px solid var(--line);overflow-wrap:anywhere;white-space:normal;
+}
+.message-body .answer-table th {font-weight:600;background:var(--paper);}
+.message-body .answer-table tbody tr:last-child td {border-bottom:0;}
+.message-body .answer-source-link {
+  color:inherit;text-decoration:underline;text-underline-offset:.18em;overflow-wrap:anywhere;
+}
+.message-body .answer-source-address {font-size:.9em;overflow-wrap:anywhere;}
+.message-body .answer-source-link:focus-visible,.message-body .answer-table-wrap:focus-visible {
+  outline:2px solid var(--green);outline-offset:3px;
+}
+
+.message-body .answer-table code {white-space:pre-wrap;}
+
+/* Completed answer headings: existing type/color tokens and protected inline content. */
+.message-body .answer-heading {
+  margin:20px 0 8px;font:inherit;font-weight:600;line-height:1.5;
+  white-space:normal;color:inherit;overflow-wrap:anywhere;
+}
+.message-body h3.answer-heading {font-size:1.12em;}
+.message-body h4.answer-heading {font-size:1em;}

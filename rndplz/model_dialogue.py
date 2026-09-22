@@ -369,6 +369,42 @@ def _schema_system(system, schema):
         schema, ensure_ascii=False, separators=(",", ":")) + "\n[출력 Schema 끝]"
 
 
+# Additive v2 field; legacy persisted plans remain readable without actions.
+from .attachment_reader import (ATTACHMENT_ACTIONS_SCHEMA, TOOL_INSTRUCTIONS,
+    ANSWER_INSTRUCTIONS, validate_attachment_actions, AttachmentToolError)
+
+_PLAN_BEFORE_ATTACHMENT_ACTIONS = copy.deepcopy(PLAN_SCHEMA)
+
+def _reader_shape(value):
+    value = copy.deepcopy(value)
+    if isinstance(value, dict):
+        if value.get('type') == 'array': value.setdefault('minItems', 0)
+        if value.get('type') == 'string' and 'enum' not in value:
+            value.setdefault('minLength', 1); value.setdefault('maxLength', 200)
+        return {k:_reader_shape(v) for k,v in value.items()}
+    if isinstance(value, list): return [_reader_shape(v) for v in value]
+    return value
+
+PLAN_SCHEMA['properties']['attachment_actions'] = _reader_shape(ATTACHMENT_ACTIONS_SCHEMA)
+PLAN_SCHEMA['required'].append('attachment_actions')
+PLAN_SYSTEM += '\n' + TOOL_INSTRUCTIONS + (
+    ' 첨부 본문에 관한 질문은 필요한 구간을 attachment_read/search로 실제 읽으세요. '
+    '목록의 preview는 일부만 보인 것이며 전체 읽기가 아닙니다. '
+    '첨부 도구 카탈로그가 비어 있거나 첨부 읽기가 필요 없으면 attachment_actions=[]입니다. '
+    '도구 계획 자체는 실행 결과가 아닙니다. 공개 논문 조회와 첨부 읽기를 구분하세요.')
+ANSWER_SYSTEM += '\n' + ANSWER_INSTRUCTIONS + (
+    ' 근거로 사용한 구간은 첨부 파일명과 실제 제공된 추출문 줄/페이지 또는 문자 범위를 밝혀주세요. '
+    '모든 tool 결과가 실패하면 본문 확인에 실패한 점과 이유를 설명하고 내용을 추정하지 마세요.')
+
+def parse_attachment_actions(raw):
+    value = _parse_active_plan(raw).get('attachment_actions', [])
+    try:
+        validate_attachment_actions(value)
+    except AttachmentToolError:
+        raise PlanValidationError('invalid_attachment_actions', field='$.attachment_actions') from None
+    return copy.deepcopy(value)
+
+
 def generation_contract(name):
     """Return an independent provider contract; caller owns actual dispatch."""
     if name == "dialogue_plan.v1":
@@ -626,7 +662,7 @@ def _validate_v2_scope_sources(scope, user_messages):
 
 def _parse_active_plan(raw):
     # Reading a pre-effect saved plan is an update, not an implicit preserve.
-    return _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_REQUEST_EFFECT]})
+    return _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_ATTACHMENT_ACTIONS, _PLAN_BEFORE_REQUEST_EFFECT]})
 
 
 def parse_request_effect(raw):

@@ -191,3 +191,31 @@ html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-team-marker { colo
     scroll-behavior: auto !important;
   }
 }
+
+/* Request-specific context; never changes graph geometry, colors or membership. */
+#peopleMapHost.recommendation-map .rm-adjacent-marker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 1px 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: #62685f;
+  background: #fcfbf7;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+#peopleMapHost.recommendation-map .rm-candidate .rm-adjacent-marker { visibility: visible; }
+#peopleMapHost.recommendation-map .rm-candidate-context,
+#peopleMapHost.recommendation-map .rm-candidate-context > span { display: block; }
+#peopleMapHost.recommendation-map .rm-candidate-context {
+  padding-top: 5px;
+  border-top: 1px solid #dcded3;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#peopleMapHost.recommendation-map .rm-candidate-context .rm-purpose-label { font-weight: 600; }
+#peopleMapHost.recommendation-map .rm-purpose-missing { margin-top: 4px; }
