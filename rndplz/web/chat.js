@@ -163,7 +163,22 @@ function formattedAnswer(text,status){
  }
  return output.join("\n").replace(new RegExp(marker+"(\\d+)END","g"),(_,index)=>fragments[Number(index)]);
 }
-async function api(path,body,signal){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});const data=await response.json();if(signal?.aborted)throw attachmentAbortError();if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const failure=new Error(data.error||"요청을 처리하지 못했어요.");failure.code=data.code;failure.retry_available=data.retry_available;if(["scout_source_changed","scout_source_unsupported"].includes(data.code))failure.session=data.session;throw failure;}return data;}
+async function api(path,body,signal){
+ if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");
+ const response=await fetch(path,body===undefined?(signal?{signal}:{}):{method:"POST",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),...(signal?{signal}:{})});
+ let data,invalidJSON=false;try{data=await response.json();}catch{invalidJSON=true;}
+ if(signal?.aborted)throw attachmentAbortError();
+ if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");
+ if(!response.ok||invalidJSON){
+  const failure=new Error(typeof data?.error==="string"?data.error:response.status===413?"요청 크기가 서버 전송 한도를 넘었어요. (HTTP 413)":response.ok?"서버 응답을 확인하지 못했어요.":"요청을 처리하지 못했어요. (HTTP "+response.status+")");
+  failure.status=response.status;failure.code=typeof data?.code==="string"?data.code:response.ok?"invalid_json_response":"http_"+response.status;
+  failure.requestId=response.headers?.get?.("x-rndplz-request-id")||response.headers?.get?.("x-request-id")||response.headers?.get?.("x-vercel-id")||null;
+  failure.retry_available=data?.retry_available;
+  if(["scout_source_changed","scout_source_unsupported"].includes(data?.code))failure.session=data.session;
+  throw failure;
+ }
+ return data;
+}
 function displayError(message){return message==="http_503"?"일시적으로 응답할 수 없습니다. 잠시 후 다시 시도해 주세요.":message;}
 function error(message=""){$("composerError").textContent=displayError(message);$("composerError").hidden=!message;}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
@@ -292,6 +307,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
 }
 function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();renderRegisteredExperts();}
 const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
+const ATTACHMENT_CHUNK_THRESHOLD=2*1024*1024,ATTACHMENT_CHUNK_BYTES=524288,ATTACHMENT_TOTAL_TIMEOUT_MS=240000;
 let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
 function pendingAttachment(item){return !!(item.file||item.source_url);}
 function attachmentSummary(item){
@@ -380,24 +396,79 @@ function withAttachmentAbort(work,signal){
 function requireAttachmentTransfer(transfer){
  if(attachmentTransfer!==transfer||transfer.cancelled||accountNavigationPending||accountInvalidated)throw attachmentAbortError();
 }
+async function attachmentStep(path,body,transfer,signal){
+ requireAttachmentTransfer(transfer);if(signal.aborted)throw attachmentAbortError();
+ const aborter=new AbortController(),stop=()=>aborter.abort();let timedOut=false;
+ signal.addEventListener("abort",stop,{once:true});
+ const timer=setTimeout(()=>{timedOut=true;aborter.abort();},ATTACHMENT_TIMEOUT_MS);
+ try{return await withAttachmentAbort(api(path,body,aborter.signal),aborter.signal);}
+ catch(error){if(timedOut){const failure=new Error("한 전송 요청의 45초 제한을 넘었어요. 자동 재전송하지 않습니다.");failure.code="attachment_request_timeout";throw failure;}throw error;}
+ finally{clearTimeout(timer);signal.removeEventListener("abort",stop);aborter.abort();}
+}
+function attachmentChunkBase64(bytes){
+ let binary="";for(let offset=0;offset<bytes.length;offset+=8192)binary+=String.fromCharCode(...bytes.subarray(offset,offset+8192));
+ return btoa(binary);
+}
+async function transmitChunkedAttachment(item,transfer,signal,deadline){
+ const ownerToken=token;let uploadId=null,completing=false;
+ const requireCurrent=()=>{requireAttachmentTransfer(transfer);if(signal.aborted||token!==ownerToken)throw attachmentAbortError();};
+ try{
+  requireCurrent();
+  if(!Number.isSafeInteger(item.file.size)||item.file.size<=0||item.file.size>ATTACHMENT_MAX_BYTES)throw new Error("파일은 10MiB 이하로 첨부해 주세요.");
+  if(!crypto.subtle)throw new Error("이 브라우저에서 파일 무결성 확인을 사용할 수 없어요.");
+  const raw=await withAttachmentAbort(item.file.arrayBuffer(),signal);requireCurrent();
+  if(raw.byteLength!==item.file.size)throw new Error("파일 크기를 확인하지 못했어요.");
+  const digest=await withAttachmentAbort(crypto.subtle.digest("SHA-256",raw),signal);requireCurrent();
+  const sha256=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,"0")).join("");
+  const count=Math.ceil(raw.byteLength/ATTACHMENT_CHUNK_BYTES);
+  const begin=await attachmentStep("/api/attachments/begin",{name:item.name,size:raw.byteLength,sha256},transfer,signal);
+  if(typeof begin?.upload_id==="string"&&/^[a-f0-9]{32}$/.test(begin.upload_id))uploadId=begin.upload_id;
+  requireCurrent();
+  if(!uploadId||begin.chunk_bytes!==ATTACHMENT_CHUNK_BYTES||begin.chunk_count!==count||begin.expires_in!==600)throw new Error("파일 분할 전송 설정을 확인하지 못했어요.");
+  for(let index=0;index<count;index++){
+   requireCurrent();
+   attachmentStatus=item.name+" · 나누어 보내고 있어요 ("+(index+1)+"/"+count+") · 요청당 45초, 파일당 최대 4분";controls();
+   const offset=index*ATTACHMENT_CHUNK_BYTES,data=attachmentChunkBase64(new Uint8Array(raw,offset,Math.min(ATTACHMENT_CHUNK_BYTES,raw.byteLength-offset)));
+   const received=await attachmentStep("/api/attachments/chunk",{upload_id:uploadId,index,data},transfer,signal);requireCurrent();
+   if(received?.upload_id!==uploadId||received.index!==index||received.received!==true)throw new Error("파일 조각의 전송 결과를 확인하지 못했어요.");
+  }
+  requireCurrent();attachmentStatus=item.name+" · 전송한 자료를 읽고 있어요…";controls();
+  // Once complete is attempted, its outcome may be unknown. Never retry or cancel it.
+  completing=true;return await attachmentStep("/api/attachments/complete",{upload_id:uploadId},transfer,signal);
+ }catch(error){
+  if(uploadId&&!completing&&token===ownerToken&&!accountNavigationPending&&!accountInvalidated&&attachmentTransfer===transfer){
+   const remaining=Math.min(5000,deadline-Date.now());
+   if(remaining>0){
+    const cleanup=new AbortController(),timer=setTimeout(()=>cleanup.abort(),remaining);
+    try{await withAttachmentAbort(api("/api/attachments/cancel",{upload_id:uploadId},cleanup.signal),cleanup.signal);}catch{}finally{clearTimeout(timer);cleanup.abort();}
+   }
+  }
+  throw error;
+ }
+}
 async function transmitAttachment(item,transfer,index,total){
  requireAttachmentTransfer(transfer);
+ const chunked=publicMode&&!item.source_url&&item.file?.size>ATTACHMENT_CHUNK_THRESHOLD;
+ const limit=chunked?ATTACHMENT_TOTAL_TIMEOUT_MS:ATTACHMENT_TIMEOUT_MS,deadline=Date.now()+limit;
  const aborter=new AbortController();transfer.controller=aborter;let timedOut=false;
  attachmentStatus=item.name+" · 자료를 보내고 읽고 있어요… ("+index+"/"+total+")";controls();
- const timer=setTimeout(()=>{timedOut=true;aborter.abort();},ATTACHMENT_TIMEOUT_MS);
+ const timer=setTimeout(()=>{timedOut=true;aborter.abort();},limit);
  try{
   const work=async()=>{
    if(item.source_url)return api("/api/attachments/https",{url:item.source_url},aborter.signal);
+   if(chunked)return transmitChunkedAttachment(item,transfer,aborter.signal,deadline);
    const data=await dataUrl(item.file,aborter.signal);requireAttachmentTransfer(transfer);
+   if(aborter.signal.aborted)throw attachmentAbortError();
    return api("/api/attachments",{name:item.name,data},aborter.signal);
   };
   const value=await withAttachmentAbort(work(),aborter.signal);requireAttachmentTransfer(transfer);
   if(!value||typeof value.id!=="string"||!/^[a-f0-9]{32}$/.test(value.id)||typeof value.name!=="string")throw new Error("첨부 처리 결과를 확인하지 못했어요.");
   return value;
  }catch(error){
-  if(timedOut)throw new Error(item.name+" · 45초 안에 처리 결과를 확인하지 못했어요. 작성한 글과 선택은 남아 있어요. 서버에 저장됐을 수 있으며 자동 재전송하지 않습니다.");
-  if(error.name==="AbortError")throw new Error(item.name+" · 첨부 처리를 취소했어요. 작성한 글과 선택은 남아 있어요. 서버의 저장 취소나 삭제는 보장되지 않습니다.");
-  throw new Error(item.name+" · "+error.message);
+  const message=timedOut?(chunked?"파일 전송의 전체 4분 제한을 넘었어요.":"45초 안에 처리 결과를 확인하지 못했어요.")+" 작성한 글과 선택은 남아 있어요. 서버에 저장됐을 수 있으며 자동 재전송하지 않습니다.":error.name==="AbortError"?"첨부 처리를 취소했어요. 작성한 글과 선택은 남아 있어요. 서버의 저장 취소나 삭제는 보장되지 않습니다.":error.message;
+  const failure=new Error(item.name+" · "+message);
+  for(const key of ["status","code","requestId","retry_available"])if(error[key]!==undefined)failure[key]=error[key];
+  throw failure;
  }finally{clearTimeout(timer);aborter.abort();if(transfer.controller===aborter)transfer.controller=null;}
 }
 function removeAttachment(id){
