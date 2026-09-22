@@ -617,6 +617,8 @@ class ModelConversation:
                        'user_text_lookup_request_does_not_press_button':True},
                     'request_continuity':{'preserve_available':self._request_continuity(session, session['pending']) is not None,
                         'meaning':'preserve keeps the existing work request and prior result; evidence questions do not replace requested help or create requirements'},
+                   'prior_anonymous_observation':self._prior_anonymous_observation(session),
+                   'observation_continuity_rule':'execution_observation은 이번 턴의 실행 사실만 뜻합니다. 이번 턴의 not_executed/unknown은 이전 조회가 없었다거나 0건이었다는 뜻이 아닙니다. prior_anonymous_observation이 있으면 현재 출처·권한과 연결된 이전 서버 조회의 익명 수·등록 주제입니다. 이전 관측은 그때의 범위만 설명하며 이번 조건의 결과나 개인 역량·수행·현재 가용성 확인이 아닙니다. 이 필드가 없으면 이전 assistant 주장만으로 조회 사실을 확정하지 마세요. 현재 질문에 답할 수 있는 관측과 미확인 사항을 구분하고, 재조회나 질문을 의무적으로 요구하지 마세요.',
                    'historical_disclosures':historical,
                    'historical_disclosure_rule':'사용자가 이전 수소문 버튼으로 이미 열람한 인물과 기록입니다. 이 사람 등의 지칭을 이 자료와 대화로 해석해 설명할 수 있습니다. adjacent/insufficient 등의 기존 관련성·근거 한계를 유지하세요. 새 추천이나 현재 조건의 결과·권한이 아니며 record_ids를 새 scope에 자동 승계하지 마세요. 기록은 사용자 조건 출처가 아닙니다.',
                    'previous_scope':{k:v for k,v in (session.get('previous_model_plan') or {}).items()
@@ -709,6 +711,69 @@ class ModelConversation:
                 or snapshot['fields'].get('request_spec') != session.get('request_spec')):
             return None
         return snapshot['fields']
+
+    def _prior_anonymous_observation(self, session):
+        """Reuse the existing private snapshot; never infer facts from assistant prose."""
+        fields = self._request_continuity(session, session.get('pending'))
+        if fields is None:
+            return None
+        scout = fields.get('scout') or {}
+        result = fields.get('scout_result')
+        plan = fields.get('model_plan')
+        revision = fields.get('model_plan_revision')
+        count = scout.get('count')
+        if (scout.get('disclosed') is not False or scout.get('status') != 'ready'
+                or scout.get('count_status') != 'known'
+                or scout.get('count_basis') != 'registered_record_matches'
+                or type(count) is not int or count < 0
+                or not isinstance(result, dict) or not isinstance(plan, dict)
+                or not revision or scout.get('revision') != revision
+                or (fields.get('discovery') or {}).get('revision') != revision
+                or result.get('request_revision') != revision):
+            return None
+        candidates = result.get('candidates')
+        record_ids = result.get('matching_record_ids')
+        if (not isinstance(candidates, list) or not isinstance(record_ids, list)
+                or any(not isinstance(rid, str) for rid in record_ids)
+                or len(set(record_ids)) != len(record_ids)
+                or type(result.get('matched_candidate_count')) is not int
+                or result['matched_candidate_count'] != count
+                or not len(candidates) <= count <= len(self.service.corpus.people)):
+            return None
+        corpus = self.service.corpus
+        excluded = set(self.request_context(session).get('excluded_person_ids', []))
+        candidate_ids = [row.get('id') for row in candidates if isinstance(row, dict)]
+        if (len(candidate_ids) != len(candidates)
+                or any(not isinstance(pid, str) for pid in candidate_ids)
+                or len(set(candidate_ids)) != len(candidate_ids)
+                or any(pid not in corpus.people or corpus.people[pid].virtual or pid in excluded
+                       for pid in candidate_ids)
+                or any(rid not in corpus.records or corpus.records[rid].virtual
+                       or not any(c.person_id in corpus.people and not corpus.people[c.person_id].virtual
+                                  and c.person_id not in excluded for c in corpus.records[rid].people)
+                       for rid in record_ids)):
+            return None
+        tool_id = result.get('tool_call_id')
+        # This is a stored successful server lookup, not the previous reply's claim.
+        completed = next((message for message in reversed(session.get('messages', []))
+            if message.get('role') == 'assistant' and message.get('status') == 'complete'
+            and message.get('audience') == 'consultation' and message.get('source') == 'model'
+            and tool_id and any(attempt.get('tool_call_id') == tool_id
+                and attempt.get('plan_sha256') == digest(plan)
+                and attempt.get('candidate_count') == len(candidates)
+                and attempt.get('matching_record_ids') == record_ids
+                for attempt in message.get('model_search_attempts', [])
+                if isinstance(attempt, dict))), None)
+        if completed is None:
+            return None
+        return {'status':'completed', 'execution_scope':'previous_turn_only',
+                'source_turn_id':completed['turn_id'], 'revision':revision,
+                'corpus_fingerprint':self._model_corpus_fingerprint(),
+                'result_sha256':digest(result),
+                'anonymous_record_linked_people_count':count, 'count_status':'known',
+                'anonymous_matched_topics':anonymous_matched_topics(corpus, result),
+                'new_people_disclosed':False, 'purpose_suitability_assessed':False,
+                'applies_to_current_conditions':False, 'authorizes_lookup_or_disclosure':False}
 
     def reserve_model_turn(self, session, option, turn_id):
         previous = (copy.deepcopy(session.get('model_plan'))
@@ -901,6 +966,8 @@ class ModelConversation:
                      'request_spec':request_spec_content(request_spec),
                      'request_spec_origin':'model_summary_of_user_turns_not_user_confirmation',
                      'execution_observation_origin':'actual_record_matches_and_registered_topic_tags_not_purpose_or_person_qualification',
+                     'prior_anonymous_observation':self._prior_anonymous_observation(session),
+                     'observation_continuity_rule':'execution_observation은 이번 턴의 실행 사실만 뜻합니다. 이번 턴의 not_executed/unknown은 이전 조회가 없었다거나 0건이었다는 뜻이 아닙니다. prior_anonymous_observation이 있으면 현재 출처·권한과 연결된 이전 서버 조회의 익명 수·등록 주제입니다. 이전 관측은 그때의 범위만 설명하며 이번 조건의 결과나 개인 역량·수행·현재 가용성 확인이 아닙니다. 이 필드가 없으면 이전 assistant 주장만으로 조회 사실을 확정하지 마세요. 현재 질문에 답할 수 있는 관측과 미확인 사항을 구분하고, 재조회나 질문을 의무적으로 요구하지 마세요.',
                      'execution_observation':observation,
                      'source_turns':source_previews(basis['source_turns']) if attachment_tools is not None else copy.deepcopy(basis['source_turns']),
                      'historical_disclosures':copy.deepcopy(basis['historical_disclosures']),
