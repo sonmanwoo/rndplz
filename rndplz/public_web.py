@@ -30,6 +30,7 @@ from .hosted_demo import HostedDemoPolicy
 from .llm_runtime import RuntimeLegacyModel
 from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError
+from .storage import StateStore
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
@@ -512,7 +513,7 @@ class PublicApp:
     def _revoked(self, sid):
         # The signed cookie identifies one existing visitor directory. Keeping a
         # tombstone prevents an old cookie from restoring that visitor on restart.
-        return (self.directory / sid / '.visitor-revoked').exists()
+        return StateStore(self.directory / sid, env=self.env).is_revoked()
 
     def _expired_cookie(self):
         return ('rndplz_visitor=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; '
@@ -528,11 +529,8 @@ class PublicApp:
                 context['revoked'] = True
                 self.contexts.pop(context['sid'], None)
                 return True
-            marker = self.directory / context['sid'] / '.visitor-revoked'
-            with marker.open('xb') as stream:
-                stream.write(b'1\n')
-                stream.flush()
-                os.fsync(stream.fileno())
+            if not context['service'].store.revoke():
+                return False
             context['revoked'] = True
             self.contexts.pop(context['sid'], None)
         return True
@@ -618,7 +616,7 @@ class PublicApp:
                         del self.contexts[key]
                 if len(self.contexts) >= 128:
                     raise AuthError('account_busy', 429)
-                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid))
+                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
                 store = self.auth.profile_store(account['id'], session_cookie=cookie)
                 profile = Profiles(store, public=True, account={key: account[key]
                     for key in ('id', 'verified', 'storage_lifetime')})
@@ -709,7 +707,7 @@ class PublicApp:
                         del self.contexts[key]
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
-                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid))
+                service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
                 self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
                                       'sid': sid, 'inflight': 0, 'revoked': False,

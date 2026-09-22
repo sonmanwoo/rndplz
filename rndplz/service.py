@@ -84,10 +84,10 @@ def provider_scope(session):
 
 
 class Service:
-    def __init__(self, engine=None, state_dir=None, model=None):
+    def __init__(self, engine=None, state_dir=None, model=None, state_env=None):
         self.engine=engine or Engine()
         self.corpus=self.engine.corpus
-        self.store=StateStore(state_dir or ROOT/"out"/"state")
+        self.store=StateStore(state_dir or ROOT/"out"/"state", env=state_env)
         self.model=model or ExternalModel(audit_path=self.store.directory/"model-events.jsonl")
 
     def for_provider_scope(self, scope):
