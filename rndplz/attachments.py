@@ -10,6 +10,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 from .https_documents import FetchError, fetch_document, extract_web_text
+from .bounded_html import BundledHTMLError, BUNDLE_LIMIT, unpack_html_template, is_loading_only
 
 
 # MAX_BYTES remains the legacy profile limit imported by Profiles.
@@ -43,10 +44,11 @@ class AttachmentError(ValueError):
         'unsupported_text':'UTF-8 또는 한글 텍스트 파일을 선택해 주세요.',
         'resource_limit':'문서 내부 내용이 안전한 처리 범위를 넘었습니다. 문서를 나누어 첨부해 주세요.',
         'parser_unavailable':'문서 읽기 기능을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+        'bundled_html_unsupported':'이 HTML의 실행형 본문을 안전하게 읽지 못했어요. 본문을 텍스트 또는 텍스트 PDF로 저장해 첨부해 주세요.',
     }
     def __init__(self,reason):
         self.code='attachment_'+reason
-        self.status=429 if reason=='busy' else 413 if reason in ('too_large','resource_limit') else 415 if reason=='unsupported' else 503 if reason=='parser_unavailable' else 400
+        self.status=429 if reason=='busy' else 413 if reason in ('too_large','resource_limit') else 415 if reason in ('unsupported','bundled_html_unsupported') else 503 if reason=='parser_unavailable' else 400
         super().__init__(self.MESSAGES[reason])
 
 
@@ -168,6 +170,14 @@ def _office(raw,suffix):
 
 
 def _html(raw):
+    # Unwrap only the known inert JSON template; never fetch or execute assets.
+    try:
+        template=unpack_html_template(raw)
+    except BundledHTMLError as exc:
+        reason={'invalid':'corrupt','unsupported':'bundled_html_unsupported',
+                'empty':'empty_text','resource_limit':'resource_limit'}[exc.reason]
+        raise AttachmentError(reason) from None
+    if template is not None:raw=template
     # Reuse static HTTPS extraction; local files never fetch embedded resources.
     try:
         try:text=extract_web_text(raw,'text/html')
@@ -176,8 +186,17 @@ def _html(raw):
             text=extract_web_text(raw,'text/html; charset=cp949')
     except FetchError as exc:
         raise AttachmentError('empty_text' if exc.code=='https_empty' else 'unsupported_text') from None
+    if template is not None:
+        # Markup indentation is layout, not the bounded document body.
+        text='\n'.join(line.strip() for line in text.splitlines() if line.strip())
+        if is_loading_only(text):raise AttachmentError('bundled_html_unsupported')
     lines=text.splitlines(keepends=True)
-    return _collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,'html_static_text_lines',joiner='')
+    method='html_bundle_template_static_lines' if template is not None else 'html_static_text_lines'
+    collected=_collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,method,joiner='')
+    if template is not None:
+        collected[2]['status']='partial'
+        collected[2]['limits'].append(BUNDLE_LIMIT)
+    return collected
 
 
 def _pdf(raw):
@@ -218,6 +237,7 @@ class Attachments:
             if source.get('sha256')!=hashlib.sha256(raw).hexdigest() or source.get('bytes')!=len(raw):
                 raise FetchError('https_invalid_response')
             decoded=None;name=document['name']
+            bundled=document['document_kind']=='html' and document.get('html_bundle_template') is True
             if document['document_kind'] in ('html','text'):
                 decoded=document['text']
                 if not isinstance(decoded,str) or not decoded.strip():raise FetchError('https_empty')
@@ -226,11 +246,11 @@ class Attachments:
                 source['conversion']={'method':'html_static_text' if document['document_kind']=='html' else 'charset_decoded_text',
                     'encoding':'utf-8','sha256':hashlib.sha256(converted).hexdigest(),'bytes':len(converted)}
             return self._upload({'name':name,'data':base64.b64encode(raw).decode('ascii')},
-                                _source=source,_decoded_text=decoded)
+                                _source=source,_decoded_text=decoded,_html_bundle=bundled)
         finally:
             _HTTPS_SLOTS.release()
 
-    def _upload(self,payload,*,_source=None,_decoded_text=None):
+    def _upload(self,payload,*,_source=None,_decoded_text=None,_html_bundle=False):
         name=payload.get('name','')
         if not isinstance(name,str) or not name or len(name)>240:
             raise AttachmentError('invalid_name')
@@ -256,7 +276,11 @@ class Attachments:
                     except UnicodeDecodeError:raise AttachmentError('unsupported_text') from None
             if '\x00' in text:raise AttachmentError('unsupported_text')
             lines=text.splitlines(keepends=True)
-            text,spans,extraction=_collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,'decoded_text_lines',joiner='')
+            method='html_bundle_template_static_lines' if _html_bundle else 'decoded_text_lines'
+            text,spans,extraction=_collect(enumerate(lines,1),len(lines),'line',MAX_UNITS,method,joiner='')
+            if _html_bundle:
+                extraction['status']='partial'
+                extraction['limits'].append(BUNDLE_LIMIT)
         elif suffix in ('.html','.htm'):text,spans,extraction=_html(raw)
         elif suffix=='.pdf':text,spans,extraction=_pdf(raw)
         elif suffix in ('.docx','.pptx'):text,spans,extraction=_office(raw,suffix)
@@ -269,7 +293,9 @@ class Attachments:
         else:raise AttachmentError('unsupported')
         if not image and not text.strip():raise AttachmentError('empty_text')
         item={'id':uuid.uuid4().hex,'name':name,'size':len(raw),'text':text,
-              'image':image,'mime':mime,'truncated':bool(extraction and extraction['status']=='partial')}
+              'image':image,'mime':mime,'truncated':bool(extraction and extraction['status']=='partial'
+                  and not (extraction.get('method')=='html_bundle_template_static_lines'
+                           and extraction.get('limits')==[BUNDLE_LIMIT]))}
         if extraction is not None:item.update(extraction=extraction,source_spans=spans)
         if _source is not None:
             item['source']={**_source,'extracted_text_sha256':hashlib.sha256(text.encode('utf-8')).hexdigest()}

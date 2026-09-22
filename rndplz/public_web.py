@@ -822,7 +822,16 @@ class PublicApp:
         diagnostic_model_called=False
         diagnostic_probe=None
         attachment_report_request_id=None
+        https_observation=None;https_failure_stage='request';https_upstream_status=None
         def send(status, value, mime='application/json; charset=utf-8'):
+            if https_observation is not None:
+                metadata={**https_observation,'event_type':'attachment_https_finished',
+                    'status':'error' if status>=400 else 'complete','http_status':status,
+                    'elapsed_ms':round((time.monotonic()-received)*1000)}
+                if status>=400:
+                    metadata.update(error_kind=value.get('code',diagnostic_error) if isinstance(value,dict) else diagnostic_error,
+                        failure_stage=https_failure_stage,upstream_http_status=https_upstream_status)
+                self._diagnostic_observe(metadata)
             if status>=400 and diagnostic_probe is not None:
                 self._diagnostic_observe({**diagnostic_probe,'http_status':status,'error_kind':diagnostic_error,
                     'elapsed_ms':round((time.monotonic()-received)*1000)})
@@ -913,6 +922,13 @@ class PublicApp:
                     'deployment_revision':self.diagnostic_runtime['deployment_revision']}
                 if method=='GET':diagnostic_probe['claimed_session_id']=identifier
                 headers.append(('X-RNDPLZ-Request-Id',probe_id))
+            if method=='POST' and path=='/api/attachments/https':
+                https_id=uuid.uuid4().hex
+                https_observation={'request_id':https_id,'visitor_ref':context['visitor_ref'],
+                    'code_fingerprint':self.diagnostic_runtime['code_fingerprint'],
+                    'deployment_revision':self.diagnostic_runtime['deployment_revision']}
+                headers.append(('X-RNDPLZ-Request-Id',https_id))
+                self._diagnostic_observe({**https_observation,'event_type':'attachment_https_started','status':'started'})
             if method=='POST' and path=='/api/attachments/client-report':
                 attachment_report_request_id=uuid.uuid4().hex
                 headers.append(('X-RNDPLZ-Request-Id',attachment_report_request_id))
@@ -1107,6 +1123,7 @@ class PublicApp:
                     context['active']+=1
                 try:
                     if path == '/api/attachments/https':
+                        https_failure_stage='attachment_ingest'
                         return send(200, chat.attachments.upload_url(payload))
                     if diagnostic_request is not None:
                         with diagnostic_scope(self.observation,diagnostic_request):
@@ -1160,6 +1177,8 @@ class PublicApp:
             return send(exc.status, {'error':str(exc), 'code':exc.code, **({'profile_command': exc.profile_command} if hasattr(exc, 'profile_command') else {})})
         except FetchError as exc:
             diagnostic_error=exc.code
+            https_failure_stage=exc.observation['failure_stage']
+            https_upstream_status=exc.observation.get('upstream_http_status')
             return send(exc.status, {'error':str(exc), 'code':exc.code})
         except AttachmentError as exc:
             diagnostic_error=exc.code
