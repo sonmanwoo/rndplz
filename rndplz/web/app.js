@@ -143,10 +143,18 @@ function evidenceHtml(e,currentPersonId=null){
  return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl>'+evidenceDatesHtml(e)+'<dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
+// Presentation only: callers pass the current disclosed candidate, never a directory profile.
+function detailRequestAction(candidate){
+ if(!candidate)return '';
+ const allowed=canPropose(candidate),reason=typeof candidate.proposal_unavailable_reason==='string'&&candidate.proposal_unavailable_reason.trim()?candidate.proposal_unavailable_reason:'현재 요청의 근거와 제안 가능 여부를 먼저 확인해 주세요.';
+ const name=candidate.profile?.display_name||candidate.name||'선택한 인물';
+ return '<section class="detail-block" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
+  (allowed?'<button type="button" class="primary full" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="muted">먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="muted">'+esc(reason)+'</p>')+'</section>';
+}
 function showPerson(p,candidate=false){
  if(!p)throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
- $("detailContent").innerHTML=RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+(p.evidence||[]).map(e=>evidenceHtml(e,p.id)).join("")+(candidate&&canPropose(p)?'<button class="primary full" data-action="letter" data-id="'+esc(p.id)+'">이 사람에게 제안하기 ↗</button>':"");
- showDialog("detailDialog");
+ $("detailContent").innerHTML=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+(p.evidence||[]).map(e=>evidenceHtml(e,p.id)).join("");
+ showDialog("detailDialog");$("detailDialog").scrollTop=0;
 }
 async function openLetter(ids){
  checkProposalSelection(ids);

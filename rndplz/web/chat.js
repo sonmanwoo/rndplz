@@ -1098,6 +1098,19 @@ async function submitComposer(){
  await send({...payload,attachments:[...submission.attachmentIds]},submission);
 }
 function safeUrl(url){try{return ["https:","http:"].includes(new URL(url).protocol);}catch{return false;}}
+// Presentation only: callers pass the current disclosed candidate, never a directory profile.
+function detailRequestAction(candidate){
+ if(!candidate)return '';
+ const allowed=canPropose(candidate),reason=typeof candidate.proposal_unavailable_reason==='string'&&candidate.proposal_unavailable_reason.trim()?candidate.proposal_unavailable_reason:'현재 요청의 근거와 제안 가능 여부를 먼저 확인해 주세요.';
+ const name=candidate.profile?.display_name||candidate.name||'선택한 인물';
+ return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
+  (allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="small subtle">먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="small subtle">'+esc(reason)+'</p>')+'</section>';
+}
+function currentDetailCandidate(id){
+ const scout=session?.scout;
+ if(!session?.ready||!scout?.disclosed||session.pending||!scout.revision||scout.revision!==session.discovery?.revision||scout.revision!==session.prepared_discovery_revision)return null;
+ return session.result?.candidates?.find(candidate=>candidate.id===id)||null;
+}
 async function showPerson(id,opener=document.activeElement){
  const stored=session?.result?.candidates.find(c=>c.id===id);
  const historical=Boolean(stored&&session?.result?.historical_result);
@@ -1109,9 +1122,24 @@ async function showPerson(id,opener=document.activeElement){
  const profileNotice=!historical&&candidate?.profile_only?'<p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
  const requestContext=candidateContextHtml(candidate);
   const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
- $("detailContent").innerHTML=historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
- if(candidate&&canPropose(candidate))$("detailContent").insertAdjacentHTML("beforeend",'<button class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">편지 쓰기 ↗</button>');
- modal("detailDialog",opener);
+ $("detailContent").innerHTML=detailRequestAction(currentDetailCandidate(id))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
+ modal("detailDialog",opener);$("detailDialog").scrollTop=0;
+}
+// A failed draft remains in the currently open person dialog; no draft or send is simulated.
+function detailRequestDraftError(message,button){
+ const dialog=$("detailDialog");
+ if(!dialog?.open||!button?.isConnected||!dialog.contains(button))return false;
+ let notice=dialog.querySelector("[data-request-draft-error]");
+ if(!message){if(notice)notice.remove();return true;}
+ if(!notice){
+  notice=document.createElement("p");notice.setAttribute("data-request-draft-error","");
+  notice.className="response-error";notice.setAttribute("role","alert");
+  notice.setAttribute("aria-label","의뢰서 열기 오류");notice.setAttribute("tabindex","-1");
+  button.after(notice);
+ }
+ notice.textContent="의뢰서를 열지 못했어요. "+displayError(String(message));
+ notice.focus({preventScroll:true});notice.scrollIntoView({block:"nearest",behavior:"instant"});
+ return true;
 }
 async function openLetter(ids){
  checkProposalSelection(ids);const candidateContexts=captureCandidateContexts(session,ids);const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}
@@ -1188,9 +1216,9 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}
   else if(action==="person")await showPerson(id,button);
-  else if(action==="letter")await openLetter([id]);
+  else if(action==="letter"){detailRequestDraftError("",button);await openLetter([id]);}
   else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(canPropose).map(c=>c.id);if(ids.length)await openLetter(ids);}
- }catch(e){error(e.message);button.disabled=false;}
+ }catch(e){if(action!=="letter"||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
 });
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});
 (async()=>{try{const ticket=++modelCatalogTicket,data=await api("/api/chat/bootstrap");token=data.token;history=data.history;if(ticket===modelCatalogTicket)modelOptions(data);const id=new URLSearchParams(location.search).get("chat");if(id){const epoch=modelSelectionEpoch;session=await api("/api/chat/session?id="+encodeURIComponent(id));restoreModelSelection(session,epoch);}render();resizeInput();if(new URLSearchParams(location.search).has("settings"))modal("settingsDialog");}catch(e){error(e.message);}})();
