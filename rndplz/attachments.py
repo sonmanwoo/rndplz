@@ -33,6 +33,7 @@ _HTTPS_SLOTS=threading.BoundedSemaphore(2)
 class AttachmentError(ValueError):
     MESSAGES={
         'busy':'다른 자료를 읽는 중입니다. 잠시 후 다시 시도해 주세요.',
+        'count_limit':'공개 시연의 첨부 개수 한도에 도달했습니다.',
         'invalid_name':'파일 이름을 확인해 주세요.',
         'invalid_encoding':'파일 전송 형식을 확인해 주세요.',
         'too_large':'첨부파일은 파일당 10MiB까지 읽을 수 있어요.',
@@ -48,7 +49,7 @@ class AttachmentError(ValueError):
     }
     def __init__(self,reason):
         self.code='attachment_'+reason
-        self.status=429 if reason=='busy' else 413 if reason in ('too_large','resource_limit') else 415 if reason in ('unsupported','bundled_html_unsupported') else 503 if reason=='parser_unavailable' else 400
+        self.status=429 if reason in ('busy','count_limit') else 413 if reason in ('too_large','resource_limit') else 415 if reason in ('unsupported','bundled_html_unsupported') else 503 if reason=='parser_unavailable' else 400
         super().__init__(self.MESSAGES[reason])
 
 
@@ -217,9 +218,14 @@ def _pdf(raw):
 
 
 class Attachments:
-    def __init__(self,directory):
+    def __init__(self,directory,*,backend=None):
         self.directory=Path(directory)/'attachments'
-        self.directory.mkdir(parents=True,exist_ok=True)
+        self.backend=backend
+        if backend is None:
+            self.directory.mkdir(parents=True,exist_ok=True)
+
+    def count(self):
+        return self.backend.count() if self.backend is not None else len(list(self.directory.glob('*.json')))
 
     def upload(self,payload):
         # User-supplied source/provenance is never accepted as an authority.
@@ -299,13 +305,22 @@ class Attachments:
         if extraction is not None:item.update(extraction=extraction,source_spans=spans)
         if _source is not None:
             item['source']={**_source,'extracted_text_sha256':hashlib.sha256(text.encode('utf-8')).hexdigest()}
-        path=self.directory/(item['id']+'.json')
-        path.write_text(json.dumps(item,ensure_ascii=False),encoding='utf-8')
+        if self.backend is not None:
+            saved=self.backend.put(item)
+            if saved is False:
+                raise AttachmentError('count_limit')
+            if saved is not True:
+                raise ValueError('첨부 저장 결과를 확인할 수 없습니다.')
+        else:
+            path=self.directory/(item['id']+'.json')
+            path.write_text(json.dumps(item,ensure_ascii=False),encoding='utf-8')
         return self.public(item)
 
     def load(self,identifier):
         if not isinstance(identifier,str) or not re.fullmatch(r'[a-f0-9]{32}',identifier):
             raise ValueError('첨부파일 식별자가 올바르지 않습니다.')
+        if self.backend is not None:
+            return self.backend.load(identifier)
         path=self.directory/(identifier+'.json')
         if not path.exists():raise ValueError('첨부파일을 다시 선택해 주세요.')
         return json.loads(path.read_text(encoding='utf-8'))

@@ -62,7 +62,8 @@ class Conversation(ModelConversation):
         self.models=models or ChatModels()
         self.actions=ChatActions(service)
         self.discovery=Discovery(self.actions)
-        self.attachments=Attachments(self.store.directory)
+        self.attachments=Attachments(self.store.directory, backend=(
+            self.store.attachment_backend() if getattr(self.store, 'shared', False) else None))
         # A process restart cannot resume an old HTTP stream.
         # A new shared-store reader is not evidence that another writer stopped.
         if not getattr(self.store, 'shared', False) and any(s.get('pending') for s in self.store.read()['sessions']):

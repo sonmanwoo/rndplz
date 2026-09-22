@@ -105,6 +105,7 @@ class RedisStateStore:
         identity = os.path.normcase(os.path.abspath(os.fspath(self.directory)))
         digest = hashlib.sha256(identity.encode('utf-8')).hexdigest()
         prefix = 'rndplz:{' + namespace + ':' + digest + '}'
+        self._key_prefix = prefix
         self._state_key, self._lock_key, self._revoked_key = (
             prefix + ':state', prefix + ':lock', prefix + ':revoked')
 
