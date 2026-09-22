@@ -1141,8 +1141,37 @@ function detailRequestDraftError(message,button){
  notice.focus({preventScroll:true});notice.scrollIntoView({block:"nearest",behavior:"instant"});
  return true;
 }
+// These are server-generated review bodies from this exact prepared response.
+// They never authorize saving or sending a proposal.
+function preparedLetterDrafts(ids){
+ const preview=session?.draft_previews,scout=session?.scout;
+ if(!preview||!session.ready||session.pending||!scout?.disclosed||!scout.revision||
+    scout.revision!==session.discovery?.revision||scout.revision!==session.prepared_discovery_revision||
+    preview.session_id!==session.id||preview.revision!==scout.revision||
+    !Array.isArray(preview.items)||preview.items.length>7||!Array.isArray(ids)||ids.length>7)return null;
+ const drafts=[];
+ for(const id of ids){
+  const candidate=currentDetailCandidate(id),matches=preview.items.filter(item=>item?.candidate?.id===id);
+  if(!canPropose(candidate)||matches.length!==1)return null;
+  const draft=matches[0];
+  if(draft.session_id!==session.id||draft.candidate.name!==candidate.name||
+     typeof draft.body!=="string"||!draft.body.trim()||draft.body.length>30000)return null;
+  drafts.push(JSON.parse(JSON.stringify(draft)));
+ }
+ return drafts;
+}
 async function openLetter(ids){
- checkProposalSelection(ids);const candidateContexts=captureCandidateContexts(session,ids);const drafts=await Promise.all(ids.map(id=>api("/api/draft",{session_id:session.id,candidate_id:id})));letter={ids,drafts,key:crypto.randomUUID(),sessionId:session.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};renderLetter();modal("letterDialog");}
+ checkProposalSelection(ids);
+ const source=session,revision=source.scout?.revision,candidateContexts=captureCandidateContexts(source,ids);
+ if(source.pending||(revision&&ids.some(id=>!canPropose(currentDetailCandidate(id)))))throw new Error("대화 조건이 바뀌었어요. 현재 추천 인물에서 의뢰서를 다시 열어 주세요.");
+ const drafts=preparedLetterDrafts(ids)||await Promise.all(ids.map(id=>api("/api/draft",{session_id:source.id,candidate_id:id})));
+ if(accountNavigationPending||accountInvalidated||session!==source||session.pending||session.scout?.revision!==revision)
+  throw new Error("대화 조건이 바뀌었어요. 현재 추천 인물에서 의뢰서를 다시 열어 주세요.");
+ checkProposalSelection(ids);
+ if(revision&&ids.some(id=>!canPropose(currentDetailCandidate(id))))throw new Error("현재 추천 인물에서 의뢰서를 다시 열어 주세요.");
+ letter={ids,drafts,key:crypto.randomUUID(),sessionId:source.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};
+ renderLetter();modal("letterDialog");
+}
 function renderLetter(){const d=letter.drafts[letter.index];renderLetterCandidateContext(d.candidate.id);$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
 function keepLetter(){const id=letter.ids[letter.index];if(letter.bodies[id]!==$("letterBody").value){letter.bodies[id]=$("letterBody").value;letter.key=crypto.randomUUID();}}
 async function saveLetter(state){const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent")RndCraft.deliver(recipientName,saved.length);else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
