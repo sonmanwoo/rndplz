@@ -378,12 +378,13 @@ class PublicModels(ChatModels):
 
 class _VisitorStream:
     """Release admission once; lifecycle metadata is not a delivery acknowledgement."""
-    def __init__(self, iterator, first, release, *, observe=None, request_id=None):
+    def __init__(self, iterator, first, release, *, observe=None, request_id=None, browser_project=None):
         self.iterator=iterator
         self.events=itertools.chain([first],iterator)
         self.release=release
         self.observe=observe
         self.request_id=request_id
+        self.browser_project=browser_project or project_session
         self.closed=False
         self.started=time.monotonic()
         self.terminal_yielded=False
@@ -403,7 +404,7 @@ class _VisitorStream:
         try:
             event=next(self.events)
             if isinstance(event,dict) and 'session' in event:
-                event={**event,'session':project_session(event['session'])}
+                event={**event,'session':self.browser_project(event['session'])}
             if isinstance(event,dict) and event.get('type')=='start' and self.request_id:
                 event={**event,'request_id':self.request_id}
             raw=(json.dumps(event,ensure_ascii=False)+'\n').encode()
@@ -462,10 +463,9 @@ class PublicApp:
         corpus = Corpus()
         approved = self.env.get('RNDPLZ_PUBLISH_PERSONAL') == '1' if include_personal is None else include_personal
         if not approved:
-            hidden = {p.id for p in corpus.people.values() if p.profile.get('source_type') in ('self_reported', 'provided_resume')}
-            corpus.people = {k: p for k, p in corpus.people.items() if k not in hidden}
-            corpus.records = {k: r for k, r in corpus.records.items() if not any(c.person_id in hidden for c in r.people)}
-            corpus.by_person = {k: [r for r in v if r.id in corpus.records] for k, v in corpus.by_person.items() if k not in hidden}
+            from .public_profiles import restrict_personal_publication, selected_public_people
+            selected = selected_public_people(self.env) if include_personal is None else frozenset()
+            restrict_personal_publication(corpus, selected)
         from .demo_pool import project_corpus
         corpus = project_corpus(corpus, allow_personal_omission=not approved)
         self.engine = Engine(corpus)
@@ -478,7 +478,8 @@ class PublicApp:
         # A startup file fingerprint is provenance metadata, not a memory attestation.
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
-                 'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py')
+                 'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
+                 'public_profiles.py','registered_experts.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
@@ -821,6 +822,7 @@ class PublicApp:
         diagnostic_probe=None
         attachment_report_request_id=None
         https_observation=None;https_failure_stage='request';https_upstream_status=None
+        browser_project=project_session
         def send(status, value, mime='application/json; charset=utf-8'):
             if https_observation is not None:
                 metadata={**https_observation,'event_type':'attachment_https_finished',
@@ -839,7 +841,7 @@ class PublicApp:
                     'failure_stage':'model_response' if diagnostic_model_called else 'request','elapsed_ms':round((time.monotonic()-received)*1000),'model_called':diagnostic_model_called},diagnostic_content)
             if (isinstance(value, dict) and 'session' in value
                     and not environ.get('PATH_INFO', '').startswith('/api/operator/diagnostics/')):
-                value = {**value, 'session': project_session(value['session'])}
+                value = {**value, 'session': browser_project(value['session'])}
             raw = json.dumps(value, ensure_ascii=False).encode() if isinstance(value, (dict, list)) else value
             start_response(f'{status} {HTTPStatus(status).phrase}', headers + [('Content-Type', mime), ('Content-Length', str(len(raw)))])
             return [raw]
@@ -908,6 +910,40 @@ class PublicApp:
             if cookie is not None:
                 headers.append(('Set-Cookie', cookie))
             service, chat, profile = context['service'], context['chat'], context['profile']
+            def attach_registered(shaped):
+                if not isinstance(shaped,dict):return shaped
+                shaped.pop('registered_experts',None)
+                shaped.pop('registered_experts_error',None)
+                if shaped.get('id') and not shaped.get('pending'):
+                    extra=service.registered_expert_present(shaped['id'])
+                    if (extra and extra.get('session_id')==shaped['id']
+                            and extra.get('revision')==(shaped.get('discovery') or {}).get('revision')):
+                        shaped['registered_experts']=extra
+                return shaped
+
+            def browser_project(value):
+                return attach_registered(project_session(value))
+
+            def prepare_response():
+                prepared=chat.prepare(payload)
+                revision=(prepared.get('discovery') or {}).get('revision')
+                from .public_profiles import APPROVED_PERSON_IDS
+                eligible=(prepared.get('id') and revision and prepared.get('provider_scope')
+                    and (prepared.get('scout') or {}).get('disclosed') is True
+                    and prepared.get('scout_authorized_revision')==revision
+                    and prepared.get('prepared_discovery_revision')==revision
+                    and any(pid in service.corpus.people for pid in APPROVED_PERSON_IDS))
+                lookup_failed=False
+                if eligible:
+                    try:
+                        service.registered_expert_lookup(prepared['id'],revision,
+                            context_builder=lambda current: chat.request_context(current,for_prepare=True))
+                    except (ValueError,KeyError,TypeError):
+                        lookup_failed=True
+                result=attach_registered(service.prepared_draft_response(prepared))
+                if lookup_failed:
+                    result['registered_experts_error']='등록 경력 조회 결과를 확인하지 못했습니다. 기존 논문 조회 결과는 아래에서 확인할 수 있습니다.'
+                return result
             token = context['token']
             query = parse_qs(environ.get('QUERY_STRING', ''))
             identifier = query.get('id', [''])[0]
@@ -958,7 +994,7 @@ class PublicApp:
                     self._diagnostic_observe({**diagnostic_probe,'event_type':'session_read_completed',
                         'session_verified':True,'pending_present':bool(session.get('pending')),
                         'http_status':200,'elapsed_ms':round((time.monotonic()-received)*1000)})
-                    return send(200,project_session(session))
+                    return send(200,browser_project(session))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/people-map': return send(200, build_people_map(service.engine))
                 if path == '/api/admin': return send(200, service.admin())
@@ -1090,7 +1126,8 @@ class PublicApp:
                             while len(refs)>16:refs.pop(next(iter(refs)))
                     self._diagnostic_observe({**(diagnostic_request or {}),**meta})
                 response = _VisitorStream(iterator, first, release_stream, observe=observe_stream,
-                                          request_id=(diagnostic_request or {}).get('request_id'))
+                                          request_id=(diagnostic_request or {}).get('request_id'),
+                                          browser_project=browser_project)
                 streaming = True
                 try:
                     start_response('200 OK', headers + [('Content-Type', 'application/x-ndjson; charset=utf-8')])
@@ -1106,8 +1143,8 @@ class PublicApp:
                 try:
                     if diagnostic_request is not None:
                         with diagnostic_scope(self.observation,diagnostic_request):
-                            return send(200,service.prepared_draft_response(chat.prepare(payload)))
-                    return send(200,service.prepared_draft_response(chat.prepare(payload)))
+                            return send(200,prepare_response())
+                    return send(200,prepare_response())
                 finally:
                     with self.lock:context['active']-=1
                     self.request_slots.release()
@@ -1131,14 +1168,20 @@ class PublicApp:
                     with self.lock:context['active']-=1
             if path == '/api/self-profile/chat':
                 chat.require_profile_context(payload.get('session_id'))
+            if path == '/api/registered-experts/draft':
+                if (environ.get('QUERY_STRING','') or set(payload)!=
+                        {'session_id','candidate_id','snapshot_id','revision'}):
+                    return send(400,{'error':'등록 경력 의뢰 검토 요청을 확인해 주세요.'})
+                return send(200,service.registered_expert_draft(payload['session_id'],
+                    payload['candidate_id'],payload['snapshot_id'],payload['revision']))
             routes = {
                 '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),
                 '/api/self-profile/upload': lambda: profile.upload(payload),
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
-                '/api/converse': lambda: project_session(service.converse(payload)),
-                '/api/slots': lambda: project_session(service.update_slots(payload)),
+                '/api/converse': lambda: browser_project(service.converse(payload)),
+                '/api/slots': lambda: browser_project(service.update_slots(payload)),
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id')),
                 '/api/proposals': lambda: service.save_proposal(payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),

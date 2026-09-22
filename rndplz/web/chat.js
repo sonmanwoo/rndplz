@@ -290,7 +290,7 @@ async function refreshModelOptions(path="/api/chat/models?refresh=1"){
  if(ticket!==modelCatalogTicket)return false;
  modelOptions(data);return true;
 }
-function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();}
+function controls(){syncModelSelection();const m=option(),locked=composerSendLocked(),navigationLocked=composerClientLocked(),profileIntent=profileUI?.shouldHandle($("message").value);if(publicMode){$("settingsDialog").querySelector("p.subtle").textContent=m?.id==="runtime"&&m.provider==="codex_oauth"?"Codex OAuth로 "+(m.name||"선택한 모델")+" 모델을 사용합니다. 연결에 실패하면 오류를 안내하며 기록 탐색으로 자동 전환하지 않습니다.":"운영자가 연결한 모델을 사용합니다. AI 미연결 시 기록 탐색 안내만 제공됩니다.";}$("sendButton").disabled=locked||uploading||(!m?.enabled&&!profileIntent)||(!$("message").value.trim()&&!files.length);$("sendButton").hidden=busy;$("stopButton").hidden=!busy;$("modelSelect").disabled=locked;$("attachButton").disabled=locked||uploading||(isPublicPaperContext()&&!allowsScopedDocuments()&&!allowsScopedImages());$("attachmentCancel").hidden=!uploading;$("attachmentCancel").disabled=!uploading;$("attachmentProgress").hidden=!uploading;$("attachmentProgress").textContent=uploading?attachmentStatus:"";$("attachmentList").setAttribute("aria-busy",String(uploading));$("attachmentList").querySelectorAll('[data-action="remove-file"]').forEach(button=>button.disabled=locked);$("message").disabled=accountNavigationPending||accountInvalidated||profileBusy||uploading;$("newButton").disabled=navigationLocked;$("historyButton").disabled=navigationLocked;$("settingsButton").disabled=locked;$("profileButton").disabled=locked||isPublicPaperContext();$("profileButton").setAttribute("aria-expanded",String(!!profileUI?.isOpen()));$("modelHint").textContent=modelSelectionNotice()+(isPublicPaperContext()?publicPaperNotice():profileIntent?"내 프로필에서 처리합니다. 모델에는 전송하지 않습니다.":uploading?"첨부파일을 전송하고 있어요…":(selectedModel&&!m?.enabled)?"선택한 모델을 지금 사용할 수 없어요. 연결 상태를 확인하거나 다른 모델을 선택해 주세요.":m?.provider==="guide"?"기록 탐색 안내 · AI를 사용하지 않습니다.":m?.provider==="bridge"?"운영자 PC의 Gemma로 이 대화와 첨부 내용을 처리합니다.":m?.local?"이 기기의 모델과 대화합니다.":m?.enabled?"선택한 API로 이 대화와 첨부 내용을 전송합니다.":"설정에서 모델을 연결해 주세요.");syncDiscoveryControls();updateBriefNotice();renderRecoveryControl();renderRegisteredExperts();}
 const ATTACHMENT_MAX_BYTES=10*1024*1024,ATTACHMENT_TIMEOUT_MS=45000;
 let attachmentTransfer=null,attachmentStatus="",attachmentPreviewTicket=0;
 function pendingAttachment(item){return !!(item.file||item.source_url);}
@@ -673,7 +673,7 @@ async function prepareDiscovery(button,keyboard=false){
  const pointerElsewhere=e=>{if(!button.contains(e.target))focusMoved=true;};
  const windowBlur=()=>{focusMoved=true;};
  document.addEventListener("focusin",focusElsewhere);document.addEventListener("pointerdown",pointerElsewhere);window.addEventListener("blur",windowBlur);
- let adopted=false,invalidated=false;prepareBusy=true;prepareProgress={ticket,sessionId:sid,started:performance.now()};error();controls();
+ invalidateRegisteredUI();let adopted=false,invalidated=false;prepareBusy=true;prepareProgress={ticket,sessionId:sid,started:performance.now()};error();controls();
  try{
   const prepared=await api("/api/chat/prepare",{session_id:sid,discovery_revision:revision,...requested,...(recovery?{recovery_id:recovery.id}:{})});
   if(!current())return;
@@ -730,6 +730,74 @@ function checkProposalSelection(ids){
  if(!Array.isArray(ids)||!ids.length)throw new Error("현재 근거로 제안할 인물을 선택해 주세요.");
  for(const id of ids){const c=session?.result?.candidates.find(x=>x.id===id);if(!canPropose(c))throw new Error(c?.proposal_unavailable_reason||"현재 시연 범위의 인물과 근거로 다시 찾아 주세요.");}
 }
+// Server-scoped registered-career results are browser-only, never proposal authority.
+let registeredEpoch=0,registeredDetailTicket=0,registeredLetterTicket=0;
+function registeredViewCurrent(s=session){
+ const revision=s?.scout?.revision;
+ if(accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||profileUI?.isOpen?.()||uploading||files.length||composerComposing||s?.pending||$("message").value.trim()||!s?.ready||!s.scout?.disclosed||s.scout.status!=="complete"||s.search_context?.kind==="stopped"||s.request_spec?.state!=="current"||!revision||revision!==s.discovery?.revision||revision!==s.prepared_discovery_revision||revision!==s.request_spec?.revision)return false;
+ const source=s.request_spec.source_turn_id,latestUser=(s.messages||[]).filter(m=>m.role==="user").at(-1);
+ return typeof s.id==="string"&&!!s.id&&typeof source==="string"&&!!source&&latestUser?.turn_id===source&&(s.messages||[]).some(m=>m.role==="assistant"&&m.status==="complete"&&m.turn_id===source);
+}
+function registeredEnvelope(s=session){
+ if(!registeredViewCurrent(s))return null;
+ const r=s.registered_experts,revision=s.scout.revision;
+ if(!r||r.schema!=="registered_expert_lookup.v1"||r.audience!=="browser_only"||r.session_id!==s.id||r.revision!==revision||!r.source_turn_id||r.source_turn_id!==s.request_spec.source_turn_id||typeof r.snapshot_id!=="string"||!r.snapshot_id||typeof r.corpus_fingerprint!=="string"||!r.corpus_fingerprint||r.model_data_sent!==false||r.can_propose!==false||r.delivery_allowed!==false||!Number.isInteger(r.candidate_count)||!Array.isArray(r.candidates)||r.candidate_count!==r.candidates.length||r.candidates.length>7)return null;
+ const ids=new Set();
+ for(const c of r.candidates){
+  if(!c||typeof c.id!=="string"||!c.id||ids.has(c.id)||typeof c.name!=="string"||!c.name||typeof c.reason!=="string"||typeof c.purpose_missing!=="string"||!Array.isArray(c.unverified_conditions)||!c.unverified_conditions.every(v=>typeof v==="string")||!Array.isArray(c.evidence)||!c.evidence.every(e=>e&&typeof e==="object"&&!Array.isArray(e))||c.purpose_relation!=="unknown"||c.proposal_allowed!==false||c.lookup_only!==false||c.individual_performance_verified!==false||c.availability!=="미확인"||typeof c.can_review_draft!=="boolean")return null;
+  ids.add(c.id);
+ }
+ return r;
+}
+function registeredBinding(r=registeredEnvelope()){
+ return r?JSON.stringify([r.session_id,r.revision,r.source_turn_id,r.snapshot_id,r.corpus_fingerprint]):null;
+}
+function currentRegisteredCandidate(id){return registeredEnvelope()?.candidates.find(c=>c.id===id)||null;}
+function registeredContextHtml(c){
+ const limits=[c.purpose_missing,...c.unverified_conditions].filter(v=>typeof v==="string"&&v.trim());
+ return '<section class="candidate-request-context"><h3>이번 질문과의 연결</h3><p>'+esc(c.reason)+'</p><p class="candidate-purpose-label">등록 경력에서 찾은 후보 · 수행·가용성 미확인</p>'+
+  (limits.length?'<h4>확인이 필요한 점</h4><ul>'+limits.map(v=>'<li>'+esc(v)+'</li>').join('')+'</ul>':'')+
+  '<h4>연결된 등록 근거</h4>'+c.evidence.map(e=>'<section class="detail-record"><h3>'+esc(e.title||e.id||'등록 근거')+'</h3><p>'+esc([e.date,e.role,e.scope_label||e.scope].filter(Boolean).join(' · '))+'</p>'+(e.excerpt?'<p>'+esc(e.excerpt)+'</p>':'')+(e.boundary?'<p>'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">출처 보기 ↗</a>':'')+extraRecordSources(e)+'</section>').join('')+'</section>';
+}
+function registeredRequestAction(c){
+ return '<section class="detail-record" aria-label="등록 전문가 의뢰 검토"><p><strong>'+esc(c.name)+'</strong>님과 논의할 의뢰</p>'+
+  (c.can_review_draft?'<button type="button" class="primary" data-action="registered-letter" data-id="'+esc(c.id)+'">의뢰 초안 검토 ↗</button>':typeof c.proposal_unavailable_reason==="string"&&c.proposal_unavailable_reason.trim()?'<p class="small subtle">'+esc(c.proposal_unavailable_reason)+'</p>':'')+
+  '<p class="small subtle">검토용 초안이에요. 연락 의향·수행 가능 여부는 미확인이며 저장하거나 발송하지 않습니다.</p></section>';
+}
+function invalidateRegisteredUI(){
+ registeredEpoch++;registeredDetailTicket++;registeredLetterTicket++;
+ $("registeredExpertsZone")?.remove();
+ if($("detailDialog").dataset.registeredReview==="true"){$("detailDialog").close();delete $("detailDialog").dataset.registeredReview;$("detailContent").replaceChildren();}
+ if(letter?.kind==="registered_review"){$("letterDialog").close();$("letterBody").value="";letter=null;$("draftButton").disabled=true;$("proposeButton").disabled=true;}
+}
+function renderRegisteredExperts(){
+ const r=registeredEnvelope();let zone=$("registeredExpertsZone");
+ const lookupError=registeredViewCurrent()&&typeof session.registered_experts_error==="string"?session.registered_experts_error.trim():"";
+ if(lookupError){
+  if(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true")invalidateRegisteredUI();
+  zone=$("registeredExpertsZone");
+  if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 경력 조회 안내");$("proposalZone").after(zone);}
+  zone.dataset.renderKey="error:"+lookupError;
+  zone.innerHTML='<section class="detail-record"><h3>등록 경력 조회 안내</h3><p class="response-error" role="alert">'+esc(lookupError)+'</p></section>';return;
+ }
+ if(!r||!r.candidates.length){zone?.remove();if(!r&&(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true"))invalidateRegisteredUI();return;}
+ if((letter?.kind==="registered_review"&&letter.registeredBinding!==registeredBinding(r))||($("detailDialog").dataset.registeredReview==="true"&&$("detailDialog").dataset.registeredBinding!==registeredBinding(r)))invalidateRegisteredUI();
+ zone=$("registeredExpertsZone");
+ if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 경력 연결 후보");$("proposalZone").after(zone);}
+ const key=JSON.stringify(r);if(zone.dataset.renderKey===key)return;zone.dataset.renderKey=key;
+ zone.innerHTML='<div class="collection-heading"><div><h2>등록 경력에서 찾은 사람</h2><p class="small subtle">이번 질문과 연결되는 등록 이력이에요. 공개 논문 추천과 별도로 조회했으며 이 경력을 AI에 추가 전송하지 않았습니다.</p></div><span class="collection-count">'+r.candidate_count+'</span></div>'+
+ r.candidates.map(c=>'<article class="detail-record"><h3>'+esc(c.name)+'</h3><p>'+esc([c.org,c.role].filter(Boolean).join(' · '))+'</p>'+registeredContextHtml(c)+'<button type="button" class="secondary" data-action="registered-person" data-id="'+esc(c.id)+'">인물 상세 보기 ↗</button>'+registeredRequestAction(c)+'</article>').join('');
+}
+async function openRegisteredLetter(id){
+ const source=session,r=registeredEnvelope(),c=r?.candidates.find(row=>row.id===id),binding=registeredBinding(r),epoch=registeredEpoch,ticket=++registeredLetterTicket;
+ if(!c?.can_review_draft)throw new Error("현재 등록 후보에서 의뢰 초안을 다시 열어 주세요.");
+ const draft=await api("/api/registered-experts/draft",{session_id:source.id,candidate_id:id,snapshot_id:r.snapshot_id,revision:r.revision});
+ if(ticket!==registeredLetterTicket||epoch!==registeredEpoch||session!==source||registeredBinding()!==binding||!currentRegisteredCandidate(id)?.can_review_draft)throw new Error("대화 조건이 바뀌어 이전 검토 초안을 열지 않았어요.");
+ if(draft?.kind!=="registered_review"||draft.review_kind!=="registered_career"||draft.can_propose!==false||draft.proposal_allowed!==false||draft.delivery_allowed!==false||draft.model_data_sent!==false||draft.session_id!==source.id||draft.revision!==r.revision||draft.snapshot_id!==r.snapshot_id||draft.source_turn_id!==r.source_turn_id||draft.candidate?.id!==id||draft.candidate.name!==c.name||typeof draft.body!=="string"||!draft.body.trim()||draft.body.length>30000)throw new Error("검토 초안의 권한과 현재 후보를 확인하지 못했어요.");
+ letter={kind:"registered_review",registeredBinding:binding,ids:[id],drafts:[draft],sessionId:source.id,index:0,candidateContexts:{[id]:JSON.parse(JSON.stringify(c))},bodies:{[id]:draft.body}};
+ renderLetter();modal("letterDialog");
+}
+
 function extraRecordSources(e){
  return (Array.isArray(e.metadata_sources)?e.metadata_sources:[]).filter(x=>safeUrl(x.url)).map(x=>'<p><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.title||x.label||(/correction/i.test(x.basis||x.type||'')?'정정 출처':'추가 확인 출처'))+' ↗</a></p>').join('');
 }
@@ -768,7 +836,8 @@ function captureCandidateContexts(source,ids){
 }
 function renderLetterCandidateContext(id){
  let context=$('letterCandidateContext');
- const html=candidateContextHtml(letter?.candidateContexts?.[id]);
+ const contextCandidate=letter?.candidateContexts?.[id];
+ const html=letter?.kind==="registered_review"&&contextCandidate?registeredContextHtml(contextCandidate):candidateContextHtml(contextCandidate);
  if(!html){context?.remove();return;}
  if(!context){context=document.createElement('div');context.id='letterCandidateContext';$('letterDialog').querySelector('.dialog-heading').after(context);}
  context.innerHTML=html;
@@ -953,7 +1022,7 @@ async function send(payload,submission=null){
  const repeated=!!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"),epoch=modelSelectionEpoch;
  payload={...payload,model_selection_origin:selectionOrigin(payload.model_selection_origin)};
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
- invalidateRecovery(true);prepareTicket++;error();streamText="";busy=true;responseProgress="preparing";ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",()=>{stopBusyCi();responseProgress="";render();},{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
+ invalidateRegisteredUI();invalidateRecovery(true);prepareTicket++;error();streamText="";busy=true;responseProgress="preparing";ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",()=>{stopBusyCi();responseProgress="";render();},{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
  render();let accepted=false,finished=false,recoveryRequestId=null;
  try{
@@ -991,7 +1060,7 @@ async function send(payload,submission=null){
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
  }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
 }
-function newChat(){if(composerClientLocked())return;invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(composerClientLocked())return;invalidateRegisteredUI();invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
  const reader=new FileReader(),finish=(fn,value)=>{signal?.removeEventListener("abort",stop);fn(value);};
  const stop=()=>{if(reader.readyState===1)reader.abort();finish(reject,attachmentAbortError());};
@@ -1111,19 +1180,23 @@ function currentDetailCandidate(id){
  if(!session?.ready||!scout?.disclosed||session.pending||!scout.revision||scout.revision!==session.discovery?.revision||scout.revision!==session.prepared_discovery_revision)return null;
  return session.result?.candidates?.find(candidate=>candidate.id===id)||null;
 }
-async function showPerson(id,opener=document.activeElement){
+async function showPerson(id,opener=document.activeElement,registered=false){
+ const registeredSource=session,registeredKey=registered?registeredBinding():null,registeredRequestEpoch=registeredEpoch,detailTicket=++registeredDetailTicket;
+ if(registered&&!currentRegisteredCandidate(id))throw new Error("현재 등록 후보를 다시 확인해 주세요.");
  const stored=session?.result?.candidates.find(c=>c.id===id);
  const historical=Boolean(stored&&session?.result?.historical_result);
  const p=historical?stored:await api("/api/person?id="+encodeURIComponent(id));
- const profile=RndCraft.profileDetails(p),candidate=session?.result?.candidates.find(c=>c.id===id);
+ if(registered&&(detailTicket!==registeredDetailTicket||registeredRequestEpoch!==registeredEpoch||session!==registeredSource||registeredBinding()!==registeredKey||!currentRegisteredCandidate(id)))return;
+ if(registered&&p?.id!==id)throw new Error("등록 인물 정보를 확인하지 못했어요.");
+ const profile=RndCraft.profileDetails(p),candidate=registered?currentRegisteredCandidate(id):session?.result?.candidates.find(c=>c.id===id);
  const historicalNotice=historical?'<p class="subtle small">이전 응답 당시 선택 근거</p>'+
   (session.result.scope_note?'<p class="subtle small">'+esc(session.result.scope_note)+'</p>':'')+
   (p.proposal_unavailable_reason?'<p class="candidate-boundary">'+esc(p.proposal_unavailable_reason)+'</p>':''):'';
  const profileNotice=!historical&&candidate?.profile_only?'<p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
- const requestContext=candidateContextHtml(candidate);
+ const requestContext=registered?registeredContextHtml(candidate):candidateContextHtml(candidate);
   const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
- $("detailContent").innerHTML=detailRequestAction(currentDetailCandidate(id))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
- modal("detailDialog",opener);$("detailDialog").scrollTop=0;
+ $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id)))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
+ $("detailDialog").dataset.registeredReview=String(registered);$("detailDialog").dataset.registeredBinding=registeredKey||"";modal("detailDialog",opener);$("detailDialog").scrollTop=0;
 }
 // A failed draft remains in the currently open person dialog; no draft or send is simulated.
 function detailRequestDraftError(message,button){
@@ -1160,8 +1233,9 @@ function preparedLetterDrafts(ids){
  }
  return drafts;
 }
-async function openLetter(ids){
- checkProposalSelection(ids);
+async function openLetter(ids,registered=false){
+ if(registered){if(!Array.isArray(ids)||ids.length!==1)throw new Error("등록 후보 한 명을 선택해 주세요.");return openRegisteredLetter(ids[0]);}
+ registeredLetterTicket++;checkProposalSelection(ids);
  const source=session,revision=source.scout?.revision,candidateContexts=captureCandidateContexts(source,ids);
  if(source.pending||(revision&&ids.some(id=>!canPropose(currentDetailCandidate(id)))))throw new Error("대화 조건이 바뀌었어요. 현재 추천 인물에서 의뢰서를 다시 열어 주세요.");
  const drafts=preparedLetterDrafts(ids)||await Promise.all(ids.map(id=>api("/api/draft",{session_id:source.id,candidate_id:id})));
@@ -1172,9 +1246,9 @@ async function openLetter(ids){
  letter={ids,drafts,key:crypto.randomUUID(),sessionId:source.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};
  renderLetter();modal("letterDialog");
 }
-function renderLetter(){const d=letter.drafts[letter.index];renderLetterCandidateContext(d.candidate.id);$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
+function renderLetter(){const registered=letter.kind==="registered_review";$("draftButton").disabled=registered;$("proposeButton").disabled=registered;$("letterBody").readOnly=registered;$("letterDialog").querySelector("p.subtle").textContent=registered?"검토용 초안 · 현재 저장·발송 권한이 없습니다. 수행 가능 여부와 연락 의향은 미확인입니다.":publicMode?"이 방문자의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.":"이 기기의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.";const d=letter.drafts[letter.index];renderLetterCandidateContext(d.candidate.id);$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
 function keepLetter(){const id=letter.ids[letter.index];if(letter.bodies[id]!==$("letterBody").value){letter.bodies[id]=$("letterBody").value;letter.key=crypto.randomUUID();}}
-async function saveLetter(state){const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent")RndCraft.deliver(recipientName,saved.length);else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
+async function saveLetter(state){if(letter?.kind==="registered_review"){$("letterError").textContent="등록 전문가 초안은 검토만 가능하며 저장하거나 발송할 수 없어요.";return;}const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent")RndCraft.deliver(recipientName,saved.length);else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
 profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,getSessionId:()=>session?.id||null,
  onBusy:value=>{profileBusy=value;controls();},
  onClose:()=>{autoScroll=false;render();$("message").focus({preventScroll:true});},
@@ -1192,7 +1266,7 @@ window.addEventListener("rndplz:before-account-navigation",event=>{
 });
 window.addEventListener("rndplz:account-navigation",event=>{
  accountNavigationPending=event.detail?.phase!=="cancel";
- if(accountNavigationPending)invalidateRecovery(true);
+ if(accountNavigationPending){invalidateRegisteredUI();invalidateRecovery(true);}
  if(accountNavigationPending){drawEpoch++;drawMetadataController?.abort();drawMetadataController=null;drawController?.dispose();drawController=null;drawRenderKey="";$("proposalZone").replaceChildren();}
  if(event.detail?.phase==="invalidate"){
   accountInvalidated=true;abortAttachment();inlineMessageLinks.clear();attachmentPreviewTicket++;prepareTicket++;resetPrepareProgress();modelSelectionEpoch++;controller?.abort();token="";
@@ -1203,11 +1277,11 @@ window.addEventListener("rndplz:account-navigation",event=>{
 $ ("profileButton").addEventListener("click",async()=>{if(busy||profileBusy||prepareBusy||isPublicPaperContext())return;error();autoScroll=false;await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});});
 $ ("chatForm").addEventListener("submit",e=>{e.preventDefault();submitComposer();});
 $ ("message").addEventListener("paste",pasteImages);
-$ ("message").addEventListener("input",()=>{composerInputRevision++;resizeInput();});
+$ ("message").addEventListener("input",()=>{invalidateRegisteredUI();composerInputRevision++;resizeInput();});
 $ ("message").addEventListener("compositionstart",()=>{composerComposing=true;composerInputRevision++;});
 $ ("message").addEventListener("compositionend",()=>{composerComposing=false;composerInputRevision++;controls();});
 $ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
-$ ("stopButton").addEventListener("click",()=>controller?.abort());
+$ ("stopButton").addEventListener("click",()=>{invalidateRegisteredUI();controller?.abort();});
 $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
@@ -1221,13 +1295,13 @@ $ ("refreshModels").addEventListener("click",async()=>{try{if(!await refreshMode
 $ ("configForm").addEventListener("submit",async e=>{e.preventDefault();$("saveConfig").disabled=true;$("configMessage").textContent="";try{const provider=$("provider").value,epoch=modelSelectionEpoch,ticket=++modelCatalogTicket;const data=await api("/api/chat/configure",{provider,model:$("apiModel").value,key:$("apiKey").value});$("apiKey").value="";if(epoch===modelSelectionEpoch){selectedModel=provider;modelSelectionOrigin="explicit";modelSelectionEpoch++;}if(ticket===modelCatalogTicket)modelOptions(data);else{renderModelSelect();controls();}$("configMessage").textContent="설정을 저장했어요. 다음 메시지에는 현재 선택한 모델을 사용합니다.";}catch(e){$("configMessage").textContent=e.message;}finally{$("saveConfig").disabled=false;}});
 $ ("draftButton").addEventListener("click",()=>saveLetter("draft"));
 $ ("proposeButton").addEventListener("click",()=>saveLetter("sent"));
-document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){button.closest("dialog").close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||composerClientLocked())return;
+document.addEventListener("click",async e=>{const button=e.target.closest("button");if(!button)return;if(button.classList.contains("close")){const dialog=button.closest("dialog");if(dialog?.dataset.registeredReview==="true"||(dialog?.id==="letterDialog"&&letter?.kind==="registered_review"))invalidateRegisteredUI();dialog.close();return;}const action=button.dataset.action,id=button.dataset.id;if(!action||composerClientLocked())return;
  try{
   if(action==="profile-receipt"){autoScroll=false;if(button.dataset.version)await profileUI.showReceipt(Number(button.dataset.version));else await profileUI.open();render();$("profileChatHost").scrollIntoView({block:"start",behavior:"instant"});}
  else if(action==="remove-file"){removeAttachment(id);}
  else if(action==="preview-file"){await previewAttachment(id,button);}
   else if(action==="history"){
-   attachmentPreviewTicket++;prepareTicket++;profileUI.close();
+   invalidateRegisteredUI();attachmentPreviewTicket++;prepareTicket++;profileUI.close();
    const epoch=modelSelectionEpoch,previousSession=session,previousSessionId=session?.id,priorRecovery=invalidateRecovery(),navigationEpoch=recoveryEpoch;
    try{
     const saved=await api("/api/chat/session?id="+id);
@@ -1244,10 +1318,12 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   else if(action==="retry")await retryTurn(id);
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}
+  else if(action==="registered-person")await showPerson(id,button,true);
+  else if(action==="registered-letter"){detailRequestDraftError("",button);await openLetter([id],true);}
   else if(action==="person")await showPerson(id,button);
   else if(action==="letter"){detailRequestDraftError("",button);await openLetter([id]);}
   else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(canPropose).map(c=>c.id);if(ids.length)await openLetter(ids);}
- }catch(e){if(action!=="letter"||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
+ }catch(e){if(!["letter","registered-letter"].includes(action)||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
 });
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});
 (async()=>{try{const ticket=++modelCatalogTicket,data=await api("/api/chat/bootstrap");token=data.token;history=data.history;if(ticket===modelCatalogTicket)modelOptions(data);const id=new URLSearchParams(location.search).get("chat");if(id){const epoch=modelSelectionEpoch;session=await api("/api/chat/session?id="+encodeURIComponent(id));restoreModelSelection(session,epoch);}render();resizeInput();if(new URLSearchParams(location.search).has("settings"))modal("settingsDialog");}catch(e){error(e.message);}})();
