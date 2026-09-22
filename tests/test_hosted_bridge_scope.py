@@ -31,6 +31,12 @@ class MemoryStore:
     def read(self):
         return copy.deepcopy(self.state)
 
+    def transaction(self, mutate):
+        working = copy.deepcopy(self.state)
+        result = mutate(working)
+        self.state = working
+        return copy.deepcopy(result)
+
 
 class FakeModels:
     scoped_bridge = True
@@ -204,6 +210,53 @@ class HostedBridgeScopeTests(unittest.TestCase):
         with self.assertRaises(ProviderScopeError):
             list(view.models.stream('bridge', messages, contract='dialogue_answer.v1'))
         self.assertEqual(sum(row[0] == 'stream' for row in chat.models.calls), 1)
+
+    def test_fresh_begin_browser_projection_preserves_document_scope(self):
+        from rndplz.scout_projection import project_session
+        chat = fixture()
+        self.assertEqual(chat.store.read()['sessions'], [])
+        # Exercise real new-session begin/store/presentation; replace only the
+        # downstream generation preparation, without dispatching a model.
+        with patch.object(Conversation, 'reserve_model_turn', return_value=[]) as reserve:
+            presented, messages, cached, selected = chat.begin(request())
+        reserve.assert_called_once()
+        self.assertFalse(cached)
+        self.assertEqual(messages, [])
+        self.assertEqual(selected['id'], 'bridge')
+        stored = chat.store.read()['sessions'][0]
+        self.assertEqual(stored['provider_scope'], scope())
+        self.assertEqual(presented['provider_scope'], scope())
+        wire = project_session(presented)
+        self.assertEqual(wire.get('provider_scope'), stored['provider_scope'])
+        self.assertEqual(wire.get('execution_binding'), stored['execution_binding'])
+        for invalid in ({'id': 'runtime_public_papers.v1'}, {'model_id': 'bridge:other'},
+                        {'provider': 'ollama'}, {'unexpected': True}):
+            malformed = copy.deepcopy(presented)
+            malformed['provider_scope'].update(invalid)
+            self.assertNotIn('provider_scope', project_session(malformed))
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('Node unavailable; browser projection UI connection not executed')
+        source = (ROOT / 'rndplz/web/chat.js').read_text(encoding='utf-8')
+        names = ['isGeminiModel', 'hasGeminiScope', 'isRuntimeModel', 'isScopedBridgeModel',
+                 'hasRuntimeScope', 'hasPublicPaperScope', 'isPublicPaperModel',
+                 'isPublicPaperContext', 'allowsScopedImages', 'allowsScopedDocuments']
+        functions = []
+        for name in names:
+            start = source.index('function ' + name + '(')
+            functions.append(source[start:source.index('\nfunction ', start + 1)].strip())
+        program = '\n'.join([
+            "const assert=require('node:assert/strict');",
+            "const GEMINI_ID='gemini:test',selectedModel='bridge';",
+            "const catalog=[{id:'bridge',provider:'bridge',public_scope:true,enabled:true,vision:false}];",
+            'const session=' + json.dumps(wire, ensure_ascii=False) + ';',
+            *functions,
+            "assert.equal(hasPublicPaperScope(session),true);",
+            "assert.equal(allowsScopedDocuments(),true); assert.equal(allowsScopedImages(),false);"
+        ])
+        completed = subprocess.run([node, '-e', program], capture_output=True, text=True, timeout=15)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertFalse(any(row[0] == 'stream' for row in chat.models.calls))
 
     def test_actual_ui_scope_functions_without_browser(self):
         node = shutil.which('node')

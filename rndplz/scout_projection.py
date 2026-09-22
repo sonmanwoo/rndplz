@@ -303,7 +303,9 @@ def project_session(session):
             and ((scope.get('id') in ('gemini_public_papers.v1', 'gemini_public_papers.v2') and scope.get('provider') == 'gemini'
                   and isinstance(scope.get('model_id'), str) and scope['model_id'].startswith('gemini:'))
                  or (scope.get('id') in ('runtime_public_papers.v1', 'runtime_public_papers.v2')
-                     and scope.get('provider') in ('codex_oauth', 'openai_api') and scope.get('model_id') == 'runtime'))):
+                     and scope.get('provider') in ('codex_oauth', 'openai_api') and scope.get('model_id') == 'runtime')
+                 or (scope.get('id') == 'runtime_public_papers.v2' and scope.get('provider') == 'bridge'
+                     and scope.get('model_id') == 'bridge'))):
         shaped['provider_scope'] = _pick(scope, ('id', 'provider', 'model_id'))
         binding = session.get('execution_binding')
         if (isinstance(binding, dict) and set(binding) == {'model_id', 'provider'}
