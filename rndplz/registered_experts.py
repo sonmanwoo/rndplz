@@ -1,4 +1,4 @@
-"""Server-only registered-career lookup and separately authorized draft review.
+"""Server-only registered-record lookup and separately authorized draft review.
 
 Snapshots live outside sessions/messages/results. They are browser data, never a
 provider tool result, model grounding or permission to submit/send a proposal.
@@ -18,7 +18,7 @@ from .scout_projection import _request_spec
 
 SCHEMA = 'registered_expert_lookup.v1'
 _STATE_KEY = 'registered_expert_snapshots'
-_ERROR = '현재 의뢰의 등록 경력 조회를 다시 확인해 주세요.'
+_ERROR = '현재 의뢰의 등록 이력 조회를 다시 확인해 주세요.'
 _EVIDENCE_FIELDS = ('id', 'kind', 'title', 'date', 'url', 'scope', 'scope_key',
                     'evidence_kind', 'evidence_label', 'checked_at', 'virtual',
                     'boundary', 'role', 'corresponding', 'access', 'tags')
@@ -40,7 +40,7 @@ def _view(service):
     view.people = {pid: copy.deepcopy(p) for pid, p in base.people.items()
                    if pid in APPROVED_PERSON_IDS and not p.virtual}
     view.records = {rid: copy.deepcopy(r) for rid, r in base.records.items()
-                    if rid in APPROVED_RECORD_IDS and r.kind == 'career_record'
+                    if rid in APPROVED_RECORD_IDS and r.kind in ('career_record', 'paper', 'patent_record')
                     and not r.virtual and r.access_policy_ref in ('public_metadata', 'local_self_reported')
                     and any(c.person_id in view.people for c in r.people)}
     view.by_person = {pid: [r for r in view.records.values()
@@ -148,11 +148,14 @@ def lookup(service, sid, revision, *, context_builder):
             if not evidence:
                 continue
             reason = proposal_boundary(view, row['id'], evidence)
+            display_name = view.people[row['id']].profile.get('display_name')
+            display_name = display_name.strip() if isinstance(display_name, str) and display_name.strip() else row['name']
             candidates.append({
                 **{key: row[key] for key in ('id', 'name', 'org', 'role', 'reason')},
+                'name': display_name,
                 'kind': 'registered_expert', 'virtual': False, 'evidence': evidence,
                 'purpose_relation': 'unknown',
-                'purpose_missing': '등록 경력의 주제 연결입니다. 구체 목적의 직접 충족과 개인 수행 수준은 확인하지 않았습니다.',
+                'purpose_missing': '등록 이력의 주제 연결입니다. 구체 목적의 직접 충족과 개인 수행 수준은 확인하지 않았습니다.',
                 'unverified_conditions': copy.deepcopy(questions),
                 'can_review_draft': not bool(reason), 'proposal_unavailable_reason': reason or '',
                 'proposal_allowed': False, 'lookup_only': False,
@@ -220,7 +223,7 @@ def draft(service, sid, cid, snapshot_id, revision):
     rendered = service._render_draft(template, candidate)
     questions = candidate['unverified_conditions']
     limits = list(dict.fromkeys(e['boundary'] for e in candidate['evidence'] if e.get('boundary')))
-    body = rendered['body'] + '\n\n[등록 경력 근거의 한계]\n' + '\n'.join('- ' + x for x in limits)
+    body = rendered['body'] + '\n\n[등록 이력 근거의 한계]\n' + '\n'.join('- ' + x for x in limits)
     body += '\n\n[검토 전에 확인할 점]\n' + '\n'.join('- ' + x for x in (
         questions + ['이 의뢰에서 직접 맡을 수 있는 역할과 현재 협업 가능 여부를 확인해 주세요.']))
     if len(body) > 30000:

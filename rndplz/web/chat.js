@@ -606,7 +606,7 @@ function renderBrief(){
  const key=JSON.stringify([sid,spec]);
  if(key!==briefRenderKey){
   const fields=briefFields(spec),rows=Object.entries(fields).filter(([,value])=>value);
-  host.innerHTML='<div class="consult-brief-heading"><h2 id="consultBriefHeading">의뢰서 초안</h2><button type="button" class="text-button" data-brief-action="edit">수정</button></div><p class="consult-brief-status" role="status"></p><dl class="consult-brief-fields">'+rows.map(([name,value])=>'<div><dt>'+esc(briefLabels[name])+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>'+(legacy&&!rows.length?'<p class="consult-brief-legacy">'+esc(spec.summary)+'</p>':"")+(hasPublicPaperScope(session)?'<p class="small subtle">AI가 조회한 후보 수는 공개 논문 기준입니다. 등록 경력 조회와는 별도입니다.</p>':'')+currentScout();
+  host.innerHTML='<div class="consult-brief-heading"><h2 id="consultBriefHeading">의뢰서 초안</h2><button type="button" class="text-button" data-brief-action="edit">수정</button></div><p class="consult-brief-status" role="status"></p><dl class="consult-brief-fields">'+rows.map(([name,value])=>'<div><dt>'+esc(briefLabels[name])+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>'+(legacy&&!rows.length?'<p class="consult-brief-legacy">'+esc(spec.summary)+'</p>':"")+(hasPublicPaperScope(session)?'<p class="small subtle">AI가 조회한 후보 수는 공개 논문 기준입니다. 등록 이력 조회와는 별도입니다.</p>':'')+currentScout();
   briefRenderKey=key;
  }
  updateBriefNotice();syncDiscoveryControls();
@@ -755,7 +755,7 @@ function registeredBinding(r=registeredEnvelope()){
 function currentRegisteredCandidate(id){return registeredEnvelope()?.candidates.find(c=>c.id===id)||null;}
 function registeredContextHtml(c){
  const limits=[c.purpose_missing,...c.unverified_conditions].filter(v=>typeof v==="string"&&v.trim());
- return '<section class="candidate-request-context"><h3>이번 질문과의 연결</h3><p>'+esc(c.reason)+'</p><p class="candidate-purpose-label">등록 경력에서 찾은 후보 · 수행·가용성 미확인</p>'+
+ return '<section class="candidate-request-context"><h3>이번 질문과의 연결</h3><p>'+esc(c.reason)+'</p><p class="candidate-purpose-label">등록 이력에서 찾은 후보 · 수행·가용성 미확인</p>'+
   (limits.length?'<h4>확인이 필요한 점</h4><ul>'+limits.map(v=>'<li>'+esc(v)+'</li>').join('')+'</ul>':'')+
   '<h4>연결된 등록 근거</h4>'+c.evidence.map(e=>'<section class="detail-record"><h3>'+esc(e.title||e.id||'등록 근거')+'</h3><p>'+esc([e.date,e.role,e.scope_label||e.scope].filter(Boolean).join(' · '))+'</p>'+(e.excerpt?'<p>'+esc(e.excerpt)+'</p>':'')+(e.boundary?'<p>'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">출처 보기 ↗</a>':'')+extraRecordSources(e)+'</section>').join('')+'</section>';
 }
@@ -776,16 +776,16 @@ function renderRegisteredExperts(){
  if(lookupError){
   if(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true")invalidateRegisteredUI();
   zone=$("registeredExpertsZone");
-  if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 경력 조회 안내");$("proposalZone").after(zone);}
+  if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 이력 조회 안내");$("proposalZone").after(zone);}
   zone.dataset.renderKey="error:"+lookupError;
-  zone.innerHTML='<section class="detail-record"><h3>등록 경력 조회 안내</h3><p class="response-error" role="alert">'+esc(lookupError)+'</p></section>';return;
+  zone.innerHTML='<section class="detail-record"><h3>등록 이력 조회 안내</h3><p class="response-error" role="alert">'+esc(lookupError)+'</p></section>';return;
  }
  if(!r||!r.candidates.length){zone?.remove();if(!r&&(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true"))invalidateRegisteredUI();return;}
  if((letter?.kind==="registered_review"&&letter.registeredBinding!==registeredBinding(r))||($("detailDialog").dataset.registeredReview==="true"&&$("detailDialog").dataset.registeredBinding!==registeredBinding(r)))invalidateRegisteredUI();
  zone=$("registeredExpertsZone");
- if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 경력 연결 후보");$("proposalZone").after(zone);}
+ if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 이력 연결 후보");$("proposalZone").after(zone);}
  const key=JSON.stringify(r);if(zone.dataset.renderKey===key)return;zone.dataset.renderKey=key;
- zone.innerHTML='<div class="collection-heading"><div><h2>등록 경력에서 찾은 사람</h2><p class="small subtle">이번 질문과 연결되는 등록 이력이에요. 공개 논문 추천과 별도로 조회했으며 이 경력을 AI에 추가 전송하지 않았습니다.</p></div><span class="collection-count">'+r.candidate_count+'</span></div>'+
+ zone.innerHTML='<div class="collection-heading"><div><h2>등록 이력에서 찾은 사람</h2><p class="small subtle">이번 질문과 연결되는 등록 경력·논문·특허 이력이에요. AI의 공개 논문 조회와 별도로 검색했으며 이 자료를 AI에 추가 전송하지 않았습니다.</p></div><span class="collection-count">'+r.candidate_count+'</span></div>'+
  r.candidates.map(c=>'<article class="detail-record"><h3>'+esc(c.name)+'</h3><p>'+esc([c.org,c.role].filter(Boolean).join(' · '))+'</p>'+registeredContextHtml(c)+'<button type="button" class="secondary" data-action="registered-person" data-id="'+esc(c.id)+'">인물 상세 보기 ↗</button>'+registeredRequestAction(c)+'</article>').join('');
 }
 async function openRegisteredLetter(id){

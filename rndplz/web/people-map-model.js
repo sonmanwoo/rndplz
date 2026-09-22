@@ -81,8 +81,9 @@
   }
   function normalizePerson(person) {
     var profile = person.profile && typeof person.profile === 'object' ? person.profile : {};
-    var name = text(person.name) || text(person.display_name);
+    var name = text(person.display_name) || text(person.name);
     var aliases = unique((Array.isArray(person.aliases) ? person.aliases.slice() : []).concat(
+      person.name && person.name !== name ? [person.name] : [],
       person.display_name && person.display_name !== name ? [person.display_name] : []
     ).filter(function (alias) { return typeof alias === 'string'; }));
     return {

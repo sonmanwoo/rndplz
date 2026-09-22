@@ -167,7 +167,11 @@ export function initRecommendationMap(host, {
   button('화면 맞춤', 'fit', controls);
   const help = doc.createElement('p');
   help.id = uid + '-help'; help.className = 'rm-help';
-  help.textContent = '후보를 선택하면 이력과 근거가 열립니다. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
+  help.textContent = '이 지도에서는 이번 추천 후보만 선택할 수 있어요. 후보를 선택하면 이력과 근거가 열립니다. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
+  const exploreLink = doc.createElement('a');
+  exploreLink.href = '/explore#map'; exploreLink.target = '_blank'; exploreLink.rel = 'noopener';
+  exploreLink.textContent = '전체 연구 맵 탐색 ↗';
+  help.append(' 다른 등록 인물은 ', exploreLink, '에서 확인해 주세요.');
   const note = doc.createElement('p'); note.className = 'rm-note';
   note.textContent = focus.unmappedCandidateIds.length
     ? '일부 후보의 추천 근거는 이 지도의 연결선에 아직 연결되어 있지 않습니다. 후보를 선택해 추천 근거를 확인해 주세요.'

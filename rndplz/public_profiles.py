@@ -1,13 +1,24 @@
-"""The two previously approved public cards, without expanding model scope."""
+"""The four previously published cards and relations, without expanding model scope."""
 from __future__ import annotations
 
 import copy
 
-APPROVED_PERSON_IDS = frozenset({'LOCAL-MANWOO', 'LOCAL-JINHO'})
+APPROVED_PERSON_IDS = frozenset({'LOCAL-MANWOO', 'LOCAL-JINHO', 'LOCAL-DASOL', 'LOCAL-HONG'})
 APPROVED_RECORD_IDS = frozenset({
     'CAREER-MW-BIO', 'CAREER-MW-POLYMER', 'CAREER-MW-MONOMER',
     'CAREER-JO-CO2J', 'CAREER-JO-CO2L', 'CAREER-JO-ENERGY',
     'CAREER-JO-LOHC', 'CAREER-JO-METHANOL', 'CAREER-JO-BIO',
+    'CAREER-DS-LUBE', 'CAREER-DS-BASEOIL-SALES', 'CAREER-DS-BASEOIL-OPERATIONS',
+    'PAPER-HY-2014-01', 'PAPER-HY-2014-02', 'PAPER-HY-2010-03',
+    'PAPER-HY-2015-04', 'PAPER-HY-2014-05', 'PAPER-HY-2012-06',
+    'PAPER-HY-2011-07', 'PAPER-HY-2010-08', 'PAPER-HY-2010-09',
+    'PATENT-HY-KR101436429B1', 'PATENT-HY-KR101336981B1', 'PATENT-HY-KR101336982B1',
+    'PATENT-HY-US10688482B2', 'PATENT-HY-KR20160123213A', 'PATENT-HY-KR101757370B1',
+    'PATENT-HY-US10173948B2', 'PATENT-HY-KR102058142B1', 'PATENT-HY-KR101982789B1',
+    'PATENT-HY-KR102068795B1', 'PATENT-HY-KR102095523B1', 'PATENT-HY-KR102215024B1',
+    'PATENT-HY-EP3476870B1', 'PATENT-HY-KR102521452B1', 'PATENT-HY-EP3747920A1',
+    'PATENT-HY-EP3747922A1', 'PATENT-HY-EP3747921B1', 'PATENT-HY-EP3750931B1',
+    'PATENT-HY-KR102958116B1', 'PROJECT-HACKATHON-2026',
 })
 
 
@@ -38,7 +49,7 @@ def restrict_personal_publication(corpus, selected):
     corpus.by_person = {pid: [record for record in records if record.id in corpus.records]
                         for pid, records in corpus.by_person.items() if pid in corpus.people}
     # Corpus appends shared project participation to profile timelines. Publish
-    # only the existing card; unrelated later project records stay omitted.
+    # the published shared project; other project records stay omitted.
     for pid in visible:
         person = copy.copy(corpus.people[pid])
         person.profile = copy.deepcopy(person.profile)
