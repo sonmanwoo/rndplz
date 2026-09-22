@@ -606,7 +606,7 @@ function renderBrief(){
  const key=JSON.stringify([sid,spec]);
  if(key!==briefRenderKey){
   const fields=briefFields(spec),rows=Object.entries(fields).filter(([,value])=>value);
-  host.innerHTML='<div class="consult-brief-heading"><h2 id="consultBriefHeading">의뢰서 초안</h2><button type="button" class="text-button" data-brief-action="edit">수정</button></div><p class="consult-brief-status" role="status"></p><dl class="consult-brief-fields">'+rows.map(([name,value])=>'<div><dt>'+esc(briefLabels[name])+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>'+(legacy&&!rows.length?'<p class="consult-brief-legacy">'+esc(spec.summary)+'</p>':"")+currentScout();
+  host.innerHTML='<div class="consult-brief-heading"><h2 id="consultBriefHeading">의뢰서 초안</h2><button type="button" class="text-button" data-brief-action="edit">수정</button></div><p class="consult-brief-status" role="status"></p><dl class="consult-brief-fields">'+rows.map(([name,value])=>'<div><dt>'+esc(briefLabels[name])+'</dt><dd>'+esc(value)+'</dd></div>').join("")+'</dl>'+(legacy&&!rows.length?'<p class="consult-brief-legacy">'+esc(spec.summary)+'</p>':"")+(hasPublicPaperScope(session)?'<p class="small subtle">AI가 조회한 후보 수는 공개 논문 기준입니다. 등록 경력 조회와는 별도입니다.</p>':'')+currentScout();
   briefRenderKey=key;
  }
  updateBriefNotice();syncDiscoveryControls();
@@ -876,7 +876,8 @@ function renderCandidates(){
  if(accountNavigationPending||accountInvalidated)return;
  const result=session.result||{},rows=result.candidates||[],key=session.id+":"+session.scout.revision;
  const mapEligible=!result.historical_result&&!result.inspection_only&&rows.every(c=>c.in_current_pool!==false);
- const emptyNotice=rows.length?"":emptyCandidateNotice(session),relationSummary=candidateRelationSummary(rows,result);
+ const paperScope=hasPublicPaperScope(session);
+ const emptyNotice=rows.length?"":(paperScope?'공개 논문 조회: ':'')+emptyCandidateNotice(session),relationSummary=candidateRelationSummary(rows,result);
  const renderKey=key+":"+JSON.stringify(rows)+":"+mapEligible+":"+JSON.stringify(relationSummary)+(rows.length?"":":"+JSON.stringify(emptyNotice));
  if(renderKey===drawRenderKey)return;
  drawMetadataController?.abort();
@@ -884,7 +885,7 @@ function renderCandidates(){
  drawController?.dispose();drawController=null;
  const animate=animateScoutKey===key;animateScoutKey="";
  zone.classList.add("scout-draw-zone");
- zone.innerHTML='<div class="collection-heading"><div><h2>현재 요청과 연결된 사람</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+(relationSummary?'<p class="candidate-relation-summary">'+esc(relationSummary)+'</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
+ zone.innerHTML='<div class="collection-heading"><div><h2>'+(paperScope?'공개 논문에서 찾은 사람':'현재 요청과 연결된 사람')+'</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+(relationSummary?'<p class="candidate-relation-summary">'+esc(relationSummary)+'</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
  if(!rows.length){$("scoutDrawHost").textContent=emptyNotice;if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
  let settleMapTimeout;
