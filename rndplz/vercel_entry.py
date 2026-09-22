@@ -12,4 +12,7 @@ for _key in ("VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL")
 os.environ["RNDPLZ_ALLOWED_HOSTS"] = ",".join(sorted(_hosts))
 
 # Configure writable state and platform-provided hosts before app construction.
+from .vercel_auth import configure_vercel_auth
+configure_vercel_auth()
+
 from .public_web import application
