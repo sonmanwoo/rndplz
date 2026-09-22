@@ -396,6 +396,21 @@ ANSWER_SYSTEM += '\n' + ANSWER_INSTRUCTIONS + (
     ' 근거로 사용한 구간은 첨부 파일명과 실제 제공된 추출문 줄/페이지 또는 문자 범위를 밝혀주세요. '
     '모든 tool 결과가 실패하면 본문 확인에 실패한 점과 이유를 설명하고 내용을 추정하지 마세요.')
 
+# Scope policy describes retrieval coverage, not personal records or new results.
+SEARCH_SCOPE_INSTRUCTIONS = (
+    ' 서버가 search_scope를 제공하면 조회 수·0건·연결 주제를 그 자료 범위에 한정하여 설명하세요. '
+    'kind=public_papers이면 이번 AI가 조회한 공개 논문·프리프린트 범위입니다. '
+    '그 범위에서 연결이 없다는 사실은 서비스 전체 등록 경력이나 전문가가 없다는 뜻도, 사용자의 조건이 부족하다는 증거도 아닙니다. '
+    '별도 등록 경력 조회는 이 모델의 관측에 포함되지 않습니다. 그 조회의 완료 여부·후보 유무·수를 추정하거나 합산하지 마세요. '
+    '현재 및 이전 관측 각각의 범위와 실제 completed/not_executed 상태를 유지하고, 첨부 읽기를 인물 조회로 바꾸지 마세요. '
+    'search_scope가 없는 대화의 자료 범위를 공개 논문으로 임의 제한하지 마세요. '
+    '범위와 실행 사실은 일상어로 설명하고 JSON 키·내부 도구 필드명을 고객 답변에 옮기지 마세요.'
+)
+PLAN_SYSTEM += '\n' + SEARCH_SCOPE_INSTRUCTIONS
+ANSWER_SYSTEM += '\n' + SEARCH_SCOPE_INSTRUCTIONS
+RESPONSE_SYSTEM += '\n' + SEARCH_SCOPE_INSTRUCTIONS
+
+
 def parse_attachment_actions(raw):
     value = _parse_active_plan(raw).get('attachment_actions', [])
     try:

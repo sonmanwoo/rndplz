@@ -26,6 +26,33 @@ def digest(value):
                                     separators=(',', ':')).encode()).hexdigest()
 
 
+def search_scope(owner, session):
+    """Describe the already selected provider corpus, never another lookup."""
+    from .service import ProviderScopeError, provider_scope, public_paper_corpus
+    scope = provider_scope(session)
+    if scope is None:
+        return None  # Preserve unscoped/legacy corpus semantics and payloads.
+    service = owner.service
+    if (getattr(owner, '_provider_scope', None) != scope
+            or getattr(service, '_provider_scope', None) != scope
+            or service.engine.corpus is not service.corpus):
+        raise ProviderScopeError('현재 조회 자료 범위를 확인할 수 없습니다.')
+    # Reuse the provider's existing projection policy; a session label alone
+    # must never describe an unprojected service as a public-paper corpus.
+    projected = public_paper_corpus(service.corpus, scope['id'])
+    if any(getattr(service.corpus, key) != getattr(projected, key)
+           for key in ('people', 'records', 'topics', 'by_person', 'topic_by_id')):
+        raise ProviderScopeError('현재 조회 자료 범위를 확인할 수 없습니다.')
+    return {'schema': 'search_scope.v1', 'id': scope['id'],
+            'kind': 'public_papers',
+            'label': '이번 AI 조회에 포함된 공개 논문·프리프린트',
+            'record_kinds': ['paper', 'preprint'],
+            'registered_careers_included': False,
+            'coverage': 'current_query_within_provider_corpus',
+            'zero_means': 'no_matches_in_this_scope',
+            'separate_registered_lookup_status': 'not_observed_by_model'}
+
+
 def _attachment_summary(item):
     """Bounded, server-stored extraction/provenance only; no body or credentials."""
     def text(value, maximum):
@@ -591,10 +618,14 @@ class ModelConversation:
         # Fresh candidates and the catalog stay private. Bounded records from
         # a verified earlier button disclosure may support follow-up reading.
         historical = self._model_historical_disclosures(session)
+        coverage = search_scope(self, session)
         grounding = {'phase':'consultation', 'new_recommendations_disclosed':False,
                      'previously_disclosed_history_available':bool(historical),
                      'candidate_observation':copy.deepcopy(session.get('scout') or {}),
                      'request_spec':copy.deepcopy(session.get('request_spec') or {})}
+        if coverage is not None:
+            grounding['search_scope'] = coverage
+            grounding['candidate_observation']['search_scope'] = coverage
         readable = reader_items(self, session)
         messages = self.model_messages(session, option, grounding, consultation=True, attachment_preview=bool(readable))
         sources = self._model_sources(session)
@@ -627,7 +658,7 @@ class ModelConversation:
                    'source_turns':source_previews(sources) if readable else sources,
                    'attachment_tools':attachment_catalog(readable),
                    'public_search_tool':{
-                       'scope':'현재 접근 가능한 등록 기록',
+                       'scope':coverage['label'] if coverage is not None else '현재 접근 가능한 등록 기록',
                        'query_match':'각 query의 모든 공백 구분 어절이 같은 기록의 제목·본문에 있어야 합니다. 정확한 연속 구절 일치에는 더 높은 어휘 점수를 줍니다. 없는 어절을 생략하거나 뜻을 자동 추론하지 않습니다. 경력·논문에 실제로 적힐 짧은 연구 개념을 고르세요. 서로 다른 기록으로도 확인할 독립 개념은 groups로, 같은 개념의 한영 표현·표기 변형은 queries로 구성할 수 있습니다.',
                        'query_logic':'같은 group의 검색어는 OR, groups는 AND, interpretations는 OR',
                        'topic_ids':[],
@@ -640,6 +671,9 @@ class ModelConversation:
                    'tool_status':'not_executed_for_this_turn',
                    'available_actions':['answer', 'clarify', 'lookup', 'stop'],
                    'disclosure_policy':'scope는 이번 조건으로 이름을 공개하지 않는 기록 수 확인용입니다. 이번 조건의 새 인물·추천 공개는 이 정보로 수소문하기 버튼에서만 수행합니다. historical_disclosures는 이미 공개된 자료로, 현재 질문에 대한 설명·비교·근거 한계 판단에 사용할 수 있습니다. 이전 자료로 답할 수 있는 내용을 새 공개나 버튼 대기로 취급하지 마세요. 이전 조회를 이번 조건의 새 결과나 적합성 확인으로 바꾸지는 마세요.'}
+        if coverage is not None:
+            context['search_scope'] = coverage
+            context['public_search_tool']['search_scope'] = coverage
         messages.insert(max(0, len(messages)-1), {'role':'user', 'content':
             '[서버 제공 검색 도구와 사용자 발화 출처 · 데이터]\n' +
             json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'})
@@ -766,7 +800,9 @@ class ModelConversation:
                 if isinstance(attempt, dict))), None)
         if completed is None:
             return None
-        return {'status':'completed', 'execution_scope':'previous_turn_only',
+        coverage = search_scope(self, session)
+        return {**({'search_scope': coverage} if coverage is not None else {}),
+                'status':'completed', 'execution_scope':'previous_turn_only',
                 'source_turn_id':completed['turn_id'], 'revision':revision,
                 'corpus_fingerprint':self._model_corpus_fingerprint(),
                 'result_sha256':digest(result),
@@ -972,6 +1008,10 @@ class ModelConversation:
                      'source_turns':source_previews(basis['source_turns']) if attachment_tools is not None else copy.deepcopy(basis['source_turns']),
                      'historical_disclosures':copy.deepcopy(basis['historical_disclosures']),
                      'historical_disclosure_rule':'이미 공개되고 현재 원자료와 연결이 확인된 이력입니다. 이전 자료의 출처·기여·관련성·한계를 설명할 수 있지만 이번 조건의 새 결과나 평가로 바꾸지 마세요.'}
+        coverage = search_scope(self, session)
+        if coverage is not None:
+            observation['search_scope'] = coverage
+            grounding['search_scope'] = coverage
         if attachment_tools is not None:
             grounding['attachment_tool_results'] = copy.deepcopy(attachment_tools)
         # Add context after model_messages' conversation limit; the complete
@@ -1067,6 +1107,10 @@ class ModelConversation:
                 'empty_message':result.get('empty_message', ''),
                 'execution':'read_only_completed', 'proposal_or_contact_executed':False,
                 'execution_observation':copy.deepcopy(execution_observation)}
+        coverage = search_scope(self, session)
+        if coverage is not None:
+            tool['search_scope'] = coverage
+            tool['execution_observation']['search_scope'] = coverage
         messages.append({'role':'user', 'content':'[서버가 실제 실행한 공개 근거 조회 결과 · 데이터]\n' +
                          json.dumps(tool, ensure_ascii=False) + '\n[조회 결과 끝]\n' +
                          '이것은 검색어와 연결된 자료입니다. 아직 사용자 목적에 맞는 사람으로 판단하지 않았습니다. '
