@@ -28,6 +28,12 @@ class StateStore:
         self.path=self.directory/"state.json"
         self.lock=threading.RLock()
 
+    def attachment_backend(self):
+        if not self.shared:
+            return None
+        from .redis_attachments import RedisAttachments
+        return RedisAttachments(self._shared_store)
+
     def read(self):
         if self.shared:
             return self._shared_store.read()

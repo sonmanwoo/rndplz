@@ -1116,7 +1116,7 @@ class PublicApp:
                 with self.lock:
                     if context['active'] or context['inflight'] != 1:
                         return send(409, {'error':'진행 중인 요청이 끝난 뒤 자료를 추가해 주세요.', 'code':'attachment_context_busy'})
-                    if len(list(chat.attachments.directory.glob('*.json'))) >= 12:
+                    if chat.attachments.count() >= 12:
                         return send(429, {'error':'공개 시연의 첨부 개수 한도에 도달했습니다.'})
                     context['active']+=1
                 try:
