@@ -219,11 +219,12 @@ function isGeminiModel(id=selectedModel){return id===GEMINI_ID;}
 function hasGeminiScope(saved){const scope=saved?.provider_scope;return ["gemini_public_papers.v1","gemini_public_papers.v2"].includes(scope?.id)&&scope.provider==="gemini"&&scope.model_id===GEMINI_ID;}
 function isGeminiSession(saved=session){return hasGeminiScope(saved)||isGeminiModel(saved?.model_id);}
 function isRuntimeModel(id=selectedModel){return id==="runtime"&&["codex_oauth","openai_api"].includes(catalog.find(m=>m.id===id)?.provider);}
-function hasRuntimeScope(saved){const scope=saved?.provider_scope;return ["runtime_public_papers.v1","runtime_public_papers.v2"].includes(scope?.id)&&["codex_oauth","openai_api"].includes(scope.provider)&&scope.model_id==="runtime";}
+function isScopedBridgeModel(id=selectedModel){const model=catalog.find(m=>m.id===id);return id==="bridge"&&model?.provider==="bridge"&&model.public_scope===true;}
+function hasRuntimeScope(saved){const scope=saved?.provider_scope;return (["runtime_public_papers.v1","runtime_public_papers.v2"].includes(scope?.id)&&["codex_oauth","openai_api"].includes(scope.provider)&&scope.model_id==="runtime")||(scope?.id==="runtime_public_papers.v2"&&scope.provider==="bridge"&&scope.model_id==="bridge");}
 function hasPublicPaperScope(saved){return hasGeminiScope(saved)||hasRuntimeScope(saved);}
-function isPublicPaperModel(id=selectedModel){return isGeminiModel(id)||isRuntimeModel(id);}
+function isPublicPaperModel(id=selectedModel){return isGeminiModel(id)||isRuntimeModel(id)||isScopedBridgeModel(id);}
 function isPublicPaperContext(id=selectedModel,saved=session){return hasPublicPaperScope(saved)||isPublicPaperModel(id);}
-function allowsScopedImages(id=selectedModel,saved=session){return (saved?.id?(hasGeminiScope(saved)||(hasRuntimeScope(saved)&&saved.provider_scope.id==="runtime_public_papers.v2")):(isGeminiModel(id)||isRuntimeModel(id)))&&catalog.find(m=>m.id===id)?.vision===true;}
+function allowsScopedImages(id=selectedModel,saved=session){return (saved?.id?(hasGeminiScope(saved)||(hasRuntimeScope(saved)&&saved.provider_scope.id==="runtime_public_papers.v2"&&["codex_oauth","openai_api"].includes(saved.provider_scope.provider))):(isGeminiModel(id)||isRuntimeModel(id)))&&catalog.find(m=>m.id===id)?.vision===true;}
 function isPublicPaperSession(saved=session){return hasPublicPaperScope(saved)||isGeminiModel(saved?.model_id)||saved?.model_id==="runtime";}
 function allowsScopedDocuments(id=selectedModel,saved=session){return isPublicPaperContext(id,saved)&&(!saved?.id||(hasPublicPaperScope(saved)&&["gemini_public_papers.v2","runtime_public_papers.v2"].includes(saved.provider_scope.id)));}
 function explicitScopedAttachment(item,id,saved){

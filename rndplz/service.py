@@ -78,7 +78,9 @@ def provider_scope(session):
             or not ((value.get('id') in (GEMINI_SCOPE_ID, GEMINI_DOCUMENT_SCOPE_ID) and value.get('provider') == 'gemini'
                      and isinstance(value.get('model_id'), str) and value['model_id'].startswith('gemini:'))
                     or (value.get('id') in (RUNTIME_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID) and value.get('provider') in RUNTIME_SCOPE_PROVIDERS
-                        and value.get('model_id') == 'runtime'))):
+                        and value.get('model_id') == 'runtime')
+                    or (value.get('id') == RUNTIME_DOCUMENT_SCOPE_ID and value.get('provider') == 'bridge'
+                        and value.get('model_id') == 'bridge'))):
         raise ProviderScopeError('이 대화의 자료 범위를 확인할 수 없습니다. 새 대화를 시작해 주세요.')
     return value
 

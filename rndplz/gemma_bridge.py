@@ -326,11 +326,12 @@ def run_worker(config):
     def post(route, payload):
         req=urllib.request.Request(base+'/api/worker/'+route,data=json.dumps(payload,ensure_ascii=False).encode(),
             headers={'Content-Type':'application/json','X-Rndplz-Bridge':token},method='POST')
-        for attempt in range(2):
+        attempts = 2 if route == 'result' else 1
+        for attempt in range(attempts):
             try:
                 with opener.open(req,timeout=20) as response: return json.load(response)
             except Exception:
-                if attempt: raise
+                if attempt + 1 == attempts: raise
                 time.sleep(1)
     print('Gemma 연결기 시작 · 공개 서버 요청을 기다립니다.',flush=True)
     while True:

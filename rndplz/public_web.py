@@ -474,7 +474,11 @@ class PublicApp:
         from .demo_pool import project_corpus
         corpus = project_corpus(corpus, allow_personal_omission=not approved)
         self.engine = Engine(corpus)
-        self.models = ObservedRuntimeChatModels(self.env) if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public') else PublicModels(self.env)
+        if self.env.get('APP_RUNTIME') == 'hosted_public' and self.env.get('RNDPLZ_GEMMA_BRIDGE_BACKEND') == 'redis':
+            from .hosted_gemma import HostedGemmaModels
+            self.models = HostedGemmaModels(self.env)
+        else:
+            self.models = ObservedRuntimeChatModels(self.env) if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public') else PublicModels(self.env)
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
@@ -484,7 +488,7 @@ class PublicApp:
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
-                 'public_profiles.py','registered_experts.py','attachment_uploads.py')
+                 'public_profiles.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
@@ -884,7 +888,7 @@ class PublicApp:
             except FileNotFoundError: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
             return send(200, raw, 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg')
         if path in ('/api/worker/poll','/api/worker/result'):
-            if self.env.get('APP_RUNTIME') == 'hosted_public':
+            if self.env.get('APP_RUNTIME') == 'hosted_public' and not getattr(self.models, 'scoped_bridge', False):
                 return send(404, {'error': '이 연결 경로는 현재 사용할 수 없습니다.', 'code': 'runtime_worker_unavailable'})
             if method!='POST': return send(405,{'error':'지원하지 않는 요청입니다.'})
             if not self.models.bridge.authorized(environ.get('HTTP_X_RNDPLZ_BRIDGE','')):

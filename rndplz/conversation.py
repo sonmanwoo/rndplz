@@ -228,6 +228,12 @@ class Conversation(ModelConversation):
         stopping = not preparing and self.actions.cancelled(validate_text(payload.get('text', ''), 16000, True))
         identifier = payload.get('model_id', current.get('model_id') if current else None)
         gemini = isinstance(identifier, str) and identifier.startswith('gemini:')
+        scoped_bridge = identifier == 'bridge' and getattr(self.models, 'scoped_bridge', False) is True
+        if scoped_bridge and not stopping:
+            bridge_option = self.models.get(identifier)
+            if (bridge_option.get('id') != 'bridge' or bridge_option.get('provider') != 'bridge'
+                    or bridge_option.get('enabled') is not True):
+                raise ProviderScopeError('선택한 모델의 공개 자료 범위를 확인할 수 없습니다.')
         runtime_option = self.models.get(identifier) if identifier == 'runtime' and not stopping else None
         if stopping and identifier == 'runtime' and scope is None:
             # Establish only the data policy from server configuration; do not
@@ -242,12 +248,12 @@ class Conversation(ModelConversation):
         if scope:
             if not stopping:
                 self._execution_option(current, payload)
-        elif gemini or remote_runtime:
+        elif gemini or remote_runtime or scoped_bridge:
             if (current or sid or preparing or not (payload.get('model_selection_origin') == 'explicit' or
                     (payload.get('model_selection_origin') == 'automatic' and (stopping or self.models.catalog().get('default') == identifier)))):
                 raise ProviderScopeError('외부 모델은 이전 이력이 없는 새 대화에서 선택해 주세요.')
             scope = ({'id': GEMINI_DOCUMENT_SCOPE_ID, 'provider': 'gemini', 'model_id': identifier} if gemini else
-                     {'id': RUNTIME_DOCUMENT_SCOPE_ID, 'provider': runtime_option['provider'], 'model_id': identifier})
+                     {'id': RUNTIME_DOCUMENT_SCOPE_ID, 'provider': 'bridge' if scoped_bridge else runtime_option['provider'], 'model_id': identifier})
         elif current and (str(current.get('model_id', '')).startswith('gemini:') or current.get('model_id') == 'runtime'):
             raise ProviderScopeError('자료 범위가 없는 이전 외부 모델 대화는 이어갈 수 없습니다. 새 대화를 시작해 주세요.')
         if scope is None:
