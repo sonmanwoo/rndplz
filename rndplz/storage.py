@@ -10,13 +10,27 @@ from pathlib import Path
 
 class StateStore:
     """One atomic state file; process lock also protects CLI/server overlap."""
-    def __init__(self, directory):
+    def __init__(self, directory, env=None):
         self.directory=Path(directory)
+        env = os.environ if env is None else env
+        backend = env.get('RNDPLZ_STATE_BACKEND', 'file')
+        if backend not in ('file', 'upstash'):
+            raise ValueError('저장소 설정을 확인할 수 없습니다.')
+        self.shared = backend == 'upstash'
+        self._shared_store = None
+        if self.shared:
+            from .redis_state import RedisStateStore
+            self._shared_store = RedisStateStore(self.directory, env)
+            self.path = self._shared_store.path
+            self.lock = threading.RLock()
+            return
         self.directory.mkdir(parents=True,exist_ok=True)
         self.path=self.directory/"state.json"
         self.lock=threading.RLock()
 
     def read(self):
+        if self.shared:
+            return self._shared_store.read()
         if not self.path.exists():
             return {"version":1,"sessions":[],"proposals":[],"idempotency":{}}
         data=json.loads(self.path.read_text(encoding="utf-8"))
@@ -25,6 +39,8 @@ class StateStore:
         return data
 
     def transaction(self, fn):
+        if self.shared:
+            return self._shared_store.transaction(fn)
         with self.lock:
             lockfile=self.directory/"state.lock"
             deadline=time.monotonic()+3
@@ -49,3 +65,19 @@ class StateStore:
                 return result
             finally:
                 lockfile.unlink(missing_ok=True)
+
+    def is_revoked(self):
+        if self.shared:
+            return self._shared_store.is_revoked()
+        return (self.directory / '.visitor-revoked').exists()
+
+    def revoke(self):
+        if self.shared:
+            return self._shared_store.revoke()
+        try:
+            with (self.directory / '.visitor-revoked').open('xb') as marker:
+                marker.flush()
+                os.fsync(marker.fileno())
+        except FileExistsError:
+            pass
+        return True

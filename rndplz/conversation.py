@@ -64,7 +64,8 @@ class Conversation(ModelConversation):
         self.discovery=Discovery(self.actions)
         self.attachments=Attachments(self.store.directory)
         # A process restart cannot resume an old HTTP stream.
-        if any(s.get('pending') for s in self.store.read()['sessions']):
+        # A new shared-store reader is not evidence that another writer stopped.
+        if not getattr(self.store, 'shared', False) and any(s.get('pending') for s in self.store.read()['sessions']):
             def recover(state):
                 for s in state['sessions']:
                     if s.get('pending'):
