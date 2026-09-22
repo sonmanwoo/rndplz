@@ -18,6 +18,7 @@ from urllib.parse import parse_qs
 
 from .chat_models import ChatModels
 from .attachments import AttachmentError, MAX_UPLOAD_BODY, MAX_HTTPS_BODY
+from .attachment_uploads import AttachmentUploads
 from .https_documents import FetchError
 from .gemma_bridge import GemmaRelay
 from .conversation import Conversation
@@ -39,6 +40,10 @@ from .profile_chat import ProfileChat
 from .scout_projection import project_session
 
 WEB = Path(__file__).with_name('web')
+CHUNK_UPLOAD_ROUTES = {
+    '/api/attachments/begin': 'begin', '/api/attachments/chunk': 'chunk',
+    '/api/attachments/complete': 'complete', '/api/attachments/cancel': 'cancel',
+}
 # Public comparison artifacts are explicit, immutable files; never resolve arbitrary paths.
 PREVIEW_PREFIX = '/ui-previews/UI-MAIN-001/r1/'
 PREVIEW_FILES = {
@@ -479,7 +484,7 @@ class PublicApp:
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
-                 'public_profiles.py','registered_experts.py')
+                 'public_profiles.py','registered_experts.py','attachment_uploads.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
@@ -966,7 +971,7 @@ class PublicApp:
             if method=='POST' and path=='/api/attachments/client-report':
                 attachment_report_request_id=uuid.uuid4().hex
                 headers.append(('X-RNDPLZ-Request-Id',attachment_report_request_id))
-            if method=='POST' and path in ('/api/chat','/api/chat/prepare','/api/attachments'):
+            if method=='POST' and (path in ('/api/chat','/api/chat/prepare','/api/attachments') or path in CHUNK_UPLOAD_ROUTES):
                 request_id=uuid.uuid4().hex
                 diagnostic_request={'visitor_ref':context['visitor_ref'],'request_id':request_id,'attempt_id':uuid.uuid4().hex,
                                     'trace_id':uuid.uuid4().hex,'session_id':'request-'+request_id,
@@ -1025,18 +1030,22 @@ class PublicApp:
             if path == '/auth/google/enroll' and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
             body_limit = 2048 if path in ('/api/chat/recovery-report','/api/attachments/client-report') else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
+            if path in CHUNK_UPLOAD_ROUTES:
+                body_limit = 750000 if path == '/api/attachments/chunk' else 4096
             if not 0 < length <= body_limit:
                 if path=='/api/attachments/client-report':
                     return send(413,{'error':'첨부 관측 크기를 확인해 주세요.','code':'attachment_client_report_invalid'})
                 if path == '/api/attachments/https':
                     return send(413, {'error':'링크 주소의 크기를 확인해 주세요.', 'code':'https_request_too_large'})
-                if path == '/api/attachments':
+                if path == '/api/attachments' or path in CHUNK_UPLOAD_ROUTES:
                     return send(413, {'error':str(AttachmentError('too_large')), 'code':'attachment_too_large'})
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
             try:
-                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') else json.loads(raw_payload)
+                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') or path in CHUNK_UPLOAD_ROUTES else json.loads(raw_payload)
             except AuthError:
+                if path in CHUNK_UPLOAD_ROUTES:
+                    raise AttachmentError('corrupt') from None
                 if path=='/api/attachments/client-report':
                     return send(400,{'error':'첨부 관측 형식을 확인해 주세요.','code':'attachment_client_report_invalid'})
                 if path == '/api/chat/recovery-report':
@@ -1061,17 +1070,21 @@ class PublicApp:
                 for key in ('session_id','turn_id'):
                     if isinstance(payload.get(key),str) and re.fullmatch(r'[A-Za-z0-9-]{16,80}',payload[key]):diagnostic_request[key]=payload[key]
                 diagnostic_request['model_selected']=payload.get('model_id')
-                if path!='/api/attachments':
+                if path!='/api/attachments' and path not in CHUNK_UPLOAD_ROUTES:
                     text=payload.get('text','')
                     diagnostic_content={'user_text':text[:16000] if isinstance(text,str) else ''}
                     diagnostic_request['input_chars']=len(text) if isinstance(text,str) else 0
                     diagnostic_request['attachment_count']=len(payload.get('attachments',[])) if isinstance(payload.get('attachments'),list) else 0
             with self.lock:
                 now = time.monotonic()
-                context['requests'] = [t for t in context['requests'] if now - t < 60]
-                if len(context['requests']) >= 20:
+                # A 10 MiB file takes twenty bounded chunks; keep control/chat
+                # requests on their original budget and bound chunk traffic too.
+                rate_key = 'upload_chunks' if path == '/api/attachments/chunk' else 'requests'
+                rate_limit = 96 if path == '/api/attachments/chunk' else 20
+                context[rate_key] = [t for t in context.get(rate_key, []) if now - t < 60]
+                if len(context[rate_key]) >= rate_limit:
                     diagnostic_error='rate_limit';return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
-                context['requests'].append(now)
+                context[rate_key].append(now)
             if path=='/api/attachments/client-report':
                 if environ.get('QUERY_STRING',''):
                     return send(400,{'error':'첨부 관측에는 추가 주소 조건을 넣지 마세요.','code':'attachment_client_report_invalid'})
@@ -1148,15 +1161,20 @@ class PublicApp:
                 finally:
                     with self.lock:context['active']-=1
                     self.request_slots.release()
-            if path in ('/api/attachments','/api/attachments/https'):
+            if path in ('/api/attachments','/api/attachments/https') or path in CHUNK_UPLOAD_ROUTES:
+                if path in CHUNK_UPLOAD_ROUTES and environ.get('QUERY_STRING',''):
+                    raise AttachmentError('corrupt')
                 # Serialize a visitor's attachment commits and retain logout's active/inflight guard.
                 with self.lock:
                     if context['active'] or context['inflight'] != 1:
                         return send(409, {'error':'진행 중인 요청이 끝난 뒤 자료를 추가해 주세요.', 'code':'attachment_context_busy'})
-                    if chat.attachments.count() >= 12:
+                    if path not in ('/api/attachments/complete','/api/attachments/cancel') and chat.attachments.count() >= 12:
                         return send(429, {'error':'공개 시연의 첨부 개수 한도에 도달했습니다.'})
                     context['active']+=1
                 try:
+                    if path in CHUNK_UPLOAD_ROUTES:
+                        uploads = AttachmentUploads(service.store, chat.attachments)
+                        return send(200, getattr(uploads, CHUNK_UPLOAD_ROUTES[path])(payload))
                     if path == '/api/attachments/https':
                         https_failure_stage='attachment_ingest'
                         return send(200, chat.attachments.upload_url(payload))
