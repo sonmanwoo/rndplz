@@ -637,6 +637,10 @@ class ModelConversation:
             for record in person.get('evidence', [])
             if record['id'] in current_record_ids})
         context = {'current_turn_id':session['pending'],
+                   'search_control':{
+                       'lookup_paused':bool(session.get('lookup_paused')),
+                       'resume_requires':'current_user_request_for_lookup',
+                       'condition_update_resumes_lookup':False},
                    'consultation_execution':{
                        'reply_delivery_state':'planning_before_execution',
                        'plan_reply_is_displayed':False,
@@ -686,6 +690,7 @@ class ModelConversation:
                  'excluded_person_ids':exclusions, 'record_catalog':catalog,
                  'planning_record_ids':visible_record_ids,
                  'request_spec_basis':copy.deepcopy(session.get('request_spec')),
+                 'lookup_paused':bool(session.get('lookup_paused')),
                  'execution_binding':copy.deepcopy(session.get('execution_binding')),
                   'request_continuity_snapshot':copy.deepcopy(session.get('request_continuity_snapshot')),
                  'record_ids':[r['record_id'] for r in catalog['records']]}
@@ -847,6 +852,7 @@ class ModelConversation:
         except ValueError as exc:
             raise ModelBasisChanged(str(exc)) from exc
         if (('attachment_provider_scope' in basis and current.get('provider_scope') != basis['attachment_provider_scope']) or
+                ('lookup_paused' in basis and bool(current.get('lookup_paused')) != basis['lookup_paused']) or
                 current.get('request_continuity_snapshot') != basis.get('request_continuity_snapshot') or
                 current.get('execution_binding') != basis.get('execution_binding') or
                 current.get('request_spec') != basis.get('request_spec_basis') or
@@ -941,16 +947,28 @@ class ModelConversation:
         self._check_consultation_reply({'reply':'\n'.join(display), 'summary':'',
             'person_names':[], 'conditions':spec['conditions']}, sources, historical_disclosures)
 
-    def _model_discovery(self, plan, revision):
-        ready = plan['intent'] != 'stop' and plan['lookup_action'] in ('offer', 'execute')
+    @staticmethod
+    def _model_lookup_paused(session, plan):
+        # Only a validated lookup decision can resume a stopped search. An
+        # answer/clarification may carry a revised scope without granting it.
+        explicit_lookup = plan['intent'] in ('search', 'person') and plan['lookup_action'] == 'execute'
+        return plan['intent'] == 'stop' or bool(session.get('lookup_paused')) and not explicit_lookup
+
+    def _model_discovery(self, plan, revision, *, lookup_paused=False):
+        paused = lookup_paused or plan['intent'] == 'stop'
+        ready = not paused and plan['lookup_action'] in ('offer', 'execute')
         return {'ready':False, 'status':'model_interpretation', 'summary':plan['summary'],
                 'reason':'모델이 해석한 조회 범위이며 인물의 자격이나 협업 가능성을 확인한 것은 아닙니다.',
                 'question':'', 'revision':revision, 'hint_given':True,
-                'lookup_ready':ready, 'lookup_status':'ready' if ready else 'deferred' if plan['intent']=='stop' else 'needs_scope',
+                'lookup_ready':ready, 'lookup_status':'ready' if ready else 'deferred' if paused else 'needs_scope',
                 'lookup_reason':'현재 대화에서 모델이 해석한 범위로 공개 근거를 조회할 수 있어요.' if ready else
-                                '수소문을 보류했어요.' if plan['intent']=='stop' else '대화에서 조회할 범위를 함께 정할 수 있어요.'}
+                                '수소문을 보류했어요.' if paused else '대화에서 조회할 범위를 함께 정할 수 있어요.'}
 
     def _model_search(self, session, plan, revision):
+        # Recheck server state at the physical tool boundary, including prepare
+        # and refinement callers. Do not clear the persisted pause until commit.
+        if self._model_lookup_paused(self.get(session['id']), plan):
+            raise ValueError('탐색을 중단한 상태예요. 다시 찾으려면 조회를 요청해 주세요.')
         # Legacy context is retained for proposal-policy checks and traceability;
         # it does not define the model's current search intent or user conditions.
         request = self.request_context(session)
@@ -988,11 +1006,13 @@ class ModelConversation:
         # Earlier disclosures were revalidated against the same request basis.
         count = (result.get('matched_candidate_count', len(result.get('candidates', [])))
                  if result is not None else None)
+        paused = self._model_lookup_paused(session, plan)
         observation = {'revision':revision,
+                       'lookup_paused':paused,
                        'status':'completed' if result is not None else 'not_executed',
                        'anonymous_record_linked_people_count':count,
                        'count_status':'known' if count is not None else 'unknown',
-                       'button_enabled_on_completion':self._model_discovery(plan, revision)['lookup_ready'],
+                       'button_enabled_on_completion':self._model_discovery(plan, revision, lookup_paused=paused)['lookup_ready'],
                        'button_label':'이 정보로 수소문하기',
                        'new_people_disclosed':False,
                        'automatic_follow_up':False,
@@ -1384,19 +1404,21 @@ class ModelConversation:
             if status == 'complete':
                 session.pop('request_continuity_snapshot', None)
             if status == 'complete' and plan is not None:
+                paused = self._model_lookup_paused(session, plan)
                 session['model_plan'] = plan
                 session['model_plan_revision'] = revision
                 session['model_plan_source_turn'] = plan_source_turn or turn_id
                 session['model_plan_corpus_fingerprint'] = self._model_corpus_fingerprint()
-                session['discovery'] = self._model_discovery(plan, revision)
-                session['lookup_paused'] = plan['intent'] == 'stop'
+                session['discovery'] = self._model_discovery(plan, revision, lookup_paused=paused)
+                session['lookup_paused'] = paused
                 disclosed = kind == 'recommendation' and session.get('scout_authorized_revision') == session.get('scout', {}).get('revision')
                 count = (result.get('matched_candidate_count', len(result.get('candidates', []))) if result is not None else None)
-                session['scout'] = {'revision':revision, 'status':'complete' if disclosed else 'ready' if result is not None else 'stopped' if plan['intent']=='stop' else 'consulting',
+                session['scout'] = {'revision':revision, 'status':'complete' if disclosed else 'ready' if result is not None else 'stopped' if paused else 'consulting',
                                     'disclosed':disclosed, 'count':count, 'count_status':'known' if count is not None else 'unknown',
                                     'requested_revision':session.get('scout_authorized_revision') if disclosed else None,
                                     'count_basis':'assessed_displayed' if disclosed else 'registered_record_matches'}
-                if plan['intent'] != 'stop' and request_spec_content(request_spec) is not None:
+                if (request_spec_content(request_spec) is not None
+                        and (plan['intent'] != 'stop' or request_spec_content(session.get('request_spec')) is not None)):
                     # Prepare may revise retrieval, never the user's approved brief.
                     session['request_spec'] = {**request_spec_content(request_spec),
                         'revision':revision, 'source_turn_id':plan_source_turn or turn_id,
@@ -1414,7 +1436,7 @@ class ModelConversation:
                                         'query':plan['summary'], 'model_plan_revision':revision},
                         prepared_discovery_revision=revision,
                         can_propose=any(c.get('proposal_allowed') and not c.get('lookup_only') for c in result['candidates']))
-                elif plan['intent'] == 'stop':
+                elif paused:
                     session.update(result=None, ready=False, search_context={'kind':'stopped', 'ids':[]})
                 else:
                     session['search_context'] = {'kind':'discovery' if session['discovery']['lookup_ready'] else 'discussion',
@@ -1548,6 +1570,11 @@ class ModelConversation:
                         if retained is None:
                             raise PlanValidationError('request_preserve_unavailable', field='$.request_effect')
                         request_spec = copy.deepcopy(retained['request_spec'])
+                    elif plan['intent'] == 'stop' and request_spec_content(basis.get('request_spec_basis')) is not None:
+                        # Stopping changes execution authority, not the accepted
+                        # brief. Bind revision, answer context and storage to the
+                        # same unchanged content so follow-up continuity survives.
+                        request_spec = copy.deepcopy(basis['request_spec_basis'])
                 except PlanValidationError as exc:
                     attempt.update(validation='rejected', reason=exc.reason)
                     diagnostic_event('model_plan_rejected', model_phase=phase,
@@ -1587,7 +1614,8 @@ class ModelConversation:
                         status='complete' if row['status']=='completed' else 'error',
                         output_chars=len(json.dumps(row, ensure_ascii=False)),
                         error_kind=None if row['status']=='completed' else row.get('error', 'attachment_read_failed'))
-            if plan['lookup_action'] in ('offer', 'execute'):
+            if (plan['lookup_action'] in ('offer', 'execute')
+                    and not self._model_lookup_paused(self.get(sid), plan)):
                 yield {'type':'phase', 'phase':'searching'}
                 self._check_model_basis(sid, turn_id, basis, deadline)
                 result, request = self._model_search(session, plan, revision)
