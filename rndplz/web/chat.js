@@ -959,10 +959,13 @@ function renderCandidates(){
  zone.innerHTML='<div class="collection-heading"><div><h2>'+(paperScope?'공개 논문에서 찾은 사람':'현재 요청과 연결된 사람')+'</h2>'+(rows.length?'<p id="scoutResultHint">연결된 사람을 불러오고 있어요.</p>':'')+(relationSummary?'<p class="candidate-relation-summary">'+esc(relationSummary)+'</p>':'')+'</div><span class="collection-count">'+rows.length+'</span></div><div id="scoutDrawHost"></div>';
  if(!rows.length){$("scoutDrawHost").textContent=emptyNotice;if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});return;}
  const metadataController=new AbortController();drawMetadataController=metadataController;
+ // Fixed diagnostics only: never log candidates, session IDs, responses or raw errors.
+ let mapFallbackReason=result.historical_result?'historical_result':result.inspection_only?'inspection_only':!mapEligible?'outside_current_pool':'map_unavailable';
+ let mapFallbackPart='';
  let settleMapTimeout;
- const metadataTimeout=setTimeout(()=>{metadataController.abort();settleMapTimeout?.(null);},8000);
+ const metadataTimeout=setTimeout(()=>{if(mapEligible)mapFallbackReason='map_timeout';metadataController.abort();settleMapTimeout?.(null);},8000);
  // The full map is display-only. Recommendation IDs and evidence remain the saved result.
- const mapRequest=mapEligible?Promise.race([Promise.all([api("/api/people-map",undefined,metadataController.signal),import('/recommendation-map.js')]).catch(()=>null),new Promise(resolve=>{settleMapTimeout=resolve;})]):Promise.resolve(null);
+ const mapRequest=mapEligible?Promise.race([Promise.all([api("/api/people-map",undefined,metadataController.signal),import('/recommendation-map.js')]).catch(()=>{if(mapFallbackReason!=='map_timeout')mapFallbackReason='map_load_failed';return null;}),new Promise(resolve=>{settleMapTimeout=resolve;})]):Promise.resolve(null);
  Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(result.historical_result),metadataController.signal),import('/draw.js'),mapRequest]).then(([records,{initDraw},map])=>{
   if(epoch!==drawEpoch||drawRenderKey!==renderKey||zone.hidden||accountNavigationPending||accountInvalidated)return;
   const host=$("scoutDrawHost"),hint=$("scoutResultHint"),dock=document.querySelector(".composer-dock");
@@ -973,12 +976,16 @@ function renderCandidates(){
     drawController=initRecommendationMap(host,{...options,quiet:()=>RndCraft.quiet(),animateOnShow:animate,mapData,rows,records});
     drawController.show(records,key);
     hint.textContent='관련 분야를 따라 연결된 사람을 살펴보세요. 이번 요청의 후보와 근거 범위는 아래 목록에서 확인할 수 있어요.';
-   }catch{
+   }catch(error){
+    mapFallbackReason=error?.code==='recommendation_map_layout_not_ready'?'layout_not_ready':'initialization_failed';
+    const layoutParts=['mount','stage','layer-structure','layer-style','node','person-size','face-structure','face-style','face-image'];
+    if(mapFallbackReason==='layout_not_ready'&&layoutParts.includes(error.layoutPart))mapFallbackPart=error.layoutPart;
     drawController?.dispose();drawController=null;host.replaceChildren();options.onBoundaryFit(true);
    }
   }
   if(!drawController){
    drawController=initDraw(host,options);drawController.show(records,key);
+   try{console.warn('recommendation-map-fallback',{reason:mapFallbackReason,...(mapFallbackPart?{layoutPart:mapFallbackPart}:{})});}catch{}
    hint.textContent=mapEligible?'연구맵을 불러오지 못해 후보 카드를 보여드려요. 카드를 누르면 근거를 볼 수 있어요.':'카드를 누르면 이 결과에 연결된 이력과 근거를 볼 수 있어요.';
   }
   if(animate)zone.scrollIntoView({block:"start",behavior:"instant"});
