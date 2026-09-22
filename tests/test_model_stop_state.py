@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -114,6 +115,24 @@ class StopStateRegression(unittest.TestCase):
     source_root = None
     output_root = None
     observations = []
+
+    def setUp(self):
+        if self.output_root is None:
+            temporary = tempfile.TemporaryDirectory(prefix='rndplz-stop-state-')
+            self.addCleanup(temporary.cleanup)
+            self.output_root = Path(temporary.name)
+            self.source_root = Path(__file__).resolve().parents[1]
+            self.observations = []
+            # Discovery does not call main() or install its process-wide audit.
+            # Scoped guards are removed after this case and do not affect other
+            # unittest modules. Product inputs remain the synthetic corpus/model.
+            for target in ('socket.socket.connect', 'socket.socket.connect_ex',
+                           'socket.socket.bind', 'socket.getaddrinfo',
+                           'urllib.request.OpenerDirector.open', 'subprocess.Popen'):
+                guard = patch(target, side_effect=AssertionError('offline-only discovery'))
+                blocked = guard.start()
+                self.addCleanup(guard.stop)
+                self.addCleanup(blocked.assert_not_called)
 
     def run_scenario(self, decision):
         from rndplz.conversation import Conversation
