@@ -1190,6 +1190,9 @@ class PublicApp:
                 '이 대화에는 이미지가 있습니다. 이미지 지원 모델을 선택하거나 새 대화를 시작해 주세요.',
             }
             message = str(exc)
+            if path == '/api/draft' and message == '대화를 찾을 수 없습니다.':
+                diagnostic_error = 'draft_session_unavailable'
+                return send(409, {'error': '이 대화의 저장된 후보를 현재 서버에서 찾을 수 없어요. 새 대화에서 수소문한 뒤 편지를 작성해 주세요.', 'code': 'draft_session_unavailable'})
             if message in (
                     '이 대화의 모델 입력 범위를 넘었습니다. 첨부를 줄이거나 필요한 부분을 새 대화에 넣어 주세요.',
                     '대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.'):
