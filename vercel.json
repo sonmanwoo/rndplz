@@ -4,5 +4,12 @@
     "wsgi.py": {
       "excludeFiles": "rndplz/web/ui-previews/**"
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://bioprocess-dx.tailfe053a.ts.net:8443/$1",
+      "permanent": false
+    }
+  ]
 }
