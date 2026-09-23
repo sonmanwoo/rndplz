@@ -150,11 +150,13 @@ REFINE_SCHEMA = _object({
 
 ASSESSMENT_SCHEMA = _object({
     "assessments": _array(_object({
-        "person_id": _text(200, minimum=1),
+        "person_id": {**_text(200, minimum=1),
+                      "description": "The exact retrieved_materials[].id value (for example PUB-XXXX), never the person's name."},
         "relation": {"type": "string", "enum": ["direct", "adjacent", "insufficient"]},
         "text": _text(400, minimum=1),
         "evidence": _array(_object({
-            "record_id": _text(200, minimum=1),
+            "record_id": {**_text(200, minimum=1),
+                          "description": "The exact evidence[].id value of that person's exposed record, never its title."},
             "quote": _text(240, minimum=1),
         }), 3),
         "missing": _text(300),
@@ -313,7 +315,8 @@ RESPONSE_SYSTEM = _STYLE + (
     "\n실제 조회 자료를 원래 사용자 목적과 최신 정정에 비추어 먼저 인물별로 평가한 뒤, 그 평가와 원문이 뒷받침하는 관계 범위 안에서 reply를 작성해 JSON 하나로 답하세요. "
     "reply는 그대로 표시되는 완전한 자연어 답변입니다. 필요한 설명·비교·정정을 자유롭게 하되 "
     "아직 읽지 않은 목록 제목, 이전 답변, 검색 일치를 실제 역량 근거로 바꾸지 마세요. "
-    "제공된 모든 인물을 정확히 한 번 assessments에 평가하세요. direct는 그 인물의 근거가 요청 목적을 "
+    "제공된 모든 인물을 정확히 한 번 assessments에 평가하세요. person_id와 record_id에는 retrieved_materials의 id 값을 그대로 쓰고 이름이나 제목을 쓰지 마세요. "
+    "direct는 그 인물의 근거가 요청 목적을 "
     "직접 뒷받침함, adjacent는 관련되지만 필요한 관계 일부가 미확인, insufficient는 근거 부족입니다. "
     "단어 일치나 다른 인물의 활동을 개인의 결합 수행·전문성으로 확대하지 마세요. "
     "서로 다른 기록 사이의 연결이 원문에 명시되지 않으면 하나의 사업·결합 경험·반응 경로로 단정하지 마세요. "
@@ -862,8 +865,43 @@ def parse_assessment(raw, *, materials):
         raise AssessmentValidationError("assessment_empty_reply_forbidden", field="$.empty_reply")
     if not related and not assessment["empty_reply"].strip():
         raise AssessmentValidationError("assessment_empty_reply_required", field="$.empty_reply")
+    _canonical_material_ids(rows, materials)
     _validate_assessment_rows(rows, people)
     return assessment
+
+
+def _canonical_material_ids(rows, materials):
+    """Rewrite a unique exposed person name or record title back to its id.
+
+    Small local models sometimes echo the displayed name or title instead of the
+    id they were given. Only an exact, unique match among the exposed materials
+    (after surrounding whitespace and case folding) is rewritten; every other
+    value is left for the existing validation to reject. Call after
+    _assessment_materials has validated the materials shape.
+    """
+    def unique_labels(items, label_key):
+        found = {}
+        for item in items:
+            label = item.get(label_key)
+            if isinstance(label, str) and label.strip():
+                found.setdefault(label.strip().casefold(), []).append(item["id"])
+        return {label: ids[0] for label, ids in found.items() if len(ids) == 1}
+    person_ids = {person["id"] for person in materials}
+    person_names = unique_labels(materials, "name")
+    records = {person["id"]: person["evidence"] for person in materials}
+    for row in rows:
+        pid = row["person_id"]
+        if pid not in person_ids and pid.strip().casefold() in person_names:
+            row["person_id"] = pid = person_names[pid.strip().casefold()]
+        evidence = records.get(pid)
+        if evidence is None:
+            continue
+        record_ids = {record["id"] for record in evidence}
+        titles = unique_labels(evidence, "title")
+        for citation in row["evidence"]:
+            rid = citation["record_id"]
+            if rid not in record_ids and rid.strip().casefold() in titles:
+                citation["record_id"] = titles[rid.strip().casefold()]
 
 
 def _validate_assessment_rows(rows, people):
@@ -892,10 +930,12 @@ def _validate_assessment_rows(rows, people):
 
 def parse_response(raw, *, materials, base_plan, user_messages, allowed_topic_ids,
                    allowed_record_ids, allow_next_lookup):
-    """Return (unaltered response JSON, normalized next plan or None).
+    """Return (response JSON, normalized next plan or None).
 
-    The owner binds materials/catalog to this completed tool and owns the shared
-    original-turn call budget. A next lookup does not establish semantic truth.
+    Only person_id/record_id values that name a unique exposed person or record
+    are rewritten to that id; model text stays verbatim. The owner binds
+    materials/catalog to this completed tool and owns the shared original-turn
+    call budget. A next lookup does not establish semantic truth.
     """
     if type(allow_next_lookup) is not bool:
         raise ResponseValidationError("next_lookup_allowance_invalid")
@@ -911,6 +951,7 @@ def parse_response(raw, *, materials, base_plan, user_messages, allowed_topic_id
     except PlanValidationError as exc:
         raise ResponseValidationError("response_" + exc.reason, field=exc.field) from exc
     try:
+        _canonical_material_ids(response["assessments"], materials)
         _validate_assessment_rows(response["assessments"], people)
     except AssessmentValidationError as exc:
         raise ResponseValidationError(exc.reason, field=exc.field) from exc
