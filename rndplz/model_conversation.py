@@ -286,6 +286,7 @@ REPAIRABLE_PLAN_ERRORS = frozenset({
     'unknown_exposed_record', 'duplicate_record_id', 'mixed_lookup_modes',
     'consultation_identity_disclosure',
     'unreferenced_person_name',
+    'preserve_request_has_changes',
 })
 
 # Only a completed model response with a structural/quotation error is eligible.
@@ -1567,10 +1568,12 @@ class ModelConversation:
                     self._check_consultation_reply(plan, basis['source_turns'], basis['historical_disclosures'])
                     request_spec = parse_request_spec(raw, user_messages=basis['source_turns'])
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
-                    request_effect = parse_request_effect(raw)
+                    # Without an accepted request to keep, a plan that says preserve
+                    # (a greeting, typically) is read as an update of its own content.
+                    retained = self._request_continuity(self.get(sid), turn_id)
+                    request_effect = parse_request_effect(raw, preserve_available=retained is not None)
                     attachment_actions = parse_attachment_actions(raw)
                     if request_effect == 'preserve':
-                        retained = self._request_continuity(self.get(sid), turn_id)
                         if retained is None:
                             raise PlanValidationError('request_preserve_unavailable', field='$.request_effect')
                         request_spec = copy.deepcopy(retained['request_spec'])

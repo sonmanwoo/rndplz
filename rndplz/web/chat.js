@@ -1360,7 +1360,10 @@ $ ("message").addEventListener("paste",pasteImages);
 $ ("message").addEventListener("input",()=>{invalidateRegisteredUI();composerInputRevision++;resizeInput();});
 $ ("message").addEventListener("compositionstart",()=>{composerComposing=true;composerInputRevision++;});
 $ ("message").addEventListener("compositionend",()=>{composerComposing=false;composerInputRevision++;controls();});
-$ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
+// Touch keyboards have no Shift+Enter: there Enter inserts a line break and only the send button submits.
+const touchComposer=!!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches);
+if(touchComposer){const keyboardHint=document.querySelector(".keyboard-hint");if(keyboardHint)keyboardHint.textContent="보내기 버튼으로 전송 · Enter 줄바꿈";}
+$ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!touchComposer){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
 $ ("stopButton").addEventListener("click",()=>{invalidateRegisteredUI();controller?.abort();});
 $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
