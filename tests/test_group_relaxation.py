@@ -84,10 +84,26 @@ class GroupRelaxationTests(unittest.TestCase):
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["lookup_resolution"], "no_linked_evidence")
 
-    def test_two_unmatched_groups_still_return_nothing(self):
+    def test_best_tier_admits_people_matching_the_most_groups(self):
+        # Three required groups, nobody matches more than one: everyone with one
+        # matched group is admitted and every unmatched group stays visible.
+        # ("잔존 미세 물질" reaches P-CAT through the rarest-term fallback.)
         result = self.run_search(["잔존 미세 물질"], ["용매 정제"], ["증류"])
-        self.assertEqual(result["candidates"], [])
-        self.assertFalse(result["interpretations"][0]["group_relaxation"])
+        cards = {c["id"]: c for c in result["candidates"]}
+        self.assertEqual(set(cards), {"P-MW", "P-CAT"})
+        summary = result["interpretations"][0]
+        self.assertTrue(summary["group_relaxation"])
+        self.assertEqual((summary["matched_group_count"], summary["required_group_count"]), (1, 3))
+        self.assertEqual(cards["P-MW"]["matching_interpretations"][0]["unmatched_group_indexes"], [0, 1])
+        self.assertEqual(cards["P-CAT"]["matching_interpretations"][0]["unmatched_group_indexes"], [1, 2])
+
+    def test_more_matched_groups_win_the_tier(self):
+        # P-MW matches 증류 and 모노머 (2 of 3), P-CAT only 촉매 (1 of 3).
+        result = self.run_search(["증류"], ["모노머"], ["촉매"])
+        self.assertEqual([c["id"] for c in result["candidates"]], ["P-MW"])
+        summary = result["candidates"][0]["matching_interpretations"][0]
+        self.assertEqual((summary["matched_group_count"], summary["required_group_count"]), (2, 3))
+        self.assertEqual(summary["unmatched_group_indexes"], [2])
 
     def test_complete_match_ranks_above_partial_match(self):
         result = self.run_search(["잔존 물질 제거"], ["증류"])

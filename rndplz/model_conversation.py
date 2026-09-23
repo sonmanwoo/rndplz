@@ -1127,7 +1127,7 @@ class ModelConversation:
                 'previous_response_attempts':[{'tool_call_id':a['tool_call_id'], 'assessment':a.get('parsed')} for a in previous_attempts],
                 'assessment_scope':'현재 retrieved_materials만 평가·인용하세요. 앞선 시도는 경과이며 현재 자료집합과 합쳐 역량을 입증하지 않습니다.',
                 'matching_semantics':'Lexical observations only. A query OR match does not establish all parts of the current user purpose or personal competence. '
-                                     'When an interpretation carries group_relaxation, one required AND group had no record for that person (its group shows matched=false): that experience is unverified, so the relation is at most adjacent and missing must name it. '
+                                     'When an interpretation carries group_relaxation, one or more required AND groups had no record for that person (each such group shows matched=false; matched_group_count of required_group_count matched): every unmatched experience is unverified, so the relation is at most adjacent and missing must name it. '
                                      'A query hit with match_mode rarest_term matched only the rarest term of a multi-word query (relaxed_term); all_terms_compound matched a term only because it contains a record word (relaxed_terms). Both are weaker than exact_phrase or all_terms: confirm the actual record wording before rating direct.',
                 'empty_message':result.get('empty_message', ''),
                 'execution':'read_only_completed', 'proposal_or_contact_executed':False,
