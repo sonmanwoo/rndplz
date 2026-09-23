@@ -545,6 +545,7 @@ def plan_repair_feedback(error):
     if not isinstance(error, PlanValidationError):
         raise TypeError("plan_validation_error_required")
     constraints = {
+        "preserve_request_has_changes": ("$.request_effect", {"constraint": "preserve only keeps an existing request unchanged: decision answer/clarify, scope null, brief.requested_help [] and brief.open_questions []; any new request, question or condition needs request_effect update"}),
         "search_scope_missing": ("$.scope", {"constraint": "lookup needs interpretations OR exposed record_ids OR explicit names-only"}),
         "person_name_missing": ("$.scope", {"constraint": "use research expressions, optional user-referenced names, or ask for genuinely missing information; never fabricate a name"}),
         "stop_with_active_lookup_scope": ("$.scope", {"type": "null"}),
@@ -684,11 +685,29 @@ def _parse_active_plan(raw):
     return _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_ATTACHMENT_ACTIONS, _PLAN_BEFORE_REQUEST_EFFECT]})
 
 
-def parse_request_effect(raw):
+def _scope_is_empty(scope):
+    """A scope object whose every list is empty carries no request content.
+
+    Small local models write that shape instead of null when nothing changes.
+    """
+    return scope is None or (isinstance(scope, dict)
+                             and all(isinstance(value, list) and not value for value in scope.values()))
+
+
+def parse_request_effect(raw, *, preserve_available=True):
+    """Return 'preserve' or 'update'.
+
+    With preserve_available=False there is no accepted request to keep, so a
+    plan that says preserve (typical for a greeting on a first turn) is read as
+    an update whose own scope and brief describe the request. The preserve
+    invariant is only enforced when an existing request could be preserved.
+    """
     external = _parse_active_plan(raw)
     effect = external.get("request_effect", "update")
+    if effect == "preserve" and not preserve_available:
+        return "update"
     if effect == "preserve" and (external["decision"] not in ("answer", "clarify")
-            or external["scope"] is not None or any(external["brief"].values())):
+            or not _scope_is_empty(external["scope"]) or any(external["brief"].values())):
         raise PlanValidationError("preserve_request_has_changes", field="$.request_effect")
     return effect
 
