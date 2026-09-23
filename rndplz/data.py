@@ -171,17 +171,25 @@ class Corpus:
             if len({person.id for person in participants}) != len(participants):
                 self.errors.append("프로젝트 참여자 중복: " + raw["id"])
                 continue
+            # Optional user-provided outcome and per-person roles; absent values stay "미기재".
+            outcome = raw.get("outcome") if isinstance(raw.get("outcome"), str) and raw.get("outcome", "").strip() else ""
+            roles = {pid: role for pid, role in (raw.get("roles") or {}).items()
+                     if isinstance(pid, str) and isinstance(role, str) and role.strip()}
             details = {"text_kind": "user_provided_project_participation", "abstract_available": False,
-                       "source_label": raw["source_label"], "team_membership_basis": raw.get("team_membership_basis")}
+                       "source_label": raw["source_label"], "team_membership_basis": raw.get("team_membership_basis"),
+                       **({"outcome": outcome} if outcome else {}), **({"roles": roles} if roles else {})}
             self.add(self.records, Record(raw["id"], "project_record", raw["title"], raw["summary"], raw["date"],
-                [Contribution(person.id, person.name, "participant_unspecified") for person in participants],
+                [Contribution(person.id, person.name, "recorded_role" if person.id in roles else "participant_unspecified")
+                 for person in participants],
                 [], "project_participation", "user_provided_project", "user_provided_project_participation",
                 raw["id"], "", raw["checked_at"], "project_participation", [raw["source_label"]], details=details))
             for person in participants:
                 # One participant definition supplies both profile and map history.
+                role_text = ("역할: " + roles[person.id] + " (사용자 제공)") if person.id in roles else "참여 · 역할 미기재"
+                outcome_text = ("성과: " + outcome) if outcome else "성과·수상 미기재"
                 person.profile = {**person.profile, "projects": [*person.profile.get("projects", []),
                     {"id": raw["id"], "date": raw["date"], "title": raw["title"],
-                     "text": "참여 · 역할 미기재. " + raw["source_label"] + "; 성과·수상·정확한 일정·주최 미기재."}]}
+                     "text": role_text + ". " + raw["source_label"] + "; " + outcome_text + "; 주최 세부 미기재."}]}
             self.checked_at = max(self.checked_at, raw["checked_at"])
         questions = self.read("questions.json")["questions"]
         # Runtime receives user-visible prompts only. Evaluation labels and stage notes stay out.
