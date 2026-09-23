@@ -407,20 +407,49 @@ class PublicEvidenceSearch:
                 eligible.intersection_update(group)
             if names:
                 eligible.intersection_update(named)
+            relaxed = False
+            if not (eligible - excluded) and len(groups) > 1:
+                # Group relaxation: nobody matched every AND group. Admit people who
+                # match all groups but one, keeping the unmatched group visible so
+                # the assessment can rate that experience as unverified (adjacent)
+                # instead of the lookup returning nothing. Terms inside a query
+                # are never relaxed; only a whole required group is waived.
+                partial_eligible = set()
+                for skipped in range(len(groups)):
+                    partial = None
+                    for index, group in enumerate(groups):
+                        if index == skipped:
+                            continue
+                        partial = set(group) if partial is None else partial & set(group)
+                    partial_eligible |= partial or set()
+                if names:
+                    partial_eligible.intersection_update(named)
+                if partial_eligible - excluded:
+                    eligible, relaxed = partial_eligible, True
             admitted = eligible - excluded
-            summaries.append({**deepcopy(interpretation), "matched_candidate_count": len(admitted)})
+            summaries.append({**deepcopy(interpretation), "matched_candidate_count": len(admitted),
+                              "group_relaxation": relaxed})
             for pid in eligible:
                 row = per_person.setdefault(pid, {"records": {}, "interpretations": []})
                 details = []
                 for index, group in enumerate(groups):
-                    hits = sorted(group[pid].values(), key=lambda hit: (-hit["score"], hit["record_id"]))
-                    details.append({"index": index, "record_ids": [hit["record_id"] for hit in hits],
-                                    "matches": deepcopy(hits)})
+                    hits = sorted(group.get(pid, {}).values(), key=lambda hit: (-hit["score"], hit["record_id"]))
+                    detail = {"index": index, "record_ids": [hit["record_id"] for hit in hits],
+                              "matches": deepcopy(hits)}
+                    if relaxed:
+                        detail["matched"] = bool(hits)
+                    details.append(detail)
                     for hit in hits:
                         rid = hit["record_id"]
-                        row["records"][rid] = max(row["records"].get(rid, 0), hit["score"])
-                row["interpretations"].append({"index": interpretation["index"], "label": interpretation["label"],
-                                               "source": "model_interpretation", "groups": details})
+                        # A partial group match ranks below any complete match.
+                        score = hit["score"] * (0.5 if relaxed else 1.0)
+                        row["records"][rid] = max(row["records"].get(rid, 0), score)
+                summary = {"index": interpretation["index"], "label": interpretation["label"],
+                           "source": "model_interpretation", "groups": details}
+                if relaxed:
+                    summary["group_relaxation"] = True
+                    summary["unmatched_group_indexes"] = [d["index"] for d in details if not d["matched"]]
+                row["interpretations"].append(summary)
         if not interpretations and not record_ids and names:
             for pid in named:
                 # by_person is an index, not a second authority: require the same
@@ -443,6 +472,8 @@ class PublicEvidenceSearch:
             witness_ids = []
             if row["interpretations"]:
                 for group in row["interpretations"][0]["groups"]:
+                    if not group["record_ids"]:
+                        continue  # a waived group under relaxation has no witness
                     rid = group["record_ids"][0]
                     if rid not in witness_ids:
                         witness_ids.append(rid)
@@ -450,6 +481,9 @@ class PublicEvidenceSearch:
             scored = [(records[rid], row["records"][rid]) for rid in scored_ids]
             card = self._candidate(people[pid], scored, topics, original_query, row["interpretations"], records)
             card["selection_source"] = selection_source
+            if any(item.get("group_relaxation") for item in row["interpretations"]):
+                card["group_relaxation"] = True
+                card["reason"] += " 일부 검색 조건 그룹에는 이 인물의 기록이 연결되지 않아 그 경험은 미확인입니다."
             if record_ids:
                 card.update(role="선택한 등록 자료",
                             reason="모델이 현재 자료 목록에서 선택해 읽은 기록입니다. 요청 목적의 적합성이나 개인의 역량을 확인한 결과는 아닙니다.",

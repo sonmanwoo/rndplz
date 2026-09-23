@@ -1126,7 +1126,8 @@ class ModelConversation:
                                    ' 추가 조회가 유용하지 않거나 허용되지 않으면 null입니다. 이름·조건·제외는 변경할 수 없습니다.',
                 'previous_response_attempts':[{'tool_call_id':a['tool_call_id'], 'assessment':a.get('parsed')} for a in previous_attempts],
                 'assessment_scope':'현재 retrieved_materials만 평가·인용하세요. 앞선 시도는 경과이며 현재 자료집합과 합쳐 역량을 입증하지 않습니다.',
-                'matching_semantics':'Lexical observations only. A query OR match does not establish all parts of the current user purpose or personal competence.',
+                'matching_semantics':'Lexical observations only. A query OR match does not establish all parts of the current user purpose or personal competence. '
+                                     'When an interpretation carries group_relaxation, one required AND group had no record for that person (its group shows matched=false): that experience is unverified, so the relation is at most adjacent and missing must name it.',
                 'empty_message':result.get('empty_message', ''),
                 'execution':'read_only_completed', 'proposal_or_contact_executed':False,
                 'execution_observation':copy.deepcopy(execution_observation)}
