@@ -91,6 +91,8 @@ class Service:
         self.corpus=self.engine.corpus
         self.store=StateStore(state_dir or ROOT/"out"/"state", env=state_env)
         self.model=model or ExternalModel(audit_path=self.store.directory/"model-events.jsonl")
+        from .mail_delivery import MailDelivery
+        self.mail=MailDelivery(state_env)
 
     def for_provider_scope(self, scope):
         if scope is None:
@@ -315,7 +317,21 @@ class Service:
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}
             return created
-        return self.store.transaction(update)
+        created=self.store.transaction(update)
+        # Optional real delivery for "sent" proposals. A replayed idempotent save
+        # returns the earlier proposals and never mails them twice; a failed
+        # delivery is recorded on the proposal, the proposal itself is kept.
+        if state_name=="sent" and self.mail.enabled:
+            deliveries={p["id"]:self.mail.send(p) for p in created if "delivery" not in p}
+            if deliveries:
+                wanted={p["id"] for p in created}
+                def annotate(state):
+                    for p in state["proposals"]:
+                        if p["id"] in deliveries:
+                            p["delivery"]=deliveries[p["id"]]
+                    return [p for p in state["proposals"] if p["id"] in wanted]
+                created=self.store.transaction(annotate)
+        return created
 
     def transition(self,pid,target):
         allowed={"draft":{"sent","cancelled"},"sent":{"accepted","declined","closed","cancelled"},"accepted":{"closed"},"declined":{"closed"},"closed":set(),"cancelled":set()}

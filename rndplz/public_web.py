@@ -488,7 +488,8 @@ class PublicApp:
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
-                 'public_profiles.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py')
+                 'public_profiles.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py',
+                 'mail_delivery.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
@@ -996,7 +997,7 @@ class PublicApp:
                     return send(200, profile.store.mole_summary())
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
-                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
+                if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, 'mail_delivery': service.mail.status(), **account_view})
                 if path == '/api/chat/models': return send(200, {**self.models.catalog(), 'public': True})
                 if path == '/api/chat/session':
                     session=chat.get(identifier)
