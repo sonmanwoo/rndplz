@@ -10,8 +10,14 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     issue = commands.add_parser('issue-invitation')
     issue.add_argument('--ttl', type=int, default=600, help='Invitation lifetime in seconds (60..3600)')
+    issue.add_argument('--person-id', default=None,
+                       help='Public corpus person this invitee represents (e.g. LOCAL-JINHO); binds the account on enrollment')
     for name in ('invitation-status', 'revoke-invitation', 'revoke-account'):
         commands.add_parser(name).add_argument('--id', required=True)
+    bind = commands.add_parser('bind-person', help='Bind (or with --person-id "" unbind) an existing account to a public person')
+    bind.add_argument('--account-id', required=True)
+    bind.add_argument('--person-id', required=True)
+    commands.add_parser('list-accounts', help='Accounts with masked emails and bound person ids')
     reverse = commands.add_parser('reverse-mole')
     reverse.add_argument('--id', required=True, help='Original grant UUID')
     reverse.add_argument('--reason', required=True, choices=('incorrect_award',))
@@ -23,7 +29,11 @@ def main(argv=None):
             if not service.enrollment_enabled:
                 raise AuthError('enrollment_not_enabled', 403)
             # The sole disclosure of the raw invitation; no file/log/retrieval endpoint.
-            result = service.storage.issue_invitation(args.ttl)
+            result = service.storage.issue_invitation(args.ttl, person_id=args.person_id)
+        elif args.command == 'bind-person':
+            result = service.storage.bind_person(args.account_id, args.person_id or None)
+        elif args.command == 'list-accounts':
+            result = service.storage.list_accounts()
         elif args.command == 'invitation-status':
             result = service.storage.invitation_status(args.id)
         elif args.command == 'revoke-invitation':

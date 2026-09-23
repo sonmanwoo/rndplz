@@ -46,20 +46,30 @@ class MailDelivery:
         self.password = env.get("RNDPLZ_MAIL_PASSWORD") or ""
         self.sender = _address(env.get("RNDPLZ_MAIL_FROM") or self.username)
         self.copy_to = _address(env.get("RNDPLZ_MAIL_COPY_TO") or "")
+        # Recipients: the verified Google email of the account bound to the person
+        # (members enroll themselves), then an optional operator file as fallback.
+        self.account_db_path = (env.get("RNDPLZ_ACCOUNT_DB_PATH") or "").strip()
         self.recipients_path = (env.get("RNDPLZ_MAIL_RECIPIENTS_FILE") or "").strip()
         self.subject_prefix = (env.get("RNDPLZ_MAIL_SUBJECT_PREFIX") or "[수소문]").strip()
         self.service_url = (env.get("RNDPLZ_PUBLIC_ORIGIN") or "").strip()
         self._transport = transport or self._smtp_send
         self._clock = clock or time.time
-        self.enabled = bool(self.username and self.password and self.sender and self.recipients_path
+        self.enabled = bool(self.username and self.password and self.sender
+                            and (self.account_db_path or self.recipients_path)
                             and self.host and 0 < self.port < 65536)
 
     def status(self):
         """Browser-safe summary: no addresses, no credentials."""
         return {"enabled": self.enabled,
+                "account_directory": bool(self.account_db_path and Path(self.account_db_path).is_file()),
                 "recipients_file_present": bool(self.recipients_path and Path(self.recipients_path).is_file())}
 
     def address_for(self, person_id):
+        if self.account_db_path:
+            from .account_storage import email_for_person
+            found = _address(email_for_person(self.account_db_path, person_id))
+            if found:
+                return found
         if not self.recipients_path:
             return ""
         try:

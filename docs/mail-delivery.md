@@ -6,7 +6,8 @@
 |---|---|
 | `RNDPLZ_MAIL_USERNAME` | 보내는 계정(Gmail 주소). `RNDPLZ_MAIL_FROM`이 없으면 발신 주소로도 사용 |
 | `RNDPLZ_MAIL_PASSWORD` | Gmail **앱 비밀번호**(2단계 인증 계정에서 발급). 일반 비밀번호는 동작하지 않음 |
-| `RNDPLZ_MAIL_RECIPIENTS_FILE` | 저장소 밖 JSON 파일 경로. `{"LOCAL-XXXX": "name@example.com", ...}` 형태로 person id → 주소 |
+| `RNDPLZ_ACCOUNT_DB_PATH` | 계정 DB(구글 로그인)가 있으면 **가입한 본인 계정의 검증된 Google 이메일**을 수신 주소로 씁니다. 초대 발급 시 `--person-id LOCAL-XXXX`로 인물을 지정하면 가입 계정에 묶입니다 |
+| `RNDPLZ_MAIL_RECIPIENTS_FILE` | 선택. 계정이 없는 인물을 위한 수동 지정 파일 `{"LOCAL-XXXX": "name@example.com"}` (계정 이메일이 우선) |
 | `RNDPLZ_MAIL_SMTP_HOST` / `RNDPLZ_MAIL_SMTP_PORT` | 기본 `smtp.gmail.com` / `587` (STARTTLS) |
 | `RNDPLZ_MAIL_COPY_TO` | 선택. 보낸 사람 사본(Cc) 주소 |
 | `RNDPLZ_MAIL_SUBJECT_PREFIX` | 선택. 기본 `[수소문]` |
