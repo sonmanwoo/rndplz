@@ -50,7 +50,8 @@ class MailDeliveryUnitTests(unittest.TestCase):
         partial = env_for(self.tmp.name)
         partial.pop('RNDPLZ_MAIL_PASSWORD')
         self.assertFalse(MailDelivery(partial).enabled)
-        self.assertEqual(MailDelivery(env_for(self.tmp.name)).status(), {'enabled': True, 'recipients_file_present': True})
+        self.assertEqual(MailDelivery(env_for(self.tmp.name)).status(),
+                         {'enabled': True, 'account_directory': False, 'recipients_file_present': True})
 
     def test_sends_to_the_registered_address_with_copy_and_footer(self):
         transport = FakeTransport()

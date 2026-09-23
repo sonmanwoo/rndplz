@@ -34,8 +34,10 @@ DB와 첨부 경로를 허용 루트 안에 두고 `/tmp` 같은 임시 경로�
 운영자는 이 서비스의 서버 환경과 같은 계정 DB를 사용하는 비공개 터미널에서 다음 명령을 실행합니다. 기본 유효시간은 600초이며 `--ttl`은 60~3600초 범위입니다.
 
 ```text
-python -m rndplz.account_admin issue-invitation --ttl 600
+python -m rndplz.account_admin issue-invitation --ttl 600 --person-id LOCAL-JINHO
 ```
+
+`--person-id`는 초대받는 팀원이 공개 명단의 어느 인물인지(예: `LOCAL-JINHO`)를 지정하며, 가입이 끝나면 그 계정에 인물이 묶여 제안 메일 수신 주소로 계정 이메일을 씁니다. 한 인물은 한 계정에만 묶이며 `bind-person --account-id <id> --person-id <person>`으로 나중에 바꾸거나 `list-accounts`로 확인할 수 있습니다.
 
 발급 결과 JSON의 원문 초대 토큰은 stdout으로 한 번만 반환됩니다. DB에는 해시만 저장됩니다. 터미널 출력의 수집·녹화·파일 리디렉션을 사용하지 말고, 운영자가 해당 팀원에게 개별 전달합니다. 토큰을 보고서·로그·Git·공유 화면에 남기거나 URL에 넣지 않습니다. 초대 관리용 ID와 비밀 토큰을 구분합니다.
 

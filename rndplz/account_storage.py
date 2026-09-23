@@ -41,9 +41,54 @@ def digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
+PERSON_ID = re.compile(r'[A-Z0-9][A-Z0-9-]{0,63}')
+
+
+def person_id_value(value):
+    """A public corpus person id such as LOCAL-JINHO, or None when absent."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not PERSON_ID.fullmatch(value):
+        raise AuthError('person_id_invalid', 400)
+    return value
+
+
 def account_view(row):
+    keys = row.keys()
     return {'id': row['id'], 'verified': True, 'storage_lifetime': 'account_database',
-            'display_name': row['display_name'], 'email': row['email']}
+            'display_name': row['display_name'], 'email': row['email'],
+            'person_id': row['person_id'] if 'person_id' in keys else None}
+
+
+def email_for_person(db_path, person_id):
+    """Verified Google email of the account bound to a public person; '' when none.
+
+    Read-only lookup for outgoing mail. Explicitly revoked subjects are skipped.
+    """
+    try:
+        person_id = person_id_value(person_id)
+    except AuthError:
+        return ''
+    path = Path(db_path) if db_path else None
+    if not person_id or path is None or not path.is_file():
+        return ''
+    try:
+        db = sqlite3.connect('file:' + path.as_posix() + '?mode=ro', uri=True, timeout=5)
+    except sqlite3.Error:
+        return ''
+    try:
+        db.row_factory = sqlite3.Row
+        columns = {row['name'] for row in db.execute('PRAGMA table_info(accounts)')}
+        if 'person_id' not in columns:
+            return ''
+        row = db.execute('SELECT a.email FROM accounts a LEFT JOIN subject_approvals s USING(google_sub) '
+                         'WHERE a.person_id=? AND COALESCE(s.revoked,0)=0 AND a.email<>\'\' '
+                         'ORDER BY a.created DESC LIMIT 1', (person_id,)).fetchone()
+        return row['email'] if row is not None else ''
+    except sqlite3.Error:
+        return ''
+    finally:
+        db.close()
 
 
 class AccountStorage:
@@ -98,6 +143,14 @@ class AccountStorage:
                     BEGIN SELECT RAISE(ABORT,'mole_ledger_append_only'); END;
             ''')
 
+            # Optional binding of an invitation/account to one public corpus person.
+            for table in ('invitations', 'accounts'):
+                columns = {row['name'] for row in db.execute('PRAGMA table_info(' + table + ')')}
+                if 'person_id' not in columns:
+                    db.execute('ALTER TABLE ' + table + ' ADD COLUMN person_id TEXT')
+            db.execute('CREATE UNIQUE INDEX IF NOT EXISTS accounts_person_once '
+                       'ON accounts(person_id) WHERE person_id IS NOT NULL')
+
     @contextmanager
     def connection(self):
         db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
@@ -127,16 +180,47 @@ class AccountStorage:
         if sub not in self.allowed_subs and not (row is not None and row['approved']):
             raise AuthError('team_member_not_allowed', 403)
 
-    def issue_invitation(self, ttl_seconds=600):
+    def issue_invitation(self, ttl_seconds=600, person_id=None):
         # Trusted local administrator only; HTTP must never expose this method.
         if type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 3600:
             raise AuthError('invitation_ttl_invalid', 400)
+        person_id = person_id_value(person_id)
         invitation, iid = secrets.token_urlsafe(32), uuid.uuid4().hex
         expires = int(self.clock()) + ttl_seconds
         with self.transaction() as db:
-            db.execute('INSERT INTO invitations(id,token_hash,expires) VALUES(?,?,?)',
-                       (iid, digest(invitation), expires))
-        return {'invitation_id': iid, 'invitation': invitation, 'expires_at': expires}
+            if person_id is not None and db.execute(
+                    'SELECT 1 FROM accounts WHERE person_id=?', (person_id,)).fetchone() is not None:
+                raise AuthError('person_already_bound', 409)
+            db.execute('INSERT INTO invitations(id,token_hash,expires,person_id) VALUES(?,?,?,?)',
+                       (iid, digest(invitation), expires, person_id))
+        return {'invitation_id': iid, 'invitation': invitation, 'expires_at': expires, 'person_id': person_id}
+
+    def bind_person(self, account_id, person_id):
+        """Administrator binding of an existing account to one public person (None unbinds)."""
+        if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
+            raise AuthError('account_id_invalid', 400)
+        person_id = person_id_value(person_id)
+        with self.transaction() as db:
+            if db.execute('SELECT 1 FROM accounts WHERE id=?', (account_id,)).fetchone() is None:
+                raise AuthError('account_not_found', 404)
+            if person_id is not None and db.execute(
+                    'SELECT 1 FROM accounts WHERE person_id=? AND id<>?', (person_id, account_id)).fetchone() is not None:
+                raise AuthError('person_already_bound', 409)
+            db.execute('UPDATE accounts SET person_id=? WHERE id=?', (person_id, account_id))
+        return {'account_id': account_id, 'person_id': person_id}
+
+    def list_accounts(self):
+        """Administrator listing with masked emails; never returns subs or sessions."""
+        with self.connection() as db:
+            rows = db.execute('SELECT a.id, a.display_name, a.email, a.person_id, a.created, '
+                              'COALESCE(s.revoked,0) AS revoked FROM accounts a '
+                              'LEFT JOIN subject_approvals s USING(google_sub) ORDER BY a.created').fetchall()
+        def masked(email):
+            local, _, domain = email.partition('@')
+            return (local[:1] + '***@' + domain) if domain else ''
+        return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': masked(row['email']),
+                 'person_id': row['person_id'], 'created': row['created'], 'revoked': bool(row['revoked'])}
+                for row in rows]
 
     def has_active_approvals(self):
         with self.connection() as db:
@@ -164,7 +248,8 @@ class AccountStorage:
             account = db.execute('SELECT id FROM accounts WHERE google_sub=?',
                                  (row['enrolled_sub'],)).fetchone() if row['consumed'] else None
             return {'invitation_id': row['id'], 'status': status, 'expires_at': row['expires'],
-                    'account_id': account['id'] if account is not None else None}
+                    'account_id': account['id'] if account is not None else None,
+                    'person_id': row['person_id']}
 
     def _invitation(self, db, token_hash, state_hash=None):
         row = db.execute('SELECT * FROM invitations WHERE token_hash=?', (token_hash,)).fetchone()
@@ -242,7 +327,7 @@ class AccountStorage:
         row = db.execute('SELECT * FROM accounts WHERE google_sub=?', (sub,)).fetchone()
         if row is None:
             aid = uuid.uuid4().hex
-            db.execute('INSERT INTO accounts VALUES(?,?,?,?,?)',
+            db.execute('INSERT INTO accounts(id,google_sub,display_name,email,created) VALUES(?,?,?,?,?)',
                        (aid, sub, display_name, email, int(self.clock())))
         else:
             aid = row['id']
@@ -257,17 +342,27 @@ class AccountStorage:
     def issue_session(self, sub, display_name, email, previous_cookie=None, *, enrollment_flow=None):
         # Called only after signed Google token/nonce/issuer/audience/time verification.
         with self.transaction() as db:
+            person_id = None
             if enrollment_flow is not None and enrollment_flow.get('invitation_hash') is not None:
                 ih, sh = enrollment_flow['invitation_hash'], enrollment_flow['state_hash']
-                self._invitation(db, ih, sh)
+                invitation = self._invitation(db, ih, sh)
                 revoked = db.execute('SELECT revoked FROM subject_approvals WHERE google_sub=?', (sub,)).fetchone()
                 if revoked is not None and revoked['revoked']:
                     raise AuthError('account_revoked', 401)
+                person_id = invitation['person_id']
+                if person_id is not None and db.execute(
+                        'SELECT 1 FROM accounts WHERE person_id=? AND google_sub<>?', (person_id, sub)).fetchone() is not None:
+                    raise AuthError('person_already_bound', 409)
                 db.execute('UPDATE invitations SET consumed=1,enrolled_sub=? WHERE token_hash=?', (sub, ih))
                 db.execute('INSERT INTO subject_approvals(google_sub,approved,approved_at) VALUES(?,1,?) '
                            'ON CONFLICT(google_sub) DO UPDATE SET approved=1,approved_at=excluded.approved_at',
                            (sub, int(self.clock())))
-            return self._issue_session(db, sub, display_name, email, previous_cookie)
+            issued = self._issue_session(db, sub, display_name, email, previous_cookie)
+            if person_id is not None:
+                # The invitation named the public person this account represents.
+                db.execute('UPDATE accounts SET person_id=? WHERE google_sub=?', (person_id, sub))
+                issued['account']['person_id'] = person_id
+            return issued
 
     def principal(self, db, cookie, account_id=None):
         row = db.execute('''SELECT accounts.*,sessions.csrf FROM sessions JOIN accounts

@@ -578,7 +578,7 @@ class PublicApp:
 
     @staticmethod
     def _public_account(account):
-        return {key: account[key] for key in ('id', 'display_name', 'email')}
+        return {key: account[key] for key in ('id', 'display_name', 'email')} | {'person_id': account.get('person_id')}
 
     def _account_status(self, context, environ):
         account = context.get('account')
