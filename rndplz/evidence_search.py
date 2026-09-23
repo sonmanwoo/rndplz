@@ -76,6 +76,27 @@ def _contains(haystack, query):
     return re.search(pattern, _normalized(haystack)) is not None
 
 
+_HANGUL_WORD = re.compile(r"[가-힣]{2,}")
+
+
+def _compound_fields(values, term):
+    """Korean compound noun: the query term contains a whole Hangul word of the record.
+
+    "진공증류" or "증류탑" carries the record word "증류". Only a Hangul-only term of
+    three or more syllables qualifies, the record word must be at least two
+    syllables and at least half of the term, and the term itself must not match.
+    """
+    if not re.fullmatch(r"[가-힣]{3,}", term):
+        return []
+    fields = []
+    for field, value in values:
+        for word in set(_HANGUL_WORD.findall(_normalized(value))):
+            if len(word) < len(term) and len(word) * 2 >= len(term) and word in term:
+                fields.append(field)
+                break
+    return fields
+
+
 def _query_hit(record, query):
     values = (("title", record.title or ""), ("text", record.text or ""))
     # Unicode whitespace delimits terms. Keep punctuation, particles and every
@@ -84,9 +105,17 @@ def _query_hit(record, query):
     if not terms:
         return None
     phrase_fields = [field for field, value in values if _contains(value, query)]
-    term_fields = [{"term": term, "fields": [field for field, value in values
-                                             if _contains(value, term)]}
-                   for term in terms]
+    term_fields = []
+    compound_terms = []
+    for term in terms:
+        fields = [field for field, value in values if _contains(value, term)]
+        row = {"term": term, "fields": fields}
+        if not fields:
+            fields = _compound_fields(values, term)
+            if fields:
+                row.update(fields=fields, compound=True)
+                compound_terms.append(term)
+        term_fields.append(row)
     if phrase_fields:
         return {"query": query, "fields": phrase_fields, "match_mode": "exact_phrase",
                 "terms": terms, "term_fields": term_fields}
@@ -94,8 +123,41 @@ def _query_hit(record, query):
         return None
     fields = [field for field, _ in values
               if any(field in hit["fields"] for hit in term_fields)]
-    return {"query": query, "fields": fields, "match_mode": "all_terms",
-            "terms": terms, "term_fields": term_fields}
+    hit = {"query": query, "fields": fields, "match_mode": "all_terms",
+           "terms": terms, "term_fields": term_fields}
+    if compound_terms:
+        # Weaker than all_terms: part of a term matched only as a compound noun.
+        hit.update(match_mode="all_terms_compound", relaxed_terms=compound_terms)
+    return hit
+
+
+def _rarest_term_hits(query, records):
+    """Fallback for a multi-term query that matches no record at all.
+
+    Retry with the single term that appears in the fewest records (ties go to
+    the longer term), so a generic modifier such as "기술" in "증류 기술" cannot
+    hide the specific technique. Hits are marked rarest_term and rank low; the
+    assessment stage still judges relevance.
+    """
+    values = lambda record: (("title", record.title or ""), ("text", record.text or ""))
+    terms = [term for term in _normalized(query).split() if len(term) >= 2]
+    if len(terms) < 2:
+        return []
+    counts = {term: sum(1 for record in records.values()
+                        if any(_contains(value, term) for _, value in values(record)))
+              for term in terms}
+    present = [term for term in terms if counts[term] > 0]
+    if not present:
+        return []
+    term = min(present, key=lambda candidate: (counts[candidate], -len(candidate), terms.index(candidate)))
+    hits = []
+    for record in records.values():
+        fields = [field for field, value in values(record) if _contains(value, term)]
+        if fields:
+            hits.append((record.id, {"query": query, "fields": fields, "match_mode": "rarest_term",
+                                     "terms": terms, "relaxed_term": term,
+                                     "term_fields": [{"term": term, "fields": fields}]}))
+    return hits
 
 
 class PublicEvidenceSearch:
@@ -298,13 +360,21 @@ class PublicEvidenceSearch:
         ranked = {record.id: score for record, score in
                   self.engine.record_scores(query_text, topics, field, "advice")} if topics else {}
         matches = {}
-        for record in records.values():
-            tids = [tid for tid in group["topic_ids"] if tid in record.tags]
-            query_hits = []
-            for query in group["queries"]:
+        hits_by_record = {rid: [] for rid in records}
+        for query in group["queries"]:
+            matched_any = False
+            for record in records.values():
                 hit = _query_hit(record, query)
                 if hit:
-                    query_hits.append(hit)
+                    hits_by_record[record.id].append(hit)
+                    matched_any = True
+            if not matched_any:
+                # No record carries every term: fall back to the rarest term once.
+                for rid, hit in _rarest_term_hits(query, records):
+                    hits_by_record[rid].append(hit)
+        for record in records.values():
+            tids = [tid for tid in group["topic_ids"] if tid in record.tags]
+            query_hits = hits_by_record[record.id]
             if not tids and not query_hits:
                 continue
             # Engine scoring is optional ranking, never a gate for tagless text.
@@ -484,6 +554,12 @@ class PublicEvidenceSearch:
             if any(item.get("group_relaxation") for item in row["interpretations"]):
                 card["group_relaxation"] = True
                 card["reason"] += " 일부 검색 조건 그룹에는 이 인물의 기록이 연결되지 않아 그 경험은 미확인입니다."
+            relaxed_modes = sorted({hit["match_mode"] for item in row["interpretations"] for group in item["groups"]
+                                    for match in group["matches"] for hit in match["queries"]
+                                    if hit["match_mode"] in ("rarest_term", "all_terms_compound")})
+            if relaxed_modes:
+                card["query_relaxation"] = relaxed_modes
+                card["reason"] += " 일부 검색어는 어절 일부 또는 복합명사 안의 단어로만 연결되어 정확한 표현 일치는 아닙니다."
             if record_ids:
                 card.update(role="선택한 등록 자료",
                             reason="모델이 현재 자료 목록에서 선택해 읽은 기록입니다. 요청 목적의 적합성이나 개인의 역량을 확인한 결과는 아닙니다.",

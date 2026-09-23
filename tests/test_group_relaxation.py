@@ -76,9 +76,11 @@ class GroupRelaxationTests(unittest.TestCase):
         self.assertTrue(result["interpretations"][0]["group_relaxation"])
         self.assertEqual(result["lookup_resolution"], "matched")
 
-    def test_terms_inside_a_query_are_not_relaxed(self):
-        # Every whitespace-separated term still has to match one record.
-        result = self.run_search(["증류 잔존 미세"])
+    def test_query_with_no_term_present_anywhere_returns_nothing(self):
+        # Group relaxation never invents a match: a query whose terms appear in
+        # no record at all still yields no candidate (see test_query_relaxation
+        # for the separate rarest-term fallback when some term is present).
+        result = self.run_search(["용매 정제 미세"])
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["lookup_resolution"], "no_linked_evidence")
 
