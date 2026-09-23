@@ -478,27 +478,27 @@ class PublicEvidenceSearch:
             if names:
                 eligible.intersection_update(named)
             relaxed = False
+            best_matched = len(groups)
             if not (eligible - excluded) and len(groups) > 1:
-                # Group relaxation: nobody matched every AND group. Admit people who
-                # match all groups but one, keeping the unmatched group visible so
-                # the assessment can rate that experience as unverified (adjacent)
-                # instead of the lookup returning nothing. Terms inside a query
-                # are never relaxed; only a whole required group is waived.
-                partial_eligible = set()
-                for skipped in range(len(groups)):
-                    partial = None
-                    for index, group in enumerate(groups):
-                        if index == skipped:
-                            continue
-                        partial = set(group) if partial is None else partial & set(group)
-                    partial_eligible |= partial or set()
-                if names:
-                    partial_eligible.intersection_update(named)
-                if partial_eligible - excluded:
-                    eligible, relaxed = partial_eligible, True
+                # Group relaxation: nobody matched every AND group. Admit the people
+                # who match the most groups (at least one), keeping every unmatched
+                # group visible so the assessment can rate the missing experience as
+                # unverified instead of the lookup returning nothing. Terms inside a
+                # query are never relaxed here; only whole required groups are waived.
+                counts = {}
+                for group in groups:
+                    for pid in group:
+                        if pid not in excluded and (not names or pid in named):
+                            counts[pid] = counts.get(pid, 0) + 1
+                if counts:
+                    best_matched = max(counts.values())
+                    eligible = {pid for pid, count in counts.items() if count == best_matched}
+                    relaxed = True
             admitted = eligible - excluded
             summaries.append({**deepcopy(interpretation), "matched_candidate_count": len(admitted),
-                              "group_relaxation": relaxed})
+                              "group_relaxation": relaxed,
+                              **({"matched_group_count": best_matched, "required_group_count": len(groups)}
+                                 if relaxed else {})})
             for pid in eligible:
                 row = per_person.setdefault(pid, {"records": {}, "interpretations": []})
                 details = []
@@ -511,13 +511,16 @@ class PublicEvidenceSearch:
                     details.append(detail)
                     for hit in hits:
                         rid = hit["record_id"]
-                        # A partial group match ranks below any complete match.
-                        score = hit["score"] * (0.5 if relaxed else 1.0)
+                        # A partial group match ranks below any complete match, and
+                        # more matched groups rank above fewer.
+                        score = hit["score"] * (best_matched / len(groups) if relaxed else 1.0)
                         row["records"][rid] = max(row["records"].get(rid, 0), score)
                 summary = {"index": interpretation["index"], "label": interpretation["label"],
                            "source": "model_interpretation", "groups": details}
                 if relaxed:
                     summary["group_relaxation"] = True
+                    summary["matched_group_count"] = best_matched
+                    summary["required_group_count"] = len(groups)
                     summary["unmatched_group_indexes"] = [d["index"] for d in details if not d["matched"]]
                 row["interpretations"].append(summary)
         if not interpretations and not record_ids and names:
