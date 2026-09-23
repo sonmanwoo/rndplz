@@ -1167,11 +1167,19 @@ class ModelConversation:
                         role='요청 관련 기록' if row['relation']=='direct' else '인접 분야 기록',
                         purpose_relation=row['relation'], purpose_missing=row['missing'],
                         purpose_assessment_source='model', assessment_evidence=copy.deepcopy(row['evidence']))
-            # The model's relevance assessment never grants an additional right.
+            # A person the model assessed as direct or adjacent, with cited current
+            # records, may receive a proposal from this request. The recipient and
+            # evidence boundary (historical persons, out-of-pool records) is still
+            # enforced by proposal_boundary when the draft is rendered and saved.
+            if card['evidence']:
+                card.update(lookup_only=False, proposal_allowed=True, proposal_unavailable_reason='',
+                            proposal_basis='model_assessment')
             cards.append(card)
         ids = {e['id'] for c in cards for e in c['evidence']}
+        proposable = any(c.get('proposal_allowed') and not c.get('lookup_only') for c in cards)
         value.update(candidates=cards, matching_record_ids=sorted(ids), record_count=len(ids),
                      evidence=[e for e in value.get('evidence', []) if e['id'] in ids],
+                     lookup_only=not proposable, proposal_allowed=proposable, can_propose=proposable,
                      matched_candidate_count=len(cards),
                      direct_candidate_count=sum(c['purpose_relation']=='direct' for c in cards),
                      adjacent_candidate_count=sum(c['purpose_relation']=='adjacent' for c in cards),
