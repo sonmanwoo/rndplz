@@ -90,7 +90,7 @@ _INTERNAL_PLAN_SCHEMA = _object({
         "groups": _array(_object({
             "topic_ids": _array(_text(100, minimum=1), 5),
             "queries": {**_array(_text(200, minimum=1), 5),
-                        "description": "Alternatives for ONE concept. ALL whitespace-separated terms must match the SAME record title/body; exact phrases rank higher. No term is dropped. Use short record concepts, not a request/person description. AND groups may use different records."},
+                        "description": "Alternatives for ONE short record concept, each 1-2 words (good: [\"증류\", \"distillation\"], [\"모델 예측 제어\", \"MPC\"]). ALL whitespace-separated terms must appear in the SAME record title/body, so never copy a request sentence or chain several concepts into one query (bad: \"TCB 솔벤트 증류 기술 잔존물 제거\"); put each required experience in its own AND group instead. Exact phrases rank higher. No term is dropped. Not a request/person/material description. AND groups may use different records."},
         }), 3, minimum=1),
     }), 3),
     "person_names": {**_array(_text(160, minimum=1), 5),
@@ -296,6 +296,8 @@ PLAN_SYSTEM = _STYLE + (
     "conditions에는 목적·검색 주제와 구별되는 명시적 필수/선호 조건만 담으세요. source_quote 안에서 사용자가 필수 또는 선호로 정한 표현을 strength_quote로 그대로 인용하세요. 그런 강도를 말하지 않았다면 conditions=[]로 두고 purposes에 강도를 붙이지 마세요. 필수가 아니라는 말은 제외 조건이 아닙니다. "
     "실제 조회에는 interpretations의 자연어 조회식, 실제 노출된 record_ids 읽기, 또는 특정 person_names 연결 조회를 사용합니다. interpretations와 record_ids는 동시에 쓰지 마세요. "
     "interpretations는 의미별 OR, groups는 필요한 경험들의 AND, queries는 한 개념의 표기별 OR입니다. 각 query의 모든 공백 구분 어절이 한 기록에 있어야 하므로 짧은 연구 개념을 쓰고 사람·요청 설명을 검색어에 붙이지 마세요. "
+    "queries의 각 항목은 1~2어절 핵심 기술어입니다. 좋은 예: [\"증류\", \"distillation\"], [\"모델 예측 제어\", \"MPC\"]. 나쁜 예: \"TCB 솔벤트 증류 기술 잔존물 제거\"처럼 사용자 문장이나 대상 물질·문제 설명을 통째로 옮긴 검색어. "
+    "기록은 짧은 경력 한 줄일 수 있으므로 검색어가 길수록 아무 기록도 맞지 않습니다. 필요한 경험이 여럿이면 하나의 긴 query가 아니라 groups로 나누고, 물질명·문제 상황은 query가 아니라 purposes와 summary에 두세요. "
     "제공된 활성 topic ID가 없으면 topic_ids=[], 노출된 record ID가 없으면 record_ids=[]입니다. person_names는 사용자 발화 또는 검증된 이전 공개 자료에 있는 실제 이름만 쓰고, 없으면 []로 두세요. 미정인 항목을 채우려고 이름·조회식·문자열 대체값을 만들지 마세요. "
     "decision·scope·brief·summary를 정한 뒤 reply에는 현재 질문에 답할 방향을 짧게 적으세요. 한 발화의 요청 수정과 설명·판단 요청을 모두 반영하되 실행 전 초안을 최종 결과처럼 쓰지 마세요."
 )
