@@ -887,8 +887,40 @@ def parse_assessment(raw, *, materials):
     if not related and not assessment["empty_reply"].strip():
         raise AssessmentValidationError("assessment_empty_reply_required", field="$.empty_reply")
     _canonical_material_ids(rows, materials)
+    _merge_duplicate_person_rows(rows)
     _validate_assessment_rows(rows, people)
     return assessment
+
+
+_RELATION_STRENGTH = {"insufficient": 0, "adjacent": 1, "direct": 2}
+
+
+def _merge_duplicate_person_rows(rows):
+    """Fold repeated rows for one person into the first row, in place.
+
+    Small local models sometimes write one person as several assessment rows,
+    one per paragraph. The first row's text is kept verbatim, the weakest
+    relation wins, evidence is the ordered union by record_id (capped at the
+    schema's three citations) and the first non-empty missing note is kept.
+    Rows for different people are untouched, so a genuine coverage or unknown
+    person error still surfaces in validation.
+    """
+    merged = {}
+    for row in rows:
+        first = merged.get(row["person_id"])
+        if first is None:
+            merged[row["person_id"]] = row
+            continue
+        if _RELATION_STRENGTH.get(row["relation"], 0) < _RELATION_STRENGTH.get(first["relation"], 0):
+            first["relation"] = row["relation"]
+        seen = {citation["record_id"] for citation in first["evidence"]}
+        for citation in row["evidence"]:
+            if citation["record_id"] not in seen and len(first["evidence"]) < 3:
+                first["evidence"].append(citation)
+                seen.add(citation["record_id"])
+        if not first.get("missing", "").strip() and row.get("missing", "").strip():
+            first["missing"] = row["missing"]
+    rows[:] = list(merged.values())
 
 
 def _canonical_material_ids(rows, materials):
@@ -973,6 +1005,7 @@ def parse_response(raw, *, materials, base_plan, user_messages, allowed_topic_id
         raise ResponseValidationError("response_" + exc.reason, field=exc.field) from exc
     try:
         _canonical_material_ids(response["assessments"], materials)
+        _merge_duplicate_person_rows(response["assessments"])
         _validate_assessment_rows(response["assessments"], people)
     except AssessmentValidationError as exc:
         raise ResponseValidationError(exc.reason, field=exc.field) from exc
