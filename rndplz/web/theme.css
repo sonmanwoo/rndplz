@@ -46,7 +46,7 @@ html[data-theme="dark"] :is(.crafted dialog label,.crafted dialog .icon-button) 
 html[data-theme="dark"] .craft-nav { background:var(--sheet); border-color:var(--line); }
 html[data-theme="dark"] .craft-nav :is(a,button) { color:var(--muted); }
 html[data-theme="dark"] .craft-nav :is(.active,[aria-current="page"]) { color:var(--green); background:var(--sheet); }
-html[data-theme="dark"] :is(.craft-actions button,.craft-footer,.craft-footer b,.motion-control) { color:var(--muted); }
+html[data-theme="dark"] :is(.craft-actions button,.craft-actions .promo-link,.craft-footer,.craft-footer b,.motion-control) { color:var(--muted); }
 html[data-theme="dark"] .theme-controls button { color:var(--ink); }
 html[data-theme="dark"] .theme-controls button[aria-pressed="true"] { background:var(--green); color:var(--desk); }
 html[data-theme="dark"] :is(.account-toggle,.account-menu) { background:var(--sheet); color:var(--ink); border-color:var(--theme-control-edge); }
