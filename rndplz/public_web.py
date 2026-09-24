@@ -887,6 +887,8 @@ class PublicApp:
             if path not in self.images: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
             try: raw = (WEB / path.lstrip('/')).read_bytes()
             except FileNotFoundError: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
+            # Portraits are static; caching spares phones re-downloading them on every view.
+            headers[0] = ('Cache-Control', 'public, max-age=86400')
             return send(200, raw, 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg')
         if path in ('/api/worker/poll','/api/worker/result'):
             if self.env.get('APP_RUNTIME') == 'hosted_public' and not getattr(self.models, 'scoped_bridge', False):
