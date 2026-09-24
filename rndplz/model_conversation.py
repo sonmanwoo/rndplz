@@ -1571,17 +1571,19 @@ class ModelConversation:
                 attempt['provider_completed'] = True
                 self._check_model_basis(sid, turn_id, basis, deadline)
                 try:
+                    # Without an accepted request that has content to keep, a plan that
+                    # says preserve (a greeting, typically) is read as an update of its
+                    # own content. Nothing is lost: lookups require has_content too.
+                    retained = self._request_continuity(self.get(sid), turn_id)
+                    preservable = retained is not None and (retained.get('request_spec') or {}).get('has_content') is True
                     plan = parse_plan(raw, user_messages=basis['source_turns'],
                                       allowed_topic_ids=basis['exposed_topic_ids'],
                                       allowed_record_ids=basis['planning_record_ids'],
-                                      expected_decision=repair_decision)
+                                      expected_decision=repair_decision, preserve_available=preservable)
                     self._check_consultation_reply(plan, basis['source_turns'], basis['historical_disclosures'])
-                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'])
+                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'], preserve_available=preservable)
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
-                    # Without an accepted request to keep, a plan that says preserve
-                    # (a greeting, typically) is read as an update of its own content.
-                    retained = self._request_continuity(self.get(sid), turn_id)
-                    request_effect = parse_request_effect(raw, preserve_available=retained is not None)
+                    request_effect = parse_request_effect(raw, preserve_available=preservable)
                     attachment_actions = parse_attachment_actions(raw)
                     if request_effect == 'preserve':
                         if retained is None:

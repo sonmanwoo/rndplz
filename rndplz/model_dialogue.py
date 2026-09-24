@@ -714,7 +714,7 @@ def parse_request_effect(raw, *, preserve_available=True):
     return effect
 
 
-def parse_request_spec(raw, *, user_messages):
+def parse_request_spec(raw, *, user_messages, preserve_available=True):
     """Project only source-checked display fields from a completed active plan.
 
     Call alongside parse_plan before adopting the same raw output. This helper
@@ -723,7 +723,7 @@ def parse_request_spec(raw, *, user_messages):
     or user confirmation of the model's summary. Empty fields stay empty.
     """
     external = _parse_active_plan(raw)
-    parse_request_effect(raw)
+    parse_request_effect(raw, preserve_available=preserve_available)
     scope = external["scope"]
     purposes = scope["purposes"] if scope is not None else []
     conditions = scope["conditions"] if scope is not None else []
@@ -748,7 +748,7 @@ def parse_request_spec(raw, *, user_messages):
 
 
 def parse_plan(raw, *, user_messages, allowed_topic_ids, allowed_record_ids=(),
-               expected_decision=None):
+               expected_decision=None, preserve_available=True):
     """Normalize a v2 decision into eight internal fields, including record IDs.
 
     Sources are stored user text/input_text and actually loaded source_texts.
@@ -768,7 +768,7 @@ def parse_plan(raw, *, user_messages, allowed_topic_ids, allowed_record_ids=(),
         if repaired_decision is not None and repaired_decision != expected_decision:
             raise PlanValidationError("repair_decision_changed", field="$.decision")
     external = _parse_active_plan(raw)
-    parse_request_effect(raw)
+    parse_request_effect(raw, preserve_available=preserve_available)
     decision, scope = external["decision"], external["scope"]
     if expected_decision is not None and decision != expected_decision:
         raise PlanValidationError("repair_decision_changed", field="$.decision")
