@@ -7,7 +7,7 @@ import time
 import uuid
 from dataclasses import asdict
 
-from .chat_models import validate_generation_input, ModelProviderCapacity
+from .chat_models import validate_generation_input, ModelProviderCapacity, PLAN_REPAIR_HEADER
 from .gemini_native import GeminiError
 from .llm_runtime import RuntimeChatModels, RuntimeConfigError, runtime_error_retryable
 from .responses_stream import LLMError
@@ -904,7 +904,7 @@ class ModelConversation:
                     'rejected_output':raw,
                     'required_decision':plan_repair_decision(raw),
                     'expected_output':plan_repair_feedback(error)}
-        correction = {'role':'user', 'content':'[서버의 계획 검증 결과 · 데이터]\n' +
+        correction = {'role':'user', 'content':PLAN_REPAIR_HEADER + '\n' +
              json.dumps(feedback, ensure_ascii=False) + '\n[검증 결과 끝]\n' +
              '위 오류를 바로잡은 완전한 계획을 한 번 작성하세요. 같은 사용자의 원래 요청과 원자료를 유지하세요. '
              '거절된 출력은 표시된 이전 답변도 새 사용자 요청도 아닙니다. required_decision이 있으면 그대로 유지하세요. '

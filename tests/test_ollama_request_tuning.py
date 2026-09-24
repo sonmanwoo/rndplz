@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from rndplz import chat_models
-from rndplz.chat_models import OLLAMA_KEEP_ALIVE, OLLAMA_NO_THINK_CONTRACTS, ChatModels
+from rndplz.chat_models import OLLAMA_KEEP_ALIVE, OLLAMA_NO_THINK_CONTRACTS, PLAN_REPAIR_HEADER, ChatModels
 
 
 class Captured(Exception):
@@ -21,7 +21,7 @@ class CapturingOpener:
 
 
 class OllamaRequestTuningTests(unittest.TestCase):
-    def payload(self, contract):
+    def payload(self, contract, messages=None):
         models = ChatModels({})
         models.local = [{'id': 'ollama:gemma4:e4b', 'name': 'gemma4:e4b', 'provider': 'ollama',
                          'enabled': True, 'local': True, 'vision': False}]
@@ -29,7 +29,7 @@ class OllamaRequestTuningTests(unittest.TestCase):
         sink = []
         with patch.object(chat_models.urllib.request, 'build_opener', return_value=CapturingOpener(sink)):
             with self.assertRaises(Exception):
-                list(models.stream('ollama:gemma4:e4b', [{'role': 'user', 'content': '안녕하세요'}], contract=contract))
+                list(models.stream('ollama:gemma4:e4b', messages or [{'role': 'user', 'content': '안녕하세요'}], contract=contract))
         self.assertEqual(len(sink), 1)
         return sink[0]
 
@@ -41,6 +41,11 @@ class OllamaRequestTuningTests(unittest.TestCase):
 
     def test_assessment_response_keeps_model_default_reasoning(self):
         self.assertNotIn('think', self.payload('dialogue_response.v1'))
+
+    def test_plan_correction_keeps_model_default_reasoning(self):
+        correction = [{'role': 'user', 'content': PLAN_REPAIR_HEADER + '\n{"kind": "plan_validation_error"}'},
+                      {'role': 'user', 'content': '안녕하세요'}]
+        self.assertNotIn('think', self.payload('dialogue_plan.v2', correction))
 
     def test_plain_chat_still_disables_thinking(self):
         self.assertIs(self.payload(None)['think'], False)

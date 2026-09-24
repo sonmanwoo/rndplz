@@ -18,6 +18,13 @@ GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_r
 # the model default. keep_alive spares sparse visitors a ~5 s model reload.
 OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_plan.v2','dialogue_answer.v1'))
 OLLAMA_KEEP_ALIVE = '24h'
+# A rejected plan's single correction keeps the default reasoning: without it the
+# correction for a lookup with no search scope failed once in the evaluation.
+PLAN_REPAIR_HEADER = '[서버의 계획 검증 결과 · 데이터]'
+
+
+def _plan_repair(messages):
+    return any(row.get('role')=='user' and str(row.get('content','')).startswith(PLAN_REPAIR_HEADER) for row in messages)
 
 
 def generation_spec(name):
@@ -197,7 +204,7 @@ class ChatModels:
             payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':16384},'keep_alive':OLLAMA_KEEP_ALIVE}
             # Other dialogue contracts need semantic interpretation and keep the
             # model's default reasoning behavior instead of disabling thinking.
-            if spec is not None and contract not in OLLAMA_NO_THINK_CONTRACTS:payload.pop('think',None)
+            if spec is not None and (contract not in OLLAMA_NO_THINK_CONTRACTS or _plan_repair(messages)):payload.pop('think',None)
             if schema is not None:payload['format']=schema
         elif provider=='openai':
             url='https://api.openai.com/v1/chat/completions';headers['Authorization']='Bearer '+config['key']

@@ -34,6 +34,7 @@ class ScriptedModels:
     def __init__(self, plans):
         self.plans = plans
         self.calls = []
+        self.repair_flags = []
 
     def get(self, identifier):
         return {'id': identifier, 'name': 'Scripted', 'provider': 'fixture', 'enabled': True, 'vision': False}
@@ -44,6 +45,8 @@ class ScriptedModels:
     def stream(self, identifier, messages, *, contract=None):
         self.calls.append(contract)
         if contract == 'dialogue_plan.v2':
+            from rndplz.chat_models import _plan_repair
+            self.repair_flags.append(_plan_repair(messages))
             source = source_turns(messages)[-1]
             attempt = sum(c == 'dialogue_plan.v2' for c in self.calls)
             yield json.dumps(self.plans(source['input_text'], source['turn_id'], attempt), ensure_ascii=False)
@@ -83,6 +86,7 @@ class PreserveWithoutContentTests(unittest.TestCase):
             sid = sid or service.store.read()['sessions'][-1]['id']
             stored = next(row for row in service.store.read()['sessions'] if row['id'] == sid)
             statuses.append(next(m for m in reversed(stored['messages']) if m['role'] == 'assistant').get('status'))
+        self.repair_flags = models.repair_flags
         return statuses, models.calls, stored
 
     def test_second_greeting_preserve_with_question_completes_without_repair(self):
@@ -111,6 +115,8 @@ class PreserveWithoutContentTests(unittest.TestCase):
         self.assertEqual(statuses, ['complete', 'complete'])
         # The first preserve adds a question to a request with content: rejected, then repaired.
         self.assertEqual(calls.count('dialogue_plan.v2'), 3)
+        # Only the correction is recognised, so only it keeps the model's default reasoning.
+        self.assertEqual(self.repair_flags, [False, False, True])
         self.assertEqual(stored['request_spec']['requested_help'][0]['text'], '증류 경험')
         self.assertEqual(stored['request_spec']['open_questions'], [])
 
