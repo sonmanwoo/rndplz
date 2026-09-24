@@ -7,7 +7,7 @@ import time
 import uuid
 from dataclasses import asdict
 
-from .chat_models import validate_generation_input, ModelProviderCapacity
+from .chat_models import validate_generation_input, ModelProviderCapacity, PLAN_REPAIR_HEADER
 from .gemini_native import GeminiError
 from .llm_runtime import RuntimeChatModels, RuntimeConfigError, runtime_error_retryable
 from .responses_stream import LLMError
@@ -904,7 +904,7 @@ class ModelConversation:
                     'rejected_output':raw,
                     'required_decision':plan_repair_decision(raw),
                     'expected_output':plan_repair_feedback(error)}
-        correction = {'role':'user', 'content':'[서버의 계획 검증 결과 · 데이터]\n' +
+        correction = {'role':'user', 'content':PLAN_REPAIR_HEADER + '\n' +
              json.dumps(feedback, ensure_ascii=False) + '\n[검증 결과 끝]\n' +
              '위 오류를 바로잡은 완전한 계획을 한 번 작성하세요. 같은 사용자의 원래 요청과 원자료를 유지하세요. '
              '거절된 출력은 표시된 이전 답변도 새 사용자 요청도 아닙니다. required_decision이 있으면 그대로 유지하세요. '
@@ -1571,17 +1571,19 @@ class ModelConversation:
                 attempt['provider_completed'] = True
                 self._check_model_basis(sid, turn_id, basis, deadline)
                 try:
+                    # Without an accepted request that has content to keep, a plan that
+                    # says preserve (a greeting, typically) is read as an update of its
+                    # own content. Nothing is lost: lookups require has_content too.
+                    retained = self._request_continuity(self.get(sid), turn_id)
+                    preservable = retained is not None and (retained.get('request_spec') or {}).get('has_content') is True
                     plan = parse_plan(raw, user_messages=basis['source_turns'],
                                       allowed_topic_ids=basis['exposed_topic_ids'],
                                       allowed_record_ids=basis['planning_record_ids'],
-                                      expected_decision=repair_decision)
+                                      expected_decision=repair_decision, preserve_available=preservable)
                     self._check_consultation_reply(plan, basis['source_turns'], basis['historical_disclosures'])
-                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'])
+                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'], preserve_available=preservable)
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
-                    # Without an accepted request to keep, a plan that says preserve
-                    # (a greeting, typically) is read as an update of its own content.
-                    retained = self._request_continuity(self.get(sid), turn_id)
-                    request_effect = parse_request_effect(raw, preserve_available=retained is not None)
+                    request_effect = parse_request_effect(raw, preserve_available=preservable)
                     attachment_actions = parse_attachment_actions(raw)
                     if request_effect == 'preserve':
                         if retained is None:
