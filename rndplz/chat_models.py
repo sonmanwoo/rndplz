@@ -13,6 +13,11 @@ from .diagnostics import event as diagnostic_event
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
 GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
                              'dialogue_plan.v2','dialogue_response.v1')
+# Ollama request tuning measured on gemma4:e4b (2026-09-24). Hidden reasoning was
+# 60-80% of generated text, so these contracts run with think=false; the rest keep
+# the model default. keep_alive spares sparse visitors a ~5 s model reload.
+OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_plan.v2','dialogue_answer.v1'))
+OLLAMA_KEEP_ALIVE = '24h'
 
 
 def generation_spec(name):
@@ -189,10 +194,10 @@ class ChatModels:
         headers={'Content-Type':'application/json'}
         if provider=='ollama':
             url=self.local_base+'/api/chat'
-            payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':16384},'keep_alive':'10m'}
-            # New dialogue contracts need semantic interpretation. Allow the
+            payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':16384},'keep_alive':OLLAMA_KEEP_ALIVE}
+            # Other dialogue contracts need semantic interpretation and keep the
             # model's default reasoning behavior instead of disabling thinking.
-            if spec is not None:payload.pop('think',None)
+            if spec is not None and contract not in OLLAMA_NO_THINK_CONTRACTS:payload.pop('think',None)
             if schema is not None:payload['format']=schema
         elif provider=='openai':
             url='https://api.openai.com/v1/chat/completions';headers['Authorization']='Bearer '+config['key']
