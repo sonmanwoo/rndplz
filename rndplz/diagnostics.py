@@ -57,6 +57,10 @@ _LIMITS = {'retention_seconds':7*86400,'content_retention_seconds':86400,'snapsh
            'max_event_bytes':2*1024*1024,'max_total_event_bytes':32*1024*1024,
            'max_content_bytes':64*1024*1024,'max_attempt_bytes':2*1024*1024,
            'max_snapshot_bytes':5*1024*1024,'max_total_snapshot_bytes':32*1024*1024}
+# Retention pruning parses every stored event and attempt file. Running it on every
+# event made each write slower as diagnostics accumulated (0.15-0.5 s per event,
+# 20-30 events per chat turn), so it runs at most this often; size caps stay immediate.
+_PRUNE_INTERVAL_SECONDS = 300
 
 
 def _stamp(value):
@@ -549,7 +553,7 @@ class Diagnostics:
         for key,value in (limits or {}).items():
             if key not in self.limits or not isinstance(value,(int,float)) or isinstance(value,bool) or not math.isfinite(value) or value<=0:raise ValueError('진단 저장 한도를 확인해 주세요.')
             self.limits[key]=value
-        self.lock=threading.RLock();self._active=set();self._seen={};self._sequence=0
+        self.lock=threading.RLock();self._active=set();self._seen={};self._sequence=0;self._pruned_at=None
         self._health={'write_errors':0,'read_errors':0,'rejected_events':0,'dropped_content':0,'purged_files':0,'last_error':None}
 
     def health(self):
@@ -598,7 +602,7 @@ class Diagnostics:
         raw=(json.dumps(row,ensure_ascii=False,separators=(',',':'))+'\n').encode()
         cap=self.limits['max_event_bytes']
         if len(raw)>cap:raise ValueError('진단 이벤트 크기 제한을 넘었습니다.')
-        if prune:self._prune(dry_run=False,reserve_event_bytes=len(raw))
+        if prune and self._prune_due(len(raw)):self._prune(dry_run=False,reserve_event_bytes=len(raw))
         total=sum(p.stat().st_size for pattern in ('events-*.jsonl','audit-*.jsonl') for p in self._files('.',pattern))
         if total+len(raw)>self.limits['max_total_event_bytes']:raise ValueError('진단 이벤트 총량 제한을 넘었습니다.')
         path=self._path(group+'-active.jsonl');path.parent.mkdir(parents=True,exist_ok=True)
@@ -671,7 +675,7 @@ class Diagnostics:
                 self._append('events',row)
                 self._seen[identifier]=input_digest
                 if len(self._seen)>20000:self._seen.pop(next(iter(self._seen)))
-                self._prune(dry_run=False)
+                if self._prune_due():self._prune(dry_run=False)
                 return True
             except OSError:
                 self._problem('write_errors','storage_write_failed');return False
@@ -788,6 +792,20 @@ class Diagnostics:
             except (OSError,ValueError):self._problem('write_errors','snapshot_write_failed');raise ValueError('진단 스냅샷을 저장하지 못했습니다.') from None
             self._audit('snapshot',actor,session_ref,len(result['attempts']))
             manifest['diagnostics']=self.health();return manifest
+
+    def _prune_due(self, reserve_event_bytes=0):
+        now=self.clock()
+        if (self._pruned_at is None or now-self._pruned_at>=_PRUNE_INTERVAL_SECONDS
+                or self._over_cap(reserve_event_bytes)):
+            self._pruned_at=now;return True
+        return False
+
+    def _over_cap(self, reserve_event_bytes=0):
+        # Mirrors the size conditions in _prune using file sizes only.
+        events=sum(p.stat().st_size for group in ('events','audit') for p in self._files('.',group+'-*.jsonl'))
+        if events>max(0,self.limits['max_total_event_bytes']-reserve_event_bytes):return True
+        return any(sum(p.stat().st_size for p in self._files(folder,'*.json'))>self.limits[cap]
+                   for folder,cap in (('attempts','max_content_bytes'),('snapshots','max_total_snapshot_bytes')))
 
     def _prune(self, *, before=None, dry_run=True, reserve_event_bytes=0):
         now=self.clock();explicit=_time(before) if before is not None else None;selected=[]
