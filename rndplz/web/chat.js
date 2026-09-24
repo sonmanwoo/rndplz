@@ -921,16 +921,18 @@ function cardCapability(c){
  // Twenty full-width glyphs fit the mobile card's 242px line at 12px.
  return values.filter(v=>typeof v==="string").map(v=>v.replace(/\s+/g," ").trim()).find(v=>v&&Array.from(v).length<=20)||"등록 이력과 근거 보기";
 }
+// Cards show the ~40 KB WebP derivative; the ~3 MB original PNGs missed the card's image deadline on phones.
+function cardPortrait(path){return typeof path==="string"&&/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(path)?path.replace(/\.(?:png|jpe?g)$/i,'-detail.webp'):'';}
 async function candidateDrawRecords(rows,gemini,historical,signal){
  return Promise.all(rows.map(async c=>{
-  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(c.profile?.portrait?.path||'')?c.profile.portrait.path:'',capability:cardCapability(c),purpose_relation:candidatePurposeRelation(c),purpose_missing:typeof c.purpose_missing==='string'?c.purpose_missing:'',reason:typeof c.reason==='string'?c.reason:''};
+  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:cardPortrait(c.profile?.portrait?.path),capability:cardCapability(c),purpose_relation:candidatePurposeRelation(c),purpose_missing:typeof c.purpose_missing==='string'?c.purpose_missing:'',reason:typeof c.reason==='string'?c.reason:''};
   if(!gemini||historical||c.in_current_pool===false||typeof c.id!=="string"||!c.id)return record;
   try{
    const person=await api("/api/person?id="+encodeURIComponent(c.id),undefined,signal);
    if(signal?.aborted||person?.id!==c.id)return record;
    // Display data only: never write it into the session, candidates or model payload.
    const profile=person.profile||{},path=profile.portrait?.path;
-   return {...record,name:typeof profile.display_name==="string"&&profile.display_name?profile.display_name:record.name,portrait:typeof path==="string"&&/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(path)?path:'',capability:cardCapability({profile})};
+   return {...record,name:typeof profile.display_name==="string"&&profile.display_name?profile.display_name:record.name,portrait:cardPortrait(path),capability:cardCapability({profile})};
   }catch{return record;}
  }));
 }
@@ -964,7 +966,7 @@ function renderCandidates(){
  let mapFallbackReason=result.historical_result?'historical_result':result.inspection_only?'inspection_only':!mapEligible?'outside_current_pool':'map_unavailable';
  let mapFallbackPart='';
  let settleMapTimeout;
- const metadataTimeout=setTimeout(()=>{if(mapEligible)mapFallbackReason='map_timeout';metadataController.abort();settleMapTimeout?.(null);},8000);
+ const metadataTimeout=setTimeout(()=>{if(mapEligible)mapFallbackReason='map_timeout';metadataController.abort();settleMapTimeout?.(null);},15000);
  // The full map is display-only. Recommendation IDs and evidence remain the saved result.
  const mapRequest=mapEligible?Promise.race([Promise.all([api("/api/people-map",undefined,metadataController.signal),import('/recommendation-map.js')]).catch(()=>{if(mapFallbackReason!=='map_timeout')mapFallbackReason='map_load_failed';return null;}),new Promise(resolve=>{settleMapTimeout=resolve;})]):Promise.resolve(null);
  Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(result.historical_result),metadataController.signal),import('/draw.js'),mapRequest]).then(([records,{initDraw},map])=>{

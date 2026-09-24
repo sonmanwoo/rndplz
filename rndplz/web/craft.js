@@ -286,6 +286,8 @@
     return label==='출처'?'':'<span>'+html(label)+'</span>';
   };
   const artPath = value => typeof value==='string' && /^\/portraits\/[a-zA-Z0-9_.-]+\.(?:png|jpe?g|webp)$/.test(value) ? value : '';
+  // Show the ~40 KB WebP derivative; the ~3 MB original PNGs time out on phones.
+  const displayPath = value => artPath(value).replace(/\.(?:png|jpe?g)$/i,'-detail.webp');
   function effectiveLaureateEffect(){return 'off';}
   function effectControls(profile,name) {return '';}
   function syncLaureateEffects(){
@@ -305,17 +307,17 @@
   document.addEventListener('load',portraitState,true);
   document.addEventListener('error',portraitState,true);
   function portrait(profile,name) {
-    const nobel=isLaureate(profile), personal=isPersonalIllustration(profile), path=artPath(profile?.portrait?.path);
+    const nobel=isLaureate(profile), personal=isPersonalIllustration(profile), path=displayPath(profile?.portrait?.path);
     if(!path && !nobel && !personal)return '<div class="portrait-art portrait-unavailable"><strong>초상 미제공</strong><p>이력과 연구 기록을 살펴보세요.</p></div>';
     const generated=profile?.portrait?.generated, background=artPath(profile?.portrait?.background);
     if(personal) {
       const art=profile.portrait, width=Number.isSafeInteger(art.width)&&art.width>0?art.width:600, height=Number.isSafeInteger(art.height)&&art.height>0?art.height:800;
-      return '<div class="portrait-art is-illustration personal-illustration" data-asset="'+(path?'loading':'missing')+'" aria-busy="'+Boolean(path)+'"><div class="portrait-status" role="status">'+(path?'일러스트를 불러오는 중입니다.':'일러스트 미제공 · 이력과 근거를 확인해 주세요.')+'</div>'+(path?'<img class="portrait-person" data-personal-image src="'+html(path)+'" alt="'+html(name)+'의 AI 생성 초상 일러스트" loading="lazy" decoding="async" width="'+width+'" height="'+height+'">':'')+'<span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span><span class="portrait-label">AI ILLUSTRATION</span></div>';
+      return '<div class="portrait-art is-illustration personal-illustration" data-asset="'+(path?'loading':'missing')+'" aria-busy="'+Boolean(path)+'"><div class="portrait-status" role="status">'+(path?'일러스트를 불러오는 중입니다.':'일러스트 미제공 · 이력과 근거를 확인해 주세요.')+'</div>'+(path?'<img class="portrait-person" data-personal-image src="'+html(path)+'" alt="'+html(name)+'의 AI 생성 초상 일러스트" loading="eager" decoding="async" width="'+width+'" height="'+height+'">':'')+'<span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span><span class="portrait-label">AI ILLUSTRATION</span></div>';
     }
     if(nobel) {
-      return '<div class="portrait-art laureate-portrait '+(generated?'is-illustration':'is-photo')+'" data-laureate-effect="'+effectiveLaureateEffect()+'" data-asset="'+(path?'loading':'missing')+'" aria-busy="'+Boolean(path)+'"><div class="portrait-status" role="status">'+(path?'일러스트를 불러오는 중입니다.':'일러스트 미제공 · 이력과 근거를 확인해 주세요.')+'</div>'+(path?'<img class="portrait-person" data-laureate-image src="'+html(path)+'" alt="'+html(name)+(generated?'의 AI 생성 초상 일러스트':'의 프로필 사진')+'" loading="lazy" decoding="async" width="600" height="800">':'')+'<span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span>'+(generated?'<span class="portrait-label">AI ILLUSTRATION</span>':'')+'</div>';
+      return '<div class="portrait-art laureate-portrait '+(generated?'is-illustration':'is-photo')+'" data-laureate-effect="'+effectiveLaureateEffect()+'" data-asset="'+(path?'loading':'missing')+'" aria-busy="'+Boolean(path)+'"><div class="portrait-status" role="status">'+(path?'일러스트를 불러오는 중입니다.':'일러스트 미제공 · 이력과 근거를 확인해 주세요.')+'</div>'+(path?'<img class="portrait-person" data-laureate-image src="'+html(path)+'" alt="'+html(name)+(generated?'의 AI 생성 초상 일러스트':'의 프로필 사진')+'" loading="eager" decoding="async" width="600" height="800">':'')+'<span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span>'+(generated?'<span class="portrait-label">AI ILLUSTRATION</span>':'')+'</div>';
     }
-    return '<div class="portrait-art '+(generated?'is-illustration':'is-photo')+(background?' has-process-art portrait-'+html(profile.slug):'')+'">'+(background?'<img class="portrait-backdrop" src="'+html(background)+'" alt="" aria-hidden="true" loading="lazy" decoding="async">':'')+'<img class="portrait-person" src="'+html(path)+'" alt="'+html(name)+(generated?'의 AI 생성 초상 일러스트':'의 제공된 프로필 사진')+'" loading="lazy" decoding="async" width="600" height="800"><span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span><span class="portrait-label">'+(generated?'AI ILLUSTRATION':background?'PHOTO + AI ART':'PERSONAL PORTRAIT')+'</span></div>';
+    return '<div class="portrait-art '+(generated?'is-illustration':'is-photo')+(background?' has-process-art portrait-'+html(profile.slug):'')+'">'+(background?'<img class="portrait-backdrop" src="'+html(background)+'" alt="" aria-hidden="true" loading="lazy" decoding="async">':'')+'<img class="portrait-person" src="'+html(path)+'" alt="'+html(name)+(generated?'의 AI 생성 초상 일러스트':'의 제공된 프로필 사진')+'" loading="eager" decoding="async" width="600" height="800"><span class="foil-sheen" aria-hidden="true"></span><span class="foil-glare" aria-hidden="true"></span><span class="portrait-label">'+(generated?'AI ILLUSTRATION':background?'PHOTO + AI ART':'PERSONAL PORTRAIT')+'</span></div>';
   }
   function awardSummary(profile){
     if(!isLaureate(profile))return '';
@@ -342,7 +344,7 @@
     return note+'<details class="personal-portrait-provenance"><summary>일러스트 제작·참고 자료</summary><div><h4>카드에 표시한 생성물</h4><p>AI 생성 초상 일러스트</p>'+(p.generated_credit?'<p>'+html(p.generated_credit)+'</p>':'')+(p.change_note?'<p>변경 이력: '+html(p.change_note)+'</p>':'')+'<h4>외형 참고 사진</h4><p>'+html(r.title||'제공된 프로필 사진')+'</p>'+(r.usage?'<p>'+html(r.usage)+'</p>':'')+'</div></details>';
   }
   function researcherCard(person,index=0,total=1) {
-    const p=person.profile||{},path=artPath(p.portrait?.path),line=p.tagline||person.evidence?.[0]?.title||'연결된 연구 기록을 살펴보세요.';
+    const p=person.profile||{},path=displayPath(p.portrait?.path),line=p.tagline||person.evidence?.[0]?.title||'연결된 연구 기록을 살펴보세요.';
     person={...person,name:p.display_name||person.name};
     const face=path?'<img class="simple-portrait" src="'+html(path)+'" alt="'+html(person.name)+(p.portrait?.generated?'의 AI 생성 초상 일러스트':'의 제공된 프로필 사진')+'" loading="lazy" decoding="async">':'<span class="simple-portrait portrait-unavailable" aria-hidden="true">초상 미제공</span>';
     return '<button type="button" class="researcher-card simplified-person" data-action="person" data-id="'+html(person.id)+'" aria-label="'+html(person.name)+' 상세 보기"><span class="simple-person-name">'+html(person.name)+'</span>'+face+'<span class="simple-person-capability" title="'+html(line)+'">'+html(line)+'</span></button>';

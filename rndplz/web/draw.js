@@ -385,7 +385,9 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
       image.addEventListener('load', onLoad);
       image.addEventListener('error', onError);
       // Loading and decoding share one bound; offscreen resets do not restart it.
-      timeout = setTimeout(() => settle('failed', '초상 로딩 시간이 초과됐어요'), IMAGE_READY_MS);
+      // A loaded image whose decode() is still pending (hidden or throttled tab) is shown
+      // rather than reported as a timeout; only a missing image fails.
+      timeout = setTimeout(() => (image?.complete && image.naturalWidth ? settle('ready') : settle('failed', '초상 로딩 시간이 초과됐어요')), IMAGE_READY_MS);
       image.src = source;
       if (image.complete) {
         if (image.naturalWidth && image.naturalHeight) onLoad();
