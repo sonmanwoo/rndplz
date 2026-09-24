@@ -603,7 +603,7 @@ class Diagnostics:
         cap=self.limits['max_event_bytes']
         if len(raw)>cap:raise ValueError('진단 이벤트 크기 제한을 넘었습니다.')
         if prune and self._prune_due(len(raw)):self._prune(dry_run=False,reserve_event_bytes=len(raw))
-        total=sum(p.stat().st_size for pattern in ('events-*.jsonl','audit-*.jsonl') for p in self._files('.',pattern))
+        total=self._bytes('.',('events-','audit-'),'.jsonl')
         if total+len(raw)>self.limits['max_total_event_bytes']:raise ValueError('진단 이벤트 총량 제한을 넘었습니다.')
         path=self._path(group+'-active.jsonl');path.parent.mkdir(parents=True,exist_ok=True)
         if path.exists() and path.stat().st_size+len(raw)>cap:
@@ -800,12 +800,22 @@ class Diagnostics:
             self._pruned_at=now;return True
         return False
 
+    def _bytes(self, folder, prefixes, suffix):
+        # Sizes only (nothing is opened or deleted), so directory entries suffice;
+        # resolving every attempt path made this cost ~90 ms per event.
+        try:
+            with os.scandir(self.directory if folder=='.' else self.directory/folder) as entries:
+                return sum(entry.stat(follow_symlinks=False).st_size for entry in entries
+                           if entry.is_file(follow_symlinks=False) and entry.name.startswith(prefixes)
+                           and entry.name.endswith(suffix))
+        except FileNotFoundError:
+            return 0
+
     def _over_cap(self, reserve_event_bytes=0):
-        # Mirrors the size conditions in _prune using file sizes only.
-        events=sum(p.stat().st_size for group in ('events','audit') for p in self._files('.',group+'-*.jsonl'))
-        if events>max(0,self.limits['max_total_event_bytes']-reserve_event_bytes):return True
-        return any(sum(p.stat().st_size for p in self._files(folder,'*.json'))>self.limits[cap]
-                   for folder,cap in (('attempts','max_content_bytes'),('snapshots','max_total_snapshot_bytes')))
+        # Mirrors the size conditions in _prune.
+        if self._bytes('.',('events-','audit-'),'.jsonl')>max(0,self.limits['max_total_event_bytes']-reserve_event_bytes):return True
+        return (self._bytes('attempts',('',),'.json')>self.limits['max_content_bytes']
+                or self._bytes('snapshots',('',),'.json')>self.limits['max_total_snapshot_bytes'])
 
     def _prune(self, *, before=None, dry_run=True, reserve_event_bytes=0):
         now=self.clock();explicit=_time(before) if before is not None else None;selected=[]
