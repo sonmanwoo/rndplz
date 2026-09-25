@@ -247,6 +247,7 @@
   host.addEventListener('change',event=>{const t=event.target;if(t.id==='topic-controls')dispatch({type:'TOPIC',value:t.value});else if(t.id==='view-control')dispatch({type:'VIEW',value:t.value});else if(t.dataset.evidence){const id=t.id;dispatch({type:'EVIDENCE',id:t.dataset.evidence,checked:t.checked});$(id)?.focus({preventScroll:true});}else if(t.id==='include-ai'){dispatch({type:'INCLUDE_AI',value:t.checked});$('include-ai')?.focus({preventScroll:true});}});
   host.addEventListener('click',event=>{
    const button=event.target.closest('button');if(!button||!host.contains(button))return;
+   if(dragged&&button.closest('#mp-graph-stage')){event.preventDefault();event.stopPropagation();return;}
    if(button.dataset.mapCamera){if(button.dataset.mapCamera==='fit')fit();else zoom(button.dataset.mapCamera==='in'?1.2:1/1.2);return;}
    if(button.dataset.mapFilter){const type=button.dataset.mapFilter,value=button.dataset.mapFilterValue,field=type==='TOPIC'?'topic':'capability';dispatch({type,value:state[field]===value?'':value});const target=[...host.querySelectorAll('[data-map-filter]')].find(b=>b.dataset.mapFilter===type&&b.dataset.mapFilterValue===value);(target||$('mp-graph-stage'))?.focus({preventScroll:true});}
    else if(button.hasAttribute('data-capability')){const id=button.dataset.capability;dispatch({type:'CAPABILITY',value:state.capability===id?'':id});[...host.querySelectorAll('[data-capability]')].find(b=>b.dataset.capability===id)?.focus({preventScroll:true});}
@@ -276,13 +277,13 @@
    const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0)return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});dragged=false;
    if(pointers.size===2){const[a,b]=[...pointers.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);drag=null;stage.setPointerCapture(e.pointerId);}
-   else if(!e.target.closest('button')){drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY};stage.setPointerCapture(e.pointerId);}
+   else{const onNode=Boolean(e.target.closest('button'));drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,captured:!onNode};if(!onNode)stage.setPointerCapture(e.pointerId);}
   });
   host.addEventListener('pointermove',e=>{
    if(!pointers.has(e.pointerId))return;const stage=$('mp-graph-stage');if(!stage)return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(pointers.size===2){const[a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y),r=stage.getBoundingClientRect();if(pinch>0)zoom(distance/pinch,{x:(a.x+b.x)/2-r.left,y:(a.y+b.y)/2-r.top});pinch=distance;dragged=true;}
-   else if(drag?.id===e.pointerId){if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>4)dragged=true;if(dragged){camera.x+=e.clientX-drag.x;camera.y+=e.clientY-drag.y;cameraApply();stage.classList.add('dragging');}drag.x=e.clientX;drag.y=e.clientY;}
+   else if(drag?.id===e.pointerId){if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>4)dragged=true;if(dragged&&!drag.captured){drag.captured=true;try{stage.setPointerCapture(e.pointerId);}catch{}}if(dragged){camera.x+=e.clientX-drag.x;camera.y+=e.clientY-drag.y;cameraApply();stage.classList.add('dragging');}drag.x=e.clientX;drag.y=e.clientY;}
   });
   function end(e){pointers.delete(e.pointerId);if(drag?.id===e.pointerId)drag=null;pinch=null;$('mp-graph-stage')?.classList.remove('dragging');win.setTimeout(()=>{dragged=false;},0);}
   host.addEventListener('pointerup',end);host.addEventListener('pointercancel',end);
