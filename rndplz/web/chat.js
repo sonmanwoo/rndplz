@@ -972,7 +972,7 @@ function renderCandidates(){
  Promise.all([candidateDrawRecords(rows,hasPublicPaperScope(session),Boolean(result.historical_result),metadataController.signal),import('/draw.js'),mapRequest]).then(([records,{initDraw},map])=>{
   if(epoch!==drawEpoch||drawRenderKey!==renderKey||zone.hidden||accountNavigationPending||accountInvalidated)return;
   const host=$("scoutDrawHost"),hint=$("scoutResultHint"),dock=document.querySelector(".composer-dock");
-  const options={bottomBoundary:dock,onBoundaryFit:fits=>dock?.classList.toggle("scout-dock-in-flow",!fits),quiet:()=>!animate||RndCraft.quiet(),onDetail:record=>showPerson(record.id,document.activeElement).catch(exc=>error(exc.message))};
+  const options={bottomBoundary:dock,onBoundaryFit:fits=>dock?.classList.toggle("scout-dock-in-flow",!fits),quiet:()=>!animate||RndCraft.quiet(),onDetail:record=>openPersonCard(record.id,document.activeElement).catch(exc=>error(exc.message))};
   if(map){
    try{
     const [mapData,{initRecommendationMap}]=map;
@@ -1279,6 +1279,56 @@ async function showPerson(id,opener=document.activeElement,registered=false){
   const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
  $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id)))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
  $("detailDialog").dataset.registeredReview=String(registered);$("detailDialog").dataset.registeredBinding=registeredKey||"";modal("detailDialog",opener);$("detailDialog").scrollTop=0;
+}
+// Person card: a map node or drawn card opens the person's card first; a tap flips it
+// to the request details, and the full dossier stays one button away.
+async function openPersonCard(id,opener=document.activeElement){
+ const candidate=session?.result?.candidates?.find(c=>c.id===id)||null;
+ const historical=Boolean(candidate&&session?.result?.historical_result);
+ let person=null;
+ if(!historical){try{person=await api("/api/person?id="+encodeURIComponent(id));}catch{person=null;}}
+ if(person&&person.id!==id)person=null;
+ const profile=(person?person.profile:candidate?.profile)||{};
+ const name=profile.display_name||person?.name||candidate?.name||"이름 미확인";
+ const org=typeof person?.org==="string"?person.org:typeof candidate?.org==="string"?candidate.org:"";
+ const portrait=cardPortrait(profile.portrait?.path),capability=cardCapability({profile});
+ const relation=candidatePurposeRelation(candidate),label=candidatePurposeLabel(candidate);
+ const reason=typeof candidate?.reason==="string"?candidate.reason.trim():"";
+ const evidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object").slice(0,3);
+ const request=currentDetailCandidate(id),allowed=canPropose(request);
+ const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
+ $("personCardHost").innerHTML='<div class="pc-card"'+(relation?' data-relation="'+relation+'"':'')+'><div class="pc-turn">'+
+  '<button type="button" class="pc-face pc-front" aria-label="'+esc(name)+' 카드, 눌러서 상세 보기">'+
+   (label?'<span class="pc-badge">'+esc(label)+'</span>':'')+
+   '<span class="pc-name">'+esc(name)+'</span>'+
+   '<span class="pc-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pc-portrait-empty">초상 미제공</span>')+'</span>'+
+   (org?'<span class="pc-org">'+esc(org)+'</span>':'')+
+   '<span class="pc-capability">'+esc(capability)+'</span>'+
+   '<span class="pc-hint" aria-hidden="true">눌러서 뒤집기 ↻</span><span class="pc-foil" aria-hidden="true"></span>'+
+  '</button>'+
+  '<div class="pc-face pc-back" aria-hidden="true" inert>'+
+   '<p class="pc-back-name" tabindex="-1">'+esc(name)+'</p>'+
+   (relation?'<section><h3>이번 요청과의 연결</h3><p class="pc-label">'+esc(label)+'</p>'+(reason?'<p class="pc-reason">'+esc(reason)+'</p>':'')+'</section>':'<section><p class="pc-reason">이번 요청의 후보 목록에 없는 인물이에요.</p></section>')+
+   (evidence.length?'<section><h3>핵심 근거</h3><ul>'+evidence.map(e=>'<li><strong>'+esc(e.title||e.id||"연결 근거")+'</strong>'+(e.scope_label||e.scope?'<span>'+esc(e.scope_label||e.scope)+'</span>':'')+'</li>').join('')+'</ul></section>':'')+
+   '<div class="pc-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':'<p class="pc-note">'+esc(unavailable)+'</p>')+
+    '<button type="button" class="pc-full">전체 약력 보기</button><button type="button" class="pc-unflip">앞면 보기 ↺</button></div>'+
+  '</div></div></div>';
+ const card=$("personCardHost").querySelector(".pc-card"),front=card.querySelector(".pc-front"),back=card.querySelector(".pc-back");
+ const quiet=RndCraft.quiet();card.classList.toggle("pc-quiet",quiet);
+ const flip=on=>{card.classList.toggle("is-flipped",on);front.inert=on;front.setAttribute("aria-hidden",String(on));back.inert=!on;back.setAttribute("aria-hidden",String(!on));(on?back.querySelector(".pc-back-name"):front).focus({preventScroll:true});};
+ front.addEventListener("click",()=>flip(true));
+ back.querySelector(".pc-unflip").addEventListener("click",()=>flip(false));
+ back.querySelector(".pc-full").addEventListener("click",()=>showPerson(id,opener).catch(exc=>error(exc.message)));
+ if(!quiet){
+  const rest=()=>{card.style.setProperty("--rx","0deg");card.style.setProperty("--ry","0deg");card.classList.remove("is-lit");};
+  card.addEventListener("pointermove",e=>{const r=card.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+   card.style.setProperty("--mx",(x*100).toFixed(1)+"%");card.style.setProperty("--my",(y*100).toFixed(1)+"%");
+   card.style.setProperty("--rx",((.5-y)*12).toFixed(2)+"deg");card.style.setProperty("--ry",((x-.5)*16).toFixed(2)+"deg");card.classList.add("is-lit");});
+  card.addEventListener("pointerleave",rest);card.addEventListener("pointercancel",rest);card.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")rest();});
+ }
+ const dialog=$("personCardDialog");
+ if(!dialog.backdropCloseBound){dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});dialog.backdropCloseBound=true;}
+ modal("personCardDialog",opener);front.focus({preventScroll:true});
 }
 // A failed draft remains in the currently open person dialog; no draft or send is simulated.
 function detailRequestDraftError(message,button){
