@@ -766,6 +766,8 @@ async function prepareDiscovery(button,keyboard=false){
   }
  }
 }
+// Phones: never pop the keyboard on their own (page load, after an answer, new chat).
+function focusComposer(options){if(!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches))$("message").focus(options);}
 function stopBusyCi(){
  ciBusyStarted=null;
  $("thread").querySelectorAll(".susomun-ci--busy").forEach(mark=>{mark.classList.remove("susomun-ci--busy");mark.style.removeProperty("--ci-busy-delay");});
@@ -1140,9 +1142,9 @@ async function send(payload,submission=null){
   if(e.name==="AbortError"){error("응답 수신을 중지했어요.");}
   else error(e.message);
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
- }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)$("message").focus();}
+ }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)focusComposer();}
 }
-function newChat(){if(composerClientLocked())return;invalidateRegisteredUI();invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();$("message").focus();}
+function newChat(){if(composerClientLocked())return;invalidateRegisteredUI();invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();focusComposer();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
  const reader=new FileReader(),finish=(fn,value)=>{signal?.removeEventListener("abort",stop);fn(value);};
  const stop=()=>{if(reader.readyState===1)reader.abort();finish(reject,attachmentAbortError());};
@@ -1244,7 +1246,7 @@ async function submitComposer(){
   requireAttachmentTransfer(transfer);
  }catch(e){restoreComposerDraft(submission);error(e.message);failed=true;}
  finally{transfer.controller?.abort();if(attachmentTransfer===transfer)attachmentTransfer=null;uploading=false;attachmentStatus="";controls();}
- if(failed){resizeInput();if(!accountNavigationPending&&!accountInvalidated)$("message").focus();return;}
+ if(failed){resizeInput();if(!accountNavigationPending&&!accountInvalidated)focusComposer();return;}
  submission.attachmentIds=submittedFiles.map(f=>f.id);
  await send({...payload,attachments:[...submission.attachmentIds]},submission);
 }
@@ -1421,7 +1423,7 @@ async function saveLetter(state){if(letter?.kind==="registered_review"){$("lette
 function deliverySummary(saved){const counts={sent:0,skipped_no_address:0,failed:0,other:0};for(const p of saved){const s=p?.delivery?.status;counts[s in counts?s:"other"]++;}const parts=[];if(counts.sent)parts.push("메일 발송 "+counts.sent+"건");if(counts.skipped_no_address)parts.push("주소 미등록 "+counts.skipped_no_address+"건");if(counts.failed)parts.push("발송 실패 "+counts.failed+"건");if(counts.other)parts.push("기록만 "+counts.other+"건");return parts.join(" · ")||"제안함에 기록했어요.";}
 profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,getSessionId:()=>session?.id||null,
  onBusy:value=>{profileBusy=value;controls();},
- onClose:()=>{autoScroll=false;render();$("message").focus({preventScroll:true});},
+ onClose:()=>{autoScroll=false;render();focusComposer({preventScroll:true});},
  onSession:value=>{
   invalidateRecovery(true);session=value;updateHistory();window.history.replaceState(null,"","/?chat="+session.id);
   if(profileSubmission){if(composerInputRevision===profileSubmission.revision&&$("message").value===profileSubmission.text)setComposerDraft("");files=files.filter(f=>!profileSubmission.ids.includes(f.id));renderFiles();profileSubmission=null;}
@@ -1452,6 +1454,7 @@ $ ("message").addEventListener("compositionstart",()=>{composerComposing=true;co
 $ ("message").addEventListener("compositionend",()=>{composerComposing=false;composerInputRevision++;controls();});
 // Touch keyboards have no Shift+Enter: there Enter inserts a line break and only the send button submits.
 const touchComposer=!!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches);
+if(!touchComposer)$("message").focus({preventScroll:true});
 if(touchComposer){const keyboardHint=document.querySelector(".keyboard-hint");if(keyboardHint)keyboardHint.textContent="보내기 버튼으로 전송 · Enter 줄바꿈";}
 $ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!touchComposer){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
 $ ("stopButton").addEventListener("click",()=>{invalidateRegisteredUI();controller?.abort();});
