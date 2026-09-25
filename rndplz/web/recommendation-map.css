@@ -219,3 +219,39 @@ html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-team-marker { colo
 }
 #peopleMapHost.recommendation-map .rm-candidate-context .rm-purpose-label { font-weight: 600; }
 #peopleMapHost.recommendation-map .rm-purpose-missing { margin-top: 4px; }
+/* Candidate hand: the candidates dealt as small cards right under the map. */
+#peopleMapHost.recommendation-map .rm-candidates {
+  display: flex; justify-content: safe center; gap: 10px; margin-top: 12px; padding: 6px 2px 10px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+}
+#peopleMapHost.recommendation-map .rm-candidates > button.rm-hand-card {
+  position: relative; flex: 0 0 auto; width: 136px; min-height: 0;
+  display: grid; justify-items: center; align-content: start; gap: 5px;
+  padding: 12px 10px 12px; text-align: center; border-radius: 12px;
+  box-shadow: 0 4px 12px #263d2e14; scroll-snap-align: start;
+  transition: transform .18s ease-out, box-shadow .18s ease-out;
+}
+#peopleMapHost.recommendation-map .rm-candidates > button.rm-hand-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px #263d2e24; }
+#peopleMapHost.recommendation-map .rm-candidates .rm-hand-face {
+  display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; border-radius: 50%;
+  background: #e4e9dd; color: #315846; font-size: 22px; font-weight: 600; box-shadow: 0 0 0 3px #fffdf7, 0 0 0 4px #9fb393;
+}
+#peopleMapHost.recommendation-map .rm-candidates .rm-hand-face img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 26%; }
+#peopleMapHost.recommendation-map .rm-candidates .rm-hand-badge {
+  padding: 1px 8px; border-radius: 99px; background: #e6eddf; color: #315846; font-size: 10.5px; font-weight: 600; line-height: 1.6;
+}
+#peopleMapHost.recommendation-map .rm-hand-card[data-relation="adjacent"] .rm-hand-badge { background: #f3ebdc; color: #8a5a2b; }
+#peopleMapHost.recommendation-map .rm-candidates .rm-hand-caption {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 11.5px; line-height: 1.45; color: #62685f;
+}
+/* The adjacent context stays for screen readers (the map node points at it); the badge shows it. */
+#peopleMapHost.recommendation-map .rm-hand-card .rm-candidate-context {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+@media (prefers-reduced-motion: reduce) { #peopleMapHost.recommendation-map .rm-candidates > button.rm-hand-card { transition: none; } }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates > button.rm-hand-card { background: #20283d; color: #edeff8; border-color: #3a4560; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-face { background: #2a3350; color: #e8f6f3; box-shadow: 0 0 0 3px #20283d, 0 0 0 4px #5f7a8a; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-badge { background: #1e6975; color: #e8f6f3; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-hand-card[data-relation="adjacent"] .rm-hand-badge { background: #5a4630; color: #f6ecdc; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-caption { color: #aab2c8; }

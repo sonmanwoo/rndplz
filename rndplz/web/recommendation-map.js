@@ -86,7 +86,7 @@ function requireRecommendationMapLayout(win, root, stage, nodeElements) {
 
 export function initRecommendationMap(host, {
   mapData, rows, records, onDetail, quiet = false, animateOnShow = true,
-  bottomBoundary = null, onBoundaryFit,
+  bottomBoundary = null, onBoundaryFit, onJourneyEnd,
 } = {}) {
   const doc = host?.ownerDocument, win = doc?.defaultView;
   if (!host || !doc || !win) throw new TypeError('지도를 표시할 영역이 필요합니다.');
@@ -167,7 +167,7 @@ export function initRecommendationMap(host, {
   button('화면 맞춤', 'fit', controls);
   const help = doc.createElement('p');
   help.id = uid + '-help'; help.className = 'rm-help';
-  help.textContent = '이 지도에서는 이번 추천 후보만 선택할 수 있어요. 후보를 선택하면 이력과 근거가 열립니다. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
+  help.textContent = '이 지도에서는 이번 추천 후보만 선택할 수 있어요. 지도 아래 카드나 지도의 후보를 누르면 근거가 열립니다. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
   const exploreLink = doc.createElement('a');
   exploreLink.href = '/explore#map'; exploreLink.target = '_blank'; exploreLink.rel = 'noopener';
   exploreLink.textContent = '전체 연구 맵 탐색 ↗';
@@ -179,7 +179,8 @@ export function initRecommendationMap(host, {
   const list = doc.createElement('div');
   list.className = 'rm-candidates';
   list.setAttribute('role', 'group'); list.setAttribute('aria-label', '현재 요청의 추천 후보');
-  shell.append(toolbar, stage, controls, help, note, list);
+  // Candidates sit right under the map as a hand of cards; no need to find them on the map.
+  shell.append(toolbar, stage, controls, list, help, note);
   map.append(shell); root.append(map);
 
   const nodeElements = [...stage.querySelectorAll('[data-map-node]')];
@@ -211,6 +212,8 @@ export function initRecommendationMap(host, {
   });
   let disposed = false, currentKey, hasShown = false, quietSource = quiet;
   let phase = 0, selectedId = null, running = false, cameraMode = 'overview';
+  // Set by show() for a fresh result; cleared once the journey ends or the user picks someone.
+  let revealPending = false;
   let camera = { x: 0, y: 0, scale: 1 }, frame = 0, runToken = 0;
   let boundaryInFlow = false, customNodes = null, pointer = null;
   let measuredWidth = 0, measuredHeight = 0;
@@ -325,23 +328,35 @@ export function initRecommendationMap(host, {
     phase = next; cameraMode = phaseNames[next]; customNodes = null;
     paint(); travel(targetCamera(), animate ? 650 : 0, after);
   }
+  function journeyEnded() {
+    if (!revealPending) return;
+    revealPending = false; onJourneyEnd?.();
+  }
   function finish() {
     if (disposed || !hasShown) return;
+    const skipped = running;
     stop(); selectedId = null; moveTo(2, false);
+    if (skipped) journeyEnded();
   }
   function replay() {
     if (disposed || !hasShown) return;
     stop(); selectedId = null;
-    if (isQuiet() || doc.hidden) { moveTo(2, false); return; }
+    if (isQuiet() || doc.hidden) { moveTo(2, false); journeyEnded(); return; }
     running = true; skip.hidden = false; root.setAttribute('aria-busy', 'true');
     moveTo(0, false);
     schedule(420, () => moveTo(1, true, () => schedule(480, () => moveTo(2, true, () => {
       running = false; skip.hidden = true; root.setAttribute('aria-busy', 'false');
+      journeyEnded();
     }))));
+  }
+  // Camera close-up on a candidate without reopening its details (the inspect view drives it).
+  function select(id) {
+    if (disposed || !hasShown || !candidateIds.has(id)) return;
+    revealPending = false; stop(); selectedId = id; moveTo(3);
   }
   function choose(id) {
     if (disposed || !hasShown || !candidateIds.has(id)) return;
-    stop(); selectedId = id; moveTo(3);
+    revealPending = false; stop(); selectedId = id; moveTo(3);
     // This callback is the existing person-detail flow, never a new search.
     onDetail?.({ id });
   }
@@ -349,12 +364,25 @@ export function initRecommendationMap(host, {
     list.replaceChildren();
     displayRecords.forEach(record => {
       const item = doc.createElement('button');
-      item.type = 'button'; item.dataset.rmPerson = record.id;
+      item.type = 'button'; item.dataset.rmPerson = record.id; item.className = 'rm-hand-card';
       item.setAttribute('aria-pressed', 'false');
-      const name = doc.createElement('strong'); name.textContent = record.name;
-      const caption = doc.createElement('span'); caption.textContent = record.capability || '이력과 근거 보기';
-      item.append(name, caption);
       const row = rowById.get(record.id);
+      const relation = row?.purpose_relation === 'adjacent' ? 'adjacent' : row?.purpose_relation === 'direct' ? 'direct' : '';
+      if (relation) item.dataset.relation = relation;
+      const face = doc.createElement('span'); face.className = 'rm-hand-face'; face.setAttribute('aria-hidden', 'true');
+      const thumb = typeof record.portrait === 'string' && /^\/portraits\/[A-Za-z0-9_.-]+-detail\.webp$/.test(record.portrait)
+        ? record.portrait.replace(/-detail\.webp$/, '-thumb.webp') : '';
+      if (thumb) {
+        const image = doc.createElement('img');
+        image.src = thumb; image.alt = ''; image.decoding = 'async'; image.loading = 'lazy';
+        face.append(image);
+      } else face.textContent = Array.from(record.name.trim())[0] || '?';
+      const name = doc.createElement('strong'); name.textContent = record.name;
+      const badge = doc.createElement('span'); badge.className = 'rm-hand-badge';
+      badge.textContent = relation === 'adjacent' ? '인접 분야' : relation === 'direct' ? '직접 관련' : '후보';
+      const caption = doc.createElement('span'); caption.className = 'rm-hand-caption';
+      caption.textContent = record.capability || '이력과 근거 보기';
+      item.append(face, name, badge, caption);
       if (row?.purpose_relation === 'adjacent') {
         const context = doc.createElement('span');
         context.className = 'rm-candidate-context';
@@ -388,6 +416,7 @@ export function initRecommendationMap(host, {
     const ready = readyRecords(items);
     stop(); currentKey = key; hasShown = true; selectedId = null;
     displayRecords = ready; root.hidden = false; fillList(); refreshBoundary();
+    revealPending = animateOnShow;
     // History restoration is static, but its explicit replay remains available.
     if (animateOnShow) replay(); else finish();
   }
@@ -499,7 +528,7 @@ export function initRecommendationMap(host, {
     if (instances.get(host) === controller) instances.delete(host);
     if (boundaryInFlow) { boundaryInFlow = false; onBoundaryFit?.(true); }
   }
-  const controller = { show, cancel, finish, dispose, refreshBoundary, setQuiet };
+  const controller = { show, cancel, finish, dispose, refreshBoundary, setQuiet, select };
   // Data is checked above; mounted CSS must be ready before listeners/camera.
   instances.get(host)?.dispose();
   host.replaceChildren(root);

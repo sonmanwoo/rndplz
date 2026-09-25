@@ -976,7 +976,7 @@ function renderCandidates(){
   if(map){
    try{
     const [mapData,{initRecommendationMap}]=map;
-    drawController=initRecommendationMap(host,{...options,quiet:()=>RndCraft.quiet(),animateOnShow:animate,mapData,rows,records});
+    drawController=initRecommendationMap(host,{...options,quiet:()=>RndCraft.quiet(),animateOnShow:animate,mapData,rows,records,onJourneyEnd:()=>{if(epoch===drawEpoch&&rows[0]?.id&&!document.querySelector("dialog[open]"))openPersonCard(rows[0].id,document.activeElement).catch(exc=>error(exc.message));}});
     drawController.show(records,key);
     hint.textContent='관련 분야를 따라 연결된 사람을 살펴보세요. 이번 요청의 후보와 근거 범위는 아래 목록에서 확인할 수 있어요.';
    }catch(error){
@@ -1283,57 +1283,89 @@ async function showPerson(id,opener=document.activeElement,registered=false){
 // Model prose sometimes carries LaTeX such as "$\text{CO}_2$", whose "\t" can arrive as a
 // tab ("$	ext{CO}_2$"). Show it as plain text with subscript digits ("CO₂").
 function plainScience(text){return String(text).replace(/\$\s*(?:\\text|ext)?\s*\{?([A-Za-z0-9]+)\}?(?:_\{?([0-9]+)\}?)?\s*\$/g,(m,base,sub)=>base+(sub?Array.from(sub,d=>"₀₁₂₃₄₅₆₇₈₉"[d]).join(""):""));}
-// Person card: a map node or drawn card opens the person's card first; a tap flips it
-// to the request details, and the full dossier stays one button away.
-async function openPersonCard(id,opener=document.activeElement){
+// Candidate inspect view: the card and the reasons on one sheet, swipe or arrows between
+// candidates, evidence expands in place, and the proposal button stays pinned.
+let inspectTicket=0;
+const inspectPeople=new Map();
+function inspectCandidateIds(){return (session?.result?.candidates||[]).map(c=>c?.id).filter(id=>typeof id==="string"&&id);}
+async function inspectPerson(id,candidate){
+ if(candidate&&session?.result?.historical_result)return null;
+ const key=(session?.id||"")+":"+id;
+ if(!inspectPeople.has(key)){
+  try{const person=await api("/api/person?id="+encodeURIComponent(id));if(person?.id===id)inspectPeople.set(key,person);}catch{return null;}
+ }
+ return inspectPeople.get(key)||null;
+}
+function inspectEvidenceHtml(e){
+ const title=esc(e.title||e.id||"연결 근거"),scope=e.scope_label||e.scope;
+ const body=(e.excerpt?'<p>'+esc(plainScience(e.excerpt))+'</p>':'')+(e.boundary?'<p class="pi-boundary">'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':'');
+ return body?'<details><summary><strong>'+title+'</strong>'+(scope?'<span>'+esc(scope)+'</span>':'')+'</summary>'+body+'</details>':'<div class="pi-evidence-plain"><strong>'+title+'</strong>'+(scope?'<span>'+esc(scope)+'</span>':'')+'</div>';
+}
+async function renderInspect(id){
+ const dialog=$("personCardDialog"),ticket=++inspectTicket,ids=dialog.inspectIds||[];
  const candidate=session?.result?.candidates?.find(c=>c.id===id)||null;
- const historical=Boolean(candidate&&session?.result?.historical_result);
- let person=null;
- if(!historical){try{person=await api("/api/person?id="+encodeURIComponent(id));}catch{person=null;}}
- if(person&&person.id!==id)person=null;
+ const person=await inspectPerson(id,candidate);
+ if(ticket!==inspectTicket)return;
  const profile=(person?person.profile:candidate?.profile)||{};
  const name=profile.display_name||person?.name||candidate?.name||"이름 미확인";
  const org=typeof person?.org==="string"?person.org:typeof candidate?.org==="string"?candidate.org:"";
  const portrait=cardPortrait(profile.portrait?.path),capability=cardCapability({profile});
  const relation=candidatePurposeRelation(candidate),label=candidatePurposeLabel(candidate);
  const reason=typeof candidate?.reason==="string"?plainScience(candidate.reason.trim()):"";
- const evidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object").slice(0,3);
+ const missing=typeof candidate?.purpose_missing==="string"?candidate.purpose_missing.trim():"";
+ const evidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object").slice(0,4);
  const request=currentDetailCandidate(id),allowed=canPropose(request);
  const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
- $("personCardHost").innerHTML='<div class="pc-card"'+(relation?' data-relation="'+relation+'"':'')+'><div class="pc-turn">'+
-  '<button type="button" class="pc-face pc-front" aria-label="'+esc(name)+' 카드, 눌러서 상세 보기">'+
-   (label?'<span class="pc-badge">'+esc(label)+'</span>':'')+
-   '<span class="pc-name">'+esc(name)+'</span>'+
-   '<span class="pc-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pc-portrait-empty">초상 미제공</span>')+'</span>'+
-   (org?'<span class="pc-org">'+esc(org)+'</span>':'')+
-   '<span class="pc-capability">'+esc(capability)+'</span>'+
-   '<span class="pc-hint" aria-hidden="true">눌러서 뒤집기 ↻</span><span class="pc-foil" aria-hidden="true"></span>'+
-  '</button>'+
-  '<div class="pc-face pc-back" aria-hidden="true" inert>'+
-   '<p class="pc-back-name" tabindex="-1">'+esc(name)+'</p>'+
-   '<div class="pc-back-body">'+
-   (relation?'<section><h3>이번 요청과의 연결</h3><p class="pc-label">'+esc(label)+'</p>'+(reason?'<p class="pc-reason">'+esc(reason)+'</p>':'')+'</section>':'<section><p class="pc-reason">이번 요청의 후보 목록에 없는 인물이에요.</p></section>')+
-   (evidence.length?'<section><h3>핵심 근거</h3><ul>'+evidence.map(e=>'<li><strong>'+esc(e.title||e.id||"연결 근거")+'</strong>'+(e.scope_label||e.scope?'<span>'+esc(e.scope_label||e.scope)+'</span>':'')+'</li>').join('')+'</ul></section>':'')+
-   '</div>'+
-   '<div class="pc-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':'<p class="pc-note">'+esc(unavailable)+'</p>')+
-    '<div class="pc-links"><button type="button" class="pc-full">전체 약력 보기</button><button type="button" class="pc-unflip">앞면 보기 ↺</button></div></div>'+
-  '</div></div></div>';
- const card=$("personCardHost").querySelector(".pc-card"),front=card.querySelector(".pc-front"),back=card.querySelector(".pc-back");
- const quiet=RndCraft.quiet();card.classList.toggle("pc-quiet",quiet);
- const flip=on=>{card.classList.toggle("is-flipped",on);front.inert=on;front.setAttribute("aria-hidden",String(on));back.inert=!on;back.setAttribute("aria-hidden",String(!on));(on?back.querySelector(".pc-back-name"):front).focus({preventScroll:true});};
- front.addEventListener("click",()=>flip(true));
- back.querySelector(".pc-unflip").addEventListener("click",()=>flip(false));
- back.querySelector(".pc-full").addEventListener("click",()=>showPerson(id,opener).catch(exc=>error(exc.message)));
+ const index=ids.indexOf(id),count=ids.length;
+ $("personCardHost").innerHTML='<div class="pi-sheet"'+(relation?' data-relation="'+relation+'"':'')+'>'+
+  '<div class="pi-top">'+(count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
+  '<div class="pi-main"><div class="pi-hero">'+
+   '<button type="button" class="pi-card" aria-label="'+esc(name)+' 카드 다시 뒤집기"><span class="pi-turn">'+
+    '<span class="pi-face pi-front"><span class="pi-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pi-portrait-empty">초상 미제공</span>')+'</span><span class="pi-card-name">'+esc(name)+'</span><span class="pi-foil" aria-hidden="true"></span></span>'+
+    '<span class="pi-face pi-back" aria-hidden="true"><span class="pi-back-word">수소문</span></span>'+
+   '</span></button>'+
+   '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+'<h2 class="pi-name" id="piName">'+esc(name)+'</h2>'+(org?'<p class="pi-org">'+esc(org)+'</p>':'')+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
+  '</div><div class="pi-info"><div class="pi-body">'+
+   '<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>')+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>'+
+   (evidence.length?'<section><h3>핵심 근거 <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
+  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
+ dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
+ const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");
+ const quiet=RndCraft.quiet();sheet.classList.toggle("pi-quiet",quiet);
+ const reveal=()=>{if(quiet)return;card.classList.remove("pi-reveal");void card.offsetWidth;card.classList.add("pi-reveal");};
+ reveal();card.addEventListener("click",reveal);
+ sheet.querySelectorAll(".pi-nav").forEach(b=>b.addEventListener("click",()=>stepInspect(Number(b.dataset.step))));
+ sheet.querySelector(".pi-full").addEventListener("click",()=>showPerson(id,dialog.inspectOpener).catch(exc=>error(exc.message)));
  if(!quiet){
   const rest=()=>{card.style.setProperty("--rx","0deg");card.style.setProperty("--ry","0deg");card.classList.remove("is-lit");};
-  card.addEventListener("pointermove",e=>{const r=card.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+  card.addEventListener("pointermove",e=>{if(e.pointerType==="touch")return;const r=card.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
    card.style.setProperty("--mx",(x*100).toFixed(1)+"%");card.style.setProperty("--my",(y*100).toFixed(1)+"%");
    card.style.setProperty("--rx",((.5-y)*12).toFixed(2)+"deg");card.style.setProperty("--ry",((x-.5)*16).toFixed(2)+"deg");card.classList.add("is-lit");});
-  card.addEventListener("pointerleave",rest);card.addEventListener("pointercancel",rest);card.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")rest();});
+  card.addEventListener("pointerleave",rest);
  }
+ // The camera follows the person being inspected (the close-up users liked).
+ if(typeof drawController?.select==="function")drawController.select(id);
+}
+function stepInspect(step){
+ const dialog=$("personCardDialog"),ids=dialog.inspectIds||[],index=ids.indexOf(dialog.dataset.personId),next=ids[index+step];
+ if(index<0||!next)return;
+ renderInspect(next).then(()=>dialog.querySelector(".pi-nav[data-step='"+step+"']:not(:disabled)")?.focus({preventScroll:true})).catch(exc=>error(exc.message));
+}
+async function openPersonCard(id,opener=document.activeElement){
  const dialog=$("personCardDialog");
- if(!dialog.backdropCloseBound){dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});dialog.backdropCloseBound=true;}
- modal("personCardDialog",opener);front.focus({preventScroll:true});
+ if(!dialog.inspectBound){
+  dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});
+  dialog.addEventListener("keydown",e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;if(e.key==="ArrowRight"){e.preventDefault();stepInspect(1);}else if(e.key==="ArrowLeft"){e.preventDefault();stepInspect(-1);}});
+  let swipe=null;
+  dialog.addEventListener("pointerdown",e=>{swipe=e.pointerType==="mouse"?null:{id:e.pointerId,x:e.clientX,y:e.clientY};});
+  dialog.addEventListener("pointercancel",()=>{swipe=null;});
+  dialog.addEventListener("pointerup",e=>{if(!swipe||swipe.id!==e.pointerId)return;const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;if(Math.abs(dx)>56&&Math.abs(dx)>Math.abs(dy)*1.5)stepInspect(dx<0?1:-1);});
+  dialog.inspectBound=true;
+ }
+ dialog.inspectOpener=opener;dialog.inspectIds=inspectCandidateIds();
+ await renderInspect(id);
+ if(!dialog.open)modal("personCardDialog",opener);
+ dialog.querySelector(".pi-card")?.focus({preventScroll:true});
 }
 // A failed draft remains in the currently open person dialog; no draft or send is simulated.
 function detailRequestDraftError(message,button){
