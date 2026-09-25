@@ -892,7 +892,7 @@ function candidateRelationSummary(rows,result){
 function candidateContextHtml(candidate){
  const relation=candidatePurposeRelation(candidate);if(!relation)return '';
  const missing=typeof candidate.purpose_missing==='string'?candidate.purpose_missing.trim():'';
- const reason=typeof candidate.reason==='string'?candidate.reason.trim():'';
+ const reason=typeof candidate.reason==='string'?plainScience(candidate.reason.trim()):'';
  const evidence=(Array.isArray(candidate.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==='object');
  return '<section class="candidate-request-context" data-purpose-relation="'+relation+'"><h3>이번 요청과의 연결</h3><p class="candidate-purpose-label">'+candidatePurposeLabel(candidate)+'</p>'+
   (reason?'<p>'+esc(reason)+'</p>':'')+
@@ -1280,6 +1280,9 @@ async function showPerson(id,opener=document.activeElement,registered=false){
  $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id)))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
  $("detailDialog").dataset.registeredReview=String(registered);$("detailDialog").dataset.registeredBinding=registeredKey||"";modal("detailDialog",opener);$("detailDialog").scrollTop=0;
 }
+// Model prose sometimes carries LaTeX such as "$\text{CO}_2$", whose "\t" can arrive as a
+// tab ("$	ext{CO}_2$"). Show it as plain text with subscript digits ("CO₂").
+function plainScience(text){return String(text).replace(/\$\s*(?:\\text|ext)?\s*\{?([A-Za-z0-9]+)\}?(?:_\{?([0-9]+)\}?)?\s*\$/g,(m,base,sub)=>base+(sub?Array.from(sub,d=>"₀₁₂₃₄₅₆₇₈₉"[d]).join(""):""));}
 // Person card: a map node or drawn card opens the person's card first; a tap flips it
 // to the request details, and the full dossier stays one button away.
 async function openPersonCard(id,opener=document.activeElement){
@@ -1293,7 +1296,7 @@ async function openPersonCard(id,opener=document.activeElement){
  const org=typeof person?.org==="string"?person.org:typeof candidate?.org==="string"?candidate.org:"";
  const portrait=cardPortrait(profile.portrait?.path),capability=cardCapability({profile});
  const relation=candidatePurposeRelation(candidate),label=candidatePurposeLabel(candidate);
- const reason=typeof candidate?.reason==="string"?candidate.reason.trim():"";
+ const reason=typeof candidate?.reason==="string"?plainScience(candidate.reason.trim()):"";
  const evidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object").slice(0,3);
  const request=currentDetailCandidate(id),allowed=canPropose(request);
  const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
@@ -1308,10 +1311,12 @@ async function openPersonCard(id,opener=document.activeElement){
   '</button>'+
   '<div class="pc-face pc-back" aria-hidden="true" inert>'+
    '<p class="pc-back-name" tabindex="-1">'+esc(name)+'</p>'+
+   '<div class="pc-back-body">'+
    (relation?'<section><h3>이번 요청과의 연결</h3><p class="pc-label">'+esc(label)+'</p>'+(reason?'<p class="pc-reason">'+esc(reason)+'</p>':'')+'</section>':'<section><p class="pc-reason">이번 요청의 후보 목록에 없는 인물이에요.</p></section>')+
    (evidence.length?'<section><h3>핵심 근거</h3><ul>'+evidence.map(e=>'<li><strong>'+esc(e.title||e.id||"연결 근거")+'</strong>'+(e.scope_label||e.scope?'<span>'+esc(e.scope_label||e.scope)+'</span>':'')+'</li>').join('')+'</ul></section>':'')+
+   '</div>'+
    '<div class="pc-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':'<p class="pc-note">'+esc(unavailable)+'</p>')+
-    '<button type="button" class="pc-full">전체 약력 보기</button><button type="button" class="pc-unflip">앞면 보기 ↺</button></div>'+
+    '<div class="pc-links"><button type="button" class="pc-full">전체 약력 보기</button><button type="button" class="pc-unflip">앞면 보기 ↺</button></div></div>'+
   '</div></div></div>';
  const card=$("personCardHost").querySelector(".pc-card"),front=card.querySelector(".pc-front"),back=card.querySelector(".pc-back");
  const quiet=RndCraft.quiet();card.classList.toggle("pc-quiet",quiet);
