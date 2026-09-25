@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from rndplz import chat_models
-from rndplz.chat_models import OLLAMA_KEEP_ALIVE, OLLAMA_NO_THINK_CONTRACTS, ChatModels
+from rndplz.chat_models import OLLAMA_KEEP_ALIVE, OLLAMA_NO_THINK_CONTRACTS, OLLAMA_NUM_CTX, ChatModels
 
 
 class Captured(Exception):
@@ -48,8 +48,11 @@ class OllamaRequestTuningTests(unittest.TestCase):
     def test_model_stays_loaded_between_visitors(self):
         for contract in (None, 'dialogue_plan.v2', 'dialogue_response.v1'):
             with self.subTest(contract=contract):
-                self.assertEqual(self.payload(contract)['keep_alive'], OLLAMA_KEEP_ALIVE)
+                payload = self.payload(contract)
+                self.assertEqual(payload['keep_alive'], OLLAMA_KEEP_ALIVE)
+                self.assertEqual(payload['options']['num_ctx'], OLLAMA_NUM_CTX)
         self.assertEqual(OLLAMA_KEEP_ALIVE, '24h')
+        self.assertEqual(OLLAMA_NUM_CTX, 32768)
 
 
 if __name__ == '__main__':
