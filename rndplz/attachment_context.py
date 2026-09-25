@@ -25,13 +25,13 @@ def reader_items(conversation, session):
     return list(result.values())
 
 
-def source_previews(sources):
+def source_previews(sources, *, reading_scope='preview_only_use_attachment_tools_for_further_reading'):
     result = copy.deepcopy(sources)
     for row in result:
         texts = row.get('source_texts', [])
         row['source_texts'] = [text[:600] for text in texts]
         if texts:
-            row['attachment_reading_scope'] = 'preview_only_use_attachment_tools_for_further_reading'
+            row['attachment_reading_scope'] = reading_scope
         for item in row.get('source_attachments', []):
             item.pop('positions', None)
     return result

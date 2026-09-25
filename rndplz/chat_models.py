@@ -19,6 +19,8 @@ GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_r
 # were read as answers and failed validation. keep_alive spares a ~5 s model reload.
 OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1',))
 OLLAMA_KEEP_ALIVE = '24h'
+# 32k tokens holds the 60k-char input budget plus output; on gemma4:e4b it cost 0.3 GB VRAM over 16k.
+OLLAMA_NUM_CTX = 32768
 PLAN_REPAIR_HEADER = '[서버의 계획 검증 결과 · 데이터]'
 
 
@@ -46,7 +48,7 @@ def validate_generation_input(messages, contract):
             not isinstance(row, dict) or row.get('role') not in ('user', 'assistant')
             or not isinstance(row.get('content'), str) for row in messages):
         raise ValueError('대화 생성 메시지 형식이 올바르지 않습니다.')
-    if len(spec['system']) + sum(len(row['content']) for row in messages) > 42000:
+    if len(spec['system']) + sum(len(row['content']) for row in messages) > 60000:
         raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
     return spec
 
@@ -196,7 +198,7 @@ class ChatModels:
         headers={'Content-Type':'application/json'}
         if provider=='ollama':
             url=self.local_base+'/api/chat'
-            payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':16384},'keep_alive':OLLAMA_KEEP_ALIVE}
+            payload={'model':option['name'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'think':False,'options':{'num_predict':spec['max_tokens'] if spec is not None else 700,'num_ctx':OLLAMA_NUM_CTX},'keep_alive':OLLAMA_KEEP_ALIVE}
             # Other dialogue contracts need semantic interpretation and keep the
             # model's default reasoning behavior instead of disabling thinking.
             if spec is not None and contract not in OLLAMA_NO_THINK_CONTRACTS:payload.pop('think',None)

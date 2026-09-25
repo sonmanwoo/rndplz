@@ -660,7 +660,10 @@ class ModelConversation:
                    'previous_scope':{k:v for k,v in (session.get('previous_model_plan') or {}).items()
                                      if k in ('summary', 'interpretations', 'person_names', 'conditions')},
                    'previous_scope_origin':'이전 모델 해석이며 확정된 사용자 명세가 아닙니다. 실제 source_turns에 근거한 목적과 조건만 이어받고, 모델의 제안은 사용자가 채택했을 때만 포함하세요.',
-                   'source_turns':source_previews(sources) if readable else sources,
+                   # Unscoped turns already carry each attachment body in the conversation message;
+                   # repeating it here doubled the input and broke the budget for a 14k-char paper.
+                   'source_turns':source_previews(sources) if readable else source_previews(
+                       sources, reading_scope='preview_here_full_text_in_conversation_message'),
                    'attachment_tools':attachment_catalog(readable),
                    'public_search_tool':{
                        'scope':coverage['label'] if coverage is not None else '현재 접근 가능한 등록 기록',
@@ -1084,7 +1087,8 @@ class ModelConversation:
         return attempt['raw']
 
     def _model_answer_messages(self, session, option, plan, result, *, basis, allow_next_lookup, previous_attempts, execution_observation):
-        messages = self.model_messages(session, option)
+        # Candidate assessment needs the request and evidence more than a whole attached paper.
+        messages = self.model_messages(session, option, attachment_budget=8000)
         materials = []
         for candidate in result['candidates']:
             rows = []
