@@ -335,8 +335,12 @@
 #peopleMapHost .workspace{margin:0;padding:0}
 #peopleMapHost .hero{padding-top:12px}
 #peopleMapHost .hero h1{font-family:inherit}
-#peopleMapHost .people-map-load{padding:28px;border:1px solid var(--line);border-radius:14px;background:var(--sheet)}
-#peopleMapHost .people-map-load p{margin-bottom:12px}
+#peopleMapHost .people-map-load{display:grid;justify-items:center;align-content:center;gap:16px;min-height:min(62vh,540px);padding:28px;text-align:center}
+#peopleMapHost .people-map-load p{margin:0;color:var(--muted,#6b7166);font-size:15px}
+#peopleMapHost .people-map-load .susomun-ci{--ci-size:58px;--ci-surface:var(--desk,#f4f3ec)}
+/* While loading, the page opens on the loader rather than on the export action; a failed load stops the orbit. */
+#mapView:has(#people-map-load:not([hidden])) .map-header{display:none}
+#peopleMapHost .people-map-load:has(> button:not([hidden])) .susomun-ci--busy::after{animation:none}
 #peopleMapHost .adoption-note{margin:18px 0 30px;font-size:12px;color:var(--muted);line-height:1.8}
 
 #peopleMapHost .detail-profile-link{padding:0 18px 12px}

@@ -302,7 +302,7 @@
   if(pending.has(host))return pending.get(host);
   const status=host.querySelector("#people-map-load"),message=status.querySelector("p"),retry=status.querySelector("button"),content=host.querySelector("#people-map-content");
   if(!bound.has(host)){bound.add(host);retry.addEventListener("click",()=>ensure(host,request));}
-  message.textContent="등록된 인물과 근거 자료를 불러오고 있습니다.";retry.hidden=true;status.hidden=false;content.hidden=true;
+  message.textContent="연구 맵을 불러오는 중이에요.";retry.hidden=true;status.hidden=false;content.hidden=true;
   const work=(async()=>{
    try{
     const data=await request("/api/people-map");
