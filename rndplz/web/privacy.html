@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f2eb">
+  <title>개인정보처리방침 — 수소문</title>
+  <script src="/theme.js"></script><link rel="stylesheet" href="/craft.css">
+  <style>
+    .legal-page .craft-header { display:flex; justify-content:space-between; gap:1rem; }
+    .legal-shell { width:min(100% - 2rem, 44rem); margin:clamp(2rem, 6vh, 4rem) auto; line-height:1.75; }
+    .legal-shell h1 { font-size:clamp(1.8rem, 5vw, 2.6rem); line-height:1.25; margin:.4rem 0 .5rem; }
+    .legal-shell h2 { font-size:1.1rem; margin:2rem 0 .5rem; }
+    .legal-shell p, .legal-shell li { font-size:.95rem; overflow-wrap:anywhere; }
+    .legal-shell ul { padding-left:1.2rem; }
+    .legal-shell li + li { margin-top:.35rem; }
+    .legal-date { color:var(--muted); font-size:.9rem; }
+    .legal-shell a, .legal-page .craft-actions a { color:var(--green); }
+    .legal-footer { display:flex; gap:1rem; flex-wrap:wrap; margin-top:2.5rem; }
+    @media(max-width:420px) { .legal-page .craft-header { padding:1rem; } }
+  </style>
+<link rel="stylesheet" href="/theme.css"></head>
+<body class="crafted legal-page">
+  <header class="craft-header">
+    <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RESEARCH, TOGETHER.</small></span></a>
+    <div class="craft-actions"><a href="/">대화로 돌아가기</a><div class="theme-controls" data-theme-controls role="group" aria-label="화면 모드" hidden><button type="button" data-theme-set="light" aria-pressed="true">라이트</button><button type="button" data-theme-set="dark" aria-pressed="false">다크</button></div></div>
+  </header>
+  <main class="legal-shell">
+    <h1>개인정보처리방침</h1>
+    <p class="legal-date">시행일 2026년 9월 27일</p>
+    <p>수소문(이하 “서비스”)은 손만우가 개인적으로 운영하는 시험 서비스입니다. 연구 문제를 대화로 정리하고 함께 풀어 갈 사람을 찾는 기능을 시험합니다. 이 방침은 서비스가 어떤 개인정보를 왜, 어떻게, 얼마 동안 다루는지 설명합니다.</p>
+
+    <h2>1. 수집하는 정보</h2>
+    <ul>
+      <li><strong>모든 이용자</strong>: 방문자 쿠키, 입력한 대화 내용, 첨부한 파일과 링크, 작성한 의뢰서</li>
+      <li><strong>Google로 로그인하거나 가입을 요청한 이용자</strong>: Google 계정 고유 식별자, 이름, Google이 확인한 이메일 주소. 로그인한 뒤 직접 입력한 내 프로필 내용과 첨부 파일, 참여 포인트(mole) 기록</li>
+      <li><strong>운영 점검 기록</strong>: 요청 시각, 처리 결과, 오류 정보, 문제를 확인하는 데 필요한 대화 내용 일부</li>
+    </ul>
+    <p>Google 로그인에서는 이름·이메일·기본 프로필 정보만 요청합니다. Google 계정 비밀번호는 받지 않으며, Google이 발급한 접근 토큰은 저장하지 않습니다.</p>
+
+    <h2>2. 이용 목적</h2>
+    <ul>
+      <li>대화를 이어 가고 사람 추천, 의뢰서 작성 같은 서비스 기능을 제공하기 위해</li>
+      <li>로그인한 이용자가 자기 프로필을 관리하고, 운영자가 가입 요청을 확인·승인하기 위해</li>
+      <li>오류를 찾아 고치고 서비스를 개선하기 위해</li>
+    </ul>
+    <p>광고, 판매, 제3자 제공에는 쓰지 않습니다.</p>
+
+    <h2>3. 처리 위치와 외부 전송</h2>
+    <ul>
+      <li>서비스와 모든 기록은 운영자의 PC에 있습니다. 대화와 첨부 내용은 이 PC에서 실행되는 AI 모델(Gemma)로 처리하며, 외부 AI 서비스로 보내지 않습니다.</li>
+      <li>접속은 Tailscale Funnel을 거쳐 암호화된 채로 운영자 PC에 전달됩니다.</li>
+      <li>로그인에는 Google 계정 인증을 쓰므로, Google은 이용자가 이 서비스에 로그인했다는 사실을 알 수 있습니다.</li>
+      <li>첨부로 링크를 입력하면 서버가 그 주소의 내용을 가져옵니다.</li>
+    </ul>
+
+    <h2>4. 보관 기간과 파기</h2>
+    <ul>
+      <li>방문자 쿠키와 로그인 세션: 24시간</li>
+      <li>운영 점검 기록: 대화 내용이 담긴 기록은 24시간, 그 밖의 기록은 7일이 지나면 자동으로 정리합니다.</li>
+      <li>대화, 첨부, 의뢰서, 계정 정보, 내 프로필: 이용자가 삭제를 요청하거나 시험 운영을 마치면 지웁니다.</li>
+      <li>거절한 가입 요청: 같은 계정이 다시 요청하지 못하도록 식별자와 이름·이메일을 보관하며, 요청하면 지웁니다.</li>
+    </ul>
+
+    <h2>5. 이용자의 권리</h2>
+    <p>자신의 개인정보를 열람하거나 고치고, 지우거나 처리를 멈추도록 요청할 수 있습니다. 내 프로필은 로그인한 뒤 프로필 화면에서 직접 고칠 수 있고, 그 밖의 요청은 아래 연락처로 보내 주세요. 방문자 기록은 쿠키가 만료되면 이용자가 다시 열 수 없으니, 삭제를 원하면 이용한 날짜와 대화 내용을 함께 알려 주세요.</p>
+
+    <h2>6. 쿠키와 브라우저 저장소</h2>
+    <p>방문자 쿠키와 로그인 쿠키만 쓰며, 둘 다 서비스 이용에 꼭 필요한 쿠키입니다. 광고·분석 쿠키는 쓰지 않습니다. 화면 모드(라이트·다크) 같은 설정은 브라우저 저장소에 저장합니다.</p>
+
+    <h2>7. 추천에 쓰는 인물 정보</h2>
+    <p>사람 추천에는 공개된 논문·특허 기록과, 팀원이 직접 제공한 경력 정보를 씁니다. 본인 정보가 잘못되었거나 빼기를 원하면 아래 연락처로 알려 주세요.</p>
+
+    <h2>8. 안전 조치</h2>
+    <p>모든 통신은 HTTPS로 암호화하고, 로그인 토큰은 원문 대신 해시값으로 저장합니다. 기록은 운영자 PC에만 두며 운영자만 접근합니다.</p>
+
+    <h2>9. 올리지 말아야 할 정보</h2>
+    <p>회사 기밀, 다른 사람의 개인정보, 주민등록번호나 건강 정보 같은 민감한 정보는 입력하거나 첨부하지 마세요.</p>
+
+    <h2>10. 연락처와 변경</h2>
+    <p>개인정보 담당: 손만우 (<a href="mailto:manwooson@gscaltex.com">manwooson@gscaltex.com</a>)</p>
+    <p>방침을 바꾸면 이 페이지에 새 시행일과 함께 알립니다.</p>
+
+    <nav class="legal-footer" aria-label="관련 문서"><a href="/terms">이용약관</a><a href="/">수소문 홈</a></nav>
+  </main>
+</body>
+</html>

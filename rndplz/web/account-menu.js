@@ -159,6 +159,9 @@
   requestsClose.addEventListener('click',()=>requestsDialog.close());
   requestsDialog.addEventListener('close',()=>{if(!ending&&!invalidated&&toggle.isConnected)toggle.focus({preventScroll:true});});
   window.addEventListener('rndplz:account-navigation',event=>{if(['begin','invalidate'].includes(event.detail?.phase)&&requestsDialog.open)requestsDialog.close();});
+  // Policies for everyone who opens the menu, including visitors about to sign up.
+  const legal=moleNode('p','accountLegal','account-note account-legal'),privacyLink=moleNode('a','','','개인정보처리방침'),termsLink=moleNode('a','','','이용약관');
+  privacyLink.href='/privacy';termsLink.href='/terms';legal.append(privacyLink,' · ',termsLink);menu.append(legal);
 
   function permitNavigation(action){
     const detail={action,dirty:false,message:'',checkedScopes:[]};
