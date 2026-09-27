@@ -53,6 +53,7 @@ html[data-theme="dark"] :is(.account-toggle,.account-menu) { background:var(--sh
 html[data-theme="dark"] .account-menu>:is(a,button) { color:var(--ink); }
 html[data-theme="dark"] .account-menu>:is(a,button):hover:not(:disabled) { background:var(--theme-hover); }
 html[data-theme="dark"] :is(.account-note,.mole-note,.mole-status,.mole-time,.mole-refresh[aria-disabled="true"]) { color:var(--muted); }
+html[data-theme="dark"] .request-actions .request-approve { color:var(--sheet); }
 html[data-theme="dark"] :is(.crafted .primary,.profile-page .primary-button) { color:var(--desk); background:var(--green); border-color:var(--green); }
 html[data-theme="dark"] :is(.crafted .primary,.profile-page .primary-button):hover:enabled { color:var(--desk); background:var(--theme-secondary); border-color:var(--theme-secondary); }
 html[data-theme="dark"] :is(.crafted #proposeButton,.crafted .coral,.send-button) { background:var(--red); color:var(--desk); border-color:var(--red); }

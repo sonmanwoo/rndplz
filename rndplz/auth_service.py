@@ -145,6 +145,7 @@ class Config:
     redirect_uri: str
     allowed_subs: frozenset
     enrollment_enabled: bool = False
+    admin_ids: frozenset = frozenset()
 
 
 class AuthService:
@@ -156,6 +157,10 @@ class AuthService:
         self.transport = transport or GoogleTransport()
         self.enabled, self.reason = config is not None and storage is not None, reason
         self.enrollment_enabled = bool(self.enabled and config.enrollment_enabled)
+        # Open sign-up needs someone to decide it: Google accounts outside the team become
+        # pending requests only when an administrator account is configured.
+        self.admin_ids = frozenset(config.admin_ids) if self.enabled else frozenset()
+        self.signup_requests_enabled = bool(self.admin_ids)
         if self.enabled:
             self.storage.allowed_subs = frozenset(config.allowed_subs)
         self.storage_deployment_verified = False  # Configuration is not durability evidence.
@@ -174,6 +179,9 @@ class AuthService:
                 require(env['RNDPLZ_PUBLIC_ORIGIN'].rstrip('/') == redirect.scheme + '://' + redirect.netloc, 'redirect_origin_mismatch', 503)
             subs, roots = strict_json(env[keys[3]]), strict_json(env[keys[6]])
             enrollment_enabled = env.get('RNDPLZ_GOOGLE_ENROLLMENT_ENABLED') == 'true'
+            admins = strict_json(env['RNDPLZ_ACCOUNT_ADMIN_IDS']) if env.get('RNDPLZ_ACCOUNT_ADMIN_IDS') else []
+            require(isinstance(admins, list) and len(admins) <= 10 and
+                    all(isinstance(a, str) and re.fullmatch('[a-f0-9]{32}', a) for a in admins), 'admin_configuration_invalid', 503)
             require(isinstance(subs, list) and len(subs) <= 100 and
                     all(isinstance(s, str) and 1 <= len(s) <= 255 for s in subs), 'team_allowlist_missing', 503)
             require(isinstance(roots, list) and roots and all(isinstance(x, str) and Path(x).is_absolute() and Path(x).is_dir() for x in roots), 'trusted_storage_roots_missing', 503)
@@ -189,7 +197,7 @@ class AuthService:
             # Dependencies must be available before exposing a login button.
             from google.auth import jwt
             from cryptography.hazmat.primitives.asymmetric import rsa
-            config = Config(env[keys[0]], env[keys[1]], env[keys[2]], frozenset(subs), enrollment_enabled)
+            config = Config(env[keys[0]], env[keys[1]], env[keys[2]], frozenset(subs), enrollment_enabled, frozenset(admins))
             storage = AccountStorage(*paths, allowed_subs=config.allowed_subs)
             require(bool(subs) or enrollment_enabled or storage.has_active_approvals(), 'team_allowlist_missing', 503)
             return cls(config, storage, reason='configured_not_deployment_verified')
@@ -206,6 +214,9 @@ class AuthService:
     @property
     def login_available(self):
         return bool(self.enabled and self.storage.has_login_members())
+
+    def is_admin(self, account):
+        return bool(self.enabled and account and account.get('id') in self.admin_ids)
 
     def begin_login(self, return_path='/'):
         self._enabled()
@@ -245,9 +256,16 @@ class AuthService:
             claims = verify_google_token(token, self.transport.keys(force=True), self.config.client_id, flow['nonce'])
         def safe_text(value, limit):
             return ''.join(c for c in value if ord(c) >= 32)[:limit] if isinstance(value, str) else ''
-        return self.storage.issue_session(claims['sub'], safe_text(claims.get('name'), 200),
-            safe_text(claims.get('email'), 320) if claims.get('email_verified') is True else '', previous_cookie,
-            enrollment_flow=flow)
+        name = safe_text(claims.get('name'), 200)
+        email = safe_text(claims.get('email'), 320) if claims.get('email_verified') is True else ''
+        try:
+            return self.storage.issue_session(claims['sub'], name, email, previous_cookie, enrollment_flow=flow)
+        except AuthError as error:
+            # A Google account outside the team becomes a sign-up request for an administrator.
+            if (error.code != 'team_member_not_allowed' or not self.signup_requests_enabled
+                    or flow['invitation_hash'] is not None):
+                raise
+            return self.storage.request_access(claims['sub'], name, email)
 
     def cancel_login(self, state, login_cookie):
         self._enabled()

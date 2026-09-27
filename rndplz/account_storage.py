@@ -212,15 +212,87 @@ class AccountStorage:
     def list_accounts(self):
         """Administrator listing with masked emails; never returns subs or sessions."""
         with self.connection() as db:
-            rows = db.execute('SELECT a.id, a.display_name, a.email, a.person_id, a.created, '
-                              'COALESCE(s.revoked,0) AS revoked FROM accounts a '
+            rows = db.execute('SELECT a.id, a.google_sub, a.display_name, a.email, a.person_id, a.created, '
+                              'COALESCE(s.revoked,0) AS revoked, COALESCE(s.approved,0) AS approved FROM accounts a '
                               'LEFT JOIN subject_approvals s USING(google_sub) ORDER BY a.created').fetchall()
         def masked(email):
             local, _, domain = email.partition('@')
             return (local[:1] + '***@' + domain) if domain else ''
+        def status(row):
+            return ('revoked' if row['revoked'] else
+                    'active' if row['approved'] or row['google_sub'] in self.allowed_subs else 'pending')
         return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': masked(row['email']),
-                 'person_id': row['person_id'], 'created': row['created'], 'revoked': bool(row['revoked'])}
+                 'person_id': row['person_id'], 'created': row['created'], 'revoked': bool(row['revoked']),
+                 'status': status(row)}
                 for row in rows]
+
+    # Open sign-up: a Google account outside the team is recorded as a pending request
+    # (account row + unapproved subject) and gets no session until an administrator
+    # approves it. Rejection revokes the subject, so it cannot ask again.
+    PENDING_REQUEST_LIMIT = 50
+
+    def _pending_rows(self, db):
+        rows = db.execute('SELECT a.id, a.google_sub, a.display_name, a.email, a.created FROM accounts a '
+                          'JOIN subject_approvals s USING(google_sub) '
+                          'WHERE s.approved=0 AND s.revoked=0 ORDER BY a.created, a.id').fetchall()
+        return [row for row in rows if row['google_sub'] not in self.allowed_subs]
+
+    def request_access(self, sub, display_name, email):
+        """Called only after signed Google token verification, for a subject that is not a member."""
+        with self.transaction() as db:
+            approval = db.execute('SELECT revoked FROM subject_approvals WHERE google_sub=?', (sub,)).fetchone()
+            if approval is not None and approval['revoked']:
+                raise AuthError('account_revoked', 401)
+            row = db.execute('SELECT id FROM accounts WHERE google_sub=?', (sub,)).fetchone()
+            if row is None:
+                if len(self._pending_rows(db)) >= self.PENDING_REQUEST_LIMIT:
+                    raise AuthError('signup_requests_full', 429)
+                aid = uuid.uuid4().hex
+                db.execute('INSERT INTO accounts(id,google_sub,display_name,email,created) VALUES(?,?,?,?,?)',
+                           (aid, sub, display_name, email, int(self.clock())))
+            else:
+                aid = row['id']
+                db.execute('UPDATE accounts SET display_name=?,email=? WHERE id=?', (display_name, email, aid))
+            db.execute('INSERT INTO subject_approvals(google_sub,approved) VALUES(?,0) '
+                       'ON CONFLICT(google_sub) DO NOTHING', (sub,))
+        return {'pending': True, 'account_id': aid}
+
+    def pending_requests(self):
+        """Administrator view, oldest first; the full verified email identifies the requester."""
+        with self.connection() as db:
+            return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': row['email'],
+                     'requested_at': row['created']} for row in self._pending_rows(db)]
+
+    def pending_count(self):
+        with self.connection() as db:
+            return len(self._pending_rows(db))
+
+    def bound_person_ids(self):
+        with self.connection() as db:
+            return {row['person_id'] for row in db.execute('SELECT person_id FROM accounts WHERE person_id IS NOT NULL')}
+
+    def decide_request(self, account_id, approve, person_id=None):
+        """Administrator decision on one pending request; approval may bind one public person."""
+        if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
+            raise AuthError('account_id_invalid', 400)
+        person_id = person_id_value(person_id)
+        if not approve and person_id is not None:
+            raise AuthError('person_id_invalid', 400)
+        with self.transaction() as db:
+            row = db.execute('SELECT a.google_sub FROM accounts a JOIN subject_approvals s USING(google_sub) '
+                             'WHERE a.id=? AND s.approved=0 AND s.revoked=0', (account_id,)).fetchone()
+            if row is None or row['google_sub'] in self.allowed_subs:
+                raise AuthError('request_not_pending', 409)
+            if not approve:
+                db.execute('UPDATE subject_approvals SET revoked=1 WHERE google_sub=?', (row['google_sub'],))
+                return {'account_id': account_id, 'status': 'rejected', 'person_id': None}
+            if person_id is not None and db.execute(
+                    'SELECT 1 FROM accounts WHERE person_id=? AND id<>?', (person_id, account_id)).fetchone() is not None:
+                raise AuthError('person_already_bound', 409)
+            db.execute('UPDATE subject_approvals SET approved=1,approved_at=? WHERE google_sub=?',
+                       (int(self.clock()), row['google_sub']))
+            db.execute('UPDATE accounts SET person_id=? WHERE id=?', (person_id, account_id))
+        return {'account_id': account_id, 'status': 'approved', 'person_id': person_id}
 
     def has_active_approvals(self):
         with self.connection() as db:
