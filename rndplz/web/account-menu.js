@@ -8,9 +8,10 @@
   const inertBefore=new Map();
   let announceLogin=false;
   let logoutUncertain=false,sessionExpired=false;
+  let pendingNotice=false;
   try{
-    const url=new URL(location.href);announceLogin=url.searchParams.get('account_changed')==='1';
-    if(url.searchParams.has('account_changed')){url.searchParams.delete('account_changed');window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);}
+    const url=new URL(location.href);announceLogin=url.searchParams.get('account_changed')==='1';pendingNotice=url.searchParams.get('account_pending')==='1';
+    if(url.searchParams.has('account_changed')||url.searchParams.has('account_pending')){url.searchParams.delete('account_changed');url.searchParams.delete('account_pending');window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);}
   }catch{}
   const show=(node,visible)=>{if(node){node.hidden=!visible;node.style.display=visible?'':'none';}};
   const close=(focus=false)=>{menu.hidden=true;toggle.setAttribute('aria-expanded','false');if(focus)toggle.focus();};
@@ -93,6 +94,72 @@
   moleRefresh.addEventListener('click',loadMole);
   window.addEventListener('rndplz:account-navigation',event=>{if(['begin','invalidate'].includes(event.detail?.phase)){clearMole('확인 전');closeMole();}});
 
+  // Open sign-up: a Google account outside the team becomes a request that the administrator
+  // decides here. Visitors only see how it works; logging in is what sends the request.
+  const signupNote=moleNode('p','accountSignupNote','account-note','처음이라면 로그인할 때 가입 요청이 관리자에게 전달되고, 승인 후 이용할 수 있어요.');
+  show(signupNote,false);login?.after(signupNote);
+  const pendingNote=moleNode('p','accountPendingNote','account-note account-pending','가입 요청을 보냈어요. 관리자가 승인하면 ‘Google 계정으로 로그인’을 다시 눌러 주세요.');
+  pendingNote.setAttribute('role','status');show(pendingNote,pendingNotice);menu.insertBefore(pendingNote,menu.firstChild);
+  const requestsEntry=moleNode('button','requestsEntry','requests-entry','가입 요청');requestsEntry.type='button';
+  requestsEntry.setAttribute('aria-haspopup','dialog');requestsEntry.setAttribute('aria-controls','requestsDialog');
+  show(requestsEntry,false);moleUnavailable.after(requestsEntry);
+  const requestsDialog=moleNode('dialog','requestsDialog','mole-dialog requests-dialog');requestsDialog.setAttribute('aria-labelledby','requestsTitle');
+  const requestsHeading=moleNode('header','','mole-heading'),requestsClose=moleNode('button','requestsClose','mole-close','×');
+  requestsClose.type='button';requestsClose.setAttribute('aria-label','가입 요청 닫기');
+  requestsHeading.append(moleNode('h2','requestsTitle','','가입 요청'),requestsClose);
+  const requestsStatus=moleNode('p','requestsStatus','mole-status');requestsStatus.setAttribute('role','status');
+  const requestsList=moleNode('ol','requestsList','mole-entries requests-list');
+  requestsDialog.append(requestsHeading,moleNode('p','','mole-note','Google 계정으로 가입을 요청한 사람입니다. 승인하면 다음 로그인부터 이용할 수 있고, 거절한 계정은 다시 요청할 수 없어요.'),requestsStatus,requestsList);
+  document.body.append(requestsDialog);
+  const requestErrors={person_already_bound:'이미 다른 계정에 연결된 프로필이에요.',request_not_pending:'이미 처리된 요청이에요.',admin_required:'관리자 계정만 처리할 수 있어요.',account_required:'로그인 상태를 다시 확인해 주세요.',decision_invalid:'연결할 프로필을 다시 골라 주세요.'};
+  let requestsBusy=false;
+  function setRequestsCount(count){requestsEntry.textContent=count>0?'가입 요청 '+count+'건':'가입 요청 없음';requestsEntry.classList.toggle('has-requests',count>0);}
+  function renderRequests(value){
+    const rows=Array.isArray(value?.requests)?value.requests:[],people=Array.isArray(value?.people)?value.people:[];
+    requestsList.replaceChildren();
+    for(const row of rows){
+      const item=moleNode('li','','request-item'),who=moleNode('div','','request-who');
+      const when=Number.isSafeInteger(row.requested_at)?new Date(row.requested_at*1000).toLocaleString('ko-KR'):'';
+      who.append(moleNode('strong','','',row.display_name||'이름 없음'),moleNode('span','','mole-time',[row.email||'이메일 미확인',when].filter(Boolean).join(' · ')));
+      const select=document.createElement('select');select.setAttribute('aria-label',(row.display_name||'요청자')+' 승인 시 연결할 공개 프로필');
+      select.append(new Option('공개 프로필과 연결 안 함',''));
+      // Preselect only an exact name match; the administrator still confirms it.
+      for(const person of people)if(!person.bound)select.append(new Option(person.name+' 프로필과 연결',person.person_id,false,person.name===row.display_name));
+      const actions=moleNode('div','','request-actions'),approve=moleNode('button','','request-approve','승인'),reject=moleNode('button','','request-reject','거절');
+      approve.type='button';reject.type='button';const controls=[select,approve,reject];
+      approve.addEventListener('click',()=>decide(row,'approve',select.value||null,controls));
+      reject.addEventListener('click',()=>{if(window.confirm((row.display_name||'이 계정')+'의 가입 요청을 거절할까요? 거절한 계정은 다시 요청할 수 없어요.'))decide(row,'reject',null,controls);});
+      actions.append(approve,reject);item.append(who,select,actions);requestsList.append(item);
+    }
+    return rows.length;
+  }
+  async function loadRequests(){
+    if(requestsBusy)return null;
+    requestsBusy=true;requestsStatus.textContent='요청을 불러오고 있어요.';
+    try{
+      const response=await fetch('/api/account/requests',{credentials:'same-origin',cache:'no-store'});
+      const value=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(requestErrors[value?.code]||'요청을 불러오지 못했어요.');
+      const count=renderRequests(value);setRequestsCount(count);requestsStatus.textContent=count?'':'기다리는 요청이 없어요.';return count;
+    }catch(exc){requestsList.replaceChildren();requestsStatus.textContent=exc.message||'요청을 불러오지 못했어요.';return null;}
+    finally{requestsBusy=false;}
+  }
+  async function decide(row,decision,personId,controls){
+    if(requestsBusy)return;
+    for(const node of controls)node.disabled=true;requestsStatus.textContent='처리하고 있어요.';
+    try{
+      const response=await fetch('/api/account/requests/decide',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-RnDplz-Token':token},body:JSON.stringify({account_id:row.account_id,decision,person_id:personId})});
+      const value=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(requestErrors[value?.code]||'처리하지 못했어요.');
+      const done=(decision==='approve'?'승인했어요: ':'거절했어요: ')+(row.display_name||'이름 없음')+'.';
+      const left=await loadRequests();if(left!==null)requestsStatus.textContent=done+(left?'':' 남은 요청이 없어요.');
+    }catch(exc){for(const node of controls)node.disabled=false;requestsStatus.textContent=exc.message||'처리하지 못했어요.';}
+  }
+  requestsEntry.addEventListener('click',()=>{if(ending||invalidated)return;close();requestsDialog.showModal();loadRequests();});
+  requestsClose.addEventListener('click',()=>requestsDialog.close());
+  requestsDialog.addEventListener('close',()=>{if(!ending&&!invalidated&&toggle.isConnected)toggle.focus({preventScroll:true});});
+  window.addEventListener('rndplz:account-navigation',event=>{if(['begin','invalidate'].includes(event.detail?.phase)&&requestsDialog.open)requestsDialog.close();});
+
   function permitNavigation(action){
     const detail={action,dirty:false,message:'',checkedScopes:[]};
     const event=new CustomEvent('rndplz:before-account-navigation',{cancelable:true,detail});
@@ -156,14 +223,19 @@
     setMoleAccount(value.authenticated?account.id:null,value.enabled?'로그인 후 확인할 수 있어요.':'팀원 로그인 준비 중');
     if(moleLoadAfterSession){moleLoadAfterSession=false;if(value.authenticated&&!menu.hidden)loadMole();}
     if(announceLogin){announceLogin=false;if(value.authenticated)broadcast();}
-    show(identity,value.authenticated);show(login,false);show(unavailable,false);
+    show(identity,value.authenticated);show(login,false);show(unavailable,false);show(signupNote,false);
+    const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);
+    if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
+    if(value.authenticated)show(pendingNote,false);
     if(value.authenticated){
       identity.textContent=(typeof account.display_name==='string'&&account.display_name.trim())||'Google 계정';
       note.textContent='본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
     }else{
       note.textContent='임시 방문자 세션입니다. 로그인해도 기존 방문자 기록이 계정으로 자동 이동하지 않습니다.';
-      if(value.enabled&&value.login_url==='/auth/google/start')show(login,true);
+      if(value.enabled&&value.login_url==='/auth/google/start'){show(login,true);show(signupNote,value.signup_requests===true);}
       else{show(unavailable,true);unavailable.textContent='팀원 로그인 준비 중';if(typeof value.disabled_reason==='string'&&value.disabled_reason.trim())unavailable.textContent+=' · '+value.disabled_reason;}
+      // After a sign-up request, open the menu once so the visitor sees what happens next.
+      if(pendingNotice){pendingNotice=false;menu.hidden=false;toggle.setAttribute('aria-expanded','true');}
     }
   }
   async function legacyBootstrap(epoch){
@@ -194,7 +266,7 @@
         logoutUncertain=false;show(verifySession,false);cancelNavigation();
         error.textContent='같은 세션이 유지되고 있습니다. 작성 중인 내용을 계속할 수 있어요.';
       }
-    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);moleLoadAfterSession=false;setMoleAccount(null,'계정 상태를 확인하지 못했어요. 메뉴를 다시 열면 다시 확인합니다.');note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
+    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);show(signupNote,false);show(requestsEntry,false);moleLoadAfterSession=false;setMoleAccount(null,'계정 상태를 확인하지 못했어요. 메뉴를 다시 열면 다시 확인합니다.');note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
     finally{if(epoch===requestEpoch){checking=false;if(verifySession)verifySession.disabled=false;}}
   }
   toggle.addEventListener('click',()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){if(moleAccount)loadMole();else{moleLoadAfterSession=true;refreshSession();}Array.from(menu.querySelectorAll('button:not(:disabled),a')).find(node=>!node.hidden&&node.style.display!=='none')?.focus();}});

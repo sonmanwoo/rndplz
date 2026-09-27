@@ -588,7 +588,7 @@ class PublicApp:
             has_account_cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME) is not None
         except AuthError:
             has_account_cookie = True
-        return {'enabled': self.auth.enabled, 'authenticated': account is not None,
+        status = {'enabled': self.auth.enabled, 'authenticated': account is not None,
                 'account': self._public_account(account) if account else None,
                 'login_url': '/auth/google/start' if login_available else None,
                 'enrollment_enabled': self.auth.enabled and self.auth.enrollment_enabled,
@@ -596,6 +596,29 @@ class PublicApp:
                 'disabled_reason': ('Google 로그인이 아직 설정되지 않았습니다. 방문자로 계속 이용할 수 있습니다.' if not self.auth.enabled else
                                     '초대 코드를 받아 최초 가입 화면에서 먼저 가입해 주세요.' if not login_available else None),
                 'token': context['token'] if account or not has_account_cookie else None}
+        status['signup_requests'] = self.auth.signup_requests_enabled
+        status['admin'] = self.auth.is_admin(account)
+        if status['admin']:
+            status['pending_requests'] = self.auth.storage.pending_count()
+        return status
+
+    def _require_admin(self, context):
+        if not context.get('account'):
+            raise AuthError('account_required', 401)
+        if not self.auth.is_admin(context['account']):
+            raise AuthError('admin_required', 403)
+
+    def _bindable_people(self):
+        from .public_profiles import APPROVED_PERSON_IDS
+        bound = self.auth.storage.bound_person_ids()
+        return [{'person_id': pid, 'name': person.profile.get('display_name') or person.name, 'bound': pid in bound}
+                for pid, person in sorted(self.engine.corpus.people.items()) if pid in APPROVED_PERSON_IDS]
+
+    def _account_requests(self, context, environ):
+        self._require_admin(context)
+        if environ.get('QUERY_STRING', ''):
+            raise AuthError('requests_query_not_allowed', 400)
+        return {'requests': self.auth.storage.pending_requests(), 'people': self._bindable_people()}
 
     def _account_context(self, environ):
         if self.hosted_demo_policy is not None:
@@ -673,6 +696,11 @@ class PublicApp:
             if previous_cookie and self.auth.authenticate(previous_cookie) is None:
                 previous_cookie = None
             result = self.auth.finish(query['code'][0], query['state'][0], login_cookie, previous_cookie)
+            if result.get('pending'):
+                # Sign-up request recorded; no account session until an administrator approves it.
+                headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
+                headers.append(('Location', '/?account_pending=1'))
+                return send(303, b'', 'text/plain; charset=utf-8')
             if previous_cookie:
                 old_key = 'account-' + hashlib.sha256(previous_cookie.encode('utf-8')).hexdigest()
                 with self.lock:
@@ -997,6 +1025,7 @@ class PublicApp:
                     if environ.get('QUERY_STRING', ''):
                         return send(400, {'error': '참여 포인트 조회에는 추가 조건을 넣지 마세요.', 'code': 'mole_query_not_allowed'})
                     return send(200, profile.store.mole_summary())
+                if path == '/api/account/requests': return send(200, self._account_requests(context, environ))
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/self-profile/source': return send(200, profile.source(identifier))
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, 'mail_delivery': service.mail.status(), **account_view})
@@ -1049,7 +1078,7 @@ class PublicApp:
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
             try:
-                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') or path in CHUNK_UPLOAD_ROUTES else json.loads(raw_payload)
+                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/account/requests/decide','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') or path in CHUNK_UPLOAD_ROUTES else json.loads(raw_payload)
             except AuthError:
                 if path in CHUNK_UPLOAD_ROUTES:
                     raise AttachmentError('corrupt') from None
@@ -1099,6 +1128,15 @@ class PublicApp:
             if path == '/api/chat/recovery-report':
                 if environ.get('QUERY_STRING',''):return send(400,{'error':'회복 관측에는 추가 주소 조건을 넣지 마세요.','code':'recovery_report_invalid'})
                 return self._recovery_report(context,chat,payload,send,diagnostic_probe)
+            if path == '/api/account/requests/decide':
+                self._require_admin(context)
+                person_id = payload.get('person_id')
+                if (set(payload) != {'account_id', 'decision', 'person_id'} or payload['decision'] not in ('approve', 'reject')
+                        or not (person_id is None or (isinstance(person_id, str) and
+                                person_id in {row['person_id'] for row in self._bindable_people()}))):
+                    return send(400, {'error': '승인 요청 내용을 확인해 주세요.', 'code': 'decision_invalid'})
+                decided = self.auth.storage.decide_request(payload['account_id'], payload['decision'] == 'approve', person_id)
+                return send(200, {**decided, 'pending_requests': self.auth.storage.pending_count()})
             if path == '/auth/google/enroll':
                 if set(payload) != {'invitation'} or not isinstance(payload.get('invitation'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', payload['invitation']):
                     return send(400, {'error': '받은 초대 코드를 확인해 주세요.'})
