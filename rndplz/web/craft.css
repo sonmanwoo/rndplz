@@ -332,6 +332,7 @@ body.crafted:before{content:"";position:fixed;inset:0;pointer-events:none;z-inde
 .request-actions{display:flex;gap:8px}.request-actions button{flex:1;min-height:40px;border:1px solid var(--line,#dcded3);border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}
 .request-actions .request-approve{border-color:var(--green,#315e50);background:var(--green,#315e50);color:#fff}
 .request-actions button:disabled,.requests-list select:disabled{opacity:.5;cursor:default}
+.account-legal a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 
 
 /* Existing service CI, reused as static decoration. */
