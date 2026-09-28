@@ -1270,6 +1270,8 @@ async function submitComposer(){
  let attachmentPlan;try{attachmentPlan=planInlineMessageAttachments(text,files,inlineMessageLinks,()=>"pending-"+crypto.randomUUID());}catch(e){error(e.message);return;}
  const boundary=modelBoundaryMessage(selectedModel,attachmentPlan.files);if(boundary){error(boundary);return;}
  let toProfile=profileUI.shouldHandle(text),routed=false;
+ // With the profile open, files sent without a message are profile material, not a research question.
+ if(!text&&profileUI.isOpen())routed=toProfile=true;
  if(!toProfile&&text&&option()?.provider==="bridge"){
   intentBusy=true;controls();
   try{routed=toProfile=(await classifyIntent(text,attachmentPlan.files))==="profile_update";}finally{intentBusy=false;controls();}

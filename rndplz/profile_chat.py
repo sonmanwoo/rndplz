@@ -1,4 +1,5 @@
-"""Explicit self-profile actions in a chat, independent of model conversation.
+"""Self-profile actions in a chat. Explicit commands save directly; other sentences the
+intent reader routed here are read by Gemma into a draft the user saves in the profile panel.
 
 Only generic labels and receipt references enter the transcript. Profile values
 are always read from the current, redaction-aware private Profiles view.
@@ -13,6 +14,15 @@ from .profiles import ProfileError
 from .service import now
 
 
+# The profile panel's labels (profile-chat.js FIELDS).
+FIELD_NAMES = {'name': '표시 이름', 'organization': '소속·부서', 'role': '현재 역할', 'bio': '짧은 소개', 'skills': '전문분야', 'interests': '관심 분야'}
+GUIDE = {
+    'help': "바꿀 내용을 한 문장으로 말씀해 주세요. 예: '소속을 바이오공정팀으로 바꿔줘', '관심 분야에 수소 액화 추가'. "
+            "이력서·연구노트 같은 파일을 이 입력창에 첨부해 보내면 Gemma가 끝까지 읽고 변경안을 만들어요.",
+    'document': "말씀하신 파일을 이 입력창에 첨부해 보내 주세요. 프로필 창이 열려 있을 때 보낸 파일은 Gemma가 끝까지 읽고 "
+                "경력·기술·관심 분야 변경안을 만들어요. 반영은 고른 항목만 됩니다.",
+    'again': "프로필 창에서 이어서 하면 돼요. 바꿀 항목과 값을 말씀하시거나 파일을 첨부해 보내 주세요.",
+}
 LABELS = {'이름': 'name', '소속': 'organization', '역할': 'role', '직무': 'role',
           '소개': 'bio', '자기소개': 'bio', '전문분야': 'skills', '전문 분야': 'skills',
           '기술': 'skills', '스킬': 'skills', '관심분야': 'interests', '관심 분야': 'interests'}
@@ -46,8 +56,49 @@ class ProfileChat:
         self.store = service.store
         self.profiles = profiles
 
+    def _interpret(self, payload):
+        reader, text = getattr(self.profiles, 'reader', None), payload.get('text', '')
+        plan = None
+        if reader is not None and isinstance(payload.get('model_id'), str):
+            try:
+                profile = self.profiles.read()['profile']
+                split = lambda value: [v.strip() for v in re.split(r'[,\n;]+', value or '') if v.strip()]
+                snapshot = {**{k: profile['fields'][k] for k in ('name', 'organization', 'role')},
+                            'skills': split(profile['fields']['skills']), 'interests': split(profile['fields']['interests']),
+                            'career_titles': [c['title'] for c in profile['careers'] if c.get('title')]}
+                plan = reader.interpret(payload['model_id'], text, snapshot)
+            except Exception:
+                plan = None  # no model or no answer: guidance still helps
+        if plan and plan['kind'] == 'edit':
+            return {'action': 'draft', 'edits': plan['edits'], 'careers': plan['careers']}
+        return {'action': 'read', 'guide': plan['kind'] if plan else 'help'}
+
+    def _last_reply(self, sid):
+        if not sid:
+            return None
+        session = next((s for s in self.store.read()['sessions'] if s['id'] == sid), None)
+        return next((m.get('text') for m in reversed((session or {}).get('messages', [])) if m.get('role') == 'assistant'), None)
+
+    def _draft(self, intent):
+        """Gemma's reading as a save the user confirms in the profile panel; nothing is written here."""
+        current = self.profiles.read()['profile']
+        fields = {}
+        for edit in intent['edits']:
+            field, value = edit['field'], edit['value']
+            if field in ('skills', 'interests'):
+                base = fields.get(field, current['fields'][field])
+                entries = [v.strip() for v in re.split(r'[,\n;]+', base) if v.strip()]
+                if edit['action'] == 'add' and value.lower() not in [v.lower() for v in entries]:
+                    entries.append(value)
+                elif edit['action'] == 'remove':
+                    entries = [v for v in entries if v.lower() != value.lower()]
+                fields[field] = ', '.join(entries)
+            else:
+                fields[field] = value
+        return {'fields': fields, 'careers': intent['careers'], 'base_version': current['version']}
+
     def handle(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {'action', 'session_id', 'turn_id', 'payload', 'text', 'routed'}:
+        if not isinstance(payload, dict) or set(payload) - {'action', 'session_id', 'turn_id', 'payload', 'text', 'routed', 'model_id'}:
             raise ProfileError('프로필 대화 요청 형식을 확인해 주세요.')
         action = payload.get('action')
         if action not in ('text', 'read', 'save', 'upload', 'suggest', 'undo', 'source-action'):
@@ -66,10 +117,14 @@ class ProfileChat:
             if payload.get('routed') is not True:
                 # Do not reserve a session, write a fact, or dispatch to a model.
                 raise ProfileError('내 프로필에서 바꿀 항목과 값을 명확히 알려 주세요.', code='not_profile_command')
-            # Gemma read a profile update that is not an explicit command: open the profile
-            # with guidance instead of failing. Nothing is written from the free text.
-            intent = {'action': 'read', 'guide': True}
-        effective = ('read' if intent['action'] == 'read' else 'save') if intent else action
+            # Gemma read a profile update that is not an explicit command. It interprets the sentence:
+            # values the user wrote become a draft the user saves in the profile panel; otherwise the
+            # reply says what to do next.
+            intent = self._interpret(payload)
+        effective = ('read' if intent['action'] in ('read', 'draft') else 'save') if intent else action
+        if intent and intent.get('guide'):
+            previous = self._last_reply(sid)
+            intent['reply'] = GUIDE['again'] if previous == GUIDE[intent['guide']] else GUIDE[intent['guide']]
         request_id = ('profile-' + turn_id) if action == 'text' else data.get('request_id')
         digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
@@ -104,13 +159,14 @@ class ProfileChat:
                 # Recovery never reconstructs a private value from old chat text.
                 prior = copy.deepcopy(state.get('self_profile', {}).get('requests', {}).get(request_id))
             if not user:
-                session['messages'].append({'role': 'user', 'text': '내 프로필 업데이트 요청' if intent and intent.get('guide') else '내 프로필 확인' if effective == 'read' else '내 프로필 작업',
+                session['messages'].append({'role': 'user', 'text': '내 프로필 업데이트 요청' if intent and ('guide' in intent or intent['action'] == 'draft') else '내 프로필 확인' if effective == 'read' else '내 프로필 작업',
                                             'kind': 'self_profile', 'turn_id': turn_id, 'digest': digest})
             session['pending'] = turn_id
             session['updated'] = now()
             return session['id'], None, prior
 
         session_id, completed, prior = self.store.transaction(reserve)
+        draft = None
         if completed:
             return {'session': self.service.session(session_id), 'profile_view': self.profiles.read(),
                     'reply': completed['text'], 'receipt': completed.get('profile_receipt')}
@@ -122,6 +178,8 @@ class ProfileChat:
                 view['operation'] = operation
             elif effective == 'read':
                 view = self.profiles.read()
+                if intent and intent['action'] == 'draft':
+                    draft = self._draft(intent)
             else:
                 if intent:
                     current = self.profiles.read()['profile']
@@ -145,8 +203,11 @@ class ProfileChat:
             if effective == 'suggest' and (view.get('operation') or {}).get('model_calls'):
                 reply = 'Gemma가 자료 전체를 읽고 변경안을 만들었어요. 근거 원문을 확인하고 반영할 항목만 골라 주세요.'
             if intent and intent.get('guide'):
-                reply = ('프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나(예: 내 기술에 Python 추가해줘) '
-                         '이력 자료를 올려 주세요.')
+                reply = intent['reply']
+            elif draft:
+                # Field names only: the values go to the profile panel, not into the transcript.
+                names = list(dict.fromkeys([FIELD_NAMES[e['field']] for e in intent['edits']] + ['경력'] * bool(intent['careers'])))
+                reply = f"{', '.join(names)} 변경안을 프로필 창에 준비했어요. 맞으면 '이대로 저장'을 눌러 주세요."
 
             def finish(state):
                 session = next(s for s in state['sessions'] if s['id'] == session_id)
@@ -160,7 +221,8 @@ class ProfileChat:
                 session['updated'] = now()
                 return self.service.present_session(session)
             session = self.store.transaction(finish)
-            return {'session': session, 'profile_view': view, 'reply': reply, 'receipt': receipt}
+            result = {'session': session, 'profile_view': view, 'reply': reply, 'receipt': receipt}
+            return {**result, 'draft': draft} if draft else result
         except Exception as exc:
             # Only the explicit command is returned transiently for conflict UI.
             # Never copy the previous profile/source value into chat or errors.
