@@ -75,11 +75,13 @@ class Profiles:
     view, never an old cached response that could contain a deleted source.
     """
 
-    def __init__(self, store, *, public=False, clock=None, account=None, reader=None):
+    def __init__(self, store, *, public=False, clock=None, account=None, reader=None, staged=None):
         self.account = _account_metadata(account)
         # Optional Gemma reader (profile_reading.ProfileReader); without it documents are
         # offered as paragraph rows as before.
         self.reader = reader
+        # Optional upload_id -> (name, bytes) for documents sent in chunks (the chat's staging).
+        self.staged = staged
         self.store = store
         self.public = bool(public)
         self.clock = clock or (lambda: datetime.now(timezone.utc))
@@ -308,7 +310,15 @@ class Profiles:
                 'text': item['text'], 'original_stored': False, 'location_basis': 'extracted_text'}
 
     def upload(self, payload):
-        _keys(payload, ('name', 'data', 'base_version', 'request_id'))
+        _keys(payload, ('name', 'data', 'upload_id', 'base_version', 'request_id'))
+        if 'upload_id' in payload:
+            # One 8 MB request failed from a phone (2026-09-28); chat attachments already went
+            # through in 512 KB chunks. The staged file is claimed before the draft is locked.
+            if self.staged is None or 'name' in payload or 'data' in payload:
+                raise ProfileError('파일 전송 형식을 확인해 주세요.')
+            name, raw = self.staged(payload['upload_id'])
+            payload = {**{k: v for k, v in payload.items() if k != 'upload_id'},
+                       'name': name, 'data': base64.b64encode(raw).decode('ascii')}
         name = _text(payload.get('name'), 240, '파일 이름')
         if Path(name).suffix.lower() not in ('.txt', '.md', '.csv', '.json', '.log', '.pdf', '.docx'):
             raise ProfileError('텍스트·PDF·DOCX 문서를 선택해 주세요. 이미지 속 이력 읽기는 지원하지 않습니다.', code='unsupported')

@@ -617,6 +617,11 @@ class PublicApp:
         return [{'person_id': pid, 'name': person.profile.get('display_name') or person.name, 'bound': pid in bound}
                 for pid, person in sorted(self.engine.corpus.people.items()) if pid in APPROVED_PERSON_IDS]
 
+    @staticmethod
+    def _staged(service, chat):
+        """A profile document sent in chunks is staged beside the chat's attachments."""
+        return lambda identifier: AttachmentUploads(service.store, chat.attachments).claim(identifier)
+
     def _request_intent(self, service, payload):
         """Gemma reads which work panel handles a chat message; intent None when no model answers."""
         from .request_intent import CONTRACT, INTENTS, intent_messages, parse_intent
@@ -683,10 +688,11 @@ class PublicApp:
                 if len(self.contexts) >= 128:
                     raise AuthError('account_busy', 429)
                 service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
+                chat = Conversation(service, self.models)
                 store = self.auth.profile_store(account['id'], session_cookie=cookie)
                 profile = Profiles(store, public=True, reader=self.profile_reader, account={key: account[key]
-                    for key in ('id', 'verified', 'storage_lifetime')})
-                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models),
+                    for key in ('id', 'verified', 'storage_lifetime')}, staged=self._staged(service, chat))
+                self.contexts[sid] = {'service': service, 'chat': chat,
                     'profile': profile, 'account': account, 'session_mode': 'account',
                     '_account_cookie': cookie, 'token': principal['csrf'], 'used': now,
                     'active': 0, 'requests': [], 'sid': sid, 'inflight': 0, 'revoked': False,
@@ -779,7 +785,8 @@ class PublicApp:
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
                 service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
-                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True, reader=self.profile_reader),
+                chat = Conversation(service, self.models)
+                self.contexts[sid] = {'service': service, 'chat': chat, 'profile': Profiles(service.store, public=True, reader=self.profile_reader, staged=self._staged(service, chat)),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
                                       'sid': sid, 'inflight': 0, 'revoked': False,
                                       'visitor_ref':self.signature('diagnostic:' + sid)}

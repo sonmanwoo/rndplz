@@ -102,7 +102,7 @@ class AttachmentUploads:
         return raw
 
     @contextmanager
-    def _guard(self, *, quota=False):
+    def _guard(self, *, quota=False, idle=True):
         token = secrets.token_hex(32)
         deadline = time.monotonic() + 3
         local_lock = None
@@ -131,7 +131,7 @@ class AttachmentUploads:
             if self.store.is_revoked():
                 raise AttachmentUploadError('unavailable')
             state = self.store.read()
-            if any(s.get('pending') for s in state['sessions']):
+            if idle and any(s.get('pending') for s in state['sessions']):
                 raise AttachmentUploadError('busy')
             if quota and self.attachments.count() >= 12:
                 raise AttachmentError('count_limit')
@@ -297,6 +297,39 @@ class AttachmentUploads:
             return result
         except AttachmentError:raise
         except Exception:raise AttachmentUploadError('unavailable') from None
+
+    def claim(self, identifier):
+        """Hand a fully received file to another owner (the private profile) and drop the staging.
+
+        Called while the profile turn holds its chat session, hence idle=False. Not idempotent:
+        a retried profile turn is answered from the turn record, never by claiming again.
+        """
+        if not _identifier(identifier):
+            raise AttachmentUploadError('invalid')
+        with self._guard(idle=False) as token:
+            m = self._meta(identifier)
+            if m['phase'] != 'receiving':
+                raise AttachmentUploadError('conflict')
+            if m['next'] != m['count']:
+                raise AttachmentUploadError('incomplete')
+            chunks = []
+            for i in range(m['count']):
+                data = self._read(identifier + '.' + str(i))
+                if data is None:
+                    raise AttachmentUploadError('corrupt')
+                raw = base64.b64decode(data, validate=True)
+                if len(raw) != min(CHUNK_BYTES, m['size'] - i * CHUNK_BYTES):
+                    raise AttachmentUploadError('corrupt')
+                chunks.append(raw)
+            raw = b''.join(chunks)
+            if len(raw) != m['size'] or hashlib.sha256(raw).hexdigest() != m['sha256']:
+                raise AttachmentUploadError('corrupt')
+            active = [v for v in self._active(token) if v != identifier]
+            changes = [(identifier + '.meta', None, 0)] + [(identifier + '.' + str(i), None, 0) for i in range(m['count'])]
+            if self.remote:
+                changes.append(('index', _encoded(active), time.time() + EXPIRES_IN))
+            self._apply(token, changes)
+        return m['name'], raw
 
     def cancel(self,payload):
         _payload(payload,('upload_id',));identifier=payload['upload_id']
