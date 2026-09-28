@@ -482,6 +482,9 @@ class PublicApp:
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
+        # Gemma reads private profile documents in parts with the chat's models (profile_reading).
+        from .profile_reading import ProfileReader
+        self.profile_reader = ProfileReader(self.models)
         self.observation = (OperationalDiagnostics(self.diagnostics, provider=self.models.runtime.config.provider,
                             model=self.models.runtime.config.model) if self.env.get('APP_RUNTIME') in ('hosted_public','hosted_demo') else self.diagnostics)
         # A startup file fingerprint is provenance metadata, not a memory attestation.
@@ -681,7 +684,7 @@ class PublicApp:
                     raise AuthError('account_busy', 429)
                 service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
                 store = self.auth.profile_store(account['id'], session_cookie=cookie)
-                profile = Profiles(store, public=True, account={key: account[key]
+                profile = Profiles(store, public=True, reader=self.profile_reader, account={key: account[key]
                     for key in ('id', 'verified', 'storage_lifetime')})
                 self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models),
                     'profile': profile, 'account': account, 'session_mode': 'account',
@@ -776,7 +779,7 @@ class PublicApp:
                 if len(self.contexts) >= 128:
                     raise ValueError('현재 접속자가 많습니다. 잠시 후 다시 시도해 주세요.')
                 service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
-                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True),
+                self.contexts[sid] = {'service': service, 'chat': Conversation(service, self.models), 'profile': Profiles(service.store, public=True, reader=self.profile_reader),
                                       'token': self.signature('csrf:' + sid), 'used': now, 'active': 0, 'requests': [],
                                       'sid': sid, 'inflight': 0, 'revoked': False,
                                       'visitor_ref':self.signature('diagnostic:' + sid)}
@@ -1095,7 +1098,7 @@ class PublicApp:
             length = int(environ.get('CONTENT_LENGTH') or '0')
             if path == '/auth/google/enroll' and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
-            body_limit = 2048 if path in ('/api/chat/recovery-report','/api/attachments/client-report') else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path == '/api/attachments' else (1500000 if path in ('/api/self-profile/upload','/api/self-profile/chat') else 200000)
+            body_limit = 2048 if path in ('/api/chat/recovery-report','/api/attachments/client-report') else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path in ('/api/attachments','/api/self-profile/upload','/api/self-profile/chat') else 200000
             if path in CHUNK_UPLOAD_ROUTES:
                 body_limit = 750000 if path == '/api/attachments/chunk' else 4096
             if not 0 < length <= body_limit:
@@ -1269,6 +1272,14 @@ class PublicApp:
                     return send(400,{'error':'등록 경력 의뢰 검토 요청을 확인해 주세요.'})
                 return send(200,service.registered_expert_draft(payload['session_id'],
                     payload['candidate_id'],payload['snapshot_id'],payload['revision']))
+            if path == '/api/self-profile/read-part':
+                # One Gemma call per part, admitted like a chat turn so reading cannot starve replies.
+                if not self.request_slots.acquire(blocking=False):
+                    return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 이어서 읽어 주세요.', 'code': 'busy'})
+                try:
+                    return send(200, profile.read_part(payload))
+                finally:
+                    self.request_slots.release()
             routes = {
                 '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),

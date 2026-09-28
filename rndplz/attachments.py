@@ -1,5 +1,6 @@
 """Local attachment ingestion. Files are data and never executed."""
 import base64
+import contextvars
 import io
 import hashlib
 import threading
@@ -27,6 +28,8 @@ MAX_XML_TOTAL=32*1024*1024
 MAX_ARCHIVE_BYTES=64*1024*1024
 MAX_ARCHIVE_ENTRIES=4096
 MAX_HTTPS_BODY=4096
+# Chat attachments keep MAX_TEXT; an instance may read more (private profile documents).
+_LIMITS=contextvars.ContextVar('attachment_limits',default=(MAX_TEXT,0))
 _HTTPS_SLOTS=threading.BoundedSemaphore(2)
 
 
@@ -56,25 +59,26 @@ class AttachmentError(ValueError):
 def _collect(units,total,kind,unit_limit,method,joiner='\n'):
     """Offsets refer to saved extracted text, never guessed document layout."""
     chunks=[]; spans=[]; size=0; processed=0; reasons=[]
+    text_limit,unit_floor=_LIMITS.get();unit_limit=max(unit_limit,unit_floor)
     for index,part in units:
         if processed>=unit_limit:
             reasons.append(kind+'_limit');break
         processed+=1
         separator=joiner if chunks else ''
-        available=max(0,MAX_TEXT-size-len(separator))
+        available=max(0,text_limit-size-len(separator))
         kept=part[:available]
-        if separator and size<MAX_TEXT:
+        if separator and size<text_limit:
             chunks.append(separator);size+=len(separator)
         start=size
         chunks.append(kept);size+=len(kept)
         if kept:spans.append({'kind':kind,'index':index,'start':start,'end':size})
-        if len(part)>available or (size>=MAX_TEXT and processed<total):
+        if len(part)>available or (size>=text_limit and processed<total):
             reasons.append('text_limit');break
     if processed<total and not reasons:reasons.append(kind+'_limit')
     text=''.join(chunks)
     return text,spans,{'status':'partial' if reasons else 'complete','method':method,
         'unit':kind,'total_units':total,'processed_units':processed,
-        'character_limit':MAX_TEXT,'unit_limit':unit_limit,'limits':reasons,
+        'character_limit':text_limit,'unit_limit':unit_limit,'limits':reasons,
         'location_basis':'extracted_text_offsets','ocr':False}
 
 
@@ -218,9 +222,10 @@ def _pdf(raw):
 
 
 class Attachments:
-    def __init__(self,directory,*,backend=None):
+    def __init__(self,directory,*,backend=None,text_limit=MAX_TEXT,unit_floor=0):
         self.directory=Path(directory)/'attachments'
         self.backend=backend
+        self.limits=(text_limit,unit_floor)
         if backend is None:
             self.directory.mkdir(parents=True,exist_ok=True)
 
@@ -229,7 +234,9 @@ class Attachments:
 
     def upload(self,payload):
         # User-supplied source/provenance is never accepted as an authority.
-        return self._upload(payload)
+        token=_LIMITS.set(self.limits)
+        try:return self._upload(payload)
+        finally:_LIMITS.reset(token)
 
     def upload_url(self,payload):
         if not isinstance(payload,dict) or set(payload)!={'url'}:

@@ -16,7 +16,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .attachments import Attachments, MAX_BYTES
+from .attachments import Attachments, MAX_BYTES, MAX_FILE_BYTES
+from .profile_reading import MAX_PROFILE_TEXT, ReadingError, split_parts
 
 
 FIELDS = {'name': 120, 'organization': 180, 'role': 180, 'bio': 2000,
@@ -74,15 +75,20 @@ class Profiles:
     view, never an old cached response that could contain a deleted source.
     """
 
-    def __init__(self, store, *, public=False, clock=None, account=None):
+    def __init__(self, store, *, public=False, clock=None, account=None, reader=None):
         self.account = _account_metadata(account)
+        # Optional Gemma reader (profile_reading.ProfileReader); without it documents are
+        # offered as paragraph rows as before.
+        self.reader = reader
         self.store = store
         self.public = bool(public)
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.directory = Path(store.directory) / 'self-profile'
         self._check_path(self.directory)
         self._check_path(self.directory / 'attachments')
-        self.attachments = Attachments(self.directory)
+        # A private profile document is read whole (a 70-page note is ~78k characters);
+        # chat attachments keep their own 16k limit.
+        self.attachments = Attachments(self.directory, text_limit=MAX_PROFILE_TEXT, unit_floor=20000)
 
     def _now(self):
         value = self.clock()
@@ -160,11 +166,13 @@ class Profiles:
                           'Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다. '
                           '실제 운영 저장소의 지속 보관·첨부 보관 설정은 별도 확인이 필요하며 영구 보관을 보장하지 않습니다.',
             }
-        result['limits'] = {'file_bytes': 1024 * 1024 if self.public else MAX_BYTES,
+        result['limits'] = {'file_bytes': MAX_FILE_BYTES,
                             'sources': MAX_SOURCES, 'careers': MAX_CAREERS,
                             'fields': FIELDS, 'career_fields': CAREER_FIELDS,
                             'formats': ['txt', 'md', 'csv', 'json', 'log', 'pdf', 'docx'],
-                            'model_calls': 0, 'extraction': 'paragraph_rules'}
+                            'model_calls': 0 if self.reader is None else 'per_part',
+                            'extraction': 'paragraph_rules' if self.reader is None else 'model_reading',
+                            'text_characters': MAX_PROFILE_TEXT}
         return result
 
     def read(self):
@@ -305,7 +313,7 @@ class Profiles:
         if Path(name).suffix.lower() not in ('.txt', '.md', '.csv', '.json', '.log', '.pdf', '.docx'):
             raise ProfileError('텍스트·PDF·DOCX 문서를 선택해 주세요. 이미지 속 이력 읽기는 지원하지 않습니다.', code='unsupported')
         encoded = payload.get('data')
-        cap = 1024 * 1024 if self.public else MAX_BYTES
+        cap = MAX_FILE_BYTES
         if not isinstance(encoded, str) or len(encoded) > ((cap + 2) // 3) * 4:
             raise ProfileError('자료 용량 제한을 넘었습니다.', code='limit', status=413)
         try:
@@ -345,8 +353,107 @@ class Profiles:
                 self._path(identifier).unlink(missing_ok=True)
             raise
 
+    # ---- Gemma reading: parts are cached beside the draft (not versioned); the merge creates
+    # typed proposals in one versioned suggest, so reading progress never moves the profile version.
+    def _reading_path(self, source_id):
+        return self._check_path(self.directory / 'readings' / (_id(source_id) + '.json'))
+
+    def _reading(self, source):
+        path = self._reading_path(source['id'])
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            record = None
+        if (not isinstance(record, dict) or record.get('source_version') != source['version']
+                or record.get('text_sha256') != source.get('text_sha256')):
+            record = {'source_id': source['id'], 'source_version': source['version'],
+                      'text_sha256': source.get('text_sha256'), 'parts': {}}
+        return record
+
+    def _snapshot(self, data):
+        fields = data['profile']['fields']
+        split = lambda value: [v.strip() for v in re.split(r'[,\n;]+', value or '') if v.strip()]
+        return {'skills': split(fields['skills']), 'interests': split(fields['interests']),
+                'career_titles': [c['title'] for c in data['profile']['careers'] if c.get('title')]}
+
+    def read_part(self, payload):
+        _keys(payload, ('source_id', 'part', 'model_id'))
+        if self.reader is None:
+            raise ProfileError('자료를 읽을 모델이 연결되어 있지 않습니다.', code='model_unavailable', status=503)
+        part = payload.get('part')
+        if type(part) is not int or part < 1:
+            raise ProfileError('읽을 부분을 확인해 주세요.')
+        data = self._state(self.store.read())
+        source = self._find_source(data, payload.get('source_id'))
+        self._path(source['attachment_id'])
+        parts = split_parts(self.attachments.load(source['attachment_id'])['text'])
+        if part > len(parts):
+            raise ProfileError('읽을 부분을 확인해 주세요.')
+        record = self._reading(source)
+        done = record['parts'].get(str(part))
+        if done is None:
+            try:
+                kept, dropped = self.reader.read_part(payload.get('model_id'), source['name'], parts, part, self._snapshot(data))
+            except ReadingError as error:
+                raise ProfileError(str(error), code='model_unavailable', status=503) from None
+            done = record['parts'][str(part)] = {'kept': kept, 'dropped': dropped}
+            path = self._reading_path(source['id'])
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix('.tmp')
+            temporary.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
+            temporary.replace(path)
+        return {'part': part, 'total': len(parts), 'kept': len(done['kept']), 'dropped': done['dropped'],
+                'read_parts': len(record['parts']), 'done': len(record['parts']) >= len(parts)}
+
+    def _suggest_from_reading(self, payload):
+        identifiers = payload.get('source_ids')
+        if not isinstance(identifiers, list) or len(identifiers) != 1 or not isinstance(identifiers[0], str):
+            raise ProfileError('읽은 자료 하나를 선택해 주세요.')
+        if self.reader is None:
+            raise ProfileError('자료를 읽을 모델이 연결되어 있지 않습니다.', code='model_unavailable', status=503)
+        data = self._state(self.store.read())
+        source = self._find_source(data, identifiers[0])
+        self._path(source['attachment_id'])
+        text = self.attachments.load(source['attachment_id'])['text']
+        total = len(split_parts(text))
+        record = self._reading(source)
+        if len(record['parts']) < total:
+            raise ProfileError('자료를 아직 끝까지 읽지 않았어요. 다시 읽기를 이어가 주세요.', code='reading_incomplete', status=409)
+        candidates = [row for key in sorted(record['parts'], key=int) for row in record['parts'][key]['kept']]
+        try:
+            proposals = self.reader.merge(payload.get('model_id'), candidates, self._snapshot(data), text) if candidates else []
+        except ReadingError as error:
+            raise ProfileError(str(error), code='model_unavailable', status=503) from None
+
+        def make(data):
+            current = self._find_source(data, identifiers[0])
+            if current['version'] != source['version']:
+                raise ProfileError('자료 버전이 바뀌었습니다. 다시 읽어 주세요.', code='conflict', status=409)
+            # Reading again replaces this source's undecided model proposals.
+            data['suggestions'] = [p for p in data['suggestions'] if not (
+                p['source_id'] == current['id'] and p.get('method') == 'model_reading' and p['decision'] in ('pending', 'deferred'))]
+            created = 0
+            for item in proposals:
+                if len(data['suggestions']) >= MAX_SUGGESTIONS:
+                    break
+                data['suggestions'].append({'id': uuid.uuid4().hex, 'source_id': current['id'],
+                    'source_version': current['version'], 'base_version': data['profile']['version'] + 1,
+                    'field': item['field'], 'before': None, 'after': item['after'], 'career': item['career'],
+                    'quote': item['quote'], 'evidence': item['evidence'],
+                    'location': {'basis': 'extracted_text', 'start': item['start'], 'end': item['end'],
+                                 'line': text.count('\n', 0, item['start']) + 1},
+                    'origin': 'source_claim', 'method': 'model_reading', 'decision': 'pending',
+                    **({'actor': self._actor()} if self.account else {}),
+                    'notice': 'Gemma가 자료를 읽고 만든 변경안입니다. 근거 원문과 내 역할을 확인하고 선택해 주세요.'})
+                created += 1
+            return {'created': created, 'model_calls': total + 1, 'candidates': len(candidates)}
+
+        return self._mutate(payload, 'suggest', make)
+
     def suggest(self, payload):
-        _keys(payload, ('source_ids', 'base_version', 'request_id'))
+        _keys(payload, ('source_ids', 'base_version', 'request_id', 'model_id'))
+        if payload.get('model_id') is not None:
+            return self._suggest_from_reading(payload)
         identifiers = payload.get('source_ids')
         if not isinstance(identifiers, list) or not 1 <= len(identifiers) <= MAX_SOURCES or any(not isinstance(x, str) for x in identifiers):
             raise ProfileError('변경 후보를 만들 자료를 선택해 주세요.')
@@ -357,6 +464,14 @@ class Profiles:
             for identifier in identifiers:
                 source = self._find_source(data, identifier)
                 self._path(source['attachment_id'])
+                typed = [p for p in data['suggestions'] if p['source_id'] == identifier and p.get('method') == 'model_reading']
+                if typed:
+                    # A read document keeps its model proposals; refreshing only re-bases them.
+                    for p in typed:
+                        if p['decision'] in ('pending', 'deferred', 'excluded'):
+                            p['base_version'] = data['profile']['version'] + 1
+                            p['source_version'] = source['version']
+                    continue
                 text = self.attachments.load(source['attachment_id'])['text']
                 known = {(p['source_id'], p['location']['start'], p['location']['end']): p for p in data['suggestions']}
                 for line in re.finditer(r'[^\n]+', text):
@@ -489,7 +604,9 @@ class Profiles:
                     raise ProfileError('변경 후보를 적용할 항목을 선택해 주세요.')
                 value = decision.get('value', proposal['after']) if choice == 'edit' else proposal['after']
                 target = field if field != 'career' else 'career:' + (decision.get('item_id') or uuid.uuid4().hex)
-                if target in targets:
+                # A model proposal for a list field adds one entry, so several may apply together.
+                appends = field in ('skills', 'interests') and proposal.get('method') == 'model_reading'
+                if target in targets and not appends:
                     raise ProfileError('같은 항목에 여러 변경이 있습니다. 한 값을 선택해 주세요.', code='conflict', status=409)
                 targets.add(target)
                 if field == 'career':
@@ -500,7 +617,12 @@ class Profiles:
                     if not existing and len(profile['careers']) >= MAX_CAREERS:
                         raise ProfileError('경력 항목은 50개까지 작성할 수 있습니다.')
                     before = copy.deepcopy(existing)
-                    clean = {**(existing or {k: '' for k in CAREER_FIELDS}), 'id': identifier,
+                    base = existing or {k: '' for k in CAREER_FIELDS}
+                    typed = proposal.get('career') if not existing and proposal.get('method') == 'model_reading' else None
+                    if isinstance(typed, dict):
+                        # A new career from a model proposal keeps its title, period and role.
+                        base = {k: _text(typed.get(k, '') or '', n, k) for k, n in CAREER_FIELDS.items()}
+                    clean = {**base, 'id': identifier,
                              'description': _text(value, 4000, '경력 설명')}
                     if existing:
                         existing.update(clean)
@@ -512,6 +634,10 @@ class Profiles:
                 else:
                     before = profile['fields'][field]
                     lineage = profile['provenance'].get(field, {}).get('source_ids', [])
+                    if appends:
+                        entries = [v.strip() for v in re.split(r'[,\n;]+', before) if v.strip()]
+                        added = _text(value, FIELDS[field], field).strip()
+                        value = ', '.join(entries + ([added] if added not in entries else []))
                     self._set_field(data, field, value, [source['id']], edited=choice == 'edit')
                 proposal.update(field=field, before=before, after=copy.deepcopy(value),
                     decision='edited_accepted' if choice == 'edit' else 'accepted',

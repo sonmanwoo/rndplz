@@ -142,6 +142,8 @@ class ProfileChat:
                      'upload': '프로필 자료를 받았어요. 반영할 내용은 직접 선택해 주세요.',
                      'suggest': '자료의 변경 후보를 준비했어요. 아직 프로필에 반영하지 않았어요.',
                      'undo': '선택한 한 항목의 변경을 되돌렸어요.', 'source-action': '프로필 자료 상태를 변경했어요.'}[effective]
+            if effective == 'suggest' and (view.get('operation') or {}).get('model_calls'):
+                reply = 'Gemma가 자료 전체를 읽고 변경안을 만들었어요. 근거 원문을 확인하고 반영할 항목만 골라 주세요.'
             if intent and intent.get('guide'):
                 reply = ('프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나(예: 내 기술에 Python 추가해줘) '
                          '이력 자료를 올려 주세요.')

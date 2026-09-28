@@ -448,6 +448,12 @@ def generation_contract(name):
     if name == "request_intent.v1":
         from .request_intent import contract_spec
         return contract_spec()
+    if name == "profile_reading.v1":
+        from .profile_reading import map_contract_spec
+        return map_contract_spec()
+    if name == "profile_merge.v1":
+        from .profile_reading import merge_contract_spec
+        return merge_contract_spec()
     raise ValueError("지원하지 않는 대화 생성 계약입니다.")
 
 
