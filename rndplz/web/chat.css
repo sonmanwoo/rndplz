@@ -113,3 +113,29 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 }
 .message-body h3.answer-heading {font-size:1.12em;}
 .message-body h4.answer-heading {font-size:1em;}
+
+/* Work panel (2026-09-28). Wide screens: the proposal draft or the profile update sits beside the
+   conversation and stays in view; the thread, map and composer keep the left column.
+   Narrow screens: the draft leaves the thread and opens as a sheet from a bar above the composer. */
+.chat-page .brief-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.chat-page .brief-bar button{min-height:40px;padding:0 16px;border-radius:999px;font-size:13px}
+.chat-page .brief-bar .secondary{border:1px solid #c7d0bb;background:var(--sheet);color:var(--ink)}
+@media(min-width:1180px){
+  .chat-page main.is-chat:has(> #consultBriefHost:not([hidden]),> #profileChatHost:not([hidden])){display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,420px);column-gap:36px;align-items:start;max-width:1480px}
+  .chat-page main.is-chat > *{grid-column:1;min-width:0}
+  .chat-page main.is-chat > #consultBriefHost,.chat-page main.is-chat > #profileChatHost{grid-column:2;grid-row:1 / span 60;position:sticky;top:18px;align-self:start;margin:0;max-width:none;max-height:calc(100dvh - 36px);overflow:auto;overscroll-behavior:contain}
+  .chat-page main.is-chat > #profileChatHost .profile-chat-panel{margin:0;max-width:none}
+  .chat-page main.is-chat:has(> #profileChatHost:not([hidden])) > #consultBriefHost{display:none}
+  .chat-page main.is-chat > #profileChatHost:not([hidden]) ~ .composer-dock{position:sticky;bottom:0;background:linear-gradient(transparent,var(--desk) 16%)}
+  /* The 16px phone sizing for an open inline profile does not apply beside the panel. */
+  .chat-page main.is-chat > #profileChatHost:not([hidden]) ~ .composer-dock .composer textarea{font-size:15px}
+  .chat-page main.is-chat > #profileChatHost:not([hidden]) ~ .composer-dock .composer select{font-size:11px}
+}
+@media(max-width:1179.98px){
+  .chat-page main.is-chat > #consultBriefHost{display:none}
+  .chat-page main.is-chat .brief-bar:not([hidden]){display:flex}
+}
+.crafted dialog.brief-sheet{position:fixed;inset:auto 0 0 0;width:100%;max-width:none;max-height:85dvh;margin:0;padding:12px 18px 20px;border:0;border-radius:18px 18px 0 0;background:var(--sheet);color:var(--ink);overflow:auto;box-shadow:0 -14px 40px #0a120d40}
+.crafted dialog.brief-sheet::backdrop{background:#16201a4d}
+.brief-sheet .consult-brief{margin:0;max-width:none;border:0;padding:0;background:transparent}
+.crafted .brief-sheet-close{position:sticky;top:0;float:right;z-index:2;width:40px;height:40px;margin:0 0 6px 10px;border:1px solid var(--line,#dcded3);border-radius:50%;background:var(--sheet);font-size:22px;line-height:1}

@@ -140,17 +140,17 @@
       const documentRequest=/^(?:이|첨부한|선택한)\s*(?:자료|파일|문서)(?:로|를|을)?\s*(?:내|제)\s*(?:프로필|이력|경력)/u;
       return own.test(t)||documentRequest.test(t);
     }
-    async function submit(value,files=[]) {
-      if(!shouldHandle(value))return false;
+    async function submit(value,files=[],{routed=false}={}) {
+      if(!routed&&!shouldHandle(value))return false;
       if(busy||uncertain){showError(new Error("이전 프로필 요청의 결과부터 확인해 주세요."));return true;}
       if(!opened||!view){await open();if(!view)return true;}
       if(files.length){
-        if(!/(?:자료|파일|문서)/u.test(value)||!/(?:프로필|내\s*이력|내\s*경력)/u.test(value)||!/(?:갱신|반영|추가|등록|업데이트|수정)/u.test(value)){showError(new Error("파일은 ‘이 자료로 내 프로필 갱신해줘’처럼 목적을 명시해 주세요. 아직 전송하지 않았습니다."));return true;}
+        if(!routed&&(!/(?:자료|파일|문서)/u.test(value)||!/(?:프로필|내\s*이력|내\s*경력)/u.test(value)||!/(?:갱신|반영|추가|등록|업데이트|수정)/u.test(value))){showError(new Error("파일은 ‘이 자료로 내 프로필 갱신해줘’처럼 목적을 명시해 주세요. 아직 전송하지 않았습니다."));return true;}
         if(files.length>1){showError(new Error("프로필 자료는 한 번에 파일 하나씩 검토해 주세요. 선택한 파일은 아직 전송하지 않았습니다."));return true;}
         await upload(files[0]);return true;
       }
       if(editor||selected.size){showError(new Error("작성 중인 항목이나 자료 선택이 있습니다. 먼저 저장하거나 ‘적용 전 취소’로 정리해 주세요."));return true;}
-      await mutation("text",{}, {text:String(value)});return true;
+      await mutation("text",{}, routed?{text:String(value),routed:true}:{text:String(value)});return true;
     }
     function compare(before,after,a="현재",b="제안") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,text(value)||"미입력"));n.append(col);}return n;}
     function profileScopeSummary(scope={}) {

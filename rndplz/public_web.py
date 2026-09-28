@@ -614,6 +614,35 @@ class PublicApp:
         return [{'person_id': pid, 'name': person.profile.get('display_name') or person.name, 'bound': pid in bound}
                 for pid, person in sorted(self.engine.corpus.people.items()) if pid in APPROVED_PERSON_IDS]
 
+    def _request_intent(self, service, payload):
+        """Gemma reads which work panel handles a chat message; intent None when no model answers."""
+        from .request_intent import CONTRACT, INTENTS, intent_messages, parse_intent
+        if (set(payload) - {'text', 'session_id', 'attachments', 'active_task', 'model_id'}
+                or not isinstance(payload.get('text'), str) or not payload['text'].strip()
+                or not isinstance(payload.get('attachments', []), list) or payload.get('active_task') not in (None, *INTENTS)
+                or not isinstance(payload.get('model_id'), str)):
+            raise ValueError('요청 분류 형식을 확인해 주세요.')
+        session = next((s for s in service.store.read()['sessions'] if s['id'] == payload.get('session_id')), None)
+        turns = [(m['role'], m.get('text', '')) for m in (session or {}).get('messages', [])[-4:]
+                 if m.get('role') in ('user', 'assistant') and m.get('status') not in ('error', 'cancelled')]
+        try:
+            model_id = payload['model_id']
+            option = self.models.get(model_id)
+            if option['provider'] != 'bridge':
+                return {'intent': None, 'method': 'unavailable'}
+            # gemma4:e2b misrouted about one message in eight (held-out set, 2026-09-28); e4b fits
+            # beside it in VRAM, so it reads e2b users' intent. 26b classifies itself (no swap).
+            if option.get('model') == 'gemma4:e2b':
+                model_id = next((m['id'] for m in self.models.catalog()['models'] if m.get('provider') == 'bridge'
+                                 and m.get('model') == 'gemma4:e4b' and m.get('enabled')), model_id)
+            messages = intent_messages(payload['text'], attachments=[a for a in payload.get('attachments', []) if isinstance(a, str)],
+                                       active_task=payload.get('active_task'), recent_turns=turns)
+            return {'intent': parse_intent(''.join(self.models.stream(model_id, messages, contract=CONTRACT))),
+                    'method': 'model'}
+        except Exception:
+            # Classification never blocks the chat: the client keeps its command rules.
+            return {'intent': None, 'method': 'unavailable'}
+
     def _account_requests(self, context, environ):
         self._require_admin(context)
         if environ.get('QUERY_STRING', ''):
@@ -1129,6 +1158,8 @@ class PublicApp:
             if path == '/api/chat/recovery-report':
                 if environ.get('QUERY_STRING',''):return send(400,{'error':'회복 관측에는 추가 주소 조건을 넣지 마세요.','code':'recovery_report_invalid'})
                 return self._recovery_report(context,chat,payload,send,diagnostic_probe)
+            if path == '/api/chat/intent':
+                return send(200, self._request_intent(service, payload))
             if path == '/api/account/requests/decide':
                 self._require_admin(context)
                 person_id = payload.get('person_id')
