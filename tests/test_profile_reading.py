@@ -2,9 +2,11 @@
 
 Model quality is compared with a Claude reading on local Ollama outside the suite; these tests
 cover the mechanics with a scripted model: parts, quote checks, merge ids, the per-instance text
-limit, typed saves (skills append, careers keep title/period/role) and the web route.
+limit, typed saves (skills append, careers keep title/period/role), the web route and a
+document sent in chunks.
 """
 import base64
+import hashlib
 import io
 import json
 import tempfile
@@ -229,7 +231,7 @@ class WebTests(unittest.TestCase):
         from rndplz.profile_reading import ProfileReader
         self.cookies, self.token = {}, ''
         self.token = self.call('GET', '/api/chat/bootstrap')[1]['token']
-        context = next(iter(self.app.contexts.values()))
+        context = list(self.app.contexts.values())[-1]  # this visitor (the newest context)
         context['profile'].reader = ProfileReader(ScriptedModels())
         big = (document() * 3).encode()  # ~0.6 MB of text, 1.6 MB with padding below
         big += b'\n' + ('여백 ' * 330000).encode()
@@ -244,6 +246,35 @@ class WebTests(unittest.TestCase):
         self.assertEqual((status, result['part'], result['kept'], result['dropped']), (200, 1, 2, 2))
         status, result = self.call('POST', '/api/self-profile/read-part', {'source_id': source['id'], 'part': 0, 'model_id': 'bridge'})
         self.assertEqual(status, 400)
+
+    def test_a_document_sent_in_chunks_is_claimed_by_the_profile(self):
+        # One 8 MB request failed from a phone; chat attachments already went in 512 KB chunks.
+        from rndplz.attachment_uploads import CHUNK_BYTES
+        self.cookies, self.token = {}, ''
+        self.token = self.call('GET', '/api/chat/bootstrap')[1]['token']
+        raw = (document() * 6).encode()  # two pieces
+        self.assertGreater(len(raw), CHUNK_BYTES)
+        status, begin = self.call('POST', '/api/attachments/begin', {'name': 'cv.txt', 'size': len(raw),
+                                                                     'sha256': hashlib.sha256(raw).hexdigest()})
+        self.assertEqual(status, 200, begin)
+        turn = {'action': 'upload', 'turn_id': 'turn-chunked-000000001',
+                'payload': {'upload_id': begin['upload_id'], 'base_version': 0, 'request_id': 'chunked-0000001'}}
+        status, body = self.call('POST', '/api/self-profile/chat', {**turn, 'turn_id': 'turn-chunked-000000000'})
+        self.assertEqual((status, body['code']), (409, 'attachment_upload_incomplete'))  # not every piece yet
+        for index in range(begin['chunk_count']):
+            piece = raw[index * CHUNK_BYTES:(index + 1) * CHUNK_BYTES]
+            status, got = self.call('POST', '/api/attachments/chunk', {'upload_id': begin['upload_id'], 'index': index,
+                                                                       'data': base64.b64encode(piece).decode()})
+            self.assertEqual(status, 200, got)
+        status, view = self.call('POST', '/api/self-profile/chat', turn)
+        self.assertEqual(status, 200, view)
+        sources = view['profile_view']['sources']
+        self.assertEqual([(s['name'], s['size']) for s in sources], [('cv.txt', len(raw))])
+        status, again = self.call('POST', '/api/self-profile/chat', turn)  # a retried turn: its record answers
+        self.assertEqual((status, len(again['profile_view']['sources'])), (200, 1))
+        other = {**turn, 'turn_id': 'turn-chunked-000000002', 'payload': {**turn['payload'], 'request_id': 'chunked-0000002'}}
+        status, body = self.call('POST', '/api/self-profile/chat', other)
+        self.assertEqual((status, body['code']), (410, 'attachment_upload_expired'))  # claimed once, staging gone
 
 
 if __name__ == '__main__':

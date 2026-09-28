@@ -255,15 +255,36 @@
       const ids=[...new Set((view.suggestions||[]).filter(eligible).filter(p=>view.sources.some(s=>s.id===p.source_id&&s.status==="active")).map(p=>p.source_id))];
       if(!ids.length)return;await mutation("suggest",{source_ids:ids});
     }
+    // The document goes in 512 KB pieces like chat attachments (one 8 MB request failed from a
+    // phone); the profile then claims the staged file by its upload id.
+    async function sendPieces(file,e) {
+      if(!crypto.subtle)throw new Error("이 브라우저에서 파일 무결성 확인을 사용할 수 없어요.");
+      let raw;try{raw=await file.arrayBuffer();}catch(_){throw new Error("파일을 읽지 못했습니다. 선택한 파일을 확인해 주세요.");}
+      const digest=await crypto.subtle.digest("SHA-256",raw),sha256=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+      const begin=await api("/api/attachments/begin",{name:file.name,size:raw.byteLength,sha256});
+      const id=begin?.upload_id,size=begin?.chunk_bytes,count=begin?.chunk_count;
+      if(!/^[a-f0-9]{32}$/.test(id||"")||!Number.isSafeInteger(size)||size<1||count!==Math.ceil(raw.byteLength/size))throw new Error("파일 분할 전송 설정을 확인하지 못했어요.");
+      try{
+        for(let index=0;index<count;index++){
+          if(e!==generation||!opened)throw new Error("프로필 창이 닫혀 자료 전송을 멈췄어요.");
+          readingProgress=`자료를 보내고 있어요 (${index+1}/${count})`;controls();
+          const bytes=new Uint8Array(raw,index*size,Math.min(size,raw.byteLength-index*size));let text="";
+          for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
+          const got=await api("/api/attachments/chunk",{upload_id:id,index,data:btoa(text)});
+          if(got?.upload_id!==id||got.index!==index||got.received!==true)throw new Error("파일 조각의 전송 결과를 확인하지 못했어요.");
+        }
+      }catch(err){api("/api/attachments/cancel",{upload_id:id}).catch(()=>{});throw err;}
+      return id;
+    }
     async function upload(file) {
       if(conflict||busy||uncertain)return;
       const formats=view.limits.formats||[],ext=file.name.split(".").pop().toLowerCase(),cap=view.limits.file_bytes;
       if(!formats.includes(ext)){showError(new Error("텍스트·PDF·DOCX 자료를 선택해 주세요. 이미지와 OCR은 지원하지 않습니다."));return;}
       if(file.size<1||file.size>cap){showError(new Error(`빈 파일은 읽을 수 없고, 프로필 자료는 파일당 최대 ${Math.round(cap/1048576)} MiB입니다.`));return;}
-      const e=generation;busy=true;controls();let encoded;
-      try{encoded=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했습니다. 선택한 파일을 확인해 주세요."));reader.readAsDataURL(file);});}catch(err){showError(err);}finally{busy=false;controls();}
-      if(!encoded||e!==generation||!opened)return;
-      const request=newRequest("upload",{name:file.name,data:encoded});
+      const e=generation;busy=true;controls();let uploadId=null;
+      try{uploadId=await sendPieces(file,e);}catch(err){showError(err);}finally{busy=false;readingProgress="";controls();}
+      if(!uploadId||e!==generation||!opened)return;
+      const request=newRequest("upload",{upload_id:uploadId});
       request.after=async data=>{const operation=data.profile_view?.operation||data.operation;const id=operation?.source_id;
         if(id){if(!(await readDocument(id)))await mutation("suggest",{source_ids:[id]});}else{reply="자료를 읽었습니다. 아래 자료의 ‘문단 비교’를 눌러 검토해 주세요.";paint();}};
       await perform(request);
