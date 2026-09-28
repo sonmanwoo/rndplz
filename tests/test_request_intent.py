@@ -2,7 +2,8 @@
 
 Model quality is measured by tests/eval_request_intent.py on local Ollama; these tests
 cover the contract, the bounded model input, the endpoint's quiet fallback and the
-profile chat's handling of a routed message that is not an explicit command.
+profile chat's handling of a routed message that is not an explicit command (Gemma's
+reading of it: tests/eval_profile_request.py).
 """
 import io
 import json
@@ -136,18 +137,79 @@ class WebTests(unittest.TestCase):
         status, body = self.call('POST', '/api/chat/intent', {'text': '제 관심 분야에 수소 액화 추가', 'model_id': 'bridge:gemma4:e2b'})
         self.assertEqual((status, body['intent'], models.calls[0][0]), (200, 'profile_update', 'bridge'))
 
-    def test_routed_profile_message_opens_the_profile_with_guidance(self):
+    def routed(self, turn, text, reply=None, session_id=None):
+        """A routed profile sentence; reply is the scripted profile_request.v1 answer (None: no model chosen)."""
+        models = FakeModels(reply=json.dumps(reply, ensure_ascii=False)) if reply is not None else FakeModels()
+        original = self.app.profile_reader.models
+        self.app.profile_reader.models = models
+        self.addCleanup(setattr, self.app.profile_reader, 'models', original)
+        body = {'action': 'text', 'turn_id': f'turn-routed-{turn:010d}', 'text': text, 'routed': True}
+        if reply is not None:
+            body['model_id'] = 'bridge'
+        if session_id:
+            body['session_id'] = session_id
+        status, data = self.call('POST', '/api/self-profile/chat', body)
+        self.assertEqual(status, 200, data)
+        return data, models
+
+    def test_routed_profile_message_without_a_model_gets_guidance_once(self):
+        from rndplz.profile_chat import GUIDE
         text = '내 프로필 업데이트 도와줄 수 있니?'
         status, body = self.call('POST', '/api/self-profile/chat', {'action': 'text', 'turn_id': 'turn-routed-0000000001', 'text': text})
         self.assertEqual((status, body['code']), (400, 'not_profile_command'))
-        status, body = self.call('POST', '/api/self-profile/chat', {'action': 'text', 'turn_id': 'turn-routed-0000000002',
-                                                                    'text': text, 'routed': True})
-        self.assertEqual(status, 200)
-        self.assertIn('프로필 업데이트 창을 열었어요', body['reply'])
+        body, models = self.routed(2, text)
+        self.assertEqual((body['reply'], models.calls), (GUIDE['help'], []))
         labels = [m['text'] for m in body['session']['messages']]
         self.assertIn('내 프로필 업데이트 요청', labels)
         self.assertNotIn(text, labels)  # the free text is not copied into the transcript
         self.assertEqual(body['profile_view']['profile']['version'], 0)  # nothing was written
+        again, _ = self.routed(3, '그래서 어떻게 하면 돼?', session_id=body['session']['id'])
+        self.assertEqual(again['reply'], GUIDE['again'])  # the same guidance is not repeated
+
+    def confirm(self, turn, draft, session_id):
+        """The profile panel's '이대로 저장': a normal save of the draft."""
+        payload = {'fields': draft['fields'], 'base_version': draft['base_version'], 'request_id': f'draft-save-{turn:08d}'}
+        if draft['careers']:
+            payload['careers'] = draft['careers']  # the first career: nothing to keep before it
+        status, body = self.call('POST', '/api/self-profile/chat', {'action': 'save', 'turn_id': f'turn-confirm-{turn:010d}',
+                                                                    'session_id': session_id, 'payload': payload})
+        self.assertEqual(status, 200, body)
+        return body
+
+    def test_gemma_reads_a_profile_sentence_into_a_draft_of_the_users_words(self):
+        text = '저 이번에 바이오공정팀으로 옮겼어요. 관심 분야에 수소 액화도 넣어 주세요'
+        body, models = self.routed(4, text, {'kind': 'edit', 'careers': [], 'edits': [
+            {'action': 'set', 'field': 'organization', 'value': '바이오공정팀'},
+            {'action': 'add', 'field': 'interests', 'value': '수소 액화'},
+            {'action': 'set', 'field': 'role', 'value': '수석연구원'}]})  # not in the sentence: dropped
+        identifier, contract, messages = models.calls[0]
+        self.assertEqual((identifier, contract), ('bridge', 'profile_request.v1'))
+        self.assertEqual(json.loads(messages[0]['content'])['message'], text)
+        self.assertEqual(body['draft'], {'fields': {'organization': '바이오공정팀', 'interests': '수소 액화'}, 'careers': [], 'base_version': 0})
+        self.assertEqual(body['profile_view']['profile']['version'], 0)  # nothing is saved before the user confirms
+        self.assertEqual(body['reply'], "소속·부서, 관심 분야 변경안을 프로필 창에 준비했어요. 맞으면 '이대로 저장'을 눌러 주세요.")
+        transcript = json.dumps(body['session']['messages'], ensure_ascii=False)
+        self.assertNotIn('바이오공정팀', transcript)  # values go to the panel, not the transcript
+        saved = self.confirm(4, body['draft'], body['session']['id'])
+        fields = saved['profile_view']['profile']['fields']
+        self.assertEqual((fields['organization'], fields['interests'], fields['role']), ('바이오공정팀', '수소 액화', ''))
+
+    def test_a_career_sentence_drafts_a_career_without_invented_details(self):
+        text = '2024년부터 CO2 전환 촉매 과제를 맡고 있어요. 경력에 추가해 주세요'
+        body, _ = self.routed(5, text, {'kind': 'edit', 'edits': [], 'careers': [
+            {'title': 'CO2 전환 촉매 과제', 'organization': '기술연구소', 'period': '2024년부터', 'role': '', 'description': '수율 35% 개선'}]})
+        self.assertEqual(body['draft']['careers'], [{'title': 'CO2 전환 촉매 과제', 'organization': '', 'period': '2024년부터',
+                                                     'role': '', 'description': ''}])
+        self.assertIn('경력 변경안', body['reply'])
+        careers = self.confirm(5, body['draft'], body['session']['id'])['profile_view']['profile']['careers']
+        self.assertEqual([(c['title'], c['period']) for c in careers], [('CO2 전환 촉매 과제', '2024년부터')])
+
+    def test_a_file_request_without_a_file_asks_for_the_file(self):
+        from rndplz.profile_chat import GUIDE
+        body, _ = self.routed(6, '연구노트로 이력 업데이트해줘', {'kind': 'document', 'edits': [], 'careers': []})
+        self.assertEqual((body['reply'], body['profile_view']['profile']['version'], 'draft' in body), (GUIDE['document'], 0, False))
+        failed, _ = self.routed(7, '소속 바꿔줘', {'kind': 'edit', 'edits': [], 'careers': []})
+        self.assertEqual(failed['reply'], GUIDE['help'])  # an edit with no value the user wrote is guidance
 
 
 if __name__ == '__main__':

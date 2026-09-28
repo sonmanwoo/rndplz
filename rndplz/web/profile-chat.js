@@ -15,11 +15,11 @@
     const prefix="profile-chat-"+uid(), selected=new Map(), cancelActions=new Set(["cancel-editor","cancel-selection","cancel-delete"]);
     let view=null,opened=false,busy=false,activeMutation=false,uncertain=null,error=null,conflict=null,editor=null,editorRevision=0,selectionRevision=0;
     let accountNavigationPending=false,accountInvalidated=false;
-    let generation=0,readTicket=0,sourceTicket=0,focusReceipt=null,reviewVisible=false,reply="",deleteSource=null,errorRequest=null,readingProgress="";
-    const wrap=el("section","panel"),status=el("p","status"),errors=el("div","error"),summary=el("div","summary"),editorBox=el("details","editor"),editorBody=el("div","editor-body"),all=el("details","all"),allBody=el("div","all-body"),review=el("section","review"),receipts=el("section","receipts"),conflicts=el("section","conflict");
+    let generation=0,readTicket=0,sourceTicket=0,focusReceipt=null,reviewVisible=false,reply="",deleteSource=null,errorRequest=null,readingProgress="",draft=null;
+    const wrap=el("section","panel"),status=el("p","status"),errors=el("div","error"),summary=el("div","summary"),editorBox=el("details","editor"),editorBody=el("div","editor-body"),all=el("details","all"),allBody=el("div","all-body"),review=el("section","review"),receipts=el("section","receipts"),conflicts=el("section","conflict"),drafts=el("section","draft");
     wrap.setAttribute("aria-label","대화 속 내 프로필");status.setAttribute("role","status");status.setAttribute("aria-live","polite");errors.setAttribute("role","alert");errors.tabIndex=-1;
     editorBox.append(el("summary",null,"항목 직접 수정"),editorBody);all.append(el("summary",null,"전체 정보와 자료 펼치기"),allBody);
-    wrap.append(status,errors,summary,editorBox,conflicts,review,receipts,all);host.append(wrap);host.hidden=true;
+    wrap.append(status,errors,summary,editorBox,conflicts,drafts,review,receipts,all);host.append(wrap);host.hidden=true;
     const sourceDialog=el("dialog","source-dialog"),sourceHeading=el("h2",null,"읽은 자료"),sourceInfo=el("p","note"),sourceText=el("pre","source-text");
     let sourceOpener=null;
     sourceDialog.append(sourceHeading,sourceInfo,sourceText,button("닫기",()=>sourceDialog.close(),"close-source",true));host.append(sourceDialog);
@@ -31,7 +31,7 @@
     function notify(fn,arg) { try{fn(arg);}catch(_){} }
     function controls() {
       for(const n of wrap.querySelectorAll("[data-profile-lock]"))n.disabled=accountNavigationPending||busy||!!uncertain||!view;
-      for(const n of wrap.querySelectorAll('[data-profile-action="apply"], [data-profile-action="save-editor"]'))n.disabled=accountNavigationPending||busy||!!uncertain||!!conflict||!view;
+      for(const n of wrap.querySelectorAll('[data-profile-action="apply"], [data-profile-action="save-editor"], [data-profile-action="save-draft"]'))n.disabled=accountNavigationPending||busy||!!uncertain||!!conflict||!view;
       for(const n of wrap.querySelectorAll('[data-profile-action="cancel-editor"], [data-profile-action="cancel-selection"], [data-profile-action="cancel-delete"]'))n.disabled=activeMutation||!!uncertain;
       wrap.setAttribute("aria-busy",String(busy));notify(onBusy,accountNavigationPending||busy||!!uncertain);
       status.textContent=busy?(readingProgress||"프로필 요청을 처리하고 있어요. 저장 완료 응답을 기다려 주세요."):error||uncertain||conflict?"":reply;
@@ -84,7 +84,7 @@
     }
     function paint() {
       if(!opened)return;const focus=captureFocus(),expanded=new Set([...wrap.querySelectorAll("details[data-profile-open]")].filter(n=>n.open).map(n=>n.dataset.profileOpen));paintError();if(!view)return;
-      paintSummary();paintEditor();paintConflict();paintReview();paintReceipts();paintAll();for(const n of wrap.querySelectorAll("details[data-profile-open]"))n.open=expanded.has(n.dataset.profileOpen);controls();restoreFocus(focus);
+      paintSummary();paintEditor();paintConflict();paintDraft();paintReview();paintReceipts();paintAll();for(const n of wrap.querySelectorAll("details[data-profile-open]"))n.open=expanded.has(n.dataset.profileOpen);controls();restoreFocus(focus);
     }
     function newRequest(action,payload={},extra={}) {
       const session=getSessionId();return {body:{action,session_id:session||undefined,turn_id:uid(),payload:{...payload,base_version:view.profile.version,request_id:uid()},...extra},session,editRevision:editorRevision,selectionRevision,epoch:generation};
@@ -95,6 +95,7 @@
         const response=await api("/api/self-profile/chat",request.body);let next;try{next=profileView(response);}catch(e){e.uncertain=true;throw e;}data=response;uncertain=null;adopt(next);
         if((getSessionId()||null)===(request.session||null)&&data.session)notify(onSession,data.session);
         reply=typeof data.reply==="string"?data.reply:"프로필 요청을 확인했습니다.";
+        if(request.body.action==="text"||request.draft)draft=request.body.action==="text"&&data.draft&&typeof data.draft==="object"?data.draft:null;
         if(data.receipt?.version!=null)focusReceipt=data.receipt.version;
         if(["save","text"].includes(request.body.action)){
           if(request.editRevision===editorRevision)editor=null;
@@ -150,7 +151,9 @@
         await upload(files[0]);return true;
       }
       if(editor||selected.size){showError(new Error("작성 중인 항목이나 자료 선택이 있습니다. 먼저 저장하거나 ‘적용 전 취소’로 정리해 주세요."));return true;}
-      await mutation("text",{}, routed?{text:String(value),routed:true}:{text:String(value)});return true;
+      // Gemma interprets a routed sentence with the chat's operator-PC model.
+      const modelId=getModelId()||"",model=/^bridge(:|$)/.test(modelId)?{model_id:modelId}:{};
+      await mutation("text",{}, routed?{text:String(value),routed:true,...model}:{text:String(value)});return true;
     }
     function compare(before,after,a="현재",b="제안") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,text(value)||"미입력"));n.append(col);}return n;}
     function profileScopeSummary(scope={}) {
@@ -187,6 +190,22 @@
         payload.careers=id==="new"?[...rows,cleanCareer(editor.value)]:rows.map(c=>c.id===id?cleanCareer({...editor.value,id}):c);
       }else payload.fields[editor.key]=editor.value;
       await mutation("save",payload);
+    }
+    // Gemma's reading of a chat sentence: shown as current -> new, saved only when the user confirms.
+    function paintDraft() {
+      drafts.replaceChildren();drafts.hidden=!draft;if(!draft)return;
+      drafts.append(el("h3",null,"Gemma가 알아들은 변경"),note("아직 저장하지 않았어요. 맞으면 저장을 눌러 주세요."));
+      for(const [key,value] of Object.entries(draft.fields||{})){if(!Object.prototype.hasOwnProperty.call(FIELDS,key))continue;const row=el("article","delta");row.append(el("strong",null,FIELDS[key]),compare(view.profile.fields[key],value,"현재","변경"));drafts.append(row);}
+      for(const c of draft.careers||[])drafts.append(note("새 경력: "+[c.title,c.organization,c.period,c.role].filter(Boolean).join(" · ")));
+      drafts.append(actions(button("이대로 저장",saveDraft,"save-draft"),button("저장하지 않음",()=>{draft=null;reply="변경안을 저장하지 않았어요.";paint();},"cancel-draft",true)));
+    }
+    async function saveDraft() {
+      if(!draft||conflict||busy||uncertain)return;
+      if(draft.base_version!==view.profile.version){draft=null;showError(new Error("변경안을 만든 뒤 프로필이 바뀌었어요. 바꿀 내용을 다시 말씀해 주세요."));paint();return;}
+      if(editor){showError(new Error("직접 편집 중인 항목을 먼저 저장하거나 취소해 주세요. 변경안은 유지됩니다."));return;}
+      const payload={fields:{...draft.fields}};
+      if(draft.careers?.length)payload.careers=[...view.profile.careers.map(cleanCareer),...draft.careers.map(cleanCareer)];
+      const request=newRequest("save",payload);request.draft=true;await perform(request);
     }
     function selectedValue(p,s) {return s.value===undefined?p.after:s.value;}
     function selectedTarget(s,id) {return s.field==="career"?(s.item_id?"career:"+s.item_id:"new:"+id):s.field;}

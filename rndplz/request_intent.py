@@ -28,6 +28,7 @@ SYSTEM = (
     "첨부가 있을 때 그 자료로 자기 프로필·이력을 채우라는 말은 profile_update이고, 자료 내용에 관한 질문이나 그 자료를 조건으로 사람을 찾는 말은 research_request입니다. "
     "active_task가 research_request일 때 '내 프로필'이라고 밝히지 않고 조건·전문분야·배경 같은 항목을 추가하거나 고치라는 말은 의뢰서 수정이므로 research_request입니다. "
     "의뢰서 항목(목적·필요한 도움·조건·필수/선호 조건·배경·기한·후보)은 프로필 항목이 아닙니다. active_task가 profile_update여도 이런 의뢰서 항목을 바꾸거나 사람 찾기를 이어가는 말은 research_request입니다. "
+    "첨부와 함께 목적을 밝히지 않은 짧은 말('첨부한 자료를 검토해 주세요', '이거 봐줘')은 active_task를 따릅니다. active_task가 profile_update면 그 자료로 프로필을 채우려는 것이므로 profile_update, 그렇지 않으면 research_request입니다. "
     "current_message가 스스로 뜻이 분명하면 맥락보다 그 뜻이 우선입니다. 맥락은 짧은 후속 말(예: '그걸로 해줘', '그것도 넣어줘')의 뜻을 정할 때 쓰고, 주제를 분명히 바꾸면 새 주제를 따르세요. 확신이 없으면 research_request를 고르세요.\n"
     "대비 예: '내 약력 좀 보여줘'=profile_update, '김 박사님 약력 좀 보여줘'=research_request; '소속 옮겼어요'=profile_update; "
     "'제 전공이랑 맞는 과제 있나요'=research_request; '의뢰서 목적을 바꿔줘'=research_request; '프로필 고치는 법 알려줘'=profile_update.\n"
