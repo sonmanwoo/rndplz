@@ -1,0 +1,75 @@
+{"id": "f01", "text": "옥수수대 가수분해액으로 에탄올 발효를 돌리는데, 푸르푸랄이랑 HMF 농도가 높아서 효모가 초반 12시간 동안 거의 안 자라요. 과석회 처리(overliming)랑 활성탄 흡착 둘 다 해봤는데 당 손실이 너무 커서 고민입니다. 발효 저해물질 제거 공정 경험 있으신 분과 연결되고 싶어요.", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f02", "text": "리뷰 3라운드 끝에 드디어 게재 확정 메일 받았어요 😭 분리막 쪽으로는 첫 SCI 논문이에요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f03", "text": "반가워요~ 오늘 처음 들어와 봤어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f04", "text": "지금 4200시간째고요, 2 A/cm²로 돌리다가 지난달에 2.5로 올렸어요. 그 뒤로 전압 올라가는 속도가 확 빨라졌습니다", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "PEM 수전해 스택 셀 전압이 계속 올라가는데 원인 같이 봐줄 분 찾아주세요"], ["assistant", "의뢰서에 정리해 볼게요. 누적 운전 시간, 전류밀도, 최근에 바꾼 운전 조건이 있으면 알려 주세요."]], "expected": "research_request"}
+{"id": "f05", "text": "제 박사 학위논문 최종본이에요. 학력에 학위 정보 넣고, 논문 내용은 연구실적에 두세 줄로 요약해서 올려 주세요", "attachments": ["박사학위논문_최종본_2025.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f06", "text": "나랑 스킬 겹치는 사람 말고, 내 프로필에 없는 발효·미생물 쪽 하는 사람으로 3명만 찾아줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f07", "text": "로그인 계정을 회사 메일로 옮길 수 있나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f08", "text": "그건 그대로 두시고요, 별개로 제 프로필 보유기술에 '순환전압전류법(CV)' 좀 넣어 주세요. 그건 제가 직접 하는 거라서요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "EIS 데이터 해석 도와줄 전기화학 분석 전문가 찾아요"], ["assistant", "의뢰서 초안의 필요 전문분야를 '전기화학 임피던스 분광(EIS)'으로 넣었어요. 더 추가할 분야가 있을까요?"]], "expected": "profile_update"}
+{"id": "f09", "text": "해수 냉각수 라인 듀플렉스 스테인리스 배관에 공식(pitting)이 생겼습니다. 파손분석 맡길 만한 부식 전문가 추천 부탁드립니다", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f10", "text": "내 스펙에 6시그마 블랙벨트 추가 ㄱㄱ", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f11", "text": "제 석사 논문 4장에 있는 핵생성 속도식을 지금 200L 파일럿에 그대로 써도 될지 봐주실 분 계실까요? 스케일 차이가 커서 좀 불안하네요", "attachments": ["석사학위논문_2019_냉각결정화.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f12", "text": "의뢰서 보내기 버튼이 회색으로 떠서 안 눌려요;; 버그인가요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f13", "text": "LLM 에이전트한테 실험 조건 계산을 시켰더니 단위를 자꾸 틀리네요 ㅋㅋ tool calling으로 단위 검증 붙여 보신 분?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f14", "text": "저 이번에 파견 끝나고 본사 품질보증팀으로 복귀했어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f15", "text": "용매추출도 넣어줘요 그게 핵심이라", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "폐영구자석에서 희토류 회수하는 공정 자문해 줄 분 찾아주세요"], ["assistant", "의뢰서의 필요 전문분야를 '습식제련'으로 넣었어요. 더 넣을 분야가 있을까요?"]], "expected": "research_request"}
+{"id": "f16", "text": "굿굿 👍 이제 좀 그럴듯해 보이네 ㅋㅋ", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "학력에 박사 학위 추가해줘"], ["assistant", "학력에 '한빛대학교 화학공학 박사(2024)'를 추가했어요."]], "expected": "other"}
+{"id": "f17", "text": "소속이 너무 길게 나와요ㅠ '한빛기술연구소 에너지소재센터 전기화학팀' 전부 말고 '전기화학팀'만 보이게 줄여 줘요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f18", "text": "강민재연구원 경력에 전해조 스택조립 해본 이력 있는지 확인해줄래요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f19", "text": "원료 입고검사 AQL 샘플링 기준을 다시 잡으려고 하는데, 통계적 품질관리 잘 아시는 QC 전문가 찾아요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f20", "text": "제가 발명자로 들어간 특허 등록공보예요. 특허 실적에 추가해 주시고 공동발명자 이름은 안 적으셔도 돼요", "attachments": ["특허등록공보_10-2598731.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f21", "text": "모바일 앱도 있나요? 폰 브라우저로 쓰니까 좀 불편하네요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f22", "text": "제 특허인데요, 여기 적힌 전극 배열을 도금 폐수 처리에도 써보고 싶어요. 도금 폐수 다뤄 보신 분 연결 부탁드려요", "attachments": ["특허등록공보_10-2471185.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f23", "text": "OES 말고 ICP-MS예요ㅎ GC-MS도 같이 넣어 주세요", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "분석 장비 다룰 줄 아는 거 스킬에 넣고 싶어요"], ["assistant", "기존 이력에서 찾은 장비예요. 보유 기술에 'HPLC', 'ICP-OES'를 추가할까요?"]], "expected": "profile_update"}
+{"id": "f24", "text": "혐기성 소화조 pH가 어제부터 6.5 밑으로 떨어졌어요!! 급하게 조언해 줄 분 없을까여 🙏", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f25", "text": "탈퇴하면 제가 쓴 의뢰서도 같이 삭제되나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f26", "text": "지난달에 수소문 통해서 의뢰받아 자문해 드린 건도 제 실적으로 남길 수 있어요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f27", "text": "디지털트윈 구축 중인데 DCS 실시간 데이터랑 동적 모사 모델 동기화 주기는 보통 어떻게 잡으세요? 1초? 1분?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f28", "text": "프로필은 이따 마저 할게요. 그보다 PLA 필름이 창고 보관 중에 가수분해돼서 인장강도가 떨어지는데, 이거 봐주실 분 있을까요?", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "내 경력 정리 좀 도와줘"], ["assistant", "등록된 경력은 3건이에요. 어떤 걸 고치거나 추가할까요?"]], "expected": "research_request"}
+{"id": "f29", "text": "사내 기술대상 은상 받았습니다!! 🏆", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f30", "text": "Does this work on Safari? The page keeps freezing on my Mac", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f31", "text": "배터리 재활용 쪽에서 특허 제일 많은 사람 누구예요? 그 사람 실적 목록도 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f32", "text": "Can you add Raman spectroscopy and chemometrics to my skills? thx", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f33", "text": "기체분리막 CO2/CH4 selectivity가 몇 주 지나면 떨어지는데 가소화(plasticization) 때문일까요? 폴리이미드 막 다뤄 보신 분 의견 부탁드려요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f34", "text": "ㅇㅋ 오늘은 여기까지! 👋", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "디지털트윈 검증해 줄 분 찾는 의뢰서 쓰다가 잠깐 멈출게요"], ["assistant", "의뢰서를 임시저장했어요. 나중에 이어서 작성하실 수 있어요."]], "expected": "other"}
+{"id": "f35", "text": "보내기 전에 하나만요. 제 소개란에 아직 '입사 1년 차'로 나와 있던데 '6년 차'로 먼저 고쳐 주세요. 받는 분들이 제 페이지도 볼 거잖아요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "HPLC 분석법 밸리데이션 자문해 줄 QC 전문가 찾아주세요"], ["assistant", "후보 2명을 찾았어요. 의뢰서를 보내기 전에 더 확인하실 게 있을까요?"]], "expected": "profile_update"}
+{"id": "f36", "text": "어제 임시저장해 둔 의뢰서 다시 불러와 줄래요? 기한만 바꾸면 될 것 같아요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f37", "text": "회전형 레오미터로 잰 데이터인데 저전단 구간에서 점도가 이상하게 튀어요. 벽면 슬립인지 장비 문제인지 봐주실 수 있나요?", "attachments": ["점도측정_raw_0922.xlsx"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f38", "text": "MBA 과정 수료한 것도 학력에 넣을 수 있나요? 학위는 아니고 수료증만 있어서요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f39", "text": "여기서 답해 주는 AI는 우리 회사 데이터로 학습된 거예요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f40", "text": "알칼라인 수전해 전극 니켈 코팅이 기동·정지 몇 번 반복하니까 벗겨지기 시작했어요. 역전류 때문인지 궁금한데 조언 가능하신 분?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f41", "text": "링크드인에서 내보낸 PDF 첨부해요. 여기서 경력이랑 학력만 가져다가 제 프로필 채워 주세요 (2015년 이전 건 빼고요)", "attachments": ["LinkedIn_Profile_2026.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f42", "text": "조건에 '실제 폐수처리장 운영 경험 5년 이상'도 넣어 주세요. 이론만 아시는 분은 좀 곤란해서요", "attachments": [], "active_task": "research_request", "recent_turns": [["assistant", "의뢰서 초안이에요. 목적: 방류수 총질소 저감 / 필요한 도움: 탈질 공정 운전 개선 자문 / 기한: 2주 이내. 추가할 조건이 있을까요?"]], "expected": "research_request"}
+{"id": "f43", "text": "보낸 메시지가 두 번씩 올라가네요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f44", "text": "팀장님이 제 약력 보시더니 너무 허전하대요 ㅠㅠ 좀 풍성하게 채워 주실 수 있나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f45", "text": "프로필에 '라만'이나 'Raman' 들어간 사람들 소속별로 묶어서 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f46", "text": "5L 반응기에선 수율 92% 나오던 게 500L 가니까 81%로 떨어졌어요. 교반 스케일업(P/V, 팁 속도 기준) 경험 많으신 분 조언 부탁드려요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f47", "text": "hwp 파일은 안 읽히나요? 올렸는데 계속 '내용 없음'으로 떠요", "attachments": ["시험성적서_0925.hwp"], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f48", "text": "실적란에 학회 포스터가 3건인데 연도가 전부 2025로 찍혀 있네요. 맨 아래 건은 2024년이에요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f49", "text": "냉각결정화에서 미세입자(fines)가 너무 많이 생겨서 여과가 한세월이에요.. seeding 전략 잘 아시는 분 계신가요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f50", "text": "음 너무 딱딱해 ㅋㅋ 좀 더 사람 냄새 나게 바꿔봐", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "자기소개 좀 다시 만들어 줄래?"], ["assistant", "소개글 초안이에요: '수처리 공정 설계와 운전 최적화를 담당하는 12년 차 엔지니어입니다.' 이대로 저장할까요?"]], "expected": "profile_update"}
+{"id": "f51", "text": "팀 단위로 쓰려면 요금제가 따로 있나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f52", "text": "분무건조 스케일업을 처음 맡았는데요(원래 분석 쪽이라 ㅠ), 입구온도랑 atomizer 조건을 파일럿으로 어떻게 옮기는지 경험자 조언 구해요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f53", "text": "요즘 부식 쪽 문의가 저한테 자꾸 오는데, 보니까 제 전문분야에 '부식·방식'이 빠져 있더라고요. 넣어 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f54", "text": "NIR로 인라인 수분 측정하는데 계절 바뀔 때마다 검량선이 틀어져요ㅠ 다들 모델 유지보수 어떻게 하세요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f55", "text": "근데 글씨가 너무 작아서 눈이 아파요 ㅠ 글자 크기 키우는 설정 있어요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "역삼투막 말고 나노여과막으로 염 제거해 본 분 찾아주세요"], ["assistant", "의뢰서 초안을 만들었어요. 목적: 나노여과 기반 염 제거 공정 검토 / 필요한 도움: 막 선정 및 운전 조건 자문. 수정할 곳이 있을까요?"]], "expected": "other"}
+{"id": "f56", "text": "3번 분은 논문 말고 실제 공장 라인 돌려 본 경험도 있으신가요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "폐배터리 블랙매스에서 리튬 회수율 올리는 거 도와줄 사람 찾아줘"], ["assistant", "후보 3명을 찾았어요. 1) 문하린 책임(침출 공정) 2) 조승우 교수(리튬 결정화) 3) 백서진 선임(건식 전처리)"]], "expected": "research_request"}
+{"id": "f57", "text": "제 프로필에 자격증(화공기사, 위험물산업기사) 둘 다 들어가 있는지 확인 좀 해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f58", "text": "AEM 수전해용 이오노머 합성하는 대학 연구실 중에 시료 교환해 줄 만한 곳 있을까요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f59", "text": "와 생각보다 쓸만하네요 이거", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f60", "text": "도금·표면처리만 20년 했으니 이제 후배들 질문 받아 주는 자문 역할도 해보고 싶네요. 저도 자문 가능한 사람으로 올려 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f61", "text": "고점도 슬러리를 배관으로 이송하는데 압력손실 계산값이 실측이랑 2배 차이 나요. Herschel-Bulkley로 잡아야 하는 건지, 비뉴턴 유체 잘 아시는 분 도와주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f62", "text": "이 두 개 같은 창고에 둬도 되는지 MSDS 기준으로 판단 좀 해 주세요. 혼촉 위험 있으면 같이 알려 주시고요", "attachments": ["MSDS_과산화벤조일.pdf", "MSDS_트리에틸렌테트라민.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f63", "text": "명함 새로 나왔어요ㅎㅎ 여기 적힌 대로 직함이랑 소속 맞춰 주세요", "attachments": ["명함_앞면_2026.jpg"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f64", "text": "불금이다 🍻 다들 한 주 고생 많으셨어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f65", "text": "PP/탈크 컴파운드 사출품 표면에 flow mark가 계속 생겨요. 압출 조건 문제인지 배합 문제인지 봐줄 사람 찿습니다", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f66", "text": "작년에 등록된 전해질 첨가제 특허 1건이랑, 전기화학회 추계 포스터 1건이요", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "연구 실적 좀 추가하려고요"], ["assistant", "추가할 연구 실적을 알려 주세요. 논문, 특허, 수상, 발표 모두 가능해요."]], "expected": "profile_update"}
+{"id": "f67", "text": "수소충전소 LOPA 결과에서 SIL 2 나온 근거를 제3자한테 한번 검토받고 싶습니다. 가능하신 분 계실까요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f68", "text": "이 채팅 내용 PDF로 내보낼 수 있어요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f69", "text": "발표 실적에서 제가 공동저자로만 이름 올린 건 다 지워 주세요. 제가 직접 발표한 것만 남기고요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f70", "text": "우리 연구소에 ICP-MS 전처리(마이크로웨이브 분해) 잘하시는 분 계세요? 방법 좀 배우고 싶어서요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f71", "text": "음성으로 말해서 입력하는 건 안 되나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "f72", "text": "관심분야 순서 좀 바꿔 주세요. 디지털트윈을 맨 위로, 수처리는 맨 아래로요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f73", "text": "XRD main peak가 reference 대비 0.2° 정도 high-angle 쪽으로 shift됐는데, lattice strain인지 sample displacement인지 판단 좀 도와주실 분?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "f74", "text": "내커리어에 2022~2024 MBR 폐수처리장 운전담당 추가해줘여", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "f75", "text": "잘 자요~ 내일 또 올게요 ㅎㅎ", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}

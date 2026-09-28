@@ -3,12 +3,12 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let token="",catalog=[],history=[],session=null,selectedModel="",files=[],busy=false,uploading=false,controller=null,streamText="",optimistic=null,retryPayload=null,letter=null,toastTimer,autoScroll=true,publicMode=false;
 let modelSelectionOrigin="automatic",modelDefault="",modelSelectionEpoch=0,modelCatalogTicket=0;
-let profileBusy=false,profileSubmission=null;
+let profileBusy=false,profileSubmission=null,intentBusy=false;
 let profileUI=null;
 let accountNavigationPending=false,accountInvalidated=false;
 let prepareBusy=false,prepareTicket=0,prepareProgress=null;
 let composerInputRevision=0,composerComposing=false;
-function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading;}
+function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading||intentBusy;}
 function composerSendLocked(){return composerClientLocked()||!!session?.pending;}
 function setComposerDraft(value){$("message").value=value;composerInputRevision++;}
 function consumeComposerDraft(){const text=$("message").value,stagedEdit=briefEditor?.stagedText===text&&composerInputRevision===briefEditor.stagedComposerRevision?briefEditor:null;setComposerDraft("");return {text,revision:composerInputRevision,attachmentIds:[],stagedEdit};}
@@ -550,11 +550,12 @@ function syncPrepareAnnouncement(active){
 }
 function syncDiscoveryControls(){
  const active=prepareProgressActive();syncPrepareAnnouncement(active);
- const button=$("currentScoutButton"),scout=$("currentScout");if(!button||!scout)return;
+ const button=$("currentScoutButton"),scout=$("currentScout"),proxy=$("briefScoutProxy");if(!button||!scout){if(proxy)proxy.hidden=true;return;}
  const available=!accountNavigationPending&&!accountInvalidated&&canPrepareDiscovery();scout.hidden=!(available||active);
  button.disabled=!available;button.textContent=active?"수소문 중…":scoutButtonLabel();
  button.setAttribute("aria-busy",String(active));
  const progress=$("scoutPrepareProgress");if(progress){progress.hidden=!active;progress.innerHTML=prepareProgressContent();}
+ if(proxy){proxy.hidden=scout.hidden;proxy.disabled=button.disabled;proxy.textContent=button.textContent;}
 }
 function scoutCount(){
  const s=session?.scout,known=s?.count_status==="known"&&Number.isSafeInteger(s.count)&&s.count>=0;
@@ -625,6 +626,34 @@ function ensureBriefHost(){
  return host;
 }
 
+// Narrow screens: the draft leaves the thread; a bar above the composer opens it as a sheet
+// and mirrors the scout button, so the main action stays in reach.
+function ensureBriefBar(){
+ let bar=$("briefBar");if(bar)return bar;
+ bar=document.createElement("div");bar.id="briefBar";bar.className="brief-bar";bar.hidden=true;
+ bar.innerHTML='<button type="button" class="secondary" id="briefOpenButton" aria-haspopup="dialog" aria-controls="briefSheet">의뢰서 보기</button><button type="button" class="primary" id="briefScoutProxy" hidden></button>';
+ document.querySelector(".composer-dock")?.prepend(bar);
+ $("briefOpenButton").addEventListener("click",openBriefSheet);
+ $("briefScoutProxy").addEventListener("click",()=>{closeBriefSheet();$("currentScoutButton")?.click();});
+ return bar;
+}
+function briefSheet(){
+ let sheet=$("briefSheet");if(sheet)return sheet;
+ sheet=document.createElement("dialog");sheet.id="briefSheet";sheet.className="brief-sheet";sheet.setAttribute("aria-label","의뢰서");
+ sheet.innerHTML='<button type="button" class="brief-sheet-close" aria-label="의뢰서 닫기">×</button>';
+ sheet.querySelector(".brief-sheet-close").addEventListener("click",closeBriefSheet);
+ sheet.addEventListener("click",event=>{if(event.target===sheet)closeBriefSheet();else if(event.target.closest('[data-action="prepare"]'))setTimeout(closeBriefSheet);});
+ sheet.addEventListener("close",restoreBriefHost);
+ document.body.append(sheet);return sheet;
+}
+function restoreBriefHost(){const host=$("consultBriefHost");if(host&&host.parentElement?.id==="briefSheet")$("thread").after(host);}
+function openBriefSheet(){
+ const host=ensureBriefHost();if(host.hidden)return;
+ const sheet=briefSheet();sheet.append(host);if(!sheet.open)sheet.showModal();
+ host.querySelector('[data-brief-action="edit"]')?.focus({preventScroll:true});
+}
+function closeBriefSheet(){const sheet=$("briefSheet");if(sheet?.open)sheet.close();restoreBriefHost();}
+window.matchMedia("(min-width: 1180px)").addEventListener("change",event=>{if(event.matches)closeBriefSheet();});
 function briefStructureSignatures(spec){
  const texts=rows=>JSON.stringify(briefRows(rows).map(row=>row.text).sort());
  return {purposes:texts(spec?.purposes),requested_help:texts(spec?.requested_help),conditions:JSON.stringify(briefConditionLines(spec?.conditions).sort()),open_questions:JSON.stringify((Array.isArray(spec?.open_questions)?spec.open_questions:[]).filter(value=>typeof value==="string").slice().sort())};
@@ -673,6 +702,7 @@ function renderBrief(){
  trackBriefStructuralChange();
  const legacy=!!spec&&typeof spec.has_content!=="boolean"&&typeof spec.summary==="string"&&!!spec.summary.trim();
  host.hidden=!sid||(!briefHasContent(spec)&&!legacy&&!briefEditor);
+ ensureBriefBar().hidden=host.hidden;if(host.hidden)closeBriefSheet();
  if(host.hidden){host.replaceChildren();briefRenderKey="";return;}
  if(briefEditor&&host.querySelector("#consultBriefEditor")){updateBriefNotice();syncDiscoveryControls();return;}
  const key=JSON.stringify([sid,spec]);
@@ -685,6 +715,9 @@ function renderBrief(){
 }
 // Called only by explicit edit opening, never by brief refresh or input events.
 function revealBriefEditorField(field){
+ // In the side panel or the sheet the draft scrolls itself, not the window.
+ const host=$("consultBriefHost");
+ if(host&&(host.parentElement?.id==="briefSheet"||getComputedStyle(host).position==="sticky")){field.scrollIntoView({block:"nearest"});return;}
  const rect=field.getBoundingClientRect(),viewport=window.visualViewport;
  const top=(viewport?.offsetTop||0)+16;
  let bottom=(viewport?.offsetTop||0)+(viewport?.height||window.innerHeight);
@@ -718,7 +751,7 @@ function stageBriefCorrection(){
  const text=(before?before+"\n\n":"")+correction;
  if(text.length>$("message").maxLength){failure.textContent="수정문이 입력창의 허용 길이를 넘어요. 수정 내용을 줄여 주세요.";failure.hidden=false;return;}
  edit.composerBefore=before;edit.stagedText=text;edit.phase="staged";edit.turnId=null;
- setComposerDraft(text);edit.stagedComposerRevision=composerInputRevision;autoScroll=false;resizeInput();controls();updateBriefNotice();$("message").focus({preventScroll:true});
+ setComposerDraft(text);edit.stagedComposerRevision=composerInputRevision;autoScroll=false;resizeInput();controls();updateBriefNotice();closeBriefSheet();$("message").focus({preventScroll:true});
 }
 function beginBriefSubmission(payload){
  if(!briefEditor||briefEditor.sessionId!==payload.session_id||!briefEditor.stagedText)return null;
@@ -1221,20 +1254,37 @@ async function upload(list){
   error();files.push(...list.map(file=>({id:"pending-"+crypto.randomUUID(),name:file.name,file})));
  }finally{$("fileInput").value="";renderFiles();}
 }
+// Gemma reads whether a message is a profile update or a research request (request_intent.v1).
+// null when no operator-PC model answers; the explicit command rules then decide alone.
+async function classifyIntent(text,attached){
+ try{
+  const body={text,session_id:session?.id||null,attachments:attached.map(f=>f.name).filter(n=>typeof n==="string").slice(0,4),
+   active_task:profileUI.isOpen()?"profile_update":session?.messages?.length?"research_request":null,model_id:selectedModel};
+  const response=await fetch("/api/chat/intent",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});
+  if(!response.ok)return null;const value=await response.json();return typeof value.intent==="string"?value.intent:null;
+ }catch{return null;}
+}
 async function submitComposer(){
  if(composerSendLocked()||composerComposing)return;
  const text=$("message").value.trim();if(!text&&!files.length)return;
  let attachmentPlan;try{attachmentPlan=planInlineMessageAttachments(text,files,inlineMessageLinks,()=>"pending-"+crypto.randomUUID());}catch(e){error(e.message);return;}
  const boundary=modelBoundaryMessage(selectedModel,attachmentPlan.files);if(boundary){error(boundary);return;}
- if(isPublicPaperContext()&&profileUI.shouldHandle(text)){error("내 프로필 작업은 이 외부 모델로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
- if(profileUI.shouldHandle(text)){
+ let toProfile=profileUI.shouldHandle(text),routed=false;
+ if(!toProfile&&text&&option()?.provider==="bridge"){
+  intentBusy=true;controls();
+  try{routed=toProfile=(await classifyIntent(text,attachmentPlan.files))==="profile_update";}finally{intentBusy=false;controls();}
+ }
+ if(isPublicPaperContext()&&toProfile){error("내 프로필 작업은 이 외부 모델로 전송하지 않습니다. 새 대화에서 다른 모델을 선택하거나 내 프로필 페이지를 이용해 주세요.");return;}
+ if(toProfile){
   if(attachmentPlan.urls.length||attachmentPlan.files.some(f=>f.source_url||f.source?.kind==="https_document")){error("링크 자료는 프로필로 전송하지 않습니다. 링크를 제거하고 프로필용 파일을 직접 선택해 주세요.");return;}
   if(attachmentPlan.files.some(f=>!f.file)){error("앞서 일반 대화용으로 전송한 파일은 제거하고 프로필용 파일을 다시 선택해 주세요.");return;}
   files=attachmentPlan.files;inlineMessageLinks=attachmentPlan.autoLinks;renderFiles();
   profileSubmission={text:$("message").value,revision:composerInputRevision,ids:files.map(f=>f.id)};
-  try{await profileUI.submit(text,files.map(f=>f.file));}catch(e){error(e.message);}finally{if(!profileUI.hasPendingRequest())profileSubmission=null;render();resizeInput();}
+  try{await profileUI.submit(text,files.map(f=>f.file),{routed});}catch(e){error(e.message);}finally{if(!profileUI.hasPendingRequest())profileSubmission=null;render();resizeInput();}
   return;
  }
+ // A research message brings the work panel back from the profile to the proposal draft.
+ if(profileUI?.isOpen()&&!profileUI.hasPendingRequest())profileUI.close();
  let requested;try{requested=selectedRequestModel();}catch(e){error(e.message);return;}
  files=attachmentPlan.files;inlineMessageLinks=attachmentPlan.autoLinks;renderFiles();
  if(!text&&!files.length)return;

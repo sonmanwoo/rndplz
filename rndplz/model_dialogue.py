@@ -445,6 +445,9 @@ def generation_contract(name):
     if name == "dialogue_assessment.v1":
         return {"system": _schema_system(ASSESSMENT_SYSTEM, ASSESSMENT_SCHEMA),
                 "format": copy.deepcopy(ASSESSMENT_SCHEMA), "max_tokens": 4096}
+    if name == "request_intent.v1":
+        from .request_intent import contract_spec
+        return contract_spec()
     raise ValueError("지원하지 않는 대화 생성 계약입니다.")
 
 

@@ -47,7 +47,7 @@ class ProfileChat:
         self.profiles = profiles
 
     def handle(self, payload):
-        if not isinstance(payload, dict) or set(payload) - {'action', 'session_id', 'turn_id', 'payload', 'text'}:
+        if not isinstance(payload, dict) or set(payload) - {'action', 'session_id', 'turn_id', 'payload', 'text', 'routed'}:
             raise ProfileError('프로필 대화 요청 형식을 확인해 주세요.')
         action = payload.get('action')
         if action not in ('text', 'read', 'save', 'upload', 'suggest', 'undo', 'source-action'):
@@ -63,8 +63,12 @@ class ProfileChat:
             raise ProfileError('프로필 작업 내용을 확인해 주세요.')
         intent = command(payload.get('text', '')) if action == 'text' else None
         if action == 'text' and intent is None:
-            # Do not reserve a session, write a fact, or dispatch to a model.
-            raise ProfileError('내 프로필에서 바꿀 항목과 값을 명확히 알려 주세요.', code='not_profile_command')
+            if payload.get('routed') is not True:
+                # Do not reserve a session, write a fact, or dispatch to a model.
+                raise ProfileError('내 프로필에서 바꿀 항목과 값을 명확히 알려 주세요.', code='not_profile_command')
+            # Gemma read a profile update that is not an explicit command: open the profile
+            # with guidance instead of failing. Nothing is written from the free text.
+            intent = {'action': 'read', 'guide': True}
         effective = ('read' if intent['action'] == 'read' else 'save') if intent else action
         request_id = ('profile-' + turn_id) if action == 'text' else data.get('request_id')
         digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
@@ -100,7 +104,7 @@ class ProfileChat:
                 # Recovery never reconstructs a private value from old chat text.
                 prior = copy.deepcopy(state.get('self_profile', {}).get('requests', {}).get(request_id))
             if not user:
-                session['messages'].append({'role': 'user', 'text': '내 프로필 확인' if effective == 'read' else '내 프로필 작업',
+                session['messages'].append({'role': 'user', 'text': '내 프로필 업데이트 요청' if intent and intent.get('guide') else '내 프로필 확인' if effective == 'read' else '내 프로필 작업',
                                             'kind': 'self_profile', 'turn_id': turn_id, 'digest': digest})
             session['pending'] = turn_id
             session['updated'] = now()
@@ -138,6 +142,9 @@ class ProfileChat:
                      'upload': '프로필 자료를 받았어요. 반영할 내용은 직접 선택해 주세요.',
                      'suggest': '자료의 변경 후보를 준비했어요. 아직 프로필에 반영하지 않았어요.',
                      'undo': '선택한 한 항목의 변경을 되돌렸어요.', 'source-action': '프로필 자료 상태를 변경했어요.'}[effective]
+            if intent and intent.get('guide'):
+                reply = ('프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나(예: 내 기술에 Python 추가해줘) '
+                         '이력 자료를 올려 주세요.')
 
             def finish(state):
                 session = next(s for s in state['sessions'] if s['id'] == session_id)

@@ -1,0 +1,128 @@
+{"id": "p01", "text": "내 프로필 업데이트 도와줄 수 있니?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p02", "text": "제 프로필 좀 수정하고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p03", "text": "내 경력에 최근 프로젝트 하나 추가해줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p04", "text": "이 연구노트로 내 이력 갱신해줘", "attachments": ["연구노트_종합보고서.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p05", "text": "소속이 바이오공정팀으로 바뀌었어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p06", "text": "제 기술 목록에 Python이랑 PyTorch 넣어 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p07", "text": "내 관심 분야를 배터리 소재로 바꿔줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p08", "text": "2019년 경력 항목은 삭제해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p09", "text": "제 프로필 보여줄래?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p10", "text": "나도 전문가로 등록할 수 있어?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p11", "text": "프로필 업데이트는 어떻게 해요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p12", "text": "제 이름 표기를 영문으로 바꾸고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p13", "text": "자기소개 문구를 좀 더 자연스럽게 다듬어 줄 수 있어요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p14", "text": "이력서 첨부했어요. 이걸로 제 프로필 채워 주세요", "attachments": ["이력서_2026.docx"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p15", "text": "저 이번에 팀장이 됐어요. 직무 바꿔줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p16", "text": "제가 한 연구를 등록하고 싶은데요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p17", "text": "최근에 낸 논문 두 편을 내 실적에 추가하고 싶어", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p18", "text": "내 프로필에 적힌 소속이 틀렸어", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p19", "text": "경력 설명이 너무 짧은데 보강해 줄래?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p20", "text": "내 정보 최신으로 바꿔줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p21", "text": "프로필에 제 역할을 메인 개발자로 적어 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p22", "text": "이 보고서 중에 제가 한 부분만 이력에 넣어 줘", "attachments": ["과제_결과보고서.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p23", "text": "제 스킬에 '공정 시뮬레이션' 있나요? 없으면 추가해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p24", "text": "입사 연도가 잘못 들어갔어요, 2016년이 맞아요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p25", "text": "다른 사람들이 저를 잘 찾을 수 있게 제 프로필을 정리하고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p26", "text": "내 경력 사항 전체 다시 정리해줄래", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p27", "text": "저 요즘 액침냉각유 연구해요. 관심 분야에 반영해 줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p28", "text": "프로필 사진 말고 소개글만 수정할게요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p29", "text": "방금 올린 자료로 경력 업데이트 해줘", "attachments": ["연구노트_종합보고서.pdf"], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p30", "text": "나 이직했어. 소속 기술연구소로 바꿔", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p31", "text": "내 이력에서 중복된 항목 좀 정리해 줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p32", "text": "제 전문 분야를 '분리정제'로 등록해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p33", "text": "내 프로필 어디서 고쳐?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p34", "text": "제 경력 3번째 항목 기간이 틀렸어요. 2021~2023으로요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p35", "text": "해커톤 수상 경력도 넣고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p36", "text": "update my profile please", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p37", "text": "내 프로필에 논문 링크 추가 가능해?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p38", "text": "제 소개에 '촉매 공정 10년 차'라고 써 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p39", "text": "이번 분기 과제 이력 반영 좀", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p40", "text": "저를 검색에 잘 걸리게 제 기술 키워드 더 넣어줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p41", "text": "내 프로필에 있는 '관심 분야' 전부 지워줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p42", "text": "이력서 파일로 제 프로필 만들 수 있나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p43", "text": "제 경력에 GS 해커톤 2위 추가해 주실래요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p44", "text": "내가 등록한 경력 목록 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p45", "text": "프로필 업데이트 좀 하려고 하는데", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p46", "text": "내 직급이 책임연구원으로 바뀌었어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "p47", "text": "기술 쪽이요, 머신러닝 추가", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "내 프로필 업데이트 도와줘"], ["assistant", "프로필 업데이트 창을 열었어요. 어떤 항목을 추가하거나 고칠까요?"]], "expected": "profile_update"}
+{"id": "p48", "text": "그것도 넣어줘", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "내 프로필 업데이트 도와줘"], ["assistant", "프로필 업데이트 창을 열었어요. 어떤 항목을 추가하거나 고칠까요?"]], "expected": "profile_update"}
+{"id": "p49", "text": "아니 그건 빼고 나머지만 반영해", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "내 프로필 업데이트 도와줘"], ["assistant", "프로필 업데이트 창을 열었어요. 어떤 항목을 추가하거나 고칠까요?"]], "expected": "profile_update"}
+{"id": "p50", "text": "연구노트 올릴 테니 내 이력으로 정리해 줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "profile_update"}
+{"id": "r01", "text": "공정 제어 관련 연구자를 찾아 제어기 튜닝 방법을 자문받고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r02", "text": "촉매 비활성화 원인을 같이 분석할 사람을 찾고 있어", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r03", "text": "이 논문을 함께 공부할 동료를 찾고 있어", "attachments": ["paper.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r04", "text": "TCB 솔벤트 증류 잔존물 제거 경험 있는 분 계세요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r05", "text": "내 프로필이랑 비슷한 경력 가진 사람 추천해줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r06", "text": "제 경력으로는 부족한 부분을 채워 줄 협업자를 찾고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r07", "text": "홍윤기 님 경력 좀 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r08", "text": "의뢰서 내용 수정하고 싶어요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r09", "text": "이 첨부 논문 요약해줘", "attachments": ["paper.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r10", "text": "액침냉각유 전기적 특성 측정해 본 사람 있나?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r11", "text": "MPC 도입 전에 검토할 점이 뭘까요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r12", "text": "우리 팀 공정에서 이취가 나는데 원인 찾는 거 도와줄 사람", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r13", "text": "증류탑 에너지 절감 아이디어 좀 같이 고민해 줄래?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r14", "text": "조건 중에 '사내 인원'은 빼 줘", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r15", "text": "그 조건으로 진행해 주세요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r16", "text": "좋아요, 수소문해 주세요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r17", "text": "오진호 님이 CO2 전환 촉매 해보셨나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r18", "text": "내 연구 주제에 맞는 논문 찾아줄 수 있어?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r19", "text": "사이클로펜타논 분리정제 공정 전문가를 찾습니다", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r20", "text": "고분자 단량체 합성 경험 있는 연구원과 연결해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r21", "text": "첨부한 보고서에서 수율 수치만 뽑아줘", "attachments": ["과제_결과보고서.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r22", "text": "내 문제는 반응기 온도 제어가 불안정한 거야", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r23", "text": "제가 가진 데이터로 이상탐지 모델을 만들 수 있을지 조언 부탁해요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r24", "text": "SAF 공정 사전평가 해본 분 소개해 주세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r25", "text": "이 사람 말고 다른 후보도 보여줘", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r26", "text": "의뢰서에 기한을 다음 달 말로 넣어줘", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r27", "text": "제 프로필 기준으로 협업할 만한 사람 있을까요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r28", "text": "공정 파울링 분석을 해본 사람의 경험을 듣고 싶어", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r29", "text": "연구 맵에서 촉매 분야 사람들 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r30", "text": "GPU 수치해석 코드 짜본 사람 찾아요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r31", "text": "논문 두 개 비교해서 차이점 알려줘", "attachments": ["a.pdf", "b.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r32", "text": "우리 회사에 바이오 공정 경험자가 있을까?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r33", "text": "이 연구노트 내용 중에 검증이 약한 부분이 어디야?", "attachments": ["연구노트_종합보고서.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r34", "text": "제 경력이 이 과제에 맞는지 봐 줄 수 있어요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r35", "text": "멀티 에이전트로 R&D 자동화하는 방법 알려줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r36", "text": "실험계획법으로 최적 조건 찾는 거 도와줄 사람", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r37", "text": "의뢰 내용을 좀 더 구체적으로 다듬어 줘", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r38", "text": "후보 3명 중 누구한테 먼저 연락하는 게 좋을까?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r39", "text": "윤활유 제품 개발 경험 있는 분 계신가요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r40", "text": "정다솔 님 프로필 보여줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r41", "text": "우리 팀 과제 제안서 쓸 때 같이 검토해 줄 사람", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r42", "text": "제가 전에 말한 조건 기억하세요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r43", "text": "수소 저장(LOHC) 쪽 전문가 찾아줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r44", "text": "그럼 흡착제 재생은 어떻게 해요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r45", "text": "내 문제에 맞는 분석법 개발 경험자", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r46", "text": "이거 보고 내 연구에 도움될 만한 포인트 정리해줘", "attachments": ["paper.pdf"], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r47", "text": "반도체급 메탄올 정제 공정 아는 사람?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r48", "text": "프로필이 비슷한 연구자 3명만 추려줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r49", "text": "제 관심 분야랑 겹치는 사람 있어요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "research_request"}
+{"id": "r50", "text": "이 조건이면 몇 명 정도 나와요?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "반응기 온도 제어가 불안정해서 MPC 도입을 검토할 사람을 찾고 있어요."], ["assistant", "온도 제어 불안정의 원인과 현재 제어 방식부터 정리해 볼게요. 현재 PID 튜닝 이력이 있나요?"]], "expected": "research_request"}
+{"id": "r51", "text": "조건에 사내 인원 우선도 넣어 주세요.", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요."], ["assistant", "리보일러 부하 절감 목표를 기준으로 검토 범위를 정리해 볼게요."], ["user", "내 프로필 업데이트 요청"], ["assistant", "프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나 이력 자료를 올려 주세요."]], "expected": "research_request"}
+{"id": "r52", "text": "기한은 다음 달 말로 해 주세요", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요."], ["assistant", "리보일러 부하 절감 목표를 기준으로 검토 범위를 정리해 볼게요."], ["user", "내 프로필 업데이트 요청"], ["assistant", "프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나 이력 자료를 올려 주세요."]], "expected": "research_request"}
+{"id": "r53", "text": "아까 찾던 증류 전문가 계속 찾아줘", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요."], ["assistant", "리보일러 부하 절감 목표를 기준으로 검토 범위를 정리해 볼게요."], ["user", "내 프로필 업데이트 요청"], ["assistant", "프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나 이력 자료를 올려 주세요."]], "expected": "research_request"}
+{"id": "p51", "text": "기술에 증류 공정 설계 추가해줘", "attachments": [], "active_task": "profile_update", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요."], ["assistant", "리보일러 부하 절감 목표를 기준으로 검토 범위를 정리해 볼게요."], ["user", "내 프로필 업데이트 요청"], ["assistant", "프로필 업데이트 창을 열었어요. 바꿀 항목과 값을 알려 주거나 이력 자료를 올려 주세요."]], "expected": "profile_update"}
+{"id": "p52", "text": "내 프로필 업데이트 도와줄 수 있니?", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요. 리보일러 부하를 10% 줄이는 게 목표예요."], ["assistant", "네, 증류탑의 에너지 절감, 특히 리보일러 부하를 10% 줄이는 목표를 가지고 공정 전문가의 검토 및 컨설팅을 받고 싶으신 상황으로 이해했습니다. 지금까지의 대화 내용을 바탕으로, 이 목표를 달성할 수 있는 공정 최적화 경험을 갖춘 전문가를 찾는 것이 핵심 목표인 것 같습니다. 현재 운전 조건(환류비, 탑정·탑저 온도, 피드 조성)과 설비 변경 가능 범위를 알려 주시면 의뢰서를 더 구체화할 수 있어요."]], "expected": "profile_update"}
+{"id": "p53", "text": "잠깐, 제 소속부터 바꿔 주세요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요. 리보일러 부하를 10% 줄이는 게 목표예요."], ["assistant", "네, 증류탑의 에너지 절감, 특히 리보일러 부하를 10% 줄이는 목표를 가지고 공정 전문가의 검토 및 컨설팅을 받고 싶으신 상황으로 이해했습니다. 지금까지의 대화 내용을 바탕으로, 이 목표를 달성할 수 있는 공정 최적화 경험을 갖춘 전문가를 찾는 것이 핵심 목표인 것 같습니다. 현재 운전 조건(환류비, 탑정·탑저 온도, 피드 조성)과 설비 변경 가능 범위를 알려 주시면 의뢰서를 더 구체화할 수 있어요."]], "expected": "profile_update"}
+{"id": "p54", "text": "그 전에 내 경력에 최근 과제 추가해줘", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요. 리보일러 부하를 10% 줄이는 게 목표예요."], ["assistant", "네, 증류탑의 에너지 절감, 특히 리보일러 부하를 10% 줄이는 목표를 가지고 공정 전문가의 검토 및 컨설팅을 받고 싶으신 상황으로 이해했습니다. 지금까지의 대화 내용을 바탕으로, 이 목표를 달성할 수 있는 공정 최적화 경험을 갖춘 전문가를 찾는 것이 핵심 목표인 것 같습니다. 현재 운전 조건(환류비, 탑정·탑저 온도, 피드 조성)과 설비 변경 가능 범위를 알려 주시면 의뢰서를 더 구체화할 수 있어요."]], "expected": "profile_update"}
+{"id": "r54", "text": "좋아요, 그 기준으로 찾아 주세요", "attachments": [], "active_task": "research_request", "recent_turns": [["user", "증류탑 에너지 절감을 같이 검토할 공정 전문가를 찾고 있어요. 리보일러 부하를 10% 줄이는 게 목표예요."], ["assistant", "네, 증류탑의 에너지 절감, 특히 리보일러 부하를 10% 줄이는 목표를 가지고 공정 전문가의 검토 및 컨설팅을 받고 싶으신 상황으로 이해했습니다. 지금까지의 대화 내용을 바탕으로, 이 목표를 달성할 수 있는 공정 최적화 경험을 갖춘 전문가를 찾는 것이 핵심 목표인 것 같습니다. 현재 운전 조건(환류비, 탑정·탑저 온도, 피드 조성)과 설비 변경 가능 범위를 알려 주시면 의뢰서를 더 구체화할 수 있어요."]], "expected": "research_request"}
+{"id": "o01", "text": "안녕하세요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o02", "text": "고마워요!", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o03", "text": "이 서비스는 뭐 하는 곳이에요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o04", "text": "너는 무슨 모델이야?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o05", "text": "사용법 알려줘", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o06", "text": "ㅎㅎ 재밌네", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o07", "text": "오늘 날씨 어때?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o08", "text": "로그인은 어떻게 해요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o09", "text": "의견 보내는 방법이 있나요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o10", "text": "다크모드로 바꾸고 싶어", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o11", "text": "제안함은 어디서 봐요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o12", "text": "수고하셨습니다", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o13", "text": "테스트", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o14", "text": "연구 맵은 뭐예요?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o15", "text": "개인정보는 어떻게 관리돼?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o16", "text": "좋은 아침입니다", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o17", "text": "이거 무료야?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o18", "text": "도움말", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o19", "text": "영어로도 대화 가능해?", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}
+{"id": "o20", "text": "방금 답변이 좀 이상해요", "attachments": [], "active_task": null, "recent_turns": [], "expected": "other"}

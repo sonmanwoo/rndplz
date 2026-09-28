@@ -12,12 +12,14 @@ from .diagnostics import event as diagnostic_event
 
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
 GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
-                             'dialogue_plan.v2','dialogue_response.v1')
+                             'dialogue_plan.v2','dialogue_response.v1','request_intent.v1')
 # Ollama request tuning measured on gemma4:e4b (2026-09-24). Hidden reasoning was
 # 60-80% of generated text. The consultation answer runs with think=false; plans keep
 # the model default because without it confirmation turns ("그 조건으로 진행해 주세요")
 # were read as answers and failed validation. keep_alive spares a ~5 s model reload.
-OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1',))
+OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1','request_intent.v1'))
+# A routing label must not change between identical requests.
+OLLAMA_DETERMINISTIC_CONTRACTS = frozenset(('request_intent.v1',))
 OLLAMA_KEEP_ALIVE = '24h'
 # 32k tokens holds the 60k-char input budget plus output; on gemma4:e4b it cost 0.3 GB VRAM over 16k.
 OLLAMA_NUM_CTX = 32768
@@ -203,6 +205,7 @@ class ChatModels:
             # model's default reasoning behavior instead of disabling thinking.
             if spec is not None and contract not in OLLAMA_NO_THINK_CONTRACTS:payload.pop('think',None)
             if schema is not None:payload['format']=schema
+            if contract in OLLAMA_DETERMINISTIC_CONTRACTS:payload['options']['temperature']=0
         elif provider=='openai':
             url='https://api.openai.com/v1/chat/completions';headers['Authorization']='Bearer '+config['key']
             payload={'model':config['model'],'messages':[{'role':'system','content':system}]+messages,'stream':True,'max_completion_tokens':spec['max_tokens'] if spec is not None else 1800}

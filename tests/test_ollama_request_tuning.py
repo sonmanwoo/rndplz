@@ -34,8 +34,11 @@ class OllamaRequestTuningTests(unittest.TestCase):
         return sink[0]
 
     def test_consultation_answer_disables_thinking(self):
-        self.assertEqual(OLLAMA_NO_THINK_CONTRACTS, {'dialogue_answer.v1'})
+        # The intent label also runs without thinking: with it, 2.3 s instead of 0.1 s and no better (2026-09-28).
+        self.assertEqual(OLLAMA_NO_THINK_CONTRACTS, {'dialogue_answer.v1', 'request_intent.v1'})
         self.assertIs(self.payload('dialogue_answer.v1')['think'], False)
+        intent = self.payload('request_intent.v1')
+        self.assertEqual((intent['think'], intent['options']['temperature']), (False, 0))
 
     def test_plan_and_assessment_keep_model_default_reasoning(self):
         for contract in ('dialogue_plan.v2', 'dialogue_response.v1'):
