@@ -1,4 +1,5 @@
-"""Private profile drafts; document claims never edit the public corpus.
+"""Profile drafts. A visitor's or unbound account's draft stays private; a bound account's
+saved draft is its map card (person_cards). Document claims reach a draft only through review.
 
 The caller supplies an authorized visitor/account store. Account authentication
 and storage selection belong to the server, never the request payload. This
@@ -58,6 +59,18 @@ def _id(value):
     return value
 
 
+def list_items(value):
+    """Entries of a list field: one per line when it has lines (a seeded card), else comma/semicolon separated."""
+    value = value or ''
+    parts = value.split('\n') if '\n' in value else re.split(r'[,;]+', value)
+    return [part.strip() for part in parts if part.strip()]
+
+
+def list_join(entries, like=''):
+    """Keep a one-per-line list (or entries that contain commas) one per line."""
+    return ('\n' if '\n' in (like or '') or any(',' in entry for entry in entries) else ', ').join(entries)
+
+
 def _account_metadata(value):
     if value is None:
         return None
@@ -75,8 +88,11 @@ class Profiles:
     view, never an old cached response that could contain a deleted source.
     """
 
-    def __init__(self, store, *, public=False, clock=None, account=None, reader=None, staged=None):
+    def __init__(self, store, *, public=False, clock=None, account=None, reader=None, staged=None, card=None):
         self.account = _account_metadata(account)
+        # The map card of the person this account is bound to (person_cards.CardBinding): it seeds
+        # the draft once, and each saved draft is shown as that card.
+        self.card = card if self.account else None
         # Optional Gemma reader (profile_reading.ProfileReader); without it documents are
         # offered as paragraph rows as before.
         self.reader = reader
@@ -168,6 +184,13 @@ class Profiles:
                           'Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다. '
                           '실제 운영 저장소의 지속 보관·첨부 보관 설정은 별도 확인이 필요하며 영구 보관을 보장하지 않습니다.',
             }
+        if self._linked(data):
+            label = self.card.label
+            result['scope'].update(kind='person_card', person_id=self.card.person_id, person_label=label,
+                                   person_confirmed=True, shared=True,
+                                   notice=f'연구맵의 「{label}」 카드와 연결된 프로필이에요. 저장하면 연구맵 카드·약력·추천 근거에 '
+                                          '바로 반영되어 모든 방문자에게 보여요. 자료나 대화로 요청한 변경은 지금 값과 바뀔 값을 '
+                                          '먼저 보여 드리고, 확인한 것만 저장해요.')
         result['limits'] = {'file_bytes': MAX_FILE_BYTES,
                             'sources': MAX_SOURCES, 'careers': MAX_CAREERS,
                             'fields': FIELDS, 'career_fields': CAREER_FIELDS,
@@ -178,7 +201,51 @@ class Profiles:
         return result
 
     def read(self):
-        return self._view(self._state(self.store.read()))
+        data = self._state(self.store.read())
+        if self.card is not None and not data.get('card'):
+            # Values the account wrote before the link differ from the card and show on it now.
+            return self._publish(self._view(self.store.transaction(self._seed)))
+        return self._view(data)
+
+    def _linked(self, data):
+        return self.card is not None and data.get('card', {}).get('person_id') == self.card.person_id
+
+    def _seed(self, state):
+        """First open of a bound account: start from the card's own values; written values are kept."""
+        data = self._state(state)
+        if data.get('card'):
+            return data
+        values, profile, seeded = self.card.values(), data['profile'], False
+        origin = {**self._provenance(), 'origin': 'public_card'}
+        for key, value in values['fields'].items():
+            if value and not profile['fields'][key]:
+                self._record(data, key, '', value, [], 'card_seed')
+                profile['fields'][key] = value
+                profile['provenance'][key] = dict(origin)
+                seeded = True
+        if not profile['careers'] and values['careers']:
+            for row in values['careers']:
+                self._record(data, 'career:' + row['id'], None, row, [], 'card_seed')
+                profile['provenance']['career:' + row['id']] = dict(origin)
+            profile['careers'] = values['careers']
+            seeded = True
+        data['card'] = {'person_id': self.card.person_id, 'seeded_at': self._now()}
+        if seeded:
+            profile['id'] = profile['id'] or uuid.uuid4().hex
+            profile['version'] += 1
+            profile['updated_at'] = self._now()
+            # Seeding only fills blanks, so undecided proposals still apply to this draft.
+            for proposal in data['suggestions']:
+                if proposal['decision'] in ('pending', 'deferred', 'excluded'):
+                    proposal['base_version'] = profile['version']
+        state['self_profile'] = data
+        return data
+
+    def _publish(self, view):
+        """A bound account's saved draft is its map card right away."""
+        if view.get('scope', {}).get('kind') == 'person_card':
+            view['card_update'] = {'person_id': self.card.person_id, 'changed': self.card.publish(view['profile'])}
+        return view
 
     @staticmethod
     def _undo_event(data, version):
@@ -289,7 +356,7 @@ class Profiles:
             return {**self._view(data), 'operation': {'action': action, 'replayed': False, **detail,
                     'version': profile['version'], 'request_id': request_id, 'event_ids': event_ids}}
 
-        return self.store.transaction(change)
+        return self._publish(self.store.transaction(change))
 
     @staticmethod
     def _find_source(data, identifier, *, readable=False):
@@ -382,8 +449,7 @@ class Profiles:
 
     def _snapshot(self, data):
         fields = data['profile']['fields']
-        split = lambda value: [v.strip() for v in re.split(r'[,\n;]+', value or '') if v.strip()]
-        return {'skills': split(fields['skills']), 'interests': split(fields['interests']),
+        return {'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
                 'career_titles': [c['title'] for c in data['profile']['careers'] if c.get('title')]}
 
     def read_part(self, payload):
@@ -645,9 +711,9 @@ class Profiles:
                     before = profile['fields'][field]
                     lineage = profile['provenance'].get(field, {}).get('source_ids', [])
                     if appends:
-                        entries = [v.strip() for v in re.split(r'[,\n;]+', before) if v.strip()]
+                        entries = list_items(before)
                         added = _text(value, FIELDS[field], field).strip()
-                        value = ', '.join(entries + ([added] if added not in entries else []))
+                        value = list_join(entries + ([added] if added not in entries else []), before)
                     self._set_field(data, field, value, [source['id']], edited=choice == 'edit')
                 proposal.update(field=field, before=before, after=copy.deepcopy(value),
                     decision='edited_accepted' if choice == 'edit' else 'accepted',

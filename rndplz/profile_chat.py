@@ -1,5 +1,5 @@
-"""Self-profile actions in a chat. Explicit commands save directly; other sentences the
-intent reader routed here are read by Gemma into a draft the user saves in the profile panel.
+"""Self-profile actions in a chat. Explicit commands, and other sentences the intent reader
+routed here (read by Gemma), become a draft the user compares and saves in the profile panel.
 
 Only generic labels and receipt references enter the transcript. Profile values
 are always read from the current, redaction-aware private Profiles view.
@@ -10,7 +10,7 @@ import json
 import re
 import uuid
 
-from .profiles import ProfileError
+from .profiles import ProfileError, list_items, list_join
 from .service import now
 
 
@@ -62,9 +62,8 @@ class ProfileChat:
         if reader is not None and isinstance(payload.get('model_id'), str):
             try:
                 profile = self.profiles.read()['profile']
-                split = lambda value: [v.strip() for v in re.split(r'[,\n;]+', value or '') if v.strip()]
                 snapshot = {**{k: profile['fields'][k] for k in ('name', 'organization', 'role')},
-                            'skills': split(profile['fields']['skills']), 'interests': split(profile['fields']['interests']),
+                            'skills': list_items(profile['fields']['skills']), 'interests': list_items(profile['fields']['interests']),
                             'career_titles': [c['title'] for c in profile['careers'] if c.get('title')]}
                 plan = reader.interpret(payload['model_id'], text, snapshot)
             except Exception:
@@ -80,19 +79,19 @@ class ProfileChat:
         return next((m.get('text') for m in reversed((session or {}).get('messages', [])) if m.get('role') == 'assistant'), None)
 
     def _draft(self, intent):
-        """Gemma's reading as a save the user confirms in the profile panel; nothing is written here."""
+        """A requested change as a save the user confirms in the profile panel; nothing is written here."""
         current = self.profiles.read()['profile']
         fields = {}
         for edit in intent['edits']:
             field, value = edit['field'], edit['value']
-            if field in ('skills', 'interests'):
+            if field in ('skills', 'interests') and edit['action'] in ('add', 'remove'):
                 base = fields.get(field, current['fields'][field])
-                entries = [v.strip() for v in re.split(r'[,\n;]+', base) if v.strip()]
+                entries = list_items(base)
                 if edit['action'] == 'add' and value.lower() not in [v.lower() for v in entries]:
                     entries.append(value)
                 elif edit['action'] == 'remove':
                     entries = [v for v in entries if v.lower() != value.lower()]
-                fields[field] = ', '.join(entries)
+                fields[field] = list_join(entries, base)
             else:
                 fields[field] = value
         return {'fields': fields, 'careers': intent['careers'], 'base_version': current['version']}
@@ -121,7 +120,11 @@ class ProfileChat:
             # values the user wrote become a draft the user saves in the profile panel; otherwise the
             # reply says what to do next.
             intent = self._interpret(payload)
-        effective = ('read' if intent['action'] in ('read', 'draft') else 'save') if intent else action
+        elif intent and intent['action'] in ('set', 'add', 'remove'):
+            # An explicit command is shown as current -> new too; it saves when the user confirms.
+            intent = {'action': 'draft', 'careers': [],
+                      'edits': [{key: intent[key] for key in ('action', 'field', 'value')}]}
+        effective = 'read' if intent else action
         if intent and intent.get('guide'):
             previous = self._last_reply(sid)
             intent['reply'] = GUIDE['again'] if previous == GUIDE[intent['guide']] else GUIDE[intent['guide']]
@@ -181,17 +184,6 @@ class ProfileChat:
                 if intent and intent['action'] == 'draft':
                     draft = self._draft(intent)
             else:
-                if intent:
-                    current = self.profiles.read()['profile']
-                    field, new = intent['field'], intent['value']
-                    if intent['action'] in ('add', 'remove'):
-                        entries = [v.strip() for v in re.split(r'[,\n;]+', current['fields'][field]) if v.strip()]
-                        if intent['action'] == 'add' and new not in entries:
-                            entries.append(new)
-                        elif intent['action'] == 'remove':
-                            entries = [v for v in entries if v != new]
-                        new = ', '.join(entries)
-                    data = {'fields': {field: new}, 'base_version': current['version'], 'request_id': request_id}
                 method = getattr(self.profiles, effective.replace('-', '_'))
                 view = method(data)
             op = view.get('operation')
@@ -202,6 +194,8 @@ class ProfileChat:
                      'undo': '선택한 한 항목의 변경을 되돌렸어요.', 'source-action': '프로필 자료 상태를 변경했어요.'}[effective]
             if effective == 'suggest' and (view.get('operation') or {}).get('model_calls'):
                 reply = 'Gemma가 자료 전체를 읽고 변경안을 만들었어요. 근거 원문을 확인하고 반영할 항목만 골라 주세요.'
+            if view.get('card_update') and effective in ('save', 'undo', 'source-action'):
+                reply += ' 연구맵 카드에도 바로 반영했어요.'
             if intent and intent.get('guide'):
                 reply = intent['reply']
             elif draft:
@@ -223,11 +217,7 @@ class ProfileChat:
             session = self.store.transaction(finish)
             result = {'session': session, 'profile_view': view, 'reply': reply, 'receipt': receipt}
             return {**result, 'draft': draft} if draft else result
-        except Exception as exc:
-            # Only the explicit command is returned transiently for conflict UI.
-            # Never copy the previous profile/source value into chat or errors.
-            if isinstance(exc, ProfileError) and exc.code == "conflict" and intent and effective == "save":
-                exc.profile_command = copy.deepcopy(intent)
+        except Exception:
             def release(state):
                 session = next(s for s in state['sessions'] if s['id'] == session_id)
                 if session.get('pending') == turn_id:

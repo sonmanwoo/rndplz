@@ -35,6 +35,7 @@ from .storage import StateStore
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
+from .person_cards import PersonCards
 from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
@@ -491,7 +492,7 @@ class PublicApp:
         tracked=('conversation.py','public_web.py','gemma_bridge.py','chat_models.py','chat_actions.py','discovery.py','diagnostics.py',
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
-                 'public_profiles.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py',
+                 'public_profiles.py','person_cards.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py',
                  'mail_delivery.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
@@ -504,6 +505,12 @@ class PublicApp:
                                  'raw_state_retention':'existing_state_unchanged',
                                  'storage_lifetime':'ephemeral_platform_storage; export_before_deploy'}
         self.auth = AuthService(reason='hosted_demo_disabled') if self.hosted_demo_policy is not None else AuthService.from_env(self.env)
+        # A bound account's saved 내 프로필 is its person's map card; restore those cards on start.
+        self.cards = PersonCards(self.engine.corpus)
+        if self.auth.enabled:
+            for person_id, draft in self.auth.storage.card_drafts():
+                if draft.get('card', {}).get('person_id') == person_id and self.cards.available(person_id):
+                    self.cards.apply(person_id, draft['profile'])
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
@@ -690,8 +697,10 @@ class PublicApp:
                 service = Service(self.engine, self.directory / sid, self._runtime_legacy_model(self.directory / sid), state_env=self.env)
                 chat = Conversation(service, self.models)
                 store = self.auth.profile_store(account['id'], session_cookie=cookie)
+                person_id = account.get('person_id')
                 profile = Profiles(store, public=True, reader=self.profile_reader, account={key: account[key]
-                    for key in ('id', 'verified', 'storage_lifetime')}, staged=self._staged(service, chat))
+                    for key in ('id', 'verified', 'storage_lifetime')}, staged=self._staged(service, chat),
+                    card=self.cards.binding(person_id) if self.cards.available(person_id) else None)
                 self.contexts[sid] = {'service': service, 'chat': chat,
                     'profile': profile, 'account': account, 'session_mode': 'account',
                     '_account_cookie': cookie, 'token': principal['csrf'], 'used': now,

@@ -232,7 +232,7 @@
     if(value.authenticated)show(pendingNote,false);
     if(value.authenticated){
       identity.textContent=(typeof account.display_name==='string'&&account.display_name.trim())||'Google 계정';
-      note.textContent='본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
+      note.textContent=account.person_id?'연구맵 공개 카드와 연결된 계정이에요. 내 프로필에서 저장한 내용이 카드에 바로 반영돼요.':'본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
     }else{
       note.textContent='임시 방문자 세션입니다. 로그인해도 기존 방문자 기록이 계정으로 자동 이동하지 않습니다.';
       if(value.enabled&&value.login_url==='/auth/google/start'){show(login,true);show(signupNote,value.signup_requests===true);}

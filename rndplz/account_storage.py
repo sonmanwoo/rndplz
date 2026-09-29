@@ -271,6 +271,14 @@ class AccountStorage:
         with self.connection() as db:
             return {row['person_id'] for row in db.execute('SELECT person_id FROM accounts WHERE person_id IS NOT NULL')}
 
+    def card_drafts(self):
+        """(person_id, profile draft) of each active account bound to a public person, for the map cards."""
+        with self.connection() as db:
+            rows = db.execute('SELECT a.person_id, p.payload FROM accounts a JOIN profile_state p ON p.account_id=a.id '
+                              'LEFT JOIN subject_approvals s USING(google_sub) '
+                              'WHERE a.person_id IS NOT NULL AND COALESCE(s.revoked,0)=0').fetchall()
+        return [(row['person_id'], json.loads(row['payload'])) for row in rows]
+
     def decide_request(self, account_id, approve, person_id=None):
         """Administrator decision on one pending request; approval may bind one public person."""
         if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
