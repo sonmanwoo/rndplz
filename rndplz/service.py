@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .data import ROOT
 from .engine import Engine, MODE
-from .demo_pool import present_session, require_proposal_boundary
+from .demo_pool import present_session, proposal_boundary, require_proposal_boundary
 from .storage import StateStore
 from .models import ExternalModel
 
@@ -36,6 +36,11 @@ RUNTIME_SCOPE_PROVIDERS = ('codex_oauth', 'openai_api')
 
 class ProviderScopeError(ValueError):
     code = 'provider_scope_restricted'
+
+
+class PickError(ValueError):
+    """Fixed, user-facing reasons a person picked on the map cannot receive this request."""
+    code = 'pick_unavailable'
 
 
 def public_paper_corpus(base, scope_id=GEMINI_SCOPE_ID):
@@ -248,8 +253,36 @@ class Service:
                                         "revision": revision, "items": items}
         return projected
 
-    def draft(self,sid,cid):
-        return self._draft_for_session(self.session(sid),cid)
+    def draft(self,sid,cid,picked=False):
+        session=self.session(sid)
+        if picked:
+            return self._render_draft(session,self._picked_candidate(session,cid))
+        return self._draft_for_session(session,cid)
+
+    def _picked_candidate(self,session,cid):
+        """Someone the requester chose on the map instead of a recommendation. The same request
+        goes to them, marked as the requester's own choice; their records are listed, not judged."""
+        result=session.get("result")
+        policy=getattr(self.corpus,"demo_pool",None)
+        if (not isinstance(result,dict) or not result.get("candidates") or result.get("inspection_only")
+                or any(c.get("lookup_only") for c in result["candidates"])
+                or (policy and result.get("pool_version")!=policy["version"])):
+            raise PickError("현재 요청으로 사람을 찾은 대화에서만 다른 분께 의뢰를 보낼 수 있어요.")
+        if any(c["id"]==cid for c in result["candidates"]):
+            raise PickError("추천된 분은 후보 카드에서 의뢰를 보내 주세요.")
+        person=self.corpus.people.get(cid)
+        if not person:
+            raise PickError("현재 명단에 없는 인물이에요.")
+        records=sorted(self.corpus.by_person.get(cid,[]),key=lambda r:r.date or "",reverse=True)[:5]
+        if not records:
+            raise PickError("등록된 이력이 없는 분이라 의뢰를 보낼 수 없어요.")
+        evidence=[self.engine.explain_record(r,next(c for c in r.people if c.person_id==cid)) for r in records]
+        reason=proposal_boundary(self.corpus,cid,evidence)
+        if reason:
+            raise PickError(reason)
+        profile=person.profile if person.profile.get("curated") else {}
+        name=profile.get("display_name") if isinstance(profile.get("display_name"),str) and profile["display_name"].strip() else person.name
+        return {"id":cid,"name":name,"virtual":person.virtual,"evidence":evidence,"selection":"user_pick"}
 
     def _draft_for_session(self,session,cid):
         sid=session["id"]
@@ -267,7 +300,10 @@ class Service:
         slots=session["slots"]
         request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
         refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
-        body=f'{c["name"]}님께,\n\n[막힌 현상]\n{session.get("proposal_context",session["original"])}\n\n[목표]\n{slots["goal"] or "추가 협의"}\n\n[검토 대상]\n{slots["target"] or "추가 협의"}\n\n[가진 자료·조건]\n{slots["resources"] or "추가 협의"} / {slots["conditions"] or "조건 확인 필요"}\n\n[요청 범위]\n{MODE[session["mode"]]} · {request_scope}\n\n[연결 근거]\n{refs}\n\n[기한]\n{slots["deadline"] or "협의 가능"}\n\n감사합니다.\n— 시연 제안자'
+        basis="[연결 근거]\n"+refs
+        if c.get("selection")=="user_pick":
+            basis="[직접 선택]\n추천 목록 밖에서 요청자가 직접 고른 분입니다. 이번 요청과의 관련성은 아직 확인되지 않았습니다.\n\n[등록 이력]\n"+refs
+        body=f'{c["name"]}님께,\n\n[막힌 현상]\n{session.get("proposal_context",session["original"])}\n\n[목표]\n{slots["goal"] or "추가 협의"}\n\n[검토 대상]\n{slots["target"] or "추가 협의"}\n\n[가진 자료·조건]\n{slots["resources"] or "추가 협의"} / {slots["conditions"] or "조건 확인 필요"}\n\n[요청 범위]\n{MODE[session["mode"]]} · {request_scope}\n\n{basis}\n\n[기한]\n{slots["deadline"] or "협의 가능"}\n\n감사합니다.\n— 시연 제안자'
         if session["mode"]=="verify":
             claims="\n".join("> "+x for x in session["result"]["claims"])
             body=f'[검증 대상 · AI가 제안한 내용이며 사실로 확인되지 않음]\n{claims}\n\n[확인하고 싶은 점]\n{slots["target"] or "위 주장에 필요한 조건과 검증 방법"}\n\n'+body
@@ -289,7 +325,10 @@ class Service:
         bodies=payload.get("bodies") or {}
         if not isinstance(bodies,dict):
             raise ValueError("제안문 형식이 올바르지 않습니다.")
-        digest=hashlib.sha256(json.dumps([sid,ids,state_name,bodies],ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+        picked=payload.get("picked_ids") or []
+        if not isinstance(picked,list) or not set(picked)<=set(ids):
+            raise ValueError("수신 후보를 1~7명 선택해 주세요.")
+        digest=hashlib.sha256(json.dumps([sid,ids,state_name,bodies]+([sorted(picked)] if picked else []),ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         def update(state):
             if key in state["idempotency"]:
                 prior=state["idempotency"][key]
@@ -302,17 +341,21 @@ class Service:
             created=[]
             group=uuid.uuid4().hex
             for cid in ids:
-                c=next((c for c in (session.get("result") or {}).get("candidates",[]) if c["id"]==cid),None)
-                if not c:
-                    raise ValueError("추천 근거가 없는 수신자입니다.")
-                draft=self.draft(sid,cid)
+                if cid in picked:
+                    c=self._picked_candidate(session,cid)
+                    draft=self._render_draft(session,c)
+                else:
+                    c=next((c for c in (session.get("result") or {}).get("candidates",[]) if c["id"]==cid),None)
+                    if not c:
+                        raise ValueError("추천 근거가 없는 수신자입니다.")
+                    draft=self.draft(sid,cid)
                 body=validate_text(bodies.get(cid,draft["body"]),30000)
                 if session["mode"]=="verify" and "검증 대상" not in body:
                     raise ValueError("검증 요청에는 '검증 대상' 표시가 필요합니다.")
                 if c["virtual"] and "가상" not in body:
                     raise ValueError("현장 제안에는 '가상' 표시가 필요합니다.")
                 stamp=now()
-                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
+                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
                 created.append(p)
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}

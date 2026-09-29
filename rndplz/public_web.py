@@ -30,7 +30,7 @@ from .models import ExternalModel
 from .hosted_demo import HostedDemoPolicy
 from .llm_runtime import RuntimeLegacyModel
 from .model_conversation import ObservedRuntimeChatModels
-from .service import Service, ProviderScopeError
+from .service import Service, ProviderScopeError, PickError
 from .storage import StateStore
 from .people_map import build_people_map
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
@@ -1300,7 +1300,8 @@ class PublicApp:
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
                 '/api/converse': lambda: browser_project(service.converse(payload)),
                 '/api/slots': lambda: browser_project(service.update_slots(payload)),
-                '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id')),
+                '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id'),
+                                                    picked=payload.get('picked') is True),
                 '/api/proposals': lambda: service.save_proposal(payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
             }
@@ -1342,6 +1343,9 @@ class PublicApp:
         except AttachmentError as exc:
             diagnostic_error=exc.code
             return send(exc.status, {'error':str(exc), 'code':exc.code})
+        except PickError as exc:
+            diagnostic_error=exc.code
+            return send(409, {'error':str(exc), 'code':exc.code})
         except ValueError as exc:
             # Only fixed, user-actionable validation messages may cross this boundary.
             safe_messages = {
