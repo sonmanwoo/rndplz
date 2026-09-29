@@ -1513,6 +1513,12 @@ $ ("stopButton").addEventListener("click",()=>{invalidateRegisteredUI();controll
 $ ("newButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
+// Files dragged onto the page are attached like the + button; the composer shows where they land.
+{let depth=0;const zone=$("chatForm"),files=e=>[...(e.dataTransfer?.types||[])].includes("Files"),clear=()=>{depth=0;zone.classList.remove("drop-ready");};
+ document.addEventListener("dragenter",e=>{if(!files(e))return;e.preventDefault();depth++;zone.classList.add("drop-ready");});
+ document.addEventListener("dragover",e=>{if(!files(e))return;e.preventDefault();e.dataTransfer.dropEffect=composerSendLocked()?"none":"copy";});
+ document.addEventListener("dragleave",e=>{if(files(e)&&--depth<=0)clear();});
+ document.addEventListener("drop",e=>{if(!files(e))return;e.preventDefault();clear();if(e.dataTransfer.files.length)upload([...e.dataTransfer.files]);});}
 $ ("attachmentCancel").addEventListener("click",abortAttachment);
 
 
