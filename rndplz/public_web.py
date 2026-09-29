@@ -1098,7 +1098,12 @@ class PublicApp:
                 return send(403, {'error': '화면을 새로고침한 뒤 다시 시도해 주세요.'})
             origin = environ.get('HTTP_ORIGIN', '')
             expected = self.origin or ('https://' if self.secure else 'http://') + environ.get('HTTP_HOST', '')
-            if origin != expected:
+            # The operator's in-app browser blocks every request after the first page at the Funnel
+            # address, so this PC may also use the app at its loopback address. Browsers send this
+            # origin only for pages loaded from it, which no other site can serve.
+            loopback = (environ.get('HTTP_HOST', '').rsplit(':', 1)[0] in ('127.0.0.1', 'localhost')
+                        and origin == 'http://' + environ.get('HTTP_HOST', ''))
+            if origin != expected and not loopback:
                 return send(403, {'error': '허용되지 않는 요청입니다.'})
             if path in ('/api/chat/configure', '/api/export', '/api/ai/structure', '/api/ai/draft'):
                 return send(403, {'error': '공개 시연에서 제공하지 않는 관리 기능입니다.'})
