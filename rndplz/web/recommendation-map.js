@@ -103,6 +103,7 @@ export function initRecommendationMap(host, {
   const nodeByKey = new Map(graph.nodes.map(node => [node.key, node]));
   const candidateIds = new Set(focus.candidateIds);
   const candidateById = new Map(focus.candidateNodes.map(node => [node.id, node]));
+  const personById = new Map(graph.nodes.filter(node => node.type === 'person').map(node => [node.id, node]));
   const rowById = new Map(rows.map(row => [row.id, row]));
   const rowIndexById = new Map(rows.map((row, index) => [row.id, index]));
   const adjacentLabel = '인접 분야 후보 · 직접 근거 부족';
@@ -167,11 +168,11 @@ export function initRecommendationMap(host, {
   button('화면 맞춤', 'fit', controls);
   const help = doc.createElement('p');
   help.id = uid + '-help'; help.className = 'rm-help';
-  help.textContent = '이 지도에서는 이번 추천 후보만 선택할 수 있어요. 지도 아래 카드나 지도의 후보를 누르면 근거가 열립니다. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
+  help.textContent = '지도 아래 카드나 지도의 후보를 누르면 근거가 열립니다. 추천되지 않은 사람도 누르면 이력을 보고 이 의뢰를 그분께 보낼 수 있어요. 지도: 방향키 이동 · + / − 확대 · Home 화면 맞춤.';
   const exploreLink = doc.createElement('a');
   exploreLink.href = '/explore#map'; exploreLink.target = '_blank'; exploreLink.rel = 'noopener';
   exploreLink.textContent = '전체 연구 맵 탐색 ↗';
-  help.append(' 다른 등록 인물은 ', exploreLink, '에서 확인해 주세요.');
+  help.append(' 모든 등록 인물은 ', exploreLink, '에서 볼 수 있어요.');
   const note = doc.createElement('p'); note.className = 'rm-note';
   note.textContent = focus.unmappedCandidateIds.length
     ? '일부 후보의 추천 근거는 이 지도의 연결선에 아직 연결되어 있지 않습니다. 후보를 선택해 추천 근거를 확인해 주세요.'
@@ -190,9 +191,9 @@ export function initRecommendationMap(host, {
     if (!node) throw new Error('연구맵 노드를 확인할 수 없습니다.');
     element.removeAttribute('aria-controls');
     if (node.type === 'person') {
+      // Everyone is clickable; only candidates are tab stops so the keyboard path stays short.
       const candidate = candidateIds.has(node.id);
       element.tabIndex = candidate ? 0 : -1;
-      element.setAttribute('aria-disabled', String(!candidate));
       if (!candidate) element.removeAttribute('aria-pressed');
       if (candidate && rowById.get(node.id)?.purpose_relation === 'adjacent') {
         const marker = doc.createElement('span');
@@ -211,7 +212,7 @@ export function initRecommendationMap(host, {
     }
   });
   let disposed = false, currentKey, hasShown = false, quietSource = quiet;
-  let phase = 0, selectedId = null, running = false, cameraMode = 'overview';
+  let phase = 0, selectedId = null, peekedId = null, running = false, cameraMode = 'overview';
   // Set by show() for a fresh result; cleared once the journey ends or the user picks someone.
   let revealPending = false;
   let camera = { x: 0, y: 0, scale: 1 }, frame = 0, runToken = 0;
@@ -310,6 +311,7 @@ export function initRecommendationMap(host, {
       element.classList.toggle('rm-candidate', phase >= 2 && isCandidate);
       element.classList.toggle('rm-noncandidate', phase >= 2 && node.type === 'person' && !isCandidate);
       element.classList.toggle('rm-selected', phase === 3 && node.id === selectedId && isCandidate);
+      element.classList.toggle('rm-peeked', node.type === 'person' && node.id === peekedId);
       element.classList.toggle('rm-related-field', phase >= 1 && matchedFields.has(node.key));
       if (isCandidate) element.setAttribute('aria-pressed', String(phase === 3 && node.id === selectedId));
     }
@@ -318,14 +320,14 @@ export function initRecommendationMap(host, {
     for (const element of list.querySelectorAll('[data-rm-person]')) {
       element.setAttribute('aria-pressed', String(element.dataset.rmPerson === selectedId));
     }
-    status.textContent = phase === 0 ? '전체 연구맵' : phase === 1
+    status.textContent = peekedId ? personById.get(peekedId).label + ' · 추천 밖 인물' : phase === 0 ? '전체 연구맵' : phase === 1
       ? (focus.fieldNodes.length ? '추천 근거와 연결된 분야' : '추천 후보의 위치를 확인합니다')
       : phase === 3 ? candidateById.get(selectedId).label + ' · 선택한 후보'
       : '이번 요청의 후보 ' + focus.candidateIds.length + '명 · 인물을 선택해 근거를 확인하세요';
     together.textContent = focus.candidateIds.length === 1 ? '후보 보기' : '후보 함께 보기';
   }
   function moveTo(next, animate = true, after) {
-    phase = next; cameraMode = phaseNames[next]; customNodes = null;
+    phase = next; cameraMode = phaseNames[next]; customNodes = null; peekedId = null;
     paint(); travel(targetCamera(), animate ? 650 : 0, after);
   }
   function journeyEnded() {
@@ -351,11 +353,26 @@ export function initRecommendationMap(host, {
   }
   // Camera close-up on a candidate without reopening its details (the inspect view drives it).
   function select(id) {
-    if (disposed || !hasShown || !candidateIds.has(id)) return;
+    if (disposed || !hasShown) return;
+    if (!candidateIds.has(id)) { peek(id); return; }
     revealPending = false; stop(); selectedId = id; moveTo(3);
   }
+  // Someone outside this recommendation: camera close-up only, the result stays as it is.
+  function peek(id) {
+    const node = personById.get(id);
+    if (!node) return false;
+    revealPending = false; stop(); selectedId = null;
+    phase = 2; peekedId = id; cameraMode = 'custom'; customNodes = [node];
+    paint(); travel(targetCamera(), 450);
+    return true;
+  }
   function choose(id) {
-    if (disposed || !hasShown || !candidateIds.has(id)) return;
+    if (disposed || !hasShown) return;
+    if (!candidateIds.has(id)) {
+      // The same person-detail flow; the card offers sending this request to them.
+      if (peek(id)) onDetail?.({ id });
+      return;
+    }
     revealPending = false; stop(); selectedId = id; moveTo(3);
     // This callback is the existing person-detail flow, never a new search.
     onDetail?.({ id });

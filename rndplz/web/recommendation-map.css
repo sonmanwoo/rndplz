@@ -106,10 +106,16 @@
   box-shadow: inset 0 0 0 1px #315e50;
   background: #e5ebe0;
 }
-#peopleMapHost.recommendation-map .mp-spatial-person[aria-disabled="true"] { cursor: default; }
 /* Never grayscale names, Nobel/team rings, field cards, lines or the background. */
 #peopleMapHost.recommendation-map .mp-spatial-person.rm-noncandidate .mp-node-face img {
   filter: grayscale(1);
+}
+#peopleMapHost.recommendation-map .mp-spatial-person.rm-noncandidate:is(:hover, .rm-peeked) .mp-node-face img {
+  filter: none;
+}
+#peopleMapHost.recommendation-map .mp-spatial-person.rm-peeked .mp-node-name {
+  outline: 1px dashed #315e50;
+  outline-offset: 2px;
 }
 #peopleMapHost.recommendation-map .mp-spatial-person.rm-candidate .mp-node-name {
   background: #e5ebe0;

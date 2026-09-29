@@ -1311,6 +1311,21 @@ function detailRequestAction(candidate){
  return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
   (allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="small subtle">'+(mailDelivery?'먼저 의뢰 초안을 확인해요. 보내기를 누르면 등록된 메일 주소로 발송하고 제안함에도 기록합니다.':'먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.')+'</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="small subtle">'+esc(reason)+'</p>')+'</section>';
 }
+// Someone picked on the map outside the recommendation may get the same request; the server re-checks.
+function pickAvailable(id){
+ const scout=session?.scout,result=session?.result;
+ return Boolean(session?.ready&&scout?.disclosed&&!session.pending&&scout.revision&&scout.revision===session.discovery?.revision&&scout.revision===session.prepared_discovery_revision&&
+  result?.candidates?.length&&!result.historical_result&&!result.inspection_only&&!result.candidates.some(c=>c.id===id||c.lookup_only));
+}
+const pickNote='추천 밖에서 직접 고른 분이에요. 요청과의 관련성은 확인되지 않았고, 의뢰서에 직접 선택으로 표시돼요.';
+// Same rule as the server's proposal boundary and the explore map (people-map.js).
+const historicalProfile=profile=>profile?.display_type==="historical_researcher"||profile?.current_status?.category==="deceased"||profile?.affiliation_status==="deceased";
+const historicalPickNote='역사적 연구 자료의 인물이라 의뢰를 보낼 수 없어요.';
+function pickRequestAction(id,name,profile){
+ if(!pickAvailable(id))return '';
+ if(historicalProfile(profile))return '<section class="detail-record" aria-label="나의 의뢰"><p class="small subtle">'+historicalPickNote+'</p></section>';
+ return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p><button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button><p class="small subtle">'+pickNote+'</p></section>';
+}
 function currentDetailCandidate(id){
  const scout=session?.scout;
  if(!session?.ready||!scout?.disclosed||session.pending||!scout.revision||scout.revision!==session.discovery?.revision||scout.revision!==session.prepared_discovery_revision)return null;
@@ -1331,7 +1346,7 @@ async function showPerson(id,opener=document.activeElement,registered=false){
  const profileNotice=!historical&&candidate?.profile_only?'<p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
  const requestContext=registered?registeredContextHtml(candidate):candidateContextHtml(candidate);
   const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
- $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id)))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
+ $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id))||pickRequestAction(id,p.profile?.display_name||p.name,p.profile))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
  $("detailDialog").dataset.registeredReview=String(registered);$("detailDialog").dataset.registeredBinding=registeredKey||"";modal("detailDialog",opener);$("detailDialog").scrollTop=0;
 }
 // Model prose sometimes carries LaTeX such as "$\text{CO}_2$", whose "\t" can arrive as a
@@ -1367,12 +1382,13 @@ async function renderInspect(id){
  const relation=candidatePurposeRelation(candidate),label=candidatePurposeLabel(candidate);
  const reason=typeof candidate?.reason==="string"?plainScience(candidate.reason.trim()):"";
  const missing=typeof candidate?.purpose_missing==="string"?candidate.purpose_missing.trim():"";
- const evidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object").slice(0,4);
+ const outside=!candidate&&pickAvailable(id),closed=outside&&historicalProfile(person?.profile);
+ const evidence=(Array.isArray(outside?person?.evidence:candidate?.evidence)?(outside?person.evidence:candidate.evidence):[]).filter(e=>e&&typeof e==="object").slice(0,4);
  const request=currentDetailCandidate(id),allowed=canPropose(request);
  const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
  const index=ids.indexOf(id),count=ids.length;
  $("personCardHost").innerHTML='<div class="pi-sheet"'+(relation?' data-relation="'+relation+'"':'')+'>'+
-  '<div class="pi-top">'+(count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
+  '<div class="pi-top">'+(index<0?'<span class="pi-count">추천 밖 인물</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
   '<div class="pi-main"><div class="pi-hero">'+
    '<button type="button" class="pi-card" aria-label="'+esc(name)+' 카드 다시 뒤집기"><span class="pi-turn">'+
     '<span class="pi-face pi-front"><span class="pi-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pi-portrait-empty">초상 미제공</span>')+'</span><span class="pi-card-name">'+esc(name)+'</span><span class="pi-foil" aria-hidden="true"></span></span>'+
@@ -1380,9 +1396,9 @@ async function renderInspect(id){
    '</span></button>'+
    '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+'<h2 class="pi-name" id="piName">'+esc(name)+'</h2>'+(org?'<p class="pi-org">'+esc(org)+'</p>':'')+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
   '</div><div class="pi-info"><div class="pi-body">'+
-   '<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>')+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>'+
-   (evidence.length?'<section><h3>핵심 근거 <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
-  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
+   '<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>'+
+   (evidence.length?'<section><h3>'+(outside?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
+  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
  const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");
  const quiet=RndCraft.quiet();sheet.classList.toggle("pi-quiet",quiet);
@@ -1469,9 +1485,20 @@ async function openLetter(ids,registered=false){
  letter={ids,drafts,key:crypto.randomUUID(),sessionId:source.id,index:0,candidateContexts,bodies:Object.fromEntries(drafts.map(d=>[d.candidate.id,d.body]))};
  renderLetter();modal("letterDialog");
 }
+// The same request to someone picked on the map; the server marks the letter as the requester's choice.
+async function openPickedLetter(id){
+ registeredLetterTicket++;
+ const source=session,revision=source?.scout?.revision;
+ if(!pickAvailable(id))throw new Error("현재 수소문 결과의 지도에서 다시 골라 주세요.");
+ const draft=await api("/api/draft",{session_id:source.id,candidate_id:id,picked:true});
+ if(accountNavigationPending||accountInvalidated||session!==source||session.pending||session.scout?.revision!==revision)
+  throw new Error("대화 조건이 바뀌었어요. 지도에서 다시 골라 주세요.");
+ letter={ids:[id],picked:[id],drafts:[draft],key:crypto.randomUUID(),sessionId:source.id,index:0,candidateContexts:{[id]:null},bodies:{[id]:draft.body}};
+ renderLetter();modal("letterDialog");
+}
 function renderLetter(){const registered=letter.kind==="registered_review";$("draftButton").disabled=registered;$("proposeButton").disabled=registered;$("letterBody").readOnly=registered;$("letterDialog").querySelector("p.subtle").textContent=registered?"검토용 초안 · 현재 저장·발송 권한이 없습니다. 수행 가능 여부와 연락 의향은 미확인입니다.":publicMode?"이 방문자의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.":"이 기기의 제안함에 시연 기록으로 저장됩니다. 실제 수신자에게 연락하지 않습니다.";const d=letter.drafts[letter.index];renderLetterCandidateContext(d.candidate.id);$("letterTitle").textContent=d.candidate.name+"님에게";$("letterBody").value=letter.bodies[d.candidate.id];$("letterError").textContent="";let switcher=$("recipientSelect");if(switcher)switcher.remove();if(letter.ids.length>1){switcher=document.createElement("select");switcher.id="recipientSelect";switcher.setAttribute("aria-label","경로별 수신자");switcher.innerHTML=letter.drafts.map((x,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':'')+'>'+esc((i+1)+". "+x.candidate.name)+'</option>').join("");$("letterBody").before(switcher);switcher.addEventListener("change",()=>{keepLetter();letter.index=Number(switcher.value);renderLetter();});}}
 function keepLetter(){const id=letter.ids[letter.index];if(letter.bodies[id]!==$("letterBody").value){letter.bodies[id]=$("letterBody").value;letter.key=crypto.randomUUID();}}
-async function saveLetter(state){if(letter?.kind==="registered_review"){$("letterError").textContent="등록 전문가 초안은 검토만 가능하며 저장하거나 발송할 수 없어요.";return;}const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent"){RndCraft.deliver(recipientName,saved.length);if(mailDelivery)toast(deliverySummary(saved));}else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
+async function saveLetter(state){if(letter?.kind==="registered_review"){$("letterError").textContent="등록 전문가 초안은 검토만 가능하며 저장하거나 발송할 수 없어요.";return;}const button=state==="sent"?$("proposeButton"):$("draftButton");button.disabled=true;$("draftButton").disabled=true;$("proposeButton").disabled=true;try{keepLetter();const saved=await api("/api/proposals",{session_id:letter.sessionId,candidate_ids:letter.ids,bodies:letter.bodies,...(letter.picked?{picked_ids:letter.picked}:{}),state,idempotency_key:letter.key});$("letterDialog").close();const recipientName=letter.drafts[0].candidate.name;letter=null;if(state==="sent"){RndCraft.deliver(recipientName,saved.length);if(mailDelivery)toast(deliverySummary(saved));}else toast(saved.length+"건을 제안함에 "+(state==="draft"?"초안으로":"시연 기록으로")+" 저장했어요.");}catch(e){$("letterError").textContent=e.message;}finally{$("draftButton").disabled=false;$("proposeButton").disabled=false;}}
 function deliverySummary(saved){const counts={sent:0,skipped_no_address:0,failed:0,other:0};for(const p of saved){const s=p?.delivery?.status;counts[s in counts?s:"other"]++;}const parts=[];if(counts.sent)parts.push("메일 발송 "+counts.sent+"건");if(counts.skipped_no_address)parts.push("주소 미등록 "+counts.skipped_no_address+"건");if(counts.failed)parts.push("발송 실패 "+counts.failed+"건");if(counts.other)parts.push("기록만 "+counts.other+"건");return parts.join(" · ")||"제안함에 기록했어요.";}
 profileUI=RndProfileChat.create({host:$("profileChatHost"),getToken:()=>token,getSessionId:()=>session?.id||null,getModelId:()=>selectedModel,
  onBusy:value=>{profileBusy=value;controls();},
@@ -1556,8 +1583,9 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   else if(action==="registered-letter"){detailRequestDraftError("",button);await openLetter([id],true);}
   else if(action==="person")await showPerson(id,button);
   else if(action==="letter"){detailRequestDraftError("",button);await openLetter([id]);}
+  else if(action==="pick-letter"){button.disabled=true;await openPickedLetter(id);button.disabled=false;}
   else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(canPropose).map(c=>c.id);if(ids.length)await openLetter(ids);}
- }catch(e){if(!["letter","registered-letter"].includes(action)||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
+ }catch(e){if(action==="pick-letter"&&button.isConnected){const note=document.createElement("p");note.className="pi-note";note.setAttribute("role","alert");note.textContent=displayError(String(e.message));button.replaceWith(note);return;}if(!["letter","registered-letter"].includes(action)||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
 });
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});
 var mailDelivery=false;
