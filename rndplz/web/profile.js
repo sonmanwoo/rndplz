@@ -23,7 +23,7 @@
   function cleanCareers(rows){return rows.map(row=>{const value={};if(row.id)value.id=row.id;for(const k of Object.keys(careerLabels))value[k]=row[k]||"";return value;});}
   function manualChanges(){if(!view||!draft)return {fields:{},careers:false};const fields={};for(const k of Object.keys(view.profile.fields))if(draft.fields[k]!==view.profile.fields[k])fields[k]=draft.fields[k];return {fields,careers:JSON.stringify(cleanCareers(draft.careers))!==JSON.stringify(cleanCareers(view.profile.careers))};}
   function hasChanges(){const c=manualChanges();return Object.keys(c.fields).length+(c.careers?1:0)+selections.size;}
-  function fieldOrigin(key){const p=view.profile.provenance[key];if(!p)return "근거 미제공";const origin={user_input:"직접 입력",source_claim:"자료에서 추출",user_edited_source:"자료를 바탕으로 직접 수정"}[p.origin]||"출처 확인 필요";const status={linked_claim:"근거 연결됨",not_provided:"근거 미제공",requires_review:"근거 재확인 필요",source_deleted:"연결 자료 삭제됨"}[p.evidence_status]||"근거 상태 확인 필요";return `${origin} · ${status}`;}
+  function fieldOrigin(key){const p=view.profile.provenance[key];if(!p)return "근거 미제공";const origin={user_input:"직접 입력",public_card:"연구맵 카드에서 가져옴",source_claim:"자료에서 추출",user_edited_source:"자료를 바탕으로 직접 수정"}[p.origin]||"출처 확인 필요";const status={linked_claim:"근거 연결됨",not_provided:"근거 미제공",requires_review:"근거 재확인 필요",source_deleted:"연결 자료 삭제됨"}[p.evidence_status]||"근거 상태 확인 필요";return `${origin} · ${status}`;}
   function updateControls(){const locked=accountNavigationPending||busy||!view||!!uncertain;$("profileFields").disabled=locked;document.querySelectorAll("[data-lock]").forEach(el=>el.disabled=locked);$("saveProfile").disabled=locked||!hasChanges()||!!conflict;$("changeCount").textContent=hasChanges()?`변경 ${hasChanges()}개 · 아직 저장하지 않음`:"변경 없음";$("saveProfile").firstChild.textContent=busy?"처리 중 ":`변경 ${hasChanges()||""}${hasChanges()?"개 ":""}저장 `;if(draft){$("previewName").textContent=draft.fields.name.trim()||"당신의 이름";$("previewRole").textContent=[draft.fields.organization,draft.fields.role].filter(Boolean).join("\n")||"지금 하는 일부터 적어보세요.";}}
   async function api(path,payload){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const options={credentials:"same-origin",cache:"no-store"};if(payload!==undefined)Object.assign(options,{method:"POST",headers:{"Content-Type":"application/json","X-Rndplz-Token":token},body:JSON.stringify(payload)});let response,data;try{response=await fetch(path,options);}catch(_){const e=new Error("전송 결과를 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}try{data=await response.json();}catch(_){const e=new Error("서버 응답을 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const e=new Error(typeof data.error==="string"?data.error:"요청을 처리하지 못했습니다. 입력은 그대로 두었습니다.");e.status=response.status;e.code=data.code;e.uncertain=payload!==undefined&&response.status>=500;throw e;}return data;}
   function draftFrom(profile){return {fields:clone(profile.fields),careers:profile.careers.map(row=>({...row,_key:row.id}))};}
@@ -68,14 +68,14 @@
     if(removed)announce(`삭제된 자료에서 나온 편집 ${removed}개를 지웠습니다. 독립적으로 작성한 입력은 유지했습니다.`);
   }
   function renderScope(){
-    const scope=view.scope||{},account=scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false,visitor=scope.kind==="visitor_private";
-    const badge=account?"계정의 비공개 프로필":"시연 초안";
+    const scope=view.scope||{},card=scope.kind==="person_card"&&scope.identity_status==="google_authenticated",account=card||(scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false),visitor=scope.kind==="visitor_private";
+    const badge=card?"연구맵 공개 카드":account?"계정의 비공개 프로필":"시연 초안";
     $("profileScopeBadge").textContent=badge;$("profileScopeStamp").setAttribute("aria-label","내 프로필 · "+badge);
-    $("scopeHeading").textContent=account?"계정의 비공개 프로필입니다.":visitor?"이 방문자의 초안에만 저장합니다.":"로컬 작업 저장소의 초안입니다.";
+    $("scopeHeading").textContent=card?"연구맵 공개 카드와 연결된 프로필입니다.":account?"계정의 비공개 프로필입니다.":visitor?"이 방문자의 초안에만 저장합니다.":"로컬 작업 저장소의 초안입니다.";
     $("scopeNotice").textContent=typeof scope.notice==="string"?scope.notice:"저장 범위 안내를 확인하지 못했습니다.";
-    $("saveScope").textContent=(account?"본인 계정의 비공개 프로필":visitor?"이 방문자의 초안":"로컬 작업의 초안")+"에 저장 · 외부 비공유";
+    $("saveScope").textContent=card?"연구맵 공개 카드에 저장 · 모든 방문자에게 보임":(account?"본인 계정의 비공개 프로필":visitor?"이 방문자의 초안":"로컬 작업의 초안")+"에 저장 · 외부 비공유";
     $("scopeDetailsTitle").textContent=account?"계정 저장과 자료 처리 안내":"임시 저장과 자료 처리 안내";
-    $("scopeStorageNotice").textContent=account?"저장 범위와 보관 조건은 위 서버 안내를 따릅니다. Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다.":visitor?"영구 보관이나 기기 간 복구를 지원하지 않습니다. 공개 시연의 방문자 쿠키는 발급 후 24시간 유효하며, 접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.":"이 로컬 작업 저장소의 초안입니다. 계정 본인 확인·기기 간 복구·영구 보관 기능은 없습니다.";
+    $("scopeStorageNotice").textContent=card?"저장 범위와 보관 조건은 위 서버 안내를 따릅니다. 연구맵 카드와의 연결은 관리자가 계정 승인 때 정했습니다.":account?"저장 범위와 보관 조건은 위 서버 안내를 따릅니다. Google 로그인은 경력 진위나 공개 인물과의 연결을 확인하지 않습니다.":visitor?"영구 보관이나 기기 간 복구를 지원하지 않습니다. 공개 시연의 방문자 쿠키는 발급 후 24시간 유효하며, 접근 만료가 서버 자료 삭제를 뜻하지는 않습니다.":"이 로컬 작업 저장소의 초안입니다. 계정 본인 확인·기기 간 복구·영구 보관 기능은 없습니다.";
   }
   function render(){
     renderScope();
