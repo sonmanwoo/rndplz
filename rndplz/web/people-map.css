@@ -606,6 +606,14 @@
 #peopleMapHost .mp-project-participants .text-button{min-height:36px;padding:6px 7px;text-decoration:underline;text-underline-offset:3px;font-size:12px}
 #peopleMapHost .mp-person-nobel.mp-person-team .mp-team-marker{top:-34px}
 
+/* How the person was found on the map, shown in the detail card. */
+.found-note{margin:0 0 18px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:6px;font-size:13px;line-height:1.6}
+.found-note button{margin-left:8px;padding:0;border:0;background:none;color:var(--green);font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.detail-block.found-record{border-left:3px solid var(--green);padding-left:14px}
+.found-label{margin:0 0 8px;color:var(--green);font-size:12px;font-weight:600}
+mark.found-term{padding:0 2px;border-radius:2px;background:#f4e27c;color:#1d2a20}
+html[data-theme="dark"] mark.found-term{background:#31cfe4;color:#030409}
+
 /* Keep the map viewport in place while its existing person/record dialog is open. */
 html:has(#peopleMapHost):has(#detailDialog[open]),
 body:has(#peopleMapHost):has(#detailDialog[open]){overflow:hidden;overscroll-behavior:none}

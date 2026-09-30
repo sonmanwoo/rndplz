@@ -89,6 +89,11 @@
     return {
       id: person.id, name: name, originalName: original(person.name), aliases: aliases,
       initial: Array.from(name)[0] || '',
+      // What the search box reads: names, the profile's own words and record titles.
+      searchKey: key([name].concat(aliases, [person.org, profile.tagline, profile.biography], profile.skills,
+        (Array.isArray(profile.skill_groups) ? profile.skill_groups : []).map(function (group) { return group && group.items; }),
+        profile.interests, (Array.isArray(person.evidence) ? person.evidence : []).map(function (record) { return record.title; })
+      ).flat(2).filter(function (value) { return typeof value === 'string'; }).join(' | ')),
       organization: original(person.org),
       organizationGroupName: original(person.org_name),
       organizationNote: [text(person.org_basis), person.org_as_of ? '기준일: ' + person.org_as_of : '소속 기준일 미기재'].filter(Boolean).join(' · '),
@@ -173,10 +178,13 @@
       expandedGroups: [], page: 0, pageSize: 25
     };
   }
+  // Every space-separated word of the query must appear; spacing inside a word is ignored.
+  function searchTerms(query) {
+    return unique(text(query).split(/\s+/).filter(Boolean));
+  }
   function matches(state, person) {
-    var query = key(state.query);
     return true &&
-      (!query || [person.name].concat(person.aliases).some(function (name) { return key(name).indexOf(query) !== -1; })) &&
+      searchTerms(state.query).every(function (term) { return person.searchKey.indexOf(key(term)) !== -1; }) &&
       (!state.capability || Boolean(capabilityLink(state, person))) &&
       (!state.topic || person.records.some(function (record) {
         var link = capabilityLink(state, person);
@@ -366,7 +374,7 @@
     return sanitize(state);
   }
   return Object.freeze({
-    people: people, topics: topics, capabilities: capabilities, capabilityLink: capabilityLink, counts: data.counts, source: data.source,
+    people: people, topics: topics, capabilities: capabilities, capabilityLink: capabilityLink, searchTerms: searchTerms, counts: data.counts, source: data.source,
     featuredIds: featuredIds, initialState: initialState, visiblePeople: visiblePeople,
     visibleEvidence: visibleEvidence, selectedEvidence: selectedEvidence, reduce: reduce
   });

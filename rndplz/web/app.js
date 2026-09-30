@@ -139,8 +139,8 @@ function evidenceDatesHtml(e){
  const label=({application_publication_date:'출원공개일',registration_publication_date:'등록공고일'})[e.date_kind]||'공보일(유형 미기재)';
  return '<dt>출원일</dt><dd>'+esc(e.filing_date||'미기재')+'</dd><dt>'+esc(label)+'</dt><dd>'+esc(e.publication_date||e.date||'미기재')+'</dd><dt>공보번호</dt><dd>'+esc(e.publication_id||'미기재')+'</dd>';
 }
-function evidenceHtml(e,currentPersonId=null){
- return '<section class="detail-block"><button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl>'+evidenceDatesHtml(e)+'<dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
+function evidenceHtml(e,currentPersonId=null,foundLabel=""){
+ return '<section class="detail-block'+(foundLabel?' found-record':'')+'">'+(foundLabel?'<p class="found-label">'+esc(foundLabel)+'</p>':'')+'<button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl>'+evidenceDatesHtml(e)+'<dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
 // Presentation only: callers pass the current disclosed candidate, never a directory profile.
@@ -151,9 +151,43 @@ function detailRequestAction(candidate){
  return '<section class="detail-block" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
   (allowed?'<button type="button" class="primary full" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="muted">먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="muted">'+esc(reason)+'</p>')+'</section>';
 }
-function showPerson(p,candidate=false){
+// How the person was found on the map (RndPeopleMap found()): the records behind the chosen capability or
+// topic come first with a label, and the searched words are marked where the card shows them.
+function foundLabels(found){
+ const labels=new Map();
+ for(const [source,suffix] of [[found?.capability,"역량으로 찾은 기록"],[found?.topic,"주제로 찾은 기록"]])
+  for(const id of source?.recordIds||[])labels.set(id,(labels.has(id)?labels.get(id)+" · ":"")+"「"+source.label+"」 "+suffix);
+ return labels;
+}
+function markFound(found,labels){
+ const root=$("detailContent"),terms=(found?.terms||[]).filter(t=>Array.from(t).length>=2);
+ if(terms.length){
+  const pattern=new RegExp(terms.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|"),"giu"),walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
+  while(walker.nextNode())nodes.push(walker.currentNode);
+  for(const node of nodes){
+   const value=node.nodeValue,parts=document.createDocumentFragment();let last=0;
+   for(const match of value.matchAll(pattern)){
+    const mark=document.createElement("mark");mark.className="found-term";mark.textContent=match[0];
+    parts.append(value.slice(last,match.index),mark);last=match.index+match[0].length;
+   }
+   if(last){parts.append(value.slice(last));node.replaceWith(parts);}
+  }
+  // A marked word inside a folded section would stay unseen.
+  for(const mark of root.querySelectorAll("mark.found-term")){const fold=mark.closest("details");if(fold)fold.open=true;}
+ }
+ const reasons=[terms.length?"검색 “"+terms.join(" ")+"”":"",found?.capability?"역량 「"+found.capability.label+"」":"",found?.topic?"주제 「"+found.topic.label+"」":""].filter(Boolean);
+ const first=root.querySelector("mark.found-term,.found-record");
+ if(!reasons.length||!(first||labels.size))return;
+ const note=document.createElement("p");note.className="found-note";
+ note.textContent="찾은 조건: "+reasons.join(" · ")+(first?" — 해당하는 곳을 표시했어요.":" — 이 카드에 보이는 글에는 그 낱말이 없어요(별칭 등으로 일치).");
+ if(first){const jump=document.createElement("button");jump.type="button";jump.textContent="표시한 곳으로 ↓";jump.addEventListener("click",()=>first.scrollIntoView({block:"center"}));note.append(jump);}
+ root.prepend(note);
+}
+function showPerson(p,candidate=false,found=null){
  if(!p)throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
- $("detailContent").innerHTML=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+(p.evidence||[]).map(e=>evidenceHtml(e,p.id)).join("");
+ const labels=foundLabels(found),evidence=[...(p.evidence||[])].sort((a,b)=>labels.has(b.id)-labels.has(a.id));
+ $("detailContent").innerHTML=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+evidence.map(e=>evidenceHtml(e,p.id,labels.get(e.id))).join("");
+ markFound(found,labels);
  showDialog("detailDialog");$("detailDialog").scrollTop=0;
 }
 async function openLetter(ids){
@@ -240,7 +274,7 @@ document.addEventListener("click",event=>{
   else if(action==="example"){const q=boot.questions.find(q=>q.id===id);newQuestion();$("question").value=q.question+(q.ai_answer?"\n\n[검증 대상 · 가상의 AI 답]\n"+q.ai_answer:"");$("mode").value=q.mode||"";$("question").focus();}
   else if(action==="skip")await ask(true);
   else if(action==="candidate")showPerson(displayResult(session)?.candidates.find(c=>c.id===id),true);
-  else if(action==="person")showPerson(await api("/api/person?id="+encodeURIComponent(id)));
+  else if(action==="person")showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,mapButton?(await RndPeopleMap.ensure($("peopleMapHost"),api))?.found(id):null);
   else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id));$("detailContent").innerHTML='<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
   else if(action==="letter")await openLetter([id]);
   else if(action==="route-letter")await openLetter((displayResult(session)?.candidates||[]).filter(canPropose).map(c=>c.id));
