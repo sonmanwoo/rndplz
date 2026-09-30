@@ -226,10 +226,10 @@
    $('capability-controls').innerHTML=renderCapabilities(state);$('people-map').innerHTML=renderMap(state);
    $('people-map-content').dataset.mpCount=String(people.length);
    $('map-title').textContent=capability?.label||'연구 경험의 연결';
-   $('map-explanation').textContent=(capability?.description||'이름과 자료 주제로 찾거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
+   $('map-explanation').textContent=(capability?.description||'이름·기술·이력으로 검색하거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
    const peopleCount=capability?.kind==='project'&&(state.query||state.topic)?people.length+'/'+capability.people.length:people.length;
    $('map-count').textContent=peopleCount+'명 · 연결 기록 '+ids.size+'개';
-   $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 이름 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
+   $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 검색 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
    $('view-control').value=state.view;$('topic-controls').value=state.topic;if($('name-search').value!==state.query)$('name-search').value=state.query;
    detail();mobile();pointers.clear();drag=null;pinch=null;
    observer?.disconnect();const stage=$('mp-graph-stage');if(stage)observer?.observe(stage);schedule();
@@ -289,7 +289,15 @@
   host.addEventListener('pointerup',end);host.addEventListener('pointercancel',end);
   win.addEventListener('blur',()=>{pointers.clear();drag=null;pinch=null;dragged=false;$('mp-graph-stage')?.classList.remove('dragging');});
   win.addEventListener('resize',schedule);render();
-  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]})};
+  // How a listed person was found: the searched words, and the records behind the chosen capability or topic.
+  function found(id){
+   const person=C.visiblePeople(state).find(p=>p.id===id);if(!person)return null;
+   const capability=currentCapability(state),link=C.capabilityLink(state,person);
+   return {terms:C.searchTerms(state.query),
+    capability:capability&&link?{label:capability.label,recordIds:[...link.recordIds]}:null,
+    topic:state.topic?{label:topicName(state.topic),recordIds:person.records.filter(r=>r.topics.includes(state.topic)).map(r=>r.id)}:null};
+  }
+  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found};
  }
 
  return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};
