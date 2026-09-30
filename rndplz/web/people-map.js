@@ -297,7 +297,22 @@
     capability:capability&&link?{label:capability.label,recordIds:[...link.recordIds]}:null,
     topic:state.topic?{label:topicName(state.topic),recordIds:person.records.filter(r=>r.topics.includes(state.topic)).map(r=>r.id)}:null};
   }
-  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found};
+  // Pan just enough that a person's node is not under a panel covering the right or bottom of the window.
+  function reveal(id,right,bottom){
+   const node=[...host.querySelectorAll('[data-map-node]')].find(el=>el.dataset.mapNode==='person:'+id),stage=$('mp-graph-stage');
+   if(!node||!stage||!graph)return;
+   const r=node.getBoundingClientRect(),area=stage.getBoundingClientRect();
+   const covered=Math.max(0,r.bottom-(win.innerHeight-bottom-24)),still=win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+   const dx=clamp(r.right-(win.innerWidth-right-24),0,Math.max(0,r.left-area.left-12)),dy=Math.min(covered,Math.max(0,r.top-area.top-12));
+   // Under a bottom sheet the map itself is mostly covered: scroll the page for what panning cannot give.
+   if(covered>dy)win.scrollBy({top:covered-dy,behavior:still?'auto':'smooth'});
+   if(!dx&&!dy)return;
+   // A short eased move keeps the user's place on the map; no animation when reduced motion is asked for.
+   const from={x:camera.x,y:camera.y},start=win.performance.now();
+   const step=now=>{const t=still?1:Math.min(1,(now-start)/220),eased=1-(1-t)*(1-t);camera.x=from.x-dx*eased;camera.y=from.y-dy*eased;cameraApply();if(t<1)win.requestAnimationFrame(step);};
+   step(start);
+  }
+  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal};
  }
 
  return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};

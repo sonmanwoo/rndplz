@@ -23,12 +23,17 @@ async function task(fn,button){
  try{await fn();}catch(e){toast(e.message,true);if($("letterDialog").open)$("letterError").textContent=e.message;}
  finally{busy=false;if(button){button.disabled=false;button.removeAttribute("aria-busy");}}
 }
-function showDialog(id){
+// The person card opened from the research map is a panel beside the map (docked, not modal):
+// the map stays usable and another person replaces the panel's content.
+function detailDocked(){const dialog=$("detailDialog");return dialog.open&&dialog.classList.contains("docked");}
+function showDialog(id,docked=false){
  const prior=document.querySelector("dialog[open]");
  if(id==="detailDialog"){if(prior?.id!=="detailDialog")detailReturn=prior?.id||null;}
  else if(prior?.id==="detailDialog"){detailReturn=null;detailTrigger=null;detailPersonId=null;}
+ if(id==="detailDialog"&&detailDocked())return;
  for(const d of document.querySelectorAll("dialog[open]"))d.close();
- $(id).showModal();
+ if(id==="detailDialog")$(id).classList.toggle("docked",docked);
+ if(docked)$(id).show();else $(id).showModal();
 }
 function rememberDetailTrigger(trigger,personId=null){
  if(!$("detailDialog").open){detailTrigger=trigger;detailPersonId=personId||(trigger?.dataset.action==="person"?trigger.dataset.id:null);}
@@ -183,12 +188,12 @@ function markFound(found,labels){
  if(first){const jump=document.createElement("button");jump.type="button";jump.textContent="표시한 곳으로 ↓";jump.addEventListener("click",()=>first.scrollIntoView({block:"center"}));note.append(jump);}
  root.prepend(note);
 }
-function showPerson(p,candidate=false,found=null){
+function showPerson(p,candidate=false,found=null,docked=false){
  if(!p)throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
  const labels=foundLabels(found),evidence=[...(p.evidence||[])].sort((a,b)=>labels.has(b.id)-labels.has(a.id));
  $("detailContent").innerHTML=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+evidence.map(e=>evidenceHtml(e,p.id,labels.get(e.id))).join("");
  markFound(found,labels);
- showDialog("detailDialog");$("detailDialog").scrollTop=0;
+ showDialog("detailDialog",docked);$("detailDialog").scrollTop=0;
 }
 async function openLetter(ids){
  checkProposalSelection(ids);
@@ -274,7 +279,15 @@ document.addEventListener("click",event=>{
   else if(action==="example"){const q=boot.questions.find(q=>q.id===id);newQuestion();$("question").value=q.question+(q.ai_answer?"\n\n[검증 대상 · 가상의 AI 답]\n"+q.ai_answer:"");$("mode").value=q.mode||"";$("question").focus();}
   else if(action==="skip")await ask(true);
   else if(action==="candidate")showPerson(displayResult(session)?.candidates.find(c=>c.id===id),true);
-  else if(action==="person")showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,mapButton?(await RndPeopleMap.ensure($("peopleMapHost"),api))?.found(id):null);
+  else if(action==="person"){
+   const map=mapButton?await RndPeopleMap.ensure($("peopleMapHost"),api):null;
+   showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,map?.found(id),Boolean(map)||detailDocked());
+   if(map){
+    // Keep the chosen person visible beside the panel (or above it when it is a bottom sheet).
+    const r=$("detailDialog").getBoundingClientRect(),sheet=r.width>innerWidth*.9;
+    map.reveal(id,sheet?0:innerWidth-r.left,sheet?innerHeight-r.top:0);
+   }
+  }
   else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id));$("detailContent").innerHTML='<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
   else if(action==="letter")await openLetter([id]);
   else if(action==="route-letter")await openLetter((displayResult(session)?.candidates||[]).filter(canPropose).map(c=>c.id));
@@ -330,6 +343,14 @@ document.addEventListener("pointerout",event=>{
 });
 
 $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail();});
+// The docked card has no dimmed area: Escape, or a plain click on an empty place outside it, closes it.
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&detailDocked()){e.preventDefault();closeDetail();}});
+{let down=null;
+ document.addEventListener("pointerdown",e=>{down={x:e.clientX,y:e.clientY};},true);
+ document.addEventListener("click",e=>{
+  if(!detailDocked()||!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>4)return;
+  if(!e.target.closest("dialog,button,a,input,select,textarea,label,summary"))closeDetail();
+ });}
 // A press and release on the dimmed area around the card closes it (not a text drag that began inside).
 {const dialog=$("detailDialog"),outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};let pressed=false;
  dialog.addEventListener("pointerdown",e=>{pressed=outside(e);});
