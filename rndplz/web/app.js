@@ -296,3 +296,7 @@ document.addEventListener("pointerout",event=>{
 });
 
 $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail();});
+// A press and release on the dimmed area around the card closes it (not a text drag that began inside).
+{const dialog=$("detailDialog"),outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};let pressed=false;
+ dialog.addEventListener("pointerdown",e=>{pressed=outside(e);});
+ dialog.addEventListener("click",e=>{if(pressed&&outside(e))closeDetail();pressed=false;});}
