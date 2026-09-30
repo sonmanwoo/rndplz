@@ -614,6 +614,14 @@
 mark.found-term{padding:0 2px;border-radius:2px;background:#f4e27c;color:#1d2a20}
 html[data-theme="dark"] mark.found-term{background:#31cfe4;color:#030409}
 
-/* Keep the map viewport in place while its existing person/record dialog is open. */
-html:has(#peopleMapHost):has(#detailDialog[open]),
-body:has(#peopleMapHost):has(#detailDialog[open]){overflow:hidden;overscroll-behavior:none}
+/* The person card opened from the map is a panel beside it: the map is not blurred or moved, only the
+   chosen person and its links stay in full colour. On a narrow screen the panel is a bottom sheet. */
+#detailDialog.docked{position:fixed;inset:2dvh 1.2vw 2dvh auto;margin:0;z-index:60;width:min(500px,36vw);height:auto;max-height:none;box-shadow:-14px 0 48px #13272224}
+body:has(#detailDialog.docked[open]) #peopleMapHost [data-map-node]:not(.related){opacity:.3;filter:saturate(.25)}
+body:has(#detailDialog.docked[open]) #peopleMapHost .mp-spatial-edge:not(.active){opacity:.12}
+@media(prefers-reduced-motion:no-preference){#peopleMapHost [data-map-node]{transition:opacity .18s,filter .18s}}
+@media(max-width:900px){#detailDialog.docked{inset:auto 0 0 0;width:100vw;max-width:100vw;height:62dvh;border-radius:18px 18px 0 0;box-shadow:0 -14px 48px #13272230}}
+
+/* Keep the map viewport in place while its person/record dialog is open as a modal. */
+html:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)),
+body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;overscroll-behavior:none}
