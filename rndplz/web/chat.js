@@ -1587,6 +1587,10 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(canPropose).map(c=>c.id);if(ids.length)await openLetter(ids);}
  }catch(e){if(action==="pick-letter"&&button.isConnected){const note=document.createElement("p");note.className="pi-note";note.setAttribute("role","alert");note.textContent=displayError(String(e.message));button.replaceWith(note);return;}if(!["letter","registered-letter"].includes(action)||!detailRequestDraftError(e.message,button))error(e.message);button.disabled=false;}
 });
+// A press and release on the dimmed area around the person detail closes it like its close button.
+{const dialog=$("detailDialog"),outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};let pressed=false;
+ dialog.addEventListener("pointerdown",e=>{pressed=outside(e);});
+ dialog.addEventListener("click",e=>{if(pressed&&outside(e))dialog.querySelector("button.close").click();pressed=false;});}
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});
 var mailDelivery=false;
 (async()=>{try{const ticket=++modelCatalogTicket,data=await api("/api/chat/bootstrap");token=data.token;history=data.history;mailDelivery=Boolean(data.mail_delivery&&data.mail_delivery.enabled===true);if(ticket===modelCatalogTicket)modelOptions(data);const id=new URLSearchParams(location.search).get("chat");if(id){const epoch=modelSelectionEpoch;session=await api("/api/chat/session?id="+encodeURIComponent(id));restoreModelSelection(session,epoch);}render();resizeInput();if(new URLSearchParams(location.search).has("settings"))modal("settingsDialog");}catch(e){error(e.message);}})();
