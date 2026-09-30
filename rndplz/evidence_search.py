@@ -131,6 +131,27 @@ def _query_hit(record, query):
     return hit
 
 
+def _stem_hits(query, records):
+    """Fallback for a single Hangul term that matches no record at all: drop its last syllable once.
+
+    A field name such as "마찰학" is rarely written in a career line that says "마찰".
+    Only a Hangul-only term of three or more syllables qualifies. Hits are marked
+    term_stem and rank low; the assessment stage still judges relevance.
+    """
+    terms = _normalized(query).split()
+    if len(terms) != 1 or not re.fullmatch(r"[가-힣]{3,}", terms[0]):
+        return []
+    stem, hits = terms[0][:-1], []
+    for record in records.values():
+        fields = [field for field, value in (("title", record.title or ""), ("text", record.text or ""))
+                  if _contains(value, stem)]
+        if fields:
+            hits.append((record.id, {"query": query, "fields": fields, "match_mode": "term_stem",
+                                     "terms": terms, "relaxed_term": stem,
+                                     "term_fields": [{"term": stem, "fields": fields}]}))
+    return hits
+
+
 def _rarest_term_hits(query, records):
     """Fallback for a multi-term query that matches no record at all.
 
@@ -369,8 +390,9 @@ class PublicEvidenceSearch:
                     hits_by_record[record.id].append(hit)
                     matched_any = True
             if not matched_any:
-                # No record carries every term: fall back to the rarest term once.
-                for rid, hit in _rarest_term_hits(query, records):
+                # No record carries every term: fall back to the rarest term once, or for a
+                # single Hangul term to the term without its last syllable.
+                for rid, hit in _rarest_term_hits(query, records) or _stem_hits(query, records):
                     hits_by_record[rid].append(hit)
         for record in records.values():
             tids = [tid for tid in group["topic_ids"] if tid in record.tags]
@@ -559,7 +581,7 @@ class PublicEvidenceSearch:
                 card["reason"] += " 일부 검색 조건 그룹에는 이 인물의 기록이 연결되지 않아 그 경험은 미확인입니다."
             relaxed_modes = sorted({hit["match_mode"] for item in row["interpretations"] for group in item["groups"]
                                     for match in group["matches"] for hit in match["queries"]
-                                    if hit["match_mode"] in ("rarest_term", "all_terms_compound")})
+                                    if hit["match_mode"] in ("rarest_term", "all_terms_compound", "term_stem")})
             if relaxed_modes:
                 card["query_relaxation"] = relaxed_modes
                 card["reason"] += " 일부 검색어는 어절 일부 또는 복합명사 안의 단어로만 연결되어 정확한 표현 일치는 아닙니다."

@@ -6,7 +6,7 @@ let modelSelectionOrigin="automatic",modelDefault="",modelSelectionEpoch=0,model
 let profileBusy=false,profileSubmission=null,intentBusy=false;
 let profileUI=null;
 let accountNavigationPending=false,accountInvalidated=false;
-let prepareBusy=false,prepareTicket=0,prepareProgress=null;
+let prepareBusy=false,prepareTicket=0,prepareProgress=null,autoScoutRevision=null;
 let composerInputRevision=0,composerComposing=false;
 function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading||intentBusy;}
 function composerSendLocked(){return composerClientLocked()||!!session?.pending;}
@@ -767,6 +767,13 @@ function failBriefSubmission(edit,sid){
  if(edit&&briefEditor===edit)edit.phase="failed";
 }
 
+// The user asked to find people and the lookup found some (scout.auto): start the scout as if its
+// button was pressed, once per request revision and only right after that turn completes here.
+function autoScout(){
+ const scout=session?.scout,button=$("currentScoutButton");
+ if(scout?.auto!==true||autoScoutRevision===scout.revision||!button||!canPrepareDiscovery())return;
+ autoScoutRevision=scout.revision;prepareDiscovery(button);
+}
 async function prepareDiscovery(button,keyboard=false){
  if(!canPrepareDiscovery())return;
  let requested;try{requested=selectedRequestModel();}catch(e){error(e.message);return;}
@@ -825,7 +832,7 @@ function syncResponseProgress(){
 function render(){
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formattedAnswer(m.text||"",m.role==="assistant"?m.status:null)+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+'</article>').join("");
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formattedAnswer(m.text||"",m.role==="assistant"?m.status:null)+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+(m.mentions||[]).map(p=>'<button type="button" class="text-button" data-action="person" data-id="'+esc(p.id)+'">'+esc(p.name)+' 님 이력 보기 ↗</button>').join(" ")+'</article>').join("");
  if(busy&&(responseProgress||streamText))$("thread").innerHTML+='<article class="message assistant" data-response-progress><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span aria-hidden="true" style="font-size:12px;line-height:1.6;letter-spacing:0;min-width:0">'+esc(responseProgressLabel())+'</span></div>'+(streamText?'<div class="message-body">'+formatted(streamText)+'</div>':"")+'</article>';
  syncResponseProgress();
  renderBrief();
@@ -1175,7 +1182,7 @@ async function send(payload,submission=null){
   if(e.name==="AbortError"){error("응답 수신을 중지했어요.");}
   else error(e.message);
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
- }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)focusComposer();}
+ }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)focusComposer();autoScout();}
 }
 function newChat(){if(composerClientLocked())return;invalidateRegisteredUI();invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();focusComposer();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{
