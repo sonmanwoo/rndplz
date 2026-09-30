@@ -63,6 +63,9 @@ ANSWER_SYSTEM = _STYLE + (
     "근거·수행 경험을 묻는 질문은 그 경험을 필수조건으로 추가하라는 지시가 아닙니다. 사용자가 조건 변경을 요청하지 않았다면 필수로 넣으라고 권하거나 의뢰를 재정의하지 말고 확인된 근거와 미확인 범위를 설명하세요. 지칭이 여러 사람에 걸치면 임의로 한 명을 정하지 말고 그 모호함을 밝혀 확인하거나 대상을 나누어 답하세요. 집단 요약에서도 각 인물의 기존 관련성·근거 수준과 미확인을 유지하세요. 일부만 인접한 경우 근거가 부족한 다른 인물까지 인접 전문가로 묶지 마세요. "
     "historical_disclosures는 이전 버튼으로 이미 공개된 자료입니다. 그 자료에 관한 질문은 지금 답하되 출처·실제 기여·기존 relation과 missing 및 claim_boundary의 핵심 한계를 반영하세요. 이전 자료에 대한 설명을 이번 조건의 새 추천이나 검증된 개인 수행능력으로 바꾸지 마세요. "
     "새 조회의 인물·기록 원문은 아직 공개되지 않았습니다. 사용자가 직접 언급한 이름과 검증된 historical_disclosures 밖의 이름·사진·개인 이력을 소개하거나 추측하지 말고, 보이지 않는 인물 중 누구를 고를지 묻지 마세요. 새 인물 자료는 명시적 버튼으로 공개되며, button_enabled_on_completion이 true일 때만 '이 정보로 수소문하기'를 사용할 수 있다고 안내할 수 있습니다. 버튼은 현재 정리된 정보로 후보 자료를 조회·공개하는 선택이며, 의뢰서 내용을 함께 정리하거나 상담을 이어가는 전제가 아닙니다. 버튼 안내로 현재 질문에 대한 답이나 더 들을 질문을 대신하지 마세요. "
+    "이 서비스는 등록된 인물(사내 구성원과 공개 연구자)의 이력·논문 기록을 조회해 사람을 찾아 줍니다. 특정 회사나 내부 인력 정보에 접근할 수 없다거나 외부 정보만 다루는 AI라고 말하지 마세요. 누가 등록되어 있는지는 조회와 버튼으로 확인되므로, 기관·전문가의 일반적인 유형을 나열해 답을 대신하지 마세요. "
+    "사용자가 누구에게 맡길지, 담당자나 전문가가 누구인지 물으면 조건을 더 묻기 전에 execution_observation의 수와 버튼으로 바로 확인할 수 있음을 먼저 알리세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
+    "mentioned_registered_people는 사용자가 이번에 이름을 말한 등록 인물의 공개 카드 요약입니다. 그 사람에 대한 물음에는 이 요약 범위에서 등록된 분임과 기록을 알려 주고, 확인할 권한이나 방법이 없다고 말하지 마세요. 요약에 없는 역량·가용성은 미확인으로 두세요. "
     "이번 답변 뒤 자동 후속 조회·답변·연락은 없습니다. 기다리면 결과를 보내겠다고 약속하지 마세요. 내부 계획이나 구현 용어 대신 사용자와 의뢰에 필요한 이야기를 나누세요."
 )
 
@@ -287,6 +290,7 @@ PLAN_SYSTEM = _STYLE + (
     "사용자의 현재 말과 누적 대화에서 다음 행동을 판단하세요. answer는 설명·비교·도움 안내·조건 정리, clarify는 답변에 꼭 필요한 질문, lookup은 지금 익명 기록 수를 확인할 조회, stop은 탐색 보류입니다. "
     "서버 search_control.lookup_paused가 true이면 앞선 탐색 의사는 보류된 상태입니다. 조건만 수정하거나 기억·요약·설명을 요청한 현재 발화는 answer/clarify로 처리하고 의뢰서의 목적·조건만 정정하세요. 조회 범위가 남아 있어도 조건 정정 자체는 탐색 재개가 아닙니다. 현재 사용자가 다시 조회하거나 새로 사람을 찾아달라고 요청할 때만 decision=lookup으로 재개하며, 이미 그런 명시 요청을 했다면 다시 허락을 묻지 마세요. "
     "사용자가 현재까지 말한 조건으로 등록 연구 경험이나 기록을 실제로 찾아달라고 요청했고 앞선 대화에 조회할 주제가 있으면 decision=lookup과 실행할 조회 범위를 작성하세요. 목적만 저장하거나 버튼을 안내하는 답변으로 조회 실행을 대신하지 마세요. 이미 받은 조회 의사를 다시 허락받거나 모든 세부 조건이 정해질 때까지 미루지 마세요. "
+    "\"누구에게 맡겨야 하나\", \"담당자나 전문가를 알려 달라\", \"해 본 사람이 있나\"처럼 사람을 묻는 말은 조회 요청입니다. 주제 낱말이 하나라도 있으면 대상·목적·예산 같은 세부를 되묻지 말고 decision=lookup으로 그 낱말을 조회하세요. 세부 조건은 결과를 본 뒤에 좁힐 수 있습니다. "
     "일반 설명·도움 질문 자체를 조회 의사로 간주하지 마세요. 조회 주제가 모호해 실행할 범위를 정할 수 없으면 필요한 질문을 하세요. 조회 범위가 있어도 아직 모르는 실제 업무 목적이나 필요한 도움은 최종 상담에서 유용한 질문으로 더 들을 수 있습니다. answer/clarify는 scope에 목적·조건만 담고 interpretations·record_ids·person_names를 모두 비워 둘 수 있으며, 이 경우 익명 조회도 하지 않습니다. scope=null도 가능합니다. "
     "사용자가 직접 언급한 이름과 historical_disclosures의 이전 공개 인물은 제공된 자료 범위에서 이해할 수 있습니다. 이전 조회는 새 조건의 추천이나 새 공개 권한이 아닙니다. 새 이름·사진·개인 이력을 만들지 마세요. 자연어 조회 요청은 익명 조회를 요청할 수 있지만 인물 자료 공개 버튼을 대신하지 않습니다. "
     "최신 발화가 목적·우선순위를 수정하면 유지된 연구 주제와 실제 사용자 출처를 이어받고 철회된 조건을 반영하세요. request_effect=update의 의뢰서는 발화별 기록이 아니라 현재 유효한 내용의 스냅샷입니다. 같은 의미의 재확인은 기존 항목을 한 번 유지하고, 의미가 바뀐 부분만 해당 출처에 맞게 고치며 철회된 부분은 제거하고 독립된 새 정보만 추가하세요. 최신 발화가 전체를 반복하지 않아도 정정·철회되지 않은 이전 범위·수치·출처 인용은 유지하세요. 서로 다른 의도·역할·범위는 합치지 말고, 남긴 각 항목을 뒷받침하는 정확한 source_turn_id/source_quote를 유지하세요. 한 인용으로 지지되지 않는 독립 정보를 억지로 한 항목에 합치지 마세요. 앞선 유효한 조회 범위가 여전히 요청에 맞으면 수정된 목적과 함께 사용할 수 있습니다. 모델의 이전 제안을 사용자 결정으로 추가하지 마세요. "
@@ -297,6 +301,7 @@ PLAN_SYSTEM = _STYLE + (
     "실제 조회에는 interpretations의 자연어 조회식, 실제 노출된 record_ids 읽기, 또는 특정 person_names 연결 조회를 사용합니다. interpretations와 record_ids는 동시에 쓰지 마세요. "
     "interpretations는 의미별 OR, groups는 필요한 경험들의 AND, queries는 한 개념의 표기별 OR입니다. 각 query의 모든 공백 구분 어절이 한 기록에 있어야 하므로 짧은 연구 개념을 쓰고 사람·요청 설명을 검색어에 붙이지 마세요. "
     "queries의 각 항목은 1~2어절 핵심 기술어입니다. 좋은 예: [\"증류\", \"distillation\"], [\"모델 예측 제어\", \"MPC\"]. 나쁜 예: \"TCB 솔벤트 증류 기술 잔존물 제거\"처럼 사용자 문장이나 대상 물질·문제 설명을 통째로 옮긴 검색어. "
+    "학문·분야 이름(\"마찰학\", \"Tribology\")으로 바꾸지 말고 경력 한 줄에 실제로 적힐 낱말(\"마찰\", \"마모\", \"윤활유\")을 쓰세요. 앞선 조회에서 기록이 연결된 검색어는 사용자가 주제를 바꾸지 않았다면 유지하고, 대화가 길어졌다고 더 좁은 말로 바꾸지 마세요. "
     "기록은 짧은 경력 한 줄일 수 있으므로 검색어가 길수록 아무 기록도 맞지 않습니다. 필요한 경험이 여럿이면 하나의 긴 query가 아니라 groups로 나누고, 물질명·문제 상황은 query가 아니라 purposes와 summary에 두세요. "
     "제공된 활성 topic ID가 없으면 topic_ids=[], 노출된 record ID가 없으면 record_ids=[]입니다. person_names는 사용자 발화 또는 검증된 이전 공개 자료에 있는 실제 이름만 쓰고, 없으면 []로 두세요. 미정인 항목을 채우려고 이름·조회식·문자열 대체값을 만들지 마세요. "
     "decision·scope·brief·summary를 정한 뒤 reply에는 현재 질문에 답할 방향을 짧게 적으세요. 한 발화의 요청 수정과 설명·판단 요청을 모두 반영하되 실행 전 초안을 최종 결과처럼 쓰지 마세요."
@@ -658,6 +663,12 @@ def plan_repair_decision(raw):
         "answer", "clarify", "lookup", "stop") else None
 
 
+def _quoted(quote, text):
+    """The quote is in the source. Small models drop or add spaces when copying ("마찰 마모" -> "마찰마모")."""
+    squeezed = "".join(quote.split())
+    return quote in text or bool(squeezed) and squeezed in "".join(text.split())
+
+
 def _validate_v2_scope_sources(scope, user_messages):
     """Validate source membership only; this cannot prove semantic strength."""
     if not isinstance(user_messages, (list, tuple)):
@@ -680,23 +691,31 @@ def _validate_v2_scope_sources(scope, user_messages):
             raise PlanValidationError("source_texts_invalid")
         sources[turn_id] = texts + loaded
     for index, purpose in enumerate(scope["purposes"]):
-        if not any(purpose["source_quote"] in text for text in sources.get(purpose["source_turn_id"], [])):
+        if not any(_quoted(purpose["source_quote"], text) for text in sources.get(purpose["source_turn_id"], [])):
             raise PlanValidationError("purpose_quote_not_in_user_turn",
                                       field="$.scope.purposes[" + str(index) + "].source_quote")
     for index, condition in enumerate(scope["conditions"]):
         quote, strength = condition["source_quote"], condition["strength_quote"]
         texts = sources.get(condition["source_turn_id"], [])
-        if not any(quote in text for text in texts):
+        if not any(_quoted(quote, text) for text in texts):
             raise PlanValidationError("condition_quote_not_in_user_turn",
                                       field="$.scope.conditions[" + str(index) + "].source_quote")
-        if strength not in quote or not any(strength in text for text in texts):
+        if not _quoted(strength, quote) or not any(_quoted(strength, text) for text in texts):
             raise PlanValidationError("condition_strength_quote_not_in_source",
                                       field="$.scope.conditions[" + str(index) + "].strength_quote")
 
 
 def _parse_active_plan(raw):
     # Reading a pre-effect saved plan is an update, not an implicit preserve.
-    return _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_ATTACHMENT_ACTIONS, _PLAN_BEFORE_REQUEST_EFFECT]})
+    plan = _parse_json(raw, {"anyOf":[PLAN_SCHEMA, _PLAN_BEFORE_ATTACHMENT_ACTIONS, _PLAN_BEFORE_REQUEST_EFFECT]})
+    scope = plan.get("scope")
+    if isinstance(scope, dict):
+        # A group without any term carries no search; small models leave one beside a names-only lookup.
+        for interpretation in scope["interpretations"]:
+            interpretation["groups"] = [group for group in interpretation["groups"]
+                                        if group["topic_ids"] or group["queries"]]
+        scope["interpretations"] = [item for item in scope["interpretations"] if item["groups"]]
+    return plan
 
 
 def _scope_is_empty(scope):
@@ -708,25 +727,28 @@ def _scope_is_empty(scope):
                              and all(isinstance(value, list) and not value for value in scope.values()))
 
 
-def parse_request_effect(raw, *, preserve_available=True):
+def parse_request_effect(raw, *, preserve_available=True, restated_ok=False):
     """Return 'preserve' or 'update'.
 
     With preserve_available=False there is no accepted request to keep, so a
     plan that says preserve (typical for a greeting on a first turn) is read as
     an update whose own scope and brief describe the request. The preserve
     invariant is only enforced when an existing request could be preserved.
+    restated_ok (the repair attempt) keeps an answer/clarify preserve that still
+    copies the request into scope and brief: small models restate it even after
+    the repair, and the copy is ignored because the accepted request is kept.
     """
     external = _parse_active_plan(raw)
     effect = external.get("request_effect", "update")
     if effect == "preserve" and not preserve_available:
         return "update"
-    if effect == "preserve" and (external["decision"] not in ("answer", "clarify")
-            or not _scope_is_empty(external["scope"]) or any(external["brief"].values())):
+    if effect == "preserve" and (external["decision"] not in ("answer", "clarify") or not restated_ok and (
+            not _scope_is_empty(external["scope"]) or any(external["brief"].values()))):
         raise PlanValidationError("preserve_request_has_changes", field="$.request_effect")
     return effect
 
 
-def parse_request_spec(raw, *, user_messages, preserve_available=True):
+def parse_request_spec(raw, *, user_messages, preserve_available=True, restated_ok=False):
     """Project only source-checked display fields from a completed active plan.
 
     Call alongside parse_plan before adopting the same raw output. This helper
@@ -735,7 +757,8 @@ def parse_request_spec(raw, *, user_messages, preserve_available=True):
     or user confirmation of the model's summary. Empty fields stay empty.
     """
     external = _parse_active_plan(raw)
-    parse_request_effect(raw, preserve_available=preserve_available)
+    if parse_request_effect(raw, preserve_available=preserve_available, restated_ok=restated_ok) == "preserve":
+        external = {**external, "scope": None, "brief": {"requested_help": [], "open_questions": []}}
     scope = external["scope"]
     purposes = scope["purposes"] if scope is not None else []
     conditions = scope["conditions"] if scope is not None else []
@@ -760,7 +783,7 @@ def parse_request_spec(raw, *, user_messages, preserve_available=True):
 
 
 def parse_plan(raw, *, user_messages, allowed_topic_ids, allowed_record_ids=(),
-               expected_decision=None, preserve_available=True):
+               expected_decision=None, preserve_available=True, restated_ok=False):
     """Normalize a v2 decision into eight internal fields, including record IDs.
 
     Sources are stored user text/input_text and actually loaded source_texts.
@@ -780,8 +803,8 @@ def parse_plan(raw, *, user_messages, allowed_topic_ids, allowed_record_ids=(),
         if repaired_decision is not None and repaired_decision != expected_decision:
             raise PlanValidationError("repair_decision_changed", field="$.decision")
     external = _parse_active_plan(raw)
-    parse_request_effect(raw, preserve_available=preserve_available)
-    decision, scope = external["decision"], external["scope"]
+    effect = parse_request_effect(raw, preserve_available=preserve_available, restated_ok=restated_ok)
+    decision, scope = external["decision"], external["scope"] if effect != "preserve" else None
     if expected_decision is not None and decision != expected_decision:
         raise PlanValidationError("repair_decision_changed", field="$.decision")
     plan = {"reply": external["reply"], "intent": "chat", "lookup_action": "none",
@@ -1101,7 +1124,7 @@ def _validate_internal_plan(plan, *, user_messages, allowed_topic_ids, allowed_r
     seen_conditions = set()
     for condition in plan["conditions"]:
         turn_id, quote = condition["source_turn_id"], condition["source_quote"]
-        if turn_id not in sources or not any(quote in value for value in sources[turn_id]):
+        if turn_id not in sources or not any(_quoted(quote, value) for value in sources[turn_id]):
             raise PlanValidationError("condition_quote_not_in_user_turn")
         identity = (condition["text"], turn_id, quote)
         if identity in seen_conditions:

@@ -1005,6 +1005,73 @@ class ModelConversation:
                                   'retrieval':self._diagnostic_retrieval({'result':result})})
         return result, request
 
+    _PERSON_REQUEST = re.compile(
+        r'(누구|누가)[^.?!\n]{0,20}(의뢰|맡기|맡겨|부탁|문의|물어|해야|하면|할 수)|담당자'
+        r'|(전문가|사람|분)[^.?!\n]{0,12}(알려|찾아|추천|소개)')
+    _REQUEST_WORDS = frozenset(('관련', '테스트', '의뢰', '누구', '누가', '담당', '담당자', '전문가', '사람',
+                                '추천', '문의', '방법', '필요', '가능', '우리', '회사'))
+
+    def _person_request_lookup(self, plan, basis, request_effect, sid):
+        """A who-question the model planned as questions: run the lookup now.
+
+        gemma4:e4b plans "…누구에게 의뢰해야 해?" as clarify/answer in about a third of first
+        turns. With a search scope, the offered lookup is executed as if asked for. Without one,
+        the words of that message which registered records actually contain become one OR group.
+        Either way the user sees who is registered before refining. A stripped Korean ending only
+        counts when a record title has the remaining word.
+        """
+        text = (basis['source_turns'] or [{}])[-1].get('input_text') or ''
+        if (plan['intent'] != 'chat' or request_effect != 'update'
+                or not self._PERSON_REQUEST.search(text) or self._model_lookup_paused(self.get(sid), plan)):
+            return plan
+        if plan['lookup_action'] == 'offer':
+            return {**plan, 'lookup_action':'execute',
+                    'intent':'search' if plan['interpretations'] or plan['record_ids'] else 'person'}
+        records = [(record.title or '', record.text or '') for record in self.service.corpus.records.values()
+                   if not record.virtual]
+        found = []
+        for word in dict.fromkeys(re.findall(r'[가-힣]{2,}|[A-Za-z][A-Za-z0-9-]{2,}', text)):
+            for strip in ((0, 1, 2) if re.fullmatch(r'[가-힣]+', word) else (0,)):
+                term = word[:len(word) - strip]
+                if len(term) < 2 or term in self._REQUEST_WORDS:
+                    break
+                count = sum(_contains(title if strip else title + ' ' + body, term) for title, body in records)
+                if count:
+                    found.append((count, term))
+                    break
+        terms = [term for count, term in sorted(found, key=lambda row: row[0]) if count <= max(5, len(records) // 10)][:5]
+        if not terms:
+            return plan
+        return {**plan, 'intent':'search', 'lookup_action':'execute',
+                'interpretations':[{'label':'사람을 묻는 말의 주제어', 'groups':[{'topic_ids':[], 'queries':terms}]}]}
+
+    def _mentioned_people(self, session, turn_id):
+        """Registered people whose name the user wrote in this turn: one public card line each.
+
+        A small model tends to miss a bare name ("정다솔한테 의뢰할까?"). Personal cards stay
+        out of provider-scoped (public paper) conversations.
+        """
+        if session.get('provider_scope'):
+            return []
+        text = next((m.get('text') or '' for m in reversed(session.get('messages', []))
+                     if m.get('role') == 'user' and m.get('turn_id') == turn_id and m.get('kind') != 'self_profile'), '')
+        text = _normalized(text)
+        found = []
+        for person in self.service.corpus.people.values():
+            profile = person.profile or {}
+            names = [name.strip() for name in (profile.get('display_name'), person.name, *(profile.get('aliases') or []))
+                     if isinstance(name, str)]
+            if person.virtual or not any(
+                    (re.fullmatch(r'[가-힣]{2,}', name) and name in text) or
+                    (len(name) >= 5 and re.search(r'(?<![a-z0-9])' + re.escape(_normalized(name)) + r'(?![a-z0-9])', text))
+                    for name in names):
+                continue
+            records = self.service.corpus.by_person.get(person.id, [])
+            found.append({'id':person.id, 'name':profile.get('display_name') or person.name, 'org':person.org,
+                          'tagline':profile.get('tagline') or '', 'record_count':len(records),
+                          'record_titles':[record.title for record in records[:4]]})
+        return found[:3]
+
     def _model_consultation_messages(self, session, option, plan, revision, result, basis, deadline, request_spec, attachment_tools=None):
         # This allowlist exposes aggregate matched topic vocabulary, never fresh identities or record content.
         # Earlier disclosures were revalidated against the same request basis.
@@ -1036,6 +1103,9 @@ class ModelConversation:
         if coverage is not None:
             observation['search_scope'] = coverage
             grounding['search_scope'] = coverage
+        mentioned = self._mentioned_people(session, session.get('pending'))
+        if mentioned:
+            grounding['mentioned_registered_people'] = mentioned
         if attachment_tools is not None:
             grounding['attachment_tool_results'] = copy.deepcopy(attachment_tools)
         # Add context after model_messages' conversation limit; the complete
@@ -1132,7 +1202,7 @@ class ModelConversation:
                 'assessment_scope':'현재 retrieved_materials만 평가·인용하세요. 앞선 시도는 경과이며 현재 자료집합과 합쳐 역량을 입증하지 않습니다.',
                 'matching_semantics':'Lexical observations only. A query OR match does not establish all parts of the current user purpose or personal competence. '
                                      'When an interpretation carries group_relaxation, one or more required AND groups had no record for that person (each such group shows matched=false; matched_group_count of required_group_count matched): every unmatched experience is unverified, so the relation is at most adjacent and missing must name it. '
-                                     'A query hit with match_mode rarest_term matched only the rarest term of a multi-word query (relaxed_term); all_terms_compound matched a term only because it contains a record word (relaxed_terms). Both are weaker than exact_phrase or all_terms: confirm the actual record wording before rating direct.',
+                                     'A query hit with match_mode rarest_term matched only the rarest term of a multi-word query (relaxed_term); all_terms_compound matched a term only because it contains a record word (relaxed_terms); term_stem matched a single Hangul term only without its last syllable (relaxed_term). All are weaker than exact_phrase or all_terms: confirm the actual record wording before rating direct.',
                 'empty_message':result.get('empty_message', ''),
                 'execution':'read_only_completed', 'proposal_or_contact_executed':False,
                 'execution_observation':copy.deepcopy(execution_observation)}
@@ -1388,6 +1458,15 @@ class ModelConversation:
             message['audience'] = 'disclosed' if kind == 'recommendation' else 'consultation'
             message['scout_revision'] = revision
             if kind: message['kind'] = kind
+            if status == 'complete' and kind is None:
+                # The server states a named registered person itself; the model often says it cannot check.
+                mentioned = self._mentioned_people(session, turn_id)
+                if mentioned:
+                    message['mentions'] = [{'id':person['id'], 'name':person['name']} for person in mentioned]
+                    message['text'] = message['text'].rstrip() + '\n\n' + '\n'.join(
+                        f"{person['name']} 님은 수소문에 등록된 분이에요 — " +
+                        ' · '.join(part for part in (person['org'], person['tagline'] or (person['record_titles'] or [''])[0]) if part) +
+                        '. 아래에서 이력을 바로 볼 수 있어요.' for person in mentioned)
             session['messages'].append(message)
             session.update(pending=None, updated=now(), can_propose=False)
             session.pop('pending_model_led', None)
@@ -1436,6 +1515,15 @@ class ModelConversation:
                                     'disclosed':disclosed, 'count':count, 'count_status':'known' if count is not None else 'unknown',
                                     'requested_revision':session.get('scout_authorized_revision') if disclosed else None,
                                     'count_basis':'assessed_displayed' if disclosed else 'registered_record_matches'}
+                if kind is None and count and session['discovery']['lookup_ready']:
+                    # People were found but are shown only by the scout step. A small model keeps asking
+                    # questions instead of saying so, so the server says it; when the user asked for the
+                    # lookup (execute) the client starts the scout right away.
+                    auto = plan['lookup_action'] == 'execute'
+                    session['scout']['auto'] = auto
+                    message['text'] = message['text'].rstrip() + '\n\n' + (
+                        f'관련 기록이 있는 분을 {count}명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.' if auto else
+                        f'지금 정보로 관련 기록이 있는 분이 {count}명 있어요. ‘이 정보로 수소문하기’를 누르면 누구인지와 근거를 보여 드려요.')
                 if (request_spec_content(request_spec) is not None
                         and (plan['intent'] != 'stop' or request_spec_content(session.get('request_spec')) is not None)):
                     # Prepare may revise retrieval, never the user's approved brief.
@@ -1583,11 +1671,13 @@ class ModelConversation:
                     plan = parse_plan(raw, user_messages=basis['source_turns'],
                                       allowed_topic_ids=basis['exposed_topic_ids'],
                                       allowed_record_ids=basis['planning_record_ids'],
-                                      expected_decision=repair_decision, preserve_available=preservable)
+                                      expected_decision=repair_decision, preserve_available=preservable,
+                                      restated_ok=number == 2)
                     self._check_consultation_reply(plan, basis['source_turns'], basis['historical_disclosures'])
-                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'], preserve_available=preservable)
+                    request_spec = parse_request_spec(raw, user_messages=basis['source_turns'], preserve_available=preservable,
+                                                      restated_ok=number == 2)
                     self._check_request_spec(request_spec, basis['source_turns'], basis['historical_disclosures'])
-                    request_effect = parse_request_effect(raw, preserve_available=preservable)
+                    request_effect = parse_request_effect(raw, preserve_available=preservable, restated_ok=number == 2)
                     attachment_actions = parse_attachment_actions(raw)
                     if request_effect == 'preserve':
                         if retained is None:
@@ -1614,6 +1704,7 @@ class ModelConversation:
                         continue
                     raise
                 attempt.update(validation='accepted', adopted=True)
+                plan = self._person_request_lookup(plan, basis, request_effect, sid)
                 revision = (retained['model_plan_revision'] if request_effect == 'preserve' else
                             request_revision(turn_id, plan, basis['corpus_fingerprint'], request_spec))
                 diagnostic_event('model_plan_validated', model_phase=phase, plan_sha256=digest(plan),
@@ -1643,9 +1734,19 @@ class ModelConversation:
                 self._check_model_basis(sid, turn_id, basis, deadline)
                 result, request = self._model_search(session, plan, revision)
                 self._lookup_attempt(searches, plan, revision, result)
-            # Generate only after the optional anonymous lookup has completed.
-            reply = yield from self._stream_model_consultation(
-                session, option, plan, revision, result, basis, deadline, consultation, request_spec)
+            if (result is not None and plan['lookup_action'] == 'execute' and 'attachment_tools' not in consultation
+                    and result.get('matched_candidate_count', len(result.get('candidates', [])))):
+                # The user asked to find people and records matched. The scout that follows is the
+                # answer, so the consultation answer (a small model fills it with more questions) is
+                # replaced by the understood scope; _finish_model_turn adds how many were found.
+                reply = '찾으시는 내용을 이렇게 이해했어요: ' + plan['summary']
+                consultation.update(dispatched=False, attempts=[{
+                    'attempt':1, 'raw':reply, 'provider_completed':False, 'validation':'accepted',
+                    'adopted':False, 'revision':revision, 'server_reply':True}])
+            else:
+                # Generate only after the optional anonymous lookup has completed.
+                reply = yield from self._stream_model_consultation(
+                    session, option, plan, revision, result, basis, deadline, consultation, request_spec)
             self._check_model_basis(sid, turn_id, basis, deadline)
             yield {'type':'delta', 'text':reply}
             self._check_model_basis(sid, turn_id, basis, deadline)

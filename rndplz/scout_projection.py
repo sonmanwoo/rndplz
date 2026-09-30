@@ -257,6 +257,12 @@ def _messages(value, *, disclosed, revision, historical_disclosures=None):
             continue
         message = _pick(item, ("role", "text", "turn_id", "created", "status", "source", "kind", "error",
                               "model", "model_id", "model_selection_origin", "elapsed", "elapsed_ms", "audience", "scout_revision"))
+        mentions = item.get("mentions")
+        if (role == "assistant" and item.get("audience") == "consultation" and isinstance(mentions, list)
+                and 0 < len(mentions) <= 3 and all(
+                    isinstance(row, dict) and set(row) == {"id", "name"}
+                    and all(isinstance(row[key], str) and 0 < len(row[key]) <= 160 for key in row) for row in mentions)):
+            message["mentions"] = [dict(row) for row in mentions]
         if role=="assistant" and item.get("status")=="error":
             if type(item.get("retry_available")) is bool:message["retry_available"]=item["retry_available"]
             if item.get("error_code") in ("model_generation_unavailable","model_generation_budget_exhausted"):
@@ -324,6 +330,8 @@ def project_session(session):
     shaped['model_switch_retry_available'] = switch_retry
     shaped["scout"] = {"revision": revision, "status": status, "disclosed": disclosed,
                        "count": count if known else None, "count_status": "known" if known else "unknown"}
+    if known and count and status == "ready" and not disclosed and scout.get("auto") is True:
+        shaped["scout"]["auto"] = True
     count_basis = scout.get("count_basis")
     if known and count_basis in ("registered_record_matches", "assessed_displayed"):
         shaped["scout"]["count_basis"] = count_basis
