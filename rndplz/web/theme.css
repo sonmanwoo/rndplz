@@ -1,7 +1,8 @@
 /* Appearance only. Existing light palettes and all motion/state rules stay upstream. */
 .theme-controls[hidden] { display:none !important; }
 /* The account button with the bound map card's portrait. */
-.account-toggle.has-photo { padding:0; overflow:hidden; }
+.account-toggle.has-photo { padding:0; overflow:hidden; border:0; box-shadow:0 0 0 2px var(--sheet),0 0 0 3px #c9d3c2; }
+html[data-theme="dark"] .account-toggle.has-photo { box-shadow:0 0 0 2px var(--sheet),0 0 0 3px var(--line); }
 .account-toggle.has-photo img { display:block; width:100%; height:100%; object-fit:cover; object-position:50% 26%; border-radius:50%; }
 .theme-controls { display:inline-flex; flex-wrap:wrap; gap:3px; padding:3px; border:1px solid var(--line); border-radius:8px; }
 .theme-controls button { min-height:32px; padding:6px 9px; border:1px solid transparent; border-radius:5px; background:transparent; color:var(--ink); font:inherit; font-size:11px; line-height:1.25; white-space:nowrap; cursor:pointer; }
