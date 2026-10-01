@@ -34,16 +34,42 @@ def _affiliation(profile):
     return head, tail, True
 
 
+def _timeline_rows(profile, careers):
+    """Each career record's line in the card's timeline (same date, in order) as organization, role, description."""
+    entries, rows = list(profile.get('timeline') or []), {}
+    for record in careers:
+        entry = next((item for item in entries if item.get('date') == record.date), None)
+        if entry is None:
+            continue
+        entries.remove(entry)
+        text = entry.get('text') or ''
+        prefix, sep, rest = text.partition('. ')
+        if sep and ' · ' in prefix and len(prefix) <= 80:
+            organization, _, role = prefix.rpartition(' · ')
+            rows[record.id] = (organization, role, rest)
+        else:
+            rows[record.id] = ('', '', text)
+    return rows
+
+
+def legacy_career_rows(careers):
+    """Career rows as drafts were seeded before the timeline lines were used (the record text)."""
+    return [{'id': career_id(record.id), 'title': record.title, 'organization': '', 'period': record.date,
+             'role': '', 'description': record.text} for record in careers]
+
+
 def card_values(person, careers):
     """The draft a bound account starts from: the card's own words, one list entry per line."""
     profile = person.profile
+    lines = _timeline_rows(profile, careers)
     organization, role, _ = _affiliation(profile)
     skills = [*profile.get('skills', []), *(item for group in profile.get('skill_groups', []) for item in group.get('items', []))]
     return {'fields': {'name': profile.get('display_name') or person.name, 'organization': organization, 'role': role,
                        'bio': profile.get('biography') or '', 'skills': '\n'.join(dict.fromkeys(skills)),
                        'interests': '\n'.join(profile.get('interests') or [])},
-            'careers': [{'id': career_id(record.id), 'title': record.title, 'organization': '', 'period': record.date,
-                         'role': '', 'description': record.text} for record in careers]}
+            'careers': [{'id': career_id(record.id), 'title': record.title, 'organization': lines.get(record.id, ('', '', ''))[0],
+                         'period': record.date, 'role': lines.get(record.id, ('', '', ''))[1],
+                         'description': lines[record.id][2] if record.id in lines else record.text} for record in careers]}
 
 
 def _career_text(row):
@@ -73,6 +99,10 @@ class PersonCards:
         with self.lock:
             return copy.deepcopy(card_values(*self._base(person_id)))
 
+    def legacy_careers(self, person_id):
+        with self.lock:
+            return legacy_career_rows(self._base(person_id)[1])
+
     def label(self, person_id):
         person = self.corpus.people.get(person_id) or self._base(person_id)[0]
         return person.profile.get('display_name') or person.name
@@ -81,70 +111,16 @@ class PersonCards:
         return CardBinding(self, person_id)
 
 
+    def preview(self, person_id, draft):
+        """The card a draft would give, as /api/person shows it; the corpus is not changed."""
+        with self.lock:
+            card, _, _ = self._build(person_id, draft)
+            return {'id': person_id, 'name': card.name, 'org': card.org, 'virtual': card.virtual, 'profile': copy.deepcopy(card.profile)}
+
     def apply(self, person_id, draft):
         """Show a saved draft (profile.fields/careers) as the card. Returns the changed items."""
         with self.lock:
-            person, careers = self._base(person_id)
-            seed = card_values(person, careers)
-            fields = draft['fields']
-            changed = [key for key in seed['fields'] if fields.get(key, '') != seed['fields'][key]]
-            rows = [{key: row.get(key, '') for key in ('id', *CAREER_FIELDS)} for row in draft.get('careers', [])]
-            careers_changed = rows != seed['careers']
-            profile, org = copy.deepcopy(person.profile), person.org
-            name = fields.get('name', '').strip()
-            if 'name' in changed and name:
-                profile['display_name'] = name
-                if name not in profile.get('aliases', []):
-                    profile['aliases'] = [*profile.get('aliases', []), name]
-            if {'organization', 'role'} & set(changed):
-                _, _, merged = _affiliation(person.profile)
-                organization, role = fields['organization'].strip(), fields['role'].strip()
-                if merged:
-                    org = ' · '.join(value for value in (organization, role) if value) or UNSTATED_ORG
-                else:
-                    org = organization or UNSTATED_ORG
-                    profile.pop('role', None)
-                    if role:
-                        profile['current_role'] = role
-                    else:
-                        profile.pop('current_role', None)
-                profile['org'] = org
-            if 'bio' in changed:
-                profile['biography'] = fields['bio'].strip()
-            if 'skills' in changed:
-                wanted = list(dict.fromkeys(list_items(fields['skills'])))
-                groups = [{**group, 'items': [item for item in group.get('items', []) if item in wanted]}
-                          for group in person.profile.get('skill_groups', [])]
-                profile['skill_groups'] = [group for group in groups if group['items']]
-                grouped = {item for group in profile['skill_groups'] for item in group['items']}
-                profile['skills'] = [item for item in wanted if item not in grouped]
-            if 'interests' in changed:
-                profile['interests'] = list_items(fields['interests'])
-            records = careers
-            if careers_changed:
-                records, known = [], {career_id(record.id): record for record in careers}
-                area = careers[0].field if careers else 'process_engineering'
-                for row in rows:
-                    text = _career_text(row)
-                    title = row['title'].strip() or row['role'].strip() or row['organization'].strip() or '경력'
-                    record = known.get(row['id'])
-                    if record is not None:
-                        original = next(item for item in seed['careers'] if item['id'] == row['id'])
-                        if row != original:
-                            record = dataclasses.replace(record, title=title, text=text, date=row['period'].strip())
-                    else:
-                        tags = [topic['id'] for topic in self.corpus.topics
-                                if any(matches(title + ' ' + text, term) for term in topic['keywords'])]
-                        record = Record('CAREER-CARD-' + row['id'][:12].upper(), 'career_record', title, text,
-                                        row['period'].strip(), [Contribution(person.id, person.name, 'recorded_role')],
-                                        tags, area, 'self_reported', 'user_provided_resume', row['id'], '',
-                                        self.corpus.checked_at, 'career_experience', ['본인 계정에서 추가한 경력'],
-                                        'local_self_reported', False, {'text_kind': 'self_reported', 'abstract_available': False})
-                    records.append(record)
-                profile['timeline'] = [{'date': row['period'].strip(), 'text': _career_text(row), 'url': ''} for row in rows]
-            if changed or careers_changed:
-                profile['sources'] = [*profile.get('sources', []), {'title': '본인 계정의 내 프로필에서 수정', 'url': ''}]
-            card = dataclasses.replace(person, org=org, profile=profile) if (changed or careers_changed) else person
+            card, records, changed = self._build(person_id, draft)
             # Swap whole dicts: requests iterating the corpus keep the one they started with.
             old = {record.id for record in self.corpus.by_person.get(person_id, []) if record.kind == 'career_record'}
             new_records = {rid: record for rid, record in self.corpus.records.items() if rid not in old}
@@ -155,7 +131,73 @@ class PersonCards:
             people = dict(self.corpus.people)
             people[person_id] = card
             self.corpus.people, self.corpus.records, self.corpus.by_person = people, new_records, by_person
-            return changed + (['careers'] if careers_changed else [])
+            return changed
+
+    def _build(self, person_id, draft):
+        """The card and career records of a draft, and the changed items. Called under the lock."""
+        person, careers = self._base(person_id)
+        seed = card_values(person, careers)
+        fields = draft['fields']
+        changed = [key for key in seed['fields'] if fields.get(key, '') != seed['fields'][key]]
+        rows = [{key: row.get(key, '') for key in ('id', *CAREER_FIELDS)} for row in draft.get('careers', [])]
+        # A draft seeded earlier from the record text has not changed the careers either.
+        careers_changed = rows != seed['careers'] and rows != legacy_career_rows(careers)
+        profile, org = copy.deepcopy(person.profile), person.org
+        name = fields.get('name', '').strip()
+        if 'name' in changed and name:
+            profile['display_name'] = name
+            if name not in profile.get('aliases', []):
+                profile['aliases'] = [*profile.get('aliases', []), name]
+        if {'organization', 'role'} & set(changed):
+            _, _, merged = _affiliation(person.profile)
+            organization, role = fields['organization'].strip(), fields['role'].strip()
+            if merged:
+                org = ' · '.join(value for value in (organization, role) if value) or UNSTATED_ORG
+            else:
+                org = organization or UNSTATED_ORG
+                profile.pop('role', None)
+                if role:
+                    profile['current_role'] = role
+                else:
+                    profile.pop('current_role', None)
+            profile['org'] = org
+        if 'bio' in changed:
+            profile['biography'] = fields['bio'].strip()
+        if 'skills' in changed:
+            wanted = list(dict.fromkeys(list_items(fields['skills'])))
+            groups = [{**group, 'items': [item for item in group.get('items', []) if item in wanted]}
+                      for group in person.profile.get('skill_groups', [])]
+            profile['skill_groups'] = [group for group in groups if group['items']]
+            grouped = {item for group in profile['skill_groups'] for item in group['items']}
+            profile['skills'] = [item for item in wanted if item not in grouped]
+        if 'interests' in changed:
+            profile['interests'] = list_items(fields['interests'])
+        records = careers
+        if careers_changed:
+            records, known = [], {career_id(record.id): record for record in careers}
+            area = careers[0].field if careers else 'process_engineering'
+            for row in rows:
+                text = _career_text(row)
+                title = row['title'].strip() or row['role'].strip() or row['organization'].strip() or '경력'
+                record = known.get(row['id'])
+                if record is not None:
+                    original = next(item for item in seed['careers'] if item['id'] == row['id'])
+                    if row != original:
+                        record = dataclasses.replace(record, title=title, text=text, date=row['period'].strip())
+                else:
+                    tags = [topic['id'] for topic in self.corpus.topics
+                            if any(matches(title + ' ' + text, term) for term in topic['keywords'])]
+                    record = Record('CAREER-CARD-' + row['id'][:12].upper(), 'career_record', title, text,
+                                    row['period'].strip(), [Contribution(person.id, person.name, 'recorded_role')],
+                                    tags, area, 'self_reported', 'user_provided_resume', row['id'], '',
+                                    self.corpus.checked_at, 'career_experience', ['본인 계정에서 추가한 경력'],
+                                    'local_self_reported', False, {'text_kind': 'self_reported', 'abstract_available': False})
+                records.append(record)
+            profile['timeline'] = [{'date': row['period'].strip(), 'text': _career_text(row), 'url': ''} for row in rows]
+        if changed or careers_changed:
+            profile['sources'] = [*profile.get('sources', []), {'title': '본인 계정의 내 프로필에서 수정', 'url': ''}]
+        card = dataclasses.replace(person, org=org, profile=profile) if (changed or careers_changed) else person
+        return card, records, changed + (['careers'] if careers_changed else [])
 
 
 class CardBinding:
@@ -171,5 +213,11 @@ class CardBinding:
     def values(self):
         return self.cards.values(self.person_id)
 
+    def legacy_careers(self):
+        return self.cards.legacy_careers(self.person_id)
+
     def publish(self, profile):
         return self.cards.apply(self.person_id, profile)
+
+    def preview(self, profile):
+        return self.cards.preview(self.person_id, profile)

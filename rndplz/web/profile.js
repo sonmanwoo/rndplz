@@ -9,6 +9,8 @@
   let view=null, token="", draft=null, busy=false, conflict=null, uncertain=null, action=null;
   let accountNavigationPending=false,accountInvalidated=false;
   let previewRequest=null, previewGeneration=0;
+  // A bound account edits its research-map card: the card as saving would show it, one block open at a time.
+  let cardPerson=null, cardEditing=null, cardSeq=0, cardTimer=0, cardError="";
   const selections=new Map(), deletionRetries=new Map(), dialogOpeners=new Map();
   const clone=value=>JSON.parse(JSON.stringify(value));
   const requestId=()=>crypto.randomUUID().replaceAll("-","");
@@ -87,7 +89,90 @@
     $("savedVersion").textContent=view.profile.id?`초안 v${view.profile.version}\n마지막 저장 ${date(view.profile.updated_at)}`:"저장된 프로필 없음";
     $("uploadLimits").textContent=`${view.limits.formats.map(x=>x.toUpperCase()).join(" · ")} / 파일당 ${Math.round(Math.min(view.limits.file_bytes,1048576)/1024/1024)} MiB / 최대 ${view.limits.sources}개. 이미지·OCR 미지원.`;
     $("sourceFile").accept=view.limits.formats.map(x=>"."+x).join(",");
-    renderFields();renderCareers();renderSources();renderSuggestions();renderHistory();updateControls();
+    renderFields();cardEditing=null;renderCareers();renderCardMode();renderSources();renderSuggestions();renderHistory();updateControls();
+  }
+  const cardMode=()=>view?.scope?.kind==="person_card"&&view.scope.identity_status==="google_authenticated";
+  // Card blocks and the draft values they show. Skill chips and skill groups are both the skills list.
+  const CARD_BLOCKS={identity:{label:"이름·소속",fields:["name","organization","role"]},bio:{label:"약력",fields:["bio"]},skills:{label:"대표 기술",fields:["skills"]},
+    skillGroups:{label:"다룰 수 있는 일",fields:["skills"]},careers:{label:"이력의 발자취",careers:true},interests:{label:"관심 분야",fields:["interests"]},
+    projects:{label:"프로젝트 이력",locked:true},education:{label:"교육 이력",locked:true}};
+  const CARD_HEADINGS={"이력의 발자취":"careers","프로젝트 이력":"projects","교육 이력":"education","다룰 수 있는 일":"skillGroups","관심 분야":"interests"};
+  function renderCardMode(){
+    const on=cardMode();document.body.classList.toggle("card-mode",on);$("cardEditor").hidden=!on;
+    document.querySelectorAll("[data-card-number]").forEach(el=>{el.dataset.formNumber??=el.textContent;el.textContent=on?el.dataset.cardNumber:el.dataset.formNumber;});
+    if(on)scheduleCard(0);
+  }
+  function selectedDecisions(){const list=[];for(const [id,s] of selections){const p=view.suggestions.find(x=>x.id===id);if(!p||!["accept","edit"].includes(s.decision)||!s.field||p.base_version!==view.profile.version)continue;const d={id,decision:s.decision,field:s.field};if(s.item_id)d.item_id=s.item_id;if(s.decision==="edit")d.value=s.value;list.push(d);}return list;}
+  function scheduleCard(delay=250){if(!cardMode())return;clearTimeout(cardTimer);cardTimer=setTimeout(refreshCard,delay);}
+  async function refreshCard(){
+    const seq=++cardSeq,changes=manualChanges(),payload={fields:changes.fields,decisions:selectedDecisions()};if(changes.careers)payload.careers=cleanCareers(draft.careers);
+    try{const data=await api("/api/self-profile/card-preview",payload);if(seq!==cardSeq)return;cardPerson=data.card;cardError="";}
+    catch(e){if(seq!==cardSeq)return;cardError="카드 미리보기를 만들지 못했어요. "+e.message;}
+    renderCard();
+  }
+  function blockKey(el){
+    if(el.matches(".researcher-name,.personal-name,.laureate-name"))return "identity";
+    if(el.matches(".researcher-bio"))return "bio";
+    if(el.matches(".researcher-skills"))return "skills";
+    if(el.tagName==="H3")return CARD_HEADINGS[el.textContent.trim()]||null;
+    if(el.matches(".researcher-detail-hero,.scope-note,details,.personal-portrait-note,.laureate-award,.researcher-sources"))return null;
+    return undefined;
+  }
+  function blockChanged(cfg){
+    const chosen=field=>[...selections.values()].some(s=>["accept","edit"].includes(s.decision)&&s.field===field);
+    return cfg.careers?manualChanges().careers||chosen("career"):(cfg.fields||[]).some(k=>draft.fields[k]!==view.profile.fields[k]||chosen(k));
+  }
+  function savedValues(cfg){
+    const box=node("div","card-asis-body");
+    if(cfg.careers)for(const row of view.profile.careers)box.append(node("p","",[row.period,row.title].filter(Boolean).join(" · ")+(row.description?"\n"+row.description:"")));
+    else for(const k of cfg.fields)if(draft.fields[k]!==view.profile.fields[k]||cfg.fields.length===1)box.append(node("p","",(cfg.fields.length>1?labels[k]+": ":"")+(view.profile.fields[k]||"미입력")));
+    if(!box.childNodes.length)box.append(node("p","","저장된 값과 같아요."));
+    return box;
+  }
+  function renderCard(){
+    const host=$("cardView");if(!host||!cardMode())return;
+    if(!cardPerson||!window.RndCraft){host.replaceChildren(empty(cardError||"연구맵 카드를 불러오고 있어요."));return;}
+    if(cardEditing&&host.querySelector(".card-block-editor"))return; // keep the open editor; the card follows when it closes
+    host.innerHTML=RndCraft.profileDetails(cardPerson);
+    const groups=[];let current=null;
+    for(const el of [...host.children]){const key=blockKey(el);if(key!==undefined||!current){current={key:key??null,nodes:[]};groups.push(current);}current.nodes.push(el);}
+    for(const [key,text] of [["careers","＋ 이력 추가"],["interests","＋ 관심 분야 추가"]])if(!groups.some(g=>g.key===key)){const h=node("h3","",CARD_BLOCKS[key].label),p=node("p","card-empty",text);groups.push({key,nodes:[h,p]});}
+    host.replaceChildren(...groups.map(group=>cardBlock(group)));
+    if(cardError)host.prepend(node("p","profile-error",cardError));
+    if(cardEditing){renderCareers();host.querySelector(".card-block-editor input,.card-block-editor textarea")?.focus();}
+  }
+  function cardBlock({key,nodes}){
+    const cfg=CARD_BLOCKS[key],block=node("div","card-block");
+    if(!cfg){block.append(...nodes);return block;}
+    block.dataset.block=key;
+    if(cardEditing===key){block.classList.add("is-editing");block.append(blockEditor(cfg));return block;}
+    if(key==="bio"&&!nodes[0].textContent.trim())nodes[0].replaceChildren(node("span","card-empty","＋ 약력 적기"));
+    if(cfg.locked){block.classList.add("is-locked");block.append(...nodes,node("p","card-locked-note",cfg.label+"은 아직 여기서 고칠 수 없어요."));return block;}
+    block.classList.add("is-editable");
+    const edit=button("수정",()=>openBlock(key),"card-edit");edit.setAttribute("aria-label",cfg.label+" 수정");block.append(edit);
+    if(blockChanged(cfg)){
+      block.classList.add("is-changed");const asis=node("details","card-asis");asis.append(node("summary","","저장 전 변경 · 지금 값(As is) 보기"),savedValues(cfg));block.append(asis);
+    }
+    block.append(...nodes);
+    block.addEventListener("click",e=>{if(e.target.closest("a,summary,details,button")||$("profileFields").disabled)return;openBlock(key);});
+    return block;
+  }
+  async function openBlock(key){if(cardEditing===key)return;if(cardEditing){cardEditing=null;await refreshCard();}cardEditing=key;renderCard();}
+  function closeBlock(){cardEditing=null;$("cardView").querySelector(".card-block-editor")?.closest(".card-block")?.classList.add("is-applying");refreshCard();}
+  function blockEditor(cfg){
+    const box=node("div","card-block-editor");box.append(node("h3","",cfg.label+" 수정"));
+    if(cfg.careers){const rows=node("div");rows.id="cardCareerRows";box.append(rows,button("＋ 경력·프로젝트 추가",addCareerRow,"add-row"));}
+    else{
+      const grid=node("div","field-grid");
+      for(const k of cfg.fields)grid.append(editableField(k,labels[k],draft.fields[k],{id:"card-field-"+k,wide:true,multiline:["bio","skills","interests"].includes(k),max:view.limits.fields[k],origin:fieldOrigin(k),onInput:value=>{draft.fields[k]=value;}}));
+      box.append(grid);
+      if(cfg.fields.some(k=>k==="skills"||k==="interests"))box.append(node("p","section-help","한 줄에 하나씩 적어 주세요."+(cfg.fields.includes("skills")?" 묶음에 없던 새 기술은 위쪽 대표 기술 칩으로 보여요.":"")));
+    }
+    const actions=node("div","button-row");
+    actions.append(button("카드에 반영해 보기",closeBlock,"primary-button"),button("이 항목 되돌리기",()=>{if(cfg.careers)draft.careers=draftFrom(view.profile).careers;else for(const k of cfg.fields)draft.fields[k]=view.profile.fields[k];$("cardView").querySelector(".card-block-editor")?.remove();renderCard();updateControls();},"secondary-button"));
+    box.append(actions,node("p","section-help","저장 버튼을 누르기 전까지 연구맵에는 보이지 않아요."));
+    box.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();closeBlock();}});
+    return box;
   }
   function editableField(key,label,value,{wide=false,multiline=false,max=2000,onInput,id,origin,reset}={}){
     const wrap=node("div","profile-field"+(wide?" wide":"")),lab=node("label","",label);lab.htmlFor=id;
@@ -96,7 +181,7 @@
     if(origin!==undefined){const meta=node("div","field-meta");meta.append(node("span","",origin));if(reset)meta.append(button("저장값으로 되돌리기",reset));wrap.append(meta);}return wrap;
   }
   function renderFields(){for(const [container,keys] of [["basicFields",["name","organization","role","bio"]],["expertiseFields",["skills","interests"]]]){$(container).replaceChildren(...keys.map(k=>editableField(k,labels[k],draft.fields[k],{id:"field-"+k,wide:["name","bio","skills","interests"].includes(k),multiline:["bio","skills","interests"].includes(k),max:view.limits.fields[k],origin:fieldOrigin(k),onInput:value=>{draft.fields[k]=value;},reset:()=>{draft.fields[k]=view.profile.fields[k];renderFields();renderSuggestions();updateControls();}})));}}
-  function renderCareers(){const list=$("careerRows");list.replaceChildren();if(!draft.careers.length)list.append(empty("아직 적은 경력이 없어요. 프로젝트 하나부터 시작해도 좋습니다."));draft.careers.forEach((row,index)=>{const section=node("article","career-row");const head=node("div","career-heading");head.append(node("h3","",`경력·프로젝트 ${index+1}`),button("이 경력 제외",()=>{draft.careers.splice(index,1);renderCareers();renderSuggestions();updateControls();$("addCareer").focus();}));section.append(head);const grid=node("div","field-grid");for(const [k,label] of Object.entries(careerLabels))grid.append(editableField(k,label,row[k]||"",{id:`career-${row._key}-${k}`,wide:k==="title"||k==="description",multiline:k==="description",max:view.limits.career_fields[k],onInput:value=>{row[k]=value;}}));section.append(grid,node("p","section-help",row.id?fieldOrigin("career:"+row.id):"직접 입력 · 아직 저장하지 않음"));list.append(section);});}
+  function renderCareers(){const list=cardMode()?$("cardCareerRows"):$("careerRows");if(!list)return;list.replaceChildren();if(!draft.careers.length)list.append(empty("아직 적은 경력이 없어요. 프로젝트 하나부터 시작해도 좋습니다."));draft.careers.forEach((row,index)=>{const section=node("article","career-row");const head=node("div","career-heading");head.append(node("h3","",`경력·프로젝트 ${index+1}`),button("이 경력 제외",()=>{draft.careers.splice(index,1);renderCareers();renderSuggestions();updateControls();$("addCareer").focus();}));section.append(head);const grid=node("div","field-grid");for(const [k,label] of Object.entries(careerLabels))grid.append(editableField(k,label,row[k]||"",{id:`career-${row._key}-${k}`,wide:k==="title"||k==="description",multiline:k==="description",max:view.limits.career_fields[k],onInput:value=>{row[k]=value;}}));section.append(grid,node("p","section-help",row.id?fieldOrigin("career:"+row.id):"직접 입력 · 아직 저장하지 않음"));list.append(section);});}
   function renderSources(){const list=$("sourceList");list.replaceChildren();if(!view.sources.length)list.append(empty("등록한 자료가 없습니다. 자료 없이도 프로필을 직접 작성할 수 있어요."));for(const source of view.sources){const row=node("article","source-row"),head=node("div","source-heading"),state={active:source.truncated?"일부 읽음":"텍스트 읽음",unlinked:"연결 해제됨",replaced:"다른 자료로 교체됨",deleting:"삭제 처리 중",deleted:"삭제됨"}[source.status]||"상태 확인 필요";head.append(node("h3","",source.name),node("span","source-state",state));row.append(head);
       if(!["deleted","deleting"].includes(source.status)){row.append(node("p","source-meta",`자료 v${source.version} · ${date(source.created_at)} · 추출문 ${Number(source.characters||0).toLocaleString()}자\n${source.truncated?"일부 텍스트만 저장되었습니다. 읽지 못한 내용은 반영하지 않습니다. ":""}원본 미보관 · 위치는 추출문 기준 · 이 초안에서만 열람`));const actions=node("div","source-actions");actions.append(button("읽은 내용 보기",e=>previewSource(source,e.currentTarget)));if(source.status==="active")actions.append(button("작성할 항목 찾기",()=>suggest([source.id],true)),button("연결 해제",()=>confirmSource(source,"unlink")),button("새 자료로 교체",()=>confirmSource(source,"replace")));actions.append(button("읽은 내용 삭제",()=>confirmSource(source,"delete"),"text-button danger"));row.append(actions);const impacted=source.impact?.profile_items||[];if(impacted.length)row.append(node("p","source-meta","연결된 항목: "+impacted.map(itemLabel).join(", ")));}
       else if(source.status==="deleting"){row.append(node("p","source-meta","초안의 파생내용과 열람은 이미 차단됐습니다. 저장 파일 정리를 마치지 못했습니다."));const retry=deletionRetries.get(source.id);if(retry)row.append(button("삭제 처리 다시 시도",()=>perform(retry)));else row.append(button("삭제 처리 다시 시도",()=>mutation("source-action",{id:source.id,action:"delete"})));}list.append(row);}}
@@ -115,7 +200,7 @@
       const editWrap=node("div","edit-value"),editLabel=node("label","","수정한 제안 값"),editInput=node("textarea");editInput.id="edit-"+p.id;editLabel.htmlFor=editInput.id;editInput.rows=4;editInput.value=selected.value;editInput.maxLength=selected.field==="career"?4000:view.limits.fields[selected.field]||4000;editInput.dataset.lock="";editWrap.hidden=selected.decision!=="edit";editWrap.append(editLabel,editInput);card.append(editWrap);
       const careerWrap=node("div","edit-value"),careerLabel=node("label","","적용할 경력"),careerSelect=node("select");careerSelect.id="career-target-"+p.id;careerLabel.htmlFor=careerSelect.id;careerSelect.dataset.lock="";careerSelect.append(option("","새 경력으로 추가"),...view.profile.careers.map((row,i)=>option(row.id,row.title||`경력 ${i+1}`)));careerSelect.value=selected.item_id||"";careerWrap.hidden=selected.field!=="career";careerWrap.append(careerLabel,careerSelect);card.append(careerWrap);
       const stale=node("p","stale-note",p.base_version!==view.profile.version?"후보 생성 뒤 저장값이 바뀌었습니다. 위의 ‘최신 저장값으로 후보 다시 비교’를 눌러 확인해 주세요.":"선택 후 아래 저장 버튼을 눌러야 반영됩니다.");card.append(stale);
-      function remember(){if(selected.decision)selections.set(p.id,selected);else selections.delete(p.id);updateComparison();editWrap.hidden=selected.decision!=="edit";careerWrap.hidden=selected.field!=="career";updateControls();}
+      function remember(){if(selected.decision)selections.set(p.id,selected);else selections.delete(p.id);updateComparison();editWrap.hidden=selected.decision!=="edit";careerWrap.hidden=selected.field!=="career";updateControls();scheduleCard(400);}
       // Keep the comparison node stable so typing never loses focus.
       function updateComparison(){const fresh=compare(currentValue(selected),selected.decision==="edit"?selected.value:p.after);comparisons.replaceChildren(...fresh.childNodes);return comparisons;}
       fieldSelect.addEventListener("change",()=>{selected.field=fieldSelect.value;selected.item_id="";careerSelect.value="";editInput.maxLength=selected.field==="career"?4000:view.limits.fields[selected.field]||4000;remember();});choiceSelect.addEventListener("change",()=>{selected.decision=choiceSelect.value;remember();});careerSelect.addEventListener("change",()=>{selected.item_id=careerSelect.value;remember();});editInput.addEventListener("input",()=>{selected.value=editInput.value;remember();});list.append(card);
@@ -126,7 +211,7 @@
         if(request.payload.action==="delete"){if(data.operation?.deletion_pending)deletionRetries.set(request.payload.id,request);else deletionRetries.delete(request.payload.id);$("sourceText").textContent="";if($("sourceDialog").open)$("sourceDialog").close();renderSources();}
         if($("actionDialog").open)$("actionDialog").close();action=null;
       }
-      const messages={save:"선택한 변경을 초안에 저장했습니다.",upload:data.operation?.duplicate?"이미 등록한 같은 자료입니다. 기존 자료를 그대로 사용합니다.":"자료의 읽힌 내용을 저장했습니다. ‘작성할 항목 찾기’로 검토를 시작하세요.",suggest:"현재 저장값을 기준으로 후보를 열었습니다. 필요한 문장을 선택해 주세요.","source-action":data.operation?.deletion_pending?"열람과 파생내용은 차단됐습니다. 저장 파일 삭제는 다시 시도해 주세요.":"자료 변경을 반영했습니다."};announce(messages[request.route]);if(request.route==="upload")$("sourceFile").value="";if(request.focusReview){$("review").focus();$("review").scrollIntoView({block:"start",behavior:"auto"});}return data;
+      const messages={save:cardMode()?"저장했어요. 연구맵 카드에도 바로 반영했어요.":"선택한 변경을 초안에 저장했습니다.",upload:data.operation?.duplicate?"이미 등록한 같은 자료입니다. 기존 자료를 그대로 사용합니다.":"자료의 읽힌 내용을 저장했습니다. ‘작성할 항목 찾기’로 검토를 시작하세요.",suggest:"현재 저장값을 기준으로 후보를 열었습니다. 필요한 문장을 선택해 주세요.","source-action":data.operation?.deletion_pending?"열람과 파생내용은 차단됐습니다. 저장 파일 삭제는 다시 시도해 주세요.":"자료 변경을 반영했습니다."};announce(messages[request.route]);if(request.route==="upload")$("sourceFile").value="";if(request.focusReview){$("review").focus();$("review").scrollIntoView({block:"start",behavior:"auto"});}return data;
     }catch(e){if(e.uncertain){uncertain=request;if($("actionDialog").open)$("actionDialog").close();showError(e.message+" 중복 적용을 막기 위해 같은 요청으로 다시 확인해 주세요.",()=>perform(uncertain));}else{uncertain=null;showError(e.message);if(e.status===409){conflict={ready:false};$("conflictPanel").hidden=false;$("conflictActions").hidden=true;$("conflictComparison").replaceChildren();if($("actionDialog").open)$("actionDialog").close();}if($("actionDialog").open){$("actionError").textContent=e.message;$("actionError").hidden=false;}}}finally{busy=false;updateControls();}}
   function mutation(route,payload,extra={}){if(conflict){showError("최신 저장값과 작성 중 입력을 먼저 비교해 주세요.");return;}return perform({route,payload:{...payload,base_version:view.profile.version,request_id:requestId()},...extra});}
   async function suggest(ids,focusReview=false){if(busy||uncertain)return;if(conflict){showError("저장 충돌의 최신 값을 먼저 확인해 주세요.");return;}return mutation("suggest",{source_ids:ids},{focusReview});}
@@ -141,7 +226,8 @@
   function confirmSource(source,kind){action={source,kind};$("actionTitle").textContent={delete:"읽은 내용과 파생항목을 삭제할까요?",unlink:"자료의 근거 연결을 해제할까요?",replace:"새 자료로 근거를 교체할까요?"}[kind];$("actionDescription").textContent={delete:"현재 초안에 저장한 추출문과 이 자료에서 나온 값·경력·제안·이전값을 삭제합니다. 자료 기반 경력은 행 전체가 삭제됩니다. 원본 파일은 보관하지 않습니다.",unlink:"추출문은 계속 볼 수 있습니다. 연결된 프로필 값은 남지만 근거 재확인 상태가 되며, 이 자료의 후보는 철회됩니다.",replace:"이미 등록한 새 자료와 버전 관계를 만듭니다. 현재 프로필 값은 그대로 두고 근거를 재확인 상태로 바꿉니다. 새 자료는 별도로 검토해야 합니다."}[kind];const impact=source.impact||{};$("actionImpact").textContent=`${source.name}\n연결 항목 ${(impact.profile_items||[]).length}개: ${(impact.profile_items||[]).map(itemLabel).join(", ")||"없음"}\n관련 후보 ${impact.suggestions||0}개 · 변경 기록 ${impact.history_entries||0}개${kind==="delete"?"\n독립적으로 직접 작성한 항목은 유지합니다. 다른 곳에 이미 전달한 사본의 삭제를 뜻하지 않습니다.":""}`;$("replacementField").hidden=kind!=="replace";$("replacementSource").replaceChildren(option("","새 자료 선택"),...view.sources.filter(s=>s.id!==source.id&&s.status==="active").map(s=>option(s.id,s.name)));$("actionError").hidden=true;$("confirmAction").textContent={delete:"영향 확인 · 삭제",unlink:"연결 해제",replace:"영향 확인 · 교체"}[kind];openDialog("actionDialog");}
   $("confirmAction").addEventListener("click",()=>{if(!action)return;const payload={id:action.source.id,action:action.kind};if(action.kind==="replace"){payload.replacement_id=$("replacementSource").value;if(!payload.replacement_id){$("actionError").textContent="대신 연결할 자료를 선택해 주세요. 새 파일은 먼저 등록해야 합니다.";$("actionError").hidden=false;return;}}mutation("source-action",payload);});
   document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{if(!busy)$(b.dataset.close).close();}));for(const id of ["sourceDialog","actionDialog"]){$(id).addEventListener("cancel",e=>{if(busy)e.preventDefault();});$(id).addEventListener("close",()=>{if(id==="sourceDialog"&&!$(id).open){previewRequest=null;$("sourceText").textContent="";$("sourceInfo").textContent="";}const opener=dialogOpeners.get(id);if(opener?.isConnected)opener.focus();else $("sourceFile").focus();});}
-  $("addCareer").addEventListener("click",()=>{if(draft.careers.length>=view.limits.careers){showError(`경력은 ${view.limits.careers}개까지 추가할 수 있습니다.`);return;}const row={_key:requestId(),...Object.fromEntries(Object.keys(careerLabels).map(k=>[k,""]))};draft.careers.push(row);renderCareers();updateControls();$("career-"+row._key+"-title").focus();});
+  function addCareerRow(){if(draft.careers.length>=view.limits.careers){showError(`경력은 ${view.limits.careers}개까지 추가할 수 있습니다.`);return;}const row={_key:requestId(),...Object.fromEntries(Object.keys(careerLabels).map(k=>[k,""]))};draft.careers.push(row);renderCareers();updateControls();$("career-"+row._key+"-title").focus();}
+  $("addCareer").addEventListener("click",addCareerRow);
   $("profileForm").addEventListener("submit",event=>{event.preventDefault();if(busy||uncertain||conflict||!view)return;const changed=manualChanges(),payload={fields:changed.fields,decisions:[]},targets=new Set(Object.keys(changed.fields));if(changed.careers)payload.careers=cleanCareers(draft.careers);
     for(const [id,selected] of selections){const p=view.suggestions.find(p=>p.id===id),d={id,decision:selected.decision};if(["accept","edit"].includes(d.decision)){if(!selected.field){showError("채택할 문장을 적용할 항목부터 선택해 주세요.");$("target-"+id).focus();return;}if(p.base_version!==view.profile.version){showError("후보의 기준이 오래되었습니다. ‘최신 저장값으로 후보 다시 비교’를 눌러 주세요.");$("refreshSuggestions").focus();return;}const target=selected.field==="career"?(selected.item_id?"career:"+selected.item_id:"new:"+id):selected.field;if(targets.has(target)||(changed.careers&&selected.field==="career"&&selected.item_id)){showError("같은 항목의 직접 편집과 자료 선택이 겹칩니다. 한쪽 변경을 취소하고 최종 값 하나를 선택해 주세요.");return;}targets.add(target);d.field=selected.field;if(selected.item_id)d.item_id=selected.item_id;if(selected.decision==="edit")d.value=selected.value;const value=selected.decision==="edit"?selected.value:p.after,limit=selected.field==="career"?4000:view.limits.fields[selected.field];if(value.length>limit){showError(`${labels[selected.field]}은 ${limit}자까지 저장할 수 있습니다. ‘수정해서 채택’으로 줄여 주세요.`);return;}}payload.decisions.push(d);}if(hasChanges())mutation("save",payload);});
   $("sourceFile").addEventListener("change",async event=>{const file=event.target.files[0];if(!file||busy||uncertain||!view)return;if(!view.limits.formats.includes(file.name.split(".").pop().toLowerCase())){showError("텍스트·PDF·DOCX 문서를 선택해 주세요. 이미지와 OCR은 지원하지 않습니다.");return;}if(file.size===0||file.size>Math.min(view.limits.file_bytes,1048576)){showError("빈 자료이거나 파일 용량 제한을 넘었습니다. 이 페이지는 1 MiB까지, 대화 속 프로필 창은 Gemma가 읽는 큰 자료도 받아요.");return;}busy=true;updateControls();announce("자료에서 텍스트를 읽고 있습니다.");try{const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했습니다. 선택한 파일을 다시 확인해 주세요."));reader.readAsDataURL(file);});busy=false;await mutation("upload",{name:file.name,data});}catch(e){showError(e.message);}finally{busy=false;updateControls();}});

@@ -9,7 +9,7 @@
       .profile-page .account-menu { left:0; right:auto; }
     }
   </style>
-  <script src="/profile.js" defer></script>
+  <script src="/craft.js" defer></script><script src="/profile.js" defer></script>
 <script src="/account-menu.js" defer></script><link rel="stylesheet" href="/theme.css"></head>
 <body class="crafted profile-page">
 <a class="skip-link" href="#profileForm">프로필 편집으로 이동</a>
@@ -34,22 +34,23 @@
   <div class="profile-layout">
     <aside class="profile-sidebar">
       <div class="identity-note"><span class="eyebrow">YOUR RESEARCH NOTE</span><span class="identity-mark" aria-hidden="true"><span class="susomun-ci susomun-ci--identity" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><h2 id="previewName">당신의 이름</h2><p id="previewRole">지금 하는 일부터 적어보세요.</p><span id="identityTag" class="draft-tag">본인 연결 미확인</span><p id="identityFootnote" class="identity-footnote">이름을 입력하거나 자료를 채택해도<br>본인·경력 확인으로 표시하지 않습니다.</p></div>
-      <nav class="section-nav" aria-label="프로필 구역"><a href="#basics"><span>01</span>기본 정보</a><a href="#expertise"><span>02</span>전문 분야와 관심</a><a href="#careers"><span>03</span>경력·프로젝트</a><a href="#sources"><span>04</span>근거 자료</a><a href="#review"><span>05</span>자료 제안 검토 <b id="reviewCount">0</b></a></nav>
+      <nav class="section-nav" aria-label="프로필 구역"><a href="#cardEditor" data-card-nav><span>01</span>연구맵 카드</a><a href="#basics" data-form-nav><span>01</span>기본 정보</a><a href="#expertise" data-form-nav><span>02</span>전문 분야와 관심</a><a href="#careers" data-form-nav><span>03</span>경력·프로젝트</a><a href="#sources"><span data-card-number="02">04</span>근거 자료</a><a href="#review"><span data-card-number="03">05</span>자료 제안 검토 <b id="reviewCount">0</b></a></nav>
       <p id="savedVersion" class="version-note">저장된 프로필 없음</p>
     </aside>
     <div class="profile-workspace">
       <form id="profileForm" novalidate tabindex="-1">
         <fieldset id="profileFields" disabled>
+          <section id="cardEditor" class="profile-section card-editor" hidden><div class="section-heading"><span class="section-number">01</span><div><h2>연구맵 카드</h2><p>연구맵에서 보이는 그대로예요. 고칠 부분을 누르면 그 자리에서 바꿀 수 있어요.</p></div></div><div id="cardView" class="card-view" aria-live="polite"></div></section>
           <section id="basics" class="profile-section"><div class="section-heading"><span class="section-number">01</span><div><h2>기본 정보</h2><p>알고 있는 만큼만 적어도 괜찮아요.</p></div></div><div id="basicFields" class="field-grid"></div></section>
           <section id="expertise" class="profile-section"><div class="section-heading"><span class="section-number">02</span><div><h2>전문 분야와 관심</h2><p>다뤄본 기술과 앞으로 탐색할 주제를 구분해 주세요.</p></div></div><div id="expertiseFields" class="field-grid"></div></section>
           <section id="careers" class="profile-section"><div class="section-heading"><span class="section-number">03</span><div><h2>경력·프로젝트</h2><p>맡았던 역할과 한 일을 나의 표현으로 기록해 주세요.</p></div></div><div id="careerRows"></div><button type="button" id="addCareer" class="add-row" data-lock>＋ 경력·프로젝트 추가</button></section>
         </fieldset>
       </form>
-      <section id="sources" class="profile-section"><div class="section-heading"><span class="section-number">04</span><div><h2>근거 자료</h2><p>자료에서 읽은 내용을 확인한 뒤, 필요한 항목만 반영합니다.</p></div></div>
+      <section id="sources" class="profile-section"><div class="section-heading"><span class="section-number" data-card-number="02">04</span><div><h2>근거 자료</h2><p>자료에서 읽은 내용을 확인한 뒤, 필요한 항목만 반영합니다.</p></div></div>
         <div class="upload-box"><span class="upload-symbol" aria-hidden="true">↥</span><div><strong>이력이나 연구 기록을 곁에 두세요.</strong><p id="uploadLimits">지원 형식과 용량을 확인하고 있습니다.</p><p>등록만으로 프로필에 반영되지 않습니다.</p></div><label class="secondary-button upload-label" for="sourceFile">자료 추가<input id="sourceFile" type="file" accept=".txt,.md,.csv,.json,.log,.pdf,.docx" data-lock disabled></label></div>
         <div id="sourceList" class="source-list"></div>
       </section>
-      <section id="review" class="profile-section" tabindex="-1"><div class="section-heading"><span class="section-number">05</span><div><h2>자료 제안 검토</h2><p>문서의 문장을 항목별로 비교합니다. 적용할 항목은 직접 고르세요.</p></div></div><p class="section-help">자료에 적힌 주장입니다. 직급·기간·숙련도를 추론하지 않으며, 기본값은 미채택입니다.</p><button id="refreshSuggestions" type="button" class="text-button" data-lock hidden>최신 저장값으로 후보 다시 비교 ↻</button><div id="suggestionList"></div></section>
+      <section id="review" class="profile-section" tabindex="-1"><div class="section-heading"><span class="section-number" data-card-number="03">05</span><div><h2>자료 제안 검토</h2><p>문서의 문장을 항목별로 비교합니다. 적용할 항목은 직접 고르세요.</p></div></div><p class="section-help">자료에 적힌 주장입니다. 직급·기간·숙련도를 추론하지 않으며, 기본값은 미채택입니다.</p><button id="refreshSuggestions" type="button" class="text-button" data-lock hidden>최신 저장값으로 후보 다시 비교 ↻</button><div id="suggestionList"></div></section>
       <details class="profile-section history-section"><summary>변경·검토 기록 <span id="historyCount">0</span></summary><div id="historyList"></div></details>
     </div>
   </div>

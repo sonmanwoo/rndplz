@@ -140,6 +140,48 @@ class PersonCardTests(unittest.TestCase):
         self.assertEqual(confirmed['reply'], '프로필 변경을 저장했어요. 연구맵 카드에도 바로 반영했어요.')
         self.assertEqual(card_of(self.engine)['profile']['interests'], [*MANWOO['interests'], '수소 액화'])
 
+    def test_card_preview_shows_unsaved_edits_without_storing(self):
+        profiles = self.profiles()
+        view = profiles.read()
+        before = card_of(self.engine)['profile']
+        careers = [{k: row[k] for k in ('id', 'title', 'organization', 'period', 'role', 'description')}
+                   for row in view['profile']['careers'][:1]]
+        careers[0]['description'] = '미리보기 설명'
+        card = profiles.card_preview({'fields': {'bio': '미리 보는 소개'}, 'careers': careers})['card']
+        self.assertEqual((card['id'], card['profile']['biography']), ('LOCAL-MANWOO', '미리 보는 소개'))
+        self.assertEqual([row['text'] for row in card['profile']['timeline']], ['GS칼텍스 바이오공정팀 · 책임. 미리보기 설명'])
+        self.assertEqual(card_of(self.engine)['profile'], before)  # the map card is unchanged
+        self.assertEqual(profiles.read()['profile']['version'], view['profile']['version'])  # nothing saved
+        self.assertEqual(profiles.card_preview({})['card']['profile']['biography'], MANWOO['biography'])
+        with self.assertRaises(ValueError):
+            self.profiles(card=False).card_preview({})  # only a bound account has a card
+
+    def test_career_rows_are_the_card_timeline_lines(self):
+        careers = self.profiles().read()['profile']['careers']
+        first = careers[0]
+        self.assertEqual((first['organization'], first['role'], first['period']), ('GS칼텍스 바이오공정팀', '책임', '2023.01 — 현재'))
+        self.assertTrue(first['description'].startswith('2023.01.30 입사. Diols 탈색·탈취 공정 개발'))
+        # Saving the rows as they are leaves every timeline line as the card shows it.
+        before = card_of(self.engine)['profile']['timeline']
+        preview = self.profiles().card_preview({'careers': [{k: v for k, v in row.items()} for row in careers]})['card']
+        self.assertEqual(preview['profile']['timeline'], before)
+
+    def test_an_earlier_record_text_seed_is_upgraded_untouched(self):
+        profiles = self.profiles()
+        view = profiles.read()
+        legacy = self.cards.legacy_careers('LOCAL-MANWOO')
+        store = self.storage.profile_store(self.account_id)
+
+        def downgrade(state):
+            state['self_profile']['profile']['careers'] = legacy
+        store.transaction(downgrade)
+        self.cards.apply('LOCAL-MANWOO', {'fields': view['profile']['fields'], 'careers': legacy})
+        self.assertEqual(card_of(self.engine)['profile']['timeline'], MANWOO['timeline'])  # an old seed is no change
+        upgraded = profiles.read()
+        self.assertEqual(upgraded['profile']['careers'], self.cards.values('LOCAL-MANWOO')['careers'])
+        self.assertEqual(upgraded['profile']['version'], view['profile']['version'] + 1)
+        self.assertEqual(profiles.read()['profile']['version'], upgraded['profile']['version'])  # once
+
     def test_list_entries_with_commas_stay_whole(self):
         self.assertEqual(list_items('윤활유 배합, 평가\n기유 운전'), ['윤활유 배합, 평가', '기유 운전'])
         self.assertEqual(list_items('공정 제어, 증류; 추출'), ['공정 제어', '증류', '추출'])

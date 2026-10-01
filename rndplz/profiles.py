@@ -202,7 +202,7 @@ class Profiles:
 
     def read(self):
         data = self._state(self.store.read())
-        if self.card is not None and not data.get('card'):
+        if self.card is not None and (not data.get('card') or self._stale_seed(data)):
             # Values the account wrote before the link differ from the card and show on it now.
             return self._publish(self._view(self.store.transaction(self._seed)))
         return self._view(data)
@@ -210,10 +210,28 @@ class Profiles:
     def _linked(self, data):
         return self.card is not None and data.get('card', {}).get('person_id') == self.card.person_id
 
+    def _stale_seed(self, data):
+        """Careers still exactly as an earlier seed wrote them (the record text, not the card's timeline lines)."""
+        careers = data['profile']['careers']
+        return (self._linked(data) and bool(careers) and careers == self.card.legacy_careers()
+                and careers != self.card.values()['careers'])
+
     def _seed(self, state):
         """First open of a bound account: start from the card's own values; written values are kept."""
         data = self._state(state)
         if data.get('card'):
+            if self._stale_seed(data):
+                profile = data['profile']
+                for old, new in zip(profile['careers'], self.card.values()['careers']):
+                    if old != new:
+                        self._record(data, 'career:' + new['id'], old, new, [], 'card_seed')
+                profile['careers'] = self.card.values()['careers']
+                profile['version'] += 1
+                profile['updated_at'] = self._now()
+                for proposal in data['suggestions']:
+                    if proposal['decision'] in ('pending', 'deferred', 'excluded'):
+                        proposal['base_version'] = profile['version']
+                state['self_profile'] = data
             return data
         values, profile, seeded = self.card.values(), data['profile'], False
         origin = {**self._provenance(), 'origin': 'public_card'}
@@ -607,121 +625,131 @@ class Profiles:
 
     def save(self, payload):
         _keys(payload, ('fields', 'careers', 'decisions', 'base_version', 'request_id'))
+        return self._mutate(payload, 'save', lambda data: self._save_into(data, payload))
+
+    def _save_into(self, data, payload):
+        """Apply a save payload (edits and review decisions) to the draft `data`."""
         fields = payload.get('fields', {})
         _keys(fields, FIELDS)
         decisions = payload.get('decisions', [])
         if not isinstance(decisions, list) or len(decisions) > MAX_SUGGESTIONS:
             raise ProfileError('검토할 변경 후보를 확인해 주세요.')
-
-        def apply(data):
-            profile = data['profile']
-            targets = set()
-            for field, value in fields.items():
-                if value != profile['fields'][field]:
-                    targets.add(field)
-                self._set_field(data, field, value)
-            if 'careers' in payload:
-                rows = payload['careers']
-                if not isinstance(rows, list) or len(rows) > MAX_CAREERS:
-                    raise ProfileError('경력 항목은 50개까지 작성할 수 있습니다.')
-                old = {r['id']: r for r in profile['careers']}
-                new = []
-                seen = set()
-                for row in rows:
-                    _keys(row, ('id', *CAREER_FIELDS))
-                    identifier = row.get('id') or uuid.uuid4().hex
-                    _id(identifier)
-                    if row.get('id') and identifier not in old:
-                        raise ProfileError('이 초안의 경력 항목이 아닙니다.')
-                    if identifier in seen:
-                        raise ProfileError('경력 항목이 중복되었습니다.')
-                    seen.add(identifier)
-                    clean = {'id': identifier, **{k: _text(row.get(k, ''), n, k) for k, n in CAREER_FIELDS.items()}}
+        profile = data['profile']
+        targets = set()
+        for field, value in fields.items():
+            if value != profile['fields'][field]:
+                targets.add(field)
+            self._set_field(data, field, value)
+        if 'careers' in payload:
+            rows = payload['careers']
+            if not isinstance(rows, list) or len(rows) > MAX_CAREERS:
+                raise ProfileError('경력 항목은 50개까지 작성할 수 있습니다.')
+            old = {r['id']: r for r in profile['careers']}
+            new = []
+            seen = set()
+            for row in rows:
+                _keys(row, ('id', *CAREER_FIELDS))
+                identifier = row.get('id') or uuid.uuid4().hex
+                _id(identifier)
+                if row.get('id') and identifier not in old:
+                    raise ProfileError('이 초안의 경력 항목이 아닙니다.')
+                if identifier in seen:
+                    raise ProfileError('경력 항목이 중복되었습니다.')
+                seen.add(identifier)
+                clean = {'id': identifier, **{k: _text(row.get(k, ''), n, k) for k, n in CAREER_FIELDS.items()}}
+                key = 'career:' + identifier
+                if old.get(identifier) != clean:
+                    targets.add(key)
+                    sources = profile['provenance'].get(key, {}).get('source_ids', [])
+                    self._record(data, key, old.get(identifier), clean, sources, 'edit')
+                    profile['provenance'][key] = self._provenance(sources, edited=bool(sources))
+                new.append(clean)
+            for identifier, row in old.items():
+                if identifier not in seen:
                     key = 'career:' + identifier
-                    if old.get(identifier) != clean:
-                        targets.add(key)
-                        sources = profile['provenance'].get(key, {}).get('source_ids', [])
-                        self._record(data, key, old.get(identifier), clean, sources, 'edit')
-                        profile['provenance'][key] = self._provenance(sources, edited=bool(sources))
-                    new.append(clean)
-                for identifier, row in old.items():
-                    if identifier not in seen:
-                        key = 'career:' + identifier
-                        targets.add(key)
-                        self._record(data, key, row, None, profile['provenance'].get(key, {}).get('source_ids', []), 'remove_item')
-                        profile['provenance'].pop(key, None)
-                profile['careers'] = new
-            seen_decisions = set()
-            for decision in decisions:
-                _keys(decision, ('id', 'decision', 'field', 'value', 'item_id'))
-                identifier = _id(decision.get('id'))
-                if identifier in seen_decisions:
-                    raise ProfileError('같은 변경 후보가 중복되었습니다.')
-                seen_decisions.add(identifier)
-                proposal = next((p for p in data['suggestions'] if p['id'] == identifier), None)
-                choice = decision.get('decision')
-                if not proposal or proposal['decision'] in ('accepted', 'edited_accepted', 'redacted', 'withdrawn'):
-                    raise ProfileError('현재 검토할 수 있는 변경 후보가 아닙니다.')
-                if choice not in ('accept', 'edit', 'exclude', 'defer'):
-                    raise ProfileError('채택·수정·제외·보류 중에서 선택해 주세요.')
-                if self.account:
-                    proposal['reviewer'] = self._actor()
-                if choice in ('exclude', 'defer'):
-                    proposal['decision'] = 'excluded' if choice == 'exclude' else 'deferred'
-                    proposal['reviewed_at'] = self._now()
-                    continue
-                source = self._find_source(data, proposal['source_id'])
-                if proposal['base_version'] != profile['version']:
-                    raise ProfileError('후보 생성 뒤 프로필이 바뀌었습니다. 자료에서 변경 후보를 다시 열어 비교해 주세요.', code='conflict', status=409)
-                if proposal['source_version'] != source['version']:
-                    raise ProfileError('자료 버전이 바뀌었습니다. 변경 후보를 다시 만들어 주세요.', code='conflict', status=409)
-                field = decision.get('field')
-                if field not in (*FIELDS, 'career'):
-                    raise ProfileError('변경 후보를 적용할 항목을 선택해 주세요.')
-                value = decision.get('value', proposal['after']) if choice == 'edit' else proposal['after']
-                target = field if field != 'career' else 'career:' + (decision.get('item_id') or uuid.uuid4().hex)
-                # A model proposal for a list field adds one entry, so several may apply together.
-                appends = field in ('skills', 'interests') and proposal.get('method') == 'model_reading'
-                if target in targets and not appends:
-                    raise ProfileError('같은 항목에 여러 변경이 있습니다. 한 값을 선택해 주세요.', code='conflict', status=409)
-                targets.add(target)
-                if field == 'career':
-                    identifier = _id(target.split(':', 1)[1])
-                    existing = next((r for r in profile['careers'] if r['id'] == identifier), None)
-                    if decision.get('item_id') and not existing:
-                        raise ProfileError('이 초안의 경력 항목이 아닙니다.')
-                    if not existing and len(profile['careers']) >= MAX_CAREERS:
-                        raise ProfileError('경력 항목은 50개까지 작성할 수 있습니다.')
-                    before = copy.deepcopy(existing)
-                    base = existing or {k: '' for k in CAREER_FIELDS}
-                    typed = proposal.get('career') if not existing and proposal.get('method') == 'model_reading' else None
-                    if isinstance(typed, dict):
-                        # A new career from a model proposal keeps its title, period and role.
-                        base = {k: _text(typed.get(k, '') or '', n, k) for k, n in CAREER_FIELDS.items()}
-                    clean = {**base, 'id': identifier,
-                             'description': _text(value, 4000, '경력 설명')}
-                    if existing:
-                        existing.update(clean)
-                    else:
-                        profile['careers'].append(clean)
-                    lineage = profile['provenance'].get(target, {}).get('source_ids', [])
-                    self._record(data, target, before, clean, lineage + [source['id']], 'adopt')
-                    profile['provenance'][target] = self._provenance(list(dict.fromkeys(lineage + [source['id']])), edited=choice == 'edit')
+                    targets.add(key)
+                    self._record(data, key, row, None, profile['provenance'].get(key, {}).get('source_ids', []), 'remove_item')
+                    profile['provenance'].pop(key, None)
+            profile['careers'] = new
+        seen_decisions = set()
+        for decision in decisions:
+            _keys(decision, ('id', 'decision', 'field', 'value', 'item_id'))
+            identifier = _id(decision.get('id'))
+            if identifier in seen_decisions:
+                raise ProfileError('같은 변경 후보가 중복되었습니다.')
+            seen_decisions.add(identifier)
+            proposal = next((p for p in data['suggestions'] if p['id'] == identifier), None)
+            choice = decision.get('decision')
+            if not proposal or proposal['decision'] in ('accepted', 'edited_accepted', 'redacted', 'withdrawn'):
+                raise ProfileError('현재 검토할 수 있는 변경 후보가 아닙니다.')
+            if choice not in ('accept', 'edit', 'exclude', 'defer'):
+                raise ProfileError('채택·수정·제외·보류 중에서 선택해 주세요.')
+            if self.account:
+                proposal['reviewer'] = self._actor()
+            if choice in ('exclude', 'defer'):
+                proposal['decision'] = 'excluded' if choice == 'exclude' else 'deferred'
+                proposal['reviewed_at'] = self._now()
+                continue
+            source = self._find_source(data, proposal['source_id'])
+            if proposal['base_version'] != profile['version']:
+                raise ProfileError('후보 생성 뒤 프로필이 바뀌었습니다. 자료에서 변경 후보를 다시 열어 비교해 주세요.', code='conflict', status=409)
+            if proposal['source_version'] != source['version']:
+                raise ProfileError('자료 버전이 바뀌었습니다. 변경 후보를 다시 만들어 주세요.', code='conflict', status=409)
+            field = decision.get('field')
+            if field not in (*FIELDS, 'career'):
+                raise ProfileError('변경 후보를 적용할 항목을 선택해 주세요.')
+            value = decision.get('value', proposal['after']) if choice == 'edit' else proposal['after']
+            target = field if field != 'career' else 'career:' + (decision.get('item_id') or uuid.uuid4().hex)
+            # A model proposal for a list field adds one entry, so several may apply together.
+            appends = field in ('skills', 'interests') and proposal.get('method') == 'model_reading'
+            if target in targets and not appends:
+                raise ProfileError('같은 항목에 여러 변경이 있습니다. 한 값을 선택해 주세요.', code='conflict', status=409)
+            targets.add(target)
+            if field == 'career':
+                identifier = _id(target.split(':', 1)[1])
+                existing = next((r for r in profile['careers'] if r['id'] == identifier), None)
+                if decision.get('item_id') and not existing:
+                    raise ProfileError('이 초안의 경력 항목이 아닙니다.')
+                if not existing and len(profile['careers']) >= MAX_CAREERS:
+                    raise ProfileError('경력 항목은 50개까지 작성할 수 있습니다.')
+                before = copy.deepcopy(existing)
+                base = existing or {k: '' for k in CAREER_FIELDS}
+                typed = proposal.get('career') if not existing and proposal.get('method') == 'model_reading' else None
+                if isinstance(typed, dict):
+                    # A new career from a model proposal keeps its title, period and role.
+                    base = {k: _text(typed.get(k, '') or '', n, k) for k, n in CAREER_FIELDS.items()}
+                clean = {**base, 'id': identifier,
+                         'description': _text(value, 4000, '경력 설명')}
+                if existing:
+                    existing.update(clean)
                 else:
-                    before = profile['fields'][field]
-                    lineage = profile['provenance'].get(field, {}).get('source_ids', [])
-                    if appends:
-                        entries = list_items(before)
-                        added = _text(value, FIELDS[field], field).strip()
-                        value = list_join(entries + ([added] if added not in entries else []), before)
-                    self._set_field(data, field, value, [source['id']], edited=choice == 'edit')
-                proposal.update(field=field, before=before, after=copy.deepcopy(value),
-                    decision='edited_accepted' if choice == 'edit' else 'accepted',
-                    target=target, reviewed_at=self._now(), applied_version=profile['version'] + 1,
-                    lineage_source_ids=list(dict.fromkeys(lineage + [source['id']])))
-            return {'saved': True}
+                    profile['careers'].append(clean)
+                lineage = profile['provenance'].get(target, {}).get('source_ids', [])
+                self._record(data, target, before, clean, lineage + [source['id']], 'adopt')
+                profile['provenance'][target] = self._provenance(list(dict.fromkeys(lineage + [source['id']])), edited=choice == 'edit')
+            else:
+                before = profile['fields'][field]
+                lineage = profile['provenance'].get(field, {}).get('source_ids', [])
+                if appends:
+                    entries = list_items(before)
+                    added = _text(value, FIELDS[field], field).strip()
+                    value = list_join(entries + ([added] if added not in entries else []), before)
+                self._set_field(data, field, value, [source['id']], edited=choice == 'edit')
+            proposal.update(field=field, before=before, after=copy.deepcopy(value),
+                decision='edited_accepted' if choice == 'edit' else 'accepted',
+                target=target, reviewed_at=self._now(), applied_version=profile['version'] + 1,
+                lineage_source_ids=list(dict.fromkeys(lineage + [source['id']])))
+        return {'saved': True}
 
-        return self._mutate(payload, 'save', apply)
+    def card_preview(self, payload):
+        """The map card as it would look after saving these edits and choices. Nothing is stored."""
+        _keys(payload, ('fields', 'careers', 'decisions'))
+        data = self._state(self.store.read())
+        if not self._linked(data):
+            raise ProfileError('연구맵 카드와 연결된 계정에서만 카드를 미리 볼 수 있어요.', code='not_linked', status=409)
+        data = copy.deepcopy(data)
+        self._save_into(data, payload)
+        return {'card': self.card.preview(data['profile'])}
 
     def _withdraw(self, data, source_id, *, delete=False):
         profile = data['profile']
