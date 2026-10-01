@@ -193,10 +193,30 @@ function markFound(found,labels,noteHost=null){
 const SHEET_MEDIA=matchMedia("(max-width:900px)");
 let sheetPersonId=null;
 function sheetMode(){const d=$("detailDialog");return d.open&&d.classList.contains("sheet")?(d.classList.contains("sheet-full")?"full":"peek"):null;}
-function setSheetMode(mode,refocus=true){
- const d=$("detailDialog");d.classList.toggle("sheet-full",mode==="full");d.classList.toggle("sheet-peek",mode!=="full");d.scrollTop=0;
- // Back on the summary, the map above it shows the person again.
- if(mode!=="full"&&refocus&&sheetPersonId)RndPeopleMap.ensure($("peopleMapHost"),api).then(map=>map?.focus(sheetPersonId,innerHeight-d.getBoundingClientRect().top));
+// The sheet's height is set inline while it is dragged or slides between the two steps; at rest the
+// stylesheet decides it (summary: its content, full: 93% of the screen).
+let sheetPeekHeight=0;
+function sheetHeight(px){const d=$("detailDialog");d.style.maxHeight=px==null?"":"none";d.style.height=px==null?"":px+"px";if(px==null)d.style.transition="";}
+function sheetSlide(to,done){
+ const d=$("detailDialog");if(!d.style.height)sheetHeight(d.getBoundingClientRect().height);
+ if(matchMedia("(prefers-reduced-motion: reduce)").matches){done();return;}
+ void d.offsetHeight;d.style.transition="height .26s cubic-bezier(.22,.75,.18,1)";d.style.height=to+"px";
+ let finished=false;const end=()=>{if(finished)return;finished=true;d.removeEventListener("transitionend",end);done();};
+ d.addEventListener("transitionend",end);setTimeout(end,380);
+}
+function setSheetMode(mode,refocus=true,animate=true){
+ const d=$("detailDialog"),classes=()=>{d.classList.toggle("sheet-full",mode==="full");d.classList.toggle("sheet-peek",mode!=="full");};
+ const settle=()=>{
+  sheetHeight(null);
+  if(mode==="full")return;
+  d.scrollTop=0;sheetPeekHeight=d.getBoundingClientRect().height;
+  // Back on the summary, the map above it shows the person again.
+  if(refocus&&sheetPersonId)RndPeopleMap.ensure($("peopleMapHost"),api).then(map=>map?.focus(sheetPersonId,innerHeight-d.getBoundingClientRect().top));
+ };
+ if(!animate||!sheetMode()){classes();d.scrollTop=0;settle();return;}
+ if(!d.style.height)sheetHeight(d.getBoundingClientRect().height);
+ if(mode==="full"){classes();d.scrollTop=0;sheetSlide(innerHeight*.93,settle);}
+ else sheetSlide(sheetPeekHeight||innerHeight*.4,()=>{classes();settle();});
 }
 function sheetHtml(p,found,labels,evidence,card,candidate){
  const pr=p.profile||{},name=pr.display_name||p.name,path=pr.portrait?.path;
@@ -235,7 +255,7 @@ function showPerson(p,candidate=false,found=null,docked=false,sheet=null){
  markFound(found,labels,sheet?$("detailContent").querySelector(".sheet-full-only"):null);
  showDialog("detailDialog",docked);
  const dialog=$("detailDialog");dialog.classList.toggle("sheet",Boolean(sheet));
- if(sheet){sheetPersonId=p.id;setSheetMode(sheet,false);}else{dialog.classList.remove("sheet-full","sheet-peek");dialog.scrollTop=0;}
+ if(sheet){sheetPersonId=p.id;setSheetMode(sheet,false,false);}else{dialog.classList.remove("sheet-full","sheet-peek");dialog.scrollTop=0;}
 }
 // Open a person chosen on the map: the panel beside the map, or on a phone the sheet with the map zoomed onto them.
 async function openMapPerson(id,map,mode=null){
@@ -389,15 +409,27 @@ document.addEventListener("pointerout",event=>{
 
 $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail();});
 // Sheet controls: the handle (tap toggles, drag up/down lifts/lowers or closes), mode buttons, previous/next person.
-{const content=$("detailContent");let start=null;
- content.addEventListener("pointerdown",e=>{start=sheetMode()&&e.target.closest(".sheet-handle")?e.clientY:null;if(start!==null)e.preventDefault();});
- // The finger often leaves the sheet while dragging, so the release is read on the whole page.
- document.addEventListener("pointercancel",()=>{start=null;});
+{const content=$("detailContent");let drag=null;
+ content.addEventListener("pointerdown",e=>{
+  if(!sheetMode()||!e.target.closest(".sheet-handle"))return;
+  e.preventDefault();const d=$("detailDialog");d.style.transition="";
+  drag={y:e.clientY,height:d.getBoundingClientRect().height,mode:sheetMode()};sheetHeight(drag.height);
+ });
+ // The sheet follows the finger, which often leaves the sheet, so moves and the release are read on the whole page.
+ document.addEventListener("pointermove",e=>{
+  if(!drag)return;const d=$("detailDialog");
+  sheetHeight(Math.max(60,Math.min(innerHeight*.93,drag.height-(e.clientY-drag.y))));
+  // Lifting the summary already shows what the full card holds.
+  if(drag.mode==="peek"&&e.clientY<drag.y-10&&!d.classList.contains("sheet-full")){d.classList.add("sheet-full");d.classList.remove("sheet-peek");}
+ });
+ document.addEventListener("pointercancel",()=>{if(drag){const from=drag.mode;drag=null;setSheetMode(from,false);}});
  document.addEventListener("pointerup",e=>{
-  if(start===null)return;const dy=e.clientY-start;start=null;
-  if(Math.abs(dy)<8)setSheetMode(sheetMode()==="full"?"peek":"full");
-  else if(dy<0)setSheetMode("full");
-  else if(sheetMode()==="full")setSheetMode("peek");else closeDetail();
+  if(!drag)return;const dy=e.clientY-drag.y,from=drag.mode;drag=null;
+  if(Math.abs(dy)<8)setSheetMode(from==="full"?"peek":"full");
+  else if(dy<-40)setSheetMode("full");
+  else if(dy>40&&from==="full")setSheetMode("peek");
+  else if(dy>40)sheetSlide(0,()=>{sheetHeight(null);closeDetail();});
+  else setSheetMode(from,false);
  });
  content.addEventListener("click",e=>{
   const mode=e.target.closest("[data-sheet-mode]"),step=e.target.closest("[data-sheet-step]"),back=e.target.closest("[data-sheet-back]");

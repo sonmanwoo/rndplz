@@ -131,6 +131,10 @@ def _query_hit(record, query):
     return hit
 
 
+_TITLE_STOPWORDS = frozenset(("the", "and", "for", "with", "from", "under", "into", "via", "using", "its",
+                               "their", "over", "between", "through", "toward", "towards", "after", "during"))
+
+
 def _stem_hits(query, records):
     """Fallback for a single Hangul term that matches no record at all: drop its last syllable once.
 
@@ -233,8 +237,13 @@ class PublicEvidenceSearch:
         records = sorted((record for record in self._records(people).values()
                           if not any(c.person_id in excluded for c in record.people)),
                          key=lambda record: record.id)
+        # The listed titles stop at 48 records (by ID); the words of every title do not, so a request
+        # written in another language or spelling ("oligomerization") can be mapped to "올리고머화".
+        terms = {word if re.match("[가-힣]", word) else word.lower()
+                 for record in records for word in re.findall(r"[가-힣]{2,}|[A-Za-z][A-Za-z0-9-]{2,}", record.title)}
         catalog = {"records": [], "omitted_count": len(records), "record_limit": 48,
-                   "data_char_limit": 14000, "catalog_is_search_result": False}
+                   "data_char_limit": 14000, "catalog_is_search_result": False,
+                   "title_terms": sorted(terms - _TITLE_STOPWORDS)}
         for record in records[:48]:
             _text(record.id, 200, "catalog_record_id")
             if not isinstance(record.title, str) or not isinstance(record.scope, str):
