@@ -13,9 +13,7 @@ catalog() returns {topics: [{id, name, keywords}], people: [{name, aliases}]}.
 search() requires a validated, explicit execute plan and returns a ChatActions-style
 result, not an action envelope. The caller owns user intent/source validation and
 request revision freshness. Retrieval never certifies required conditions or grants
-proposal authority. This module performs no model, network, or filesystem calls itself;
-the engine may carry a semantic matcher (semantic_search.RecordEmbeddings) that a query
-matching no record word falls back to before its rarest term or stem.
+proposal authority. This module performs no model, network, or filesystem calls.
 """
 from __future__ import annotations
 
@@ -35,11 +33,6 @@ MAX_CANDIDATES = 7
 MAX_EVIDENCE = 3
 MAX_SNIPPET = 700
 MAX_READ_RECORDS = 21
-# Meaning fallback: records at least this similar to the query, and close to the best one
-# (bge-m3 on the public records: related titles 0.53-0.74, unrelated requests at most 0.45).
-SEMANTIC_MIN = 0.52
-SEMANTIC_MARGIN = 0.06
-SEMANTIC_TOP = 6
 
 
 def _normalized(value):
@@ -198,25 +191,6 @@ class PublicEvidenceSearch:
         # This must be the service's projected corpus. Never reload Corpus or
         # inspect an original/full corpus to recover a missing record.
         self.corpus = engine.corpus
-        self.semantic = getattr(engine, "semantic", None)
-
-    def _semantic_hits(self, query, records):
-        """Records that say the query in other words or another language ("oligomerization" ->
-        "올리고머화"), by embedding similarity. Marked semantic and ranked low like the other
-        fallbacks; the assessment stage still judges relevance. Empty without a matcher."""
-        if self.semantic is None:
-            return []
-        similarities = self.semantic.similarities(query, records.values())
-        if not similarities:
-            return []
-        best = max(similarities.values())
-        floor = max(SEMANTIC_MIN, best - SEMANTIC_MARGIN)
-        ranked = sorted(((value, rid) for rid, value in similarities.items() if value >= floor and rid in records),
-                        reverse=True)[:SEMANTIC_TOP]
-        terms = _normalized(query).split()
-        return [(rid, {"query": query, "fields": ["title", "text"], "match_mode": "semantic",
-                       "terms": terms, "similarity": round(value, 3), "term_fields": []})
-                for value, rid in ranked]
 
     def _people(self):
         return {pid: person for pid, person in self.corpus.people.items()
@@ -425,11 +399,9 @@ class PublicEvidenceSearch:
                     hits_by_record[record.id].append(hit)
                     matched_any = True
             if not matched_any:
-                # No record carries every term: fall back to records with the same meaning,
-                # else to the rarest term once, or for a single Hangul term to the term
-                # without its last syllable.
-                for rid, hit in (self._semantic_hits(query, records) or _rarest_term_hits(query, records)
-                                 or _stem_hits(query, records)):
+                # No record carries every term: fall back to the rarest term once, or for a
+                # single Hangul term to the term without its last syllable.
+                for rid, hit in _rarest_term_hits(query, records) or _stem_hits(query, records):
                     hits_by_record[rid].append(hit)
         for record in records.values():
             tids = [tid for tid in group["topic_ids"] if tid in record.tags]
@@ -618,14 +590,10 @@ class PublicEvidenceSearch:
                 card["reason"] += " 일부 검색 조건 그룹에는 이 인물의 기록이 연결되지 않아 그 경험은 미확인입니다."
             relaxed_modes = sorted({hit["match_mode"] for item in row["interpretations"] for group in item["groups"]
                                     for match in group["matches"] for hit in match["queries"]
-                                    if hit["match_mode"] in ("rarest_term", "all_terms_compound", "term_stem", "semantic")})
+                                    if hit["match_mode"] in ("rarest_term", "all_terms_compound", "term_stem")})
             if relaxed_modes:
                 card["query_relaxation"] = relaxed_modes
-                card["reason"] += (" 일부 검색어는 같은 뜻의 다른 표현(다른 언어 포함)으로 기록과 연결되어 정확한 표현 일치는 아닙니다."
-                                   if relaxed_modes == ["semantic"] else
-                                   " 일부 검색어는 어절 일부·복합명사 안의 단어 또는 같은 뜻의 다른 표현으로만 연결되어 정확한 표현 일치는 아닙니다."
-                                   if "semantic" in relaxed_modes else
-                                   " 일부 검색어는 어절 일부 또는 복합명사 안의 단어로만 연결되어 정확한 표현 일치는 아닙니다.")
+                card["reason"] += " 일부 검색어는 어절 일부 또는 복합명사 안의 단어로만 연결되어 정확한 표현 일치는 아닙니다."
             if record_ids:
                 card.update(role="선택한 등록 자료",
                             reason="모델이 현재 자료 목록에서 선택해 읽은 기록입니다. 요청 목적의 적합성이나 개인의 역량을 확인한 결과는 아닙니다.",
