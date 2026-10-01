@@ -586,9 +586,14 @@ class PublicApp:
             result += '; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
         return result
 
-    @staticmethod
-    def _public_account(account):
-        return {key: account[key] for key in ('id', 'display_name', 'email')} | {'person_id': account.get('person_id')}
+    def _public_account(self, account):
+        view = {key: account[key] for key in ('id', 'display_name', 'email')} | {'person_id': account.get('person_id')}
+        # An account bound to a map card shows that card's portrait on the account button.
+        person = self.engine.corpus.people.get(account.get('person_id') or '')
+        path = ((person.profile.get('portrait') or {}).get('path') if person else None)
+        if isinstance(path, str) and re.fullmatch(r'/portraits/[a-z0-9-]+\.(?:png|jpe?g)', path, re.I):
+            view['portrait'] = re.sub(r'\.(?:png|jpe?g)$', '-thumb.webp', path, flags=re.I)
+        return view
 
     def _account_status(self, context, environ):
         account = context.get('account')

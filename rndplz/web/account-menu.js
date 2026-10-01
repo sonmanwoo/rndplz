@@ -1,6 +1,16 @@
 (() => {
   'use strict';
   const toggle=document.getElementById('accountToggle'),menu=document.getElementById('accountMenu');
+  const plainIcon=toggle?.innerHTML||'';
+  // A signed-in account bound to a map card shows that card's portrait instead of the outline icon.
+  function accountIcon(account){
+   const path=typeof account?.portrait==='string'&&/^\/portraits\/[a-z0-9-]+-thumb\.webp$/i.test(account.portrait)?account.portrait:'';
+   if(!toggle||toggle.dataset.photo===path)return;toggle.dataset.photo=path;toggle.classList.toggle('has-photo',Boolean(path));
+   if(!path){toggle.innerHTML=plainIcon;return;}
+   const img=document.createElement('img');img.src=path;img.alt='';img.decoding='async';
+   img.addEventListener('error',()=>{toggle.classList.remove('has-photo');toggle.innerHTML=plainIcon;},{once:true});
+   toggle.replaceChildren(img);
+  }
   if(!toggle||!menu)return;
   const logout=document.getElementById('logoutButton'),note=document.getElementById('accountSessionNote'),error=document.getElementById('accountError');
   const identity=document.getElementById('accountIdentity'),login=document.getElementById('googleLogin'),unavailable=document.getElementById('accountLoginUnavailable'),verifySession=document.getElementById('accountVerifySession');
@@ -230,6 +240,7 @@
     const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);
     if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
     if(value.authenticated)show(pendingNote,false);
+    accountIcon(value.authenticated?account:null);
     if(value.authenticated){
       identity.textContent=(typeof account.display_name==='string'&&account.display_name.trim())||'Google 계정';
       note.textContent=account.person_id?'연구맵 공개 카드와 연결된 계정이에요. 내 프로필에서 저장한 내용이 카드에 바로 반영돼요.':'본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
