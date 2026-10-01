@@ -1309,6 +1309,7 @@ class PublicApp:
             routes = {
                 '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),
+                '/api/self-profile/card-preview': lambda: profile.card_preview(payload),
                 '/api/self-profile/upload': lambda: profile.upload(payload),
                 '/api/self-profile/suggest': lambda: profile.suggest(payload),
                 '/api/self-profile/source-action': lambda: profile.source_action(payload),
