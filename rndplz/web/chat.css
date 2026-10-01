@@ -159,3 +159,8 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
   .history-rail.is-locked{opacity:.6;pointer-events:none}
   .history-rail .subtle{padding:10px 12px;font-size:12px}
 }
+/* The list toggle leads the header, above the conversation list on the left. */
+.craft-lead{display:flex;align-items:center;gap:14px;justify-self:start;min-width:0}
+.craft-lead #historyButton{font-size:18px;color:#636b61;flex-shrink:0}
+html[data-theme="dark"] .craft-lead #historyButton{color:var(--muted)}
+@media(max-width:700px){.craft-lead{gap:6px}.craft-lead #historyButton{width:27px;font-size:17px}}
