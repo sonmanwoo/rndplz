@@ -620,7 +620,46 @@ html[data-theme="dark"] mark.found-term{background:#31cfe4;color:#030409}
 body:has(#detailDialog.docked[open]) #peopleMapHost [data-map-node]:not(.related){opacity:.3;filter:saturate(.25)}
 body:has(#detailDialog.docked[open]) #peopleMapHost .mp-spatial-edge:not(.active){opacity:.12}
 @media(prefers-reduced-motion:no-preference){#peopleMapHost [data-map-node]{transition:opacity .18s,filter .18s}}
-@media(max-width:900px){#detailDialog.docked{inset:auto 0 0 0;width:100vw;max-width:100vw;height:62dvh;border-radius:18px 18px 0 0;box-shadow:0 -14px 48px #13272230}}
+@media(max-width:900px){
+ #detailDialog.docked{inset:auto 0 0 0;width:100vw;max-width:100vw;height:62dvh;border-radius:18px 18px 0 0;box-shadow:0 -14px 48px #13272230}
+ /* Phones: a short summary sheet that lifts to a compact full card. */
+ #detailDialog.docked.sheet{padding:0 16px;height:auto;max-height:52dvh;overflow:auto}
+ #detailDialog.docked.sheet.sheet-full{height:93dvh;max-height:93dvh}
+ #detailDialog.sheet .dialog-top{position:absolute;top:10px;right:12px;margin:0;z-index:2}
+ #detailDialog.sheet .dialog-top .eyebrow{display:none}
+ #detailDialog.sheet .close-button{width:30px;height:30px;font-size:22px;background:var(--sheet)}
+ #detailDialog.sheet-peek .sheet-full-only,#detailDialog.sheet-full .sheet-peek-only{display:none}
+}
+.sheet-handle{height:26px;margin:0 44px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.sheet-handle::before{content:"";display:block;width:40px;height:4px;margin:10px auto 0;border-radius:2px;background:var(--line)}
+.sheet-head{display:flex;gap:12px;align-items:center;padding-right:36px}
+.sheet-face{width:56px;height:56px;flex:none;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:color-mix(in srgb,var(--ink) 8%,transparent);box-shadow:0 0 0 2px var(--sheet),0 0 0 3px var(--line);font-size:22px}
+.sheet-face img{width:100%;height:100%;object-fit:cover;object-position:50% 26%}
+.sheet-id{min-width:0}
+.sheet-id strong{display:block;font-size:18px;line-height:1.3}
+.sheet-id span,.sheet-id em{display:block;font-size:12.5px;line-height:1.45;color:var(--muted);font-style:normal}
+.sheet-id em{color:var(--ink);font-size:13px}
+.sheet-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.sheet-tags b{font-weight:600;font-size:11px;color:var(--green);border:1px solid var(--line);border-radius:10px;padding:0 6px}
+.sheet-nav{position:absolute;top:44px;right:12px;display:flex;flex-direction:column;gap:6px}
+.sheet-nav button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--sheet);color:var(--ink);font-size:16px;line-height:1}
+.sheet-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+.sheet-chips span{font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.sheet-stats{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.sheet-actions,.sheet-bar{display:flex;gap:8px;margin:12px 0 14px}
+.sheet-actions button,.sheet-bar button{flex:1;min-height:42px;border-radius:10px;font-size:14px;border:1px solid var(--line);background:var(--sheet);color:var(--ink)}
+.sheet-actions .sheet-primary,.sheet-bar .sheet-primary{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.sheet-sec h3{margin:18px 0 6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.sheet-sec p{margin:0;font-size:13.5px;line-height:1.65}
+.sheet-sec .sheet-group{margin:8px 0 2px;font-size:12px;color:var(--muted)}
+.sheet-row{display:block;width:100%;padding:9px 0;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;font:inherit;font-size:13.5px;line-height:1.5}
+.sheet-row strong{display:block;font-weight:500}
+.sheet-row small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
+.sheet-row.found-record{padding-left:10px;border-left:3px solid var(--green)}
+.sheet-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.sheet-more{margin-top:18px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.sheet-back{margin:14px 0 4px;padding:0;border:0;background:none;color:var(--green);font:inherit;font-size:13px}
+.sheet-bar{position:sticky;bottom:0;margin-bottom:0;padding:10px 0 14px;background:var(--sheet);border-top:1px solid var(--line)}
 
 /* Keep the map viewport in place while its person/record dialog is open as a modal. */
 html:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)),

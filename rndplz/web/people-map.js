@@ -293,7 +293,7 @@
   function found(id){
    const person=C.visiblePeople(state).find(p=>p.id===id);if(!person)return null;
    const capability=currentCapability(state),link=C.capabilityLink(state,person);
-   return {terms:C.searchTerms(state.query),
+   return {terms:C.searchTerms(state.query),team:person.sourcePerson?.team_member===true,
     capability:capability&&link?{label:capability.label,recordIds:[...link.recordIds]}:null,
     topic:state.topic?{label:topicName(state.topic),recordIds:person.records.filter(r=>r.topics.includes(state.topic)).map(r=>r.id)}:null};
   }
@@ -312,7 +312,23 @@
    const step=now=>{const t=still?1:Math.min(1,(now-start)/220),eased=1-(1-t)*(1-t);camera.x=from.x-dx*eased;camera.y=from.y-dy*eased;cameraApply();if(t<1)win.requestAnimationFrame(step);};
    step(start);
   }
-  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal};
+  // Phones: zoom onto a person (at least 70%) and centre them in the map area left above a bottom sheet.
+  function focus(id,bottom){
+   const stage=$('mp-graph-stage'),n=graph?.nodes.find(node=>node.key==='person:'+id);if(!stage||!n)return;
+   const top=stage.getBoundingClientRect().top;if(Math.abs(top-8)>4)win.scrollBy(0,top-8);
+   const area=stage.getBoundingClientRect(),visible=Math.max(area.top+80,Math.min(area.bottom,win.innerHeight-bottom-8));
+   const scale=clamp(Math.max(camera.scale,.7),.15,1),to={x:area.width/2-n.x*scale,y:(Math.max(area.top,0)+visible)/2-area.top-n.y*scale,scale};
+   const from={...camera},start=win.performance.now(),still=win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+   const step=now=>{const t=still?1:Math.min(1,(now-start)/240),e=1-(1-t)*(1-t);for(const k of ['x','y','scale'])camera[k]=from[k]+(to[k]-from[k])*e;cameraApply();if(t<1)win.requestAnimationFrame(step);};
+   step(start);
+  }
+  // The person before/after this one among the people the map currently shows.
+  function neighbor(id,step){
+   const people=C.visiblePeople(state),index=people.findIndex(p=>p.id===id);
+   return people.length&&index>=0?people[(index+step+people.length)%people.length].id:null;
+  }
+  function select(id){lastPerson=id;dispatch({type:'SELECT',id});}
+  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal,focus,neighbor,select};
  }
 
  return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};
