@@ -69,8 +69,13 @@
   }
   function renderScope(){
     const scope=view.scope||{},card=scope.kind==="person_card"&&scope.identity_status==="google_authenticated",account=card||(scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false),visitor=scope.kind==="visitor_private";
-    const badge=card?"연구맵 공개 카드":account?"계정의 비공개 프로필":"시연 초안";
-    $("profileScopeBadge").textContent=badge;$("profileScopeStamp").setAttribute("aria-label","내 프로필 · "+badge);
+    const badge=card?"연구맵 카드":account?"계정의 비공개 프로필":"시연 초안",person=typeof scope.person_label==="string"?scope.person_label:"";
+    $("profileScopeBadge").textContent=badge;$("profileScopeLink").textContent=card?(person?"「"+person+"」 카드와 연결":"공개 인물과 연결"):"공개 인물과 미연결";
+    $("profileScopeStamp").setAttribute("aria-label","내 프로필 · "+badge+" · "+$("profileScopeLink").textContent);
+    // A bound account is the map card itself (the administrator linked it at approval), not an unchecked draft.
+    $("identityTag").textContent=card?"연구맵 카드와 연결됨":"본인 연결 미확인";
+    const note=$("identityFootnote");note.dataset.plain??=note.innerHTML;
+    if(card)note.textContent="저장하면 연구맵의 "+(person?"「"+person+"」 ":"")+"카드에 바로 보입니다.";else note.innerHTML=note.dataset.plain;
     $("scopeHeading").textContent=card?"연구맵 공개 카드와 연결된 프로필입니다.":account?"계정의 비공개 프로필입니다.":visitor?"이 방문자의 초안에만 저장합니다.":"로컬 작업 저장소의 초안입니다.";
     $("scopeNotice").textContent=typeof scope.notice==="string"?scope.notice:"저장 범위 안내를 확인하지 못했습니다.";
     $("saveScope").textContent=card?"연구맵 공개 카드에 저장 · 모든 방문자에게 보임":(account?"본인 계정의 비공개 프로필":visitor?"이 방문자의 초안":"로컬 작업의 초안")+"에 저장 · 외부 비공유";
