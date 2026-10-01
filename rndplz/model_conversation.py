@@ -16,7 +16,7 @@ from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
 from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, parse_request_effect, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
 from .service import now
-from .model_dialogue import parse_attachment_actions
+from .model_dialogue import parse_attachment_actions, parse_refinement
 from .attachment_reader import attachment_catalog, run_attachment_tools
 from .attachment_context import reader_items, source_previews
 
@@ -682,10 +682,21 @@ class ModelConversation:
         if coverage is not None:
             context['search_scope'] = coverage
             context['public_search_tool']['search_scope'] = coverage
-        messages.insert(max(0, len(messages)-1), {'role':'user', 'content':
-            '[서버 제공 검색 도구와 사용자 발화 출처 · 데이터]\n' +
-            json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'})
-        validate_generation_input(messages, 'dialogue_plan.v2')
+        # Words of every record title, so a request in another language or spelling can be searched with
+        # the record's own words. Left out when it would not fit beside long attachments.
+        context['public_search_tool']['record_vocabulary'] = catalog['title_terms']
+        context['public_search_tool']['record_vocabulary_rule'] = ('등록 기록 제목에 실제로 있는 낱말입니다. 사용자 표현이 다른 언어·표기면 같은 뜻의 낱말을 '
+                                                                   '여기서 찾아 queries에 함께 넣으세요. 더 넓은 분야의 낱말로 바꾸지 마세요.')
+        tool_message = lambda: {'role':'user', 'content':'[서버 제공 검색 도구와 사용자 발화 출처 · 데이터]\n' +
+                                json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'}
+        messages.insert(max(0, len(messages)-1), tool_message())
+        try:
+            validate_generation_input(messages, 'dialogue_plan.v2')
+        except ValueError:
+            for key in ('record_vocabulary', 'record_vocabulary_rule'):
+                context['public_search_tool'].pop(key)
+            messages[max(0, len(messages)-2)] = tool_message()
+            validate_generation_input(messages, 'dialogue_plan.v2')
         basis = {'source_turns':sources, 'historical_disclosures':historical,
                  'attachment_provider_scope':copy.deepcopy(session.get('provider_scope')),
                  'corpus_fingerprint':self._model_corpus_fingerprint(),
@@ -1072,6 +1083,60 @@ class ModelConversation:
                           'record_titles':[record.title for record in records[:4]]})
         return found[:3]
 
+    def _dead_foreign_queries(self, plan):
+        """Latin-script queries that no current record has: a sign the records use another language."""
+        records = list(self.service.corpus.records.values())
+        return [query for interpretation in plan['interpretations'] for group in interpretation['groups']
+                for query in group['queries'] if re.search(r'[A-Za-z]{3,}', query) and not re.search(r'[가-힣]', query)
+                and not any(_query_hit(record, query) for record in records)]
+
+    def _refine_zero_lookup(self, sid, turn_id, option, plan, basis, deadline, attempts, dead=()):
+        """One rewrite of a lookup that matched nobody, using the words every record title actually has.
+
+        A request in another language or spelling ("에틸렌 oligomerization") finds nothing when the
+        records say "올레핀 올리고머화". Returns the rewritten plan, or None (no supported rewrite,
+        no model allowance left, or an invalid answer); the turn then continues with the zero result.
+        """
+        terms = basis['record_catalog'].get('title_terms', [])
+        if not terms:
+            return None
+        data = {'source_turns':[row.get('input_text') or row.get('text') or '' for row in basis['source_turns']][-6:],
+                'failed_interpretations':plan['interpretations'], 'queries_without_any_record':list(dead),
+                'result':'일부 표현이 어떤 기록에도 없음' if dead else '등록 기록 0건',
+                'record_title_terms':terms,
+                'rule':'record_title_terms는 등록 기록 제목에 실제로 있는 낱말 전체입니다. 사용자의 원래 목적을 유지하면서, '
+                       '어떤 기록에도 없는 표현과 같은 뜻의 다른 언어·표기를 이 낱말에서 골라 같은 group의 queries에 더하세요(예: oligomerization → 올리고머화). '
+                       '기록과 맞은 표현은 그대로 두고, 더 넓은 분야나 다른 주제의 낱말로 바꾸지 마세요. 같은 뜻의 낱말이 없으면 decision=insufficient입니다.'}
+        messages = [{'role':'user', 'content':'[0건 조회 재판단 자료 · 데이터]\n' + json.dumps(data, ensure_ascii=False) + '\n[자료 끝]'}]
+        attempt = {'attempt':len(attempts) + 1, 'phase':'refine', 'origin_turn_id':turn_id, 'raw':'',
+                   'provider_completed':False, 'validation':None, 'adopted':False}
+        try:
+            validate_generation_input(messages, 'dialogue_refine.v1')
+            self._reserve_model_call(sid, turn_id, turn_id)
+        except ValueError:
+            return None
+        attempts.append(attempt)
+        try:
+            yield {'type':'phase', 'phase':'searching'}
+            for piece in self.models.stream(option['id'], runtime_messages(messages, self.models, attempt), contract='dialogue_refine.v1'):
+                attempt['raw'] += piece
+                if len(attempt['raw']) > 8000 or time.monotonic() >= deadline:
+                    raise ValueError('refine_output_or_time_limit')
+            attempt['provider_completed'] = True
+            self._check_model_basis(sid, turn_id, basis, deadline)
+            refined = parse_refinement(attempt['raw'], base_plan={**plan, 'intent':'search', 'lookup_action':'execute'},
+                                       user_messages=basis['source_turns'], allowed_topic_ids=basis['exposed_topic_ids'])
+        except (ModelBasisChanged, GeneratorExit):
+            raise
+        except Exception as exc:
+            attempt.update(validation='rejected', reason=getattr(exc, 'reason', 'refine_failed'))
+            return None
+        attempt.update(validation='accepted', adopted=refined is not None)
+        if refined is None:
+            return None
+        # Only the queries change; whether the user asked for the lookup or it was offered stays.
+        return {**refined, 'intent':plan['intent'], 'lookup_action':plan['lookup_action']}
+
     def _model_consultation_messages(self, session, option, plan, revision, result, basis, deadline, request_spec, attachment_tools=None):
         # This allowlist exposes aggregate matched topic vocabulary, never fresh identities or record content.
         # Earlier disclosures were revalidated against the same request basis.
@@ -1196,7 +1261,8 @@ class ModelConversation:
                 'record_catalog':basis['record_catalog'] if allow_next_lookup and not materials else None,
                 'next_lookup_allowed':allow_next_lookup,
                 'next_lookup_rule':('모든 평가가 insufficient이면 원래 목적을 유지한 다른 queries로 한 번 재조회할 수 있습니다. 이 단계에서는 record_ids 재읽기를 제안하지 마세요.' if materials else
-                                    '조회 자료가 없습니다. 원래 목적을 유지하는 다른 검색식 또는 제공된 목록의 기록 읽기가 유용한 경우 next_lookup을 제안할 수 있습니다.') +
+                                    '조회 자료가 없습니다. 원래 목적을 유지하는 다른 검색식 또는 제공된 목록의 기록 읽기가 유용한 경우 next_lookup을 제안할 수 있습니다. '
+                                    'record_catalog.title_terms는 전체 기록 제목의 낱말입니다(목록은 일부만 보임). 사용자 표현이 다른 언어·표기면 같은 뜻의 낱말을 여기서 고르고, 더 넓은 분야의 낱말로 바꾸지 마세요.') +
                                    ' 추가 조회가 유용하지 않거나 허용되지 않으면 null입니다. 이름·조건·제외는 변경할 수 없습니다.',
                 'previous_response_attempts':[{'tool_call_id':a['tool_call_id'], 'assessment':a.get('parsed')} for a in previous_attempts],
                 'assessment_scope':'현재 retrieved_materials만 평가·인용하세요. 앞선 시도는 경과이며 현재 자료집합과 합쳐 역량을 입증하지 않습니다.',
@@ -1734,6 +1800,18 @@ class ModelConversation:
                 self._check_model_basis(sid, turn_id, basis, deadline)
                 result, request = self._model_search(session, plan, revision)
                 self._lookup_attempt(searches, plan, revision, result)
+                found = result.get('matched_candidate_count', len(result.get('candidates', [])))
+                dead = self._dead_foreign_queries(plan)
+                if request_effect != 'preserve' and plan['interpretations'] and (not found or dead):
+                    refined = yield from self._refine_zero_lookup(sid, turn_id, option, plan, basis, deadline, attempts, dead)
+                    if refined is not None:
+                        refined_revision = request_revision(turn_id, refined, basis['corpus_fingerprint'], request_spec)
+                        self._check_model_basis(sid, turn_id, basis, deadline)
+                        retried, retried_request = self._model_search(session, refined, refined_revision)
+                        self._lookup_attempt(searches, refined, refined_revision, retried)
+                        # Keep the rewrite unless it finds fewer people than the original.
+                        if retried.get('matched_candidate_count', len(retried.get('candidates', []))) >= found:
+                            plan, revision, result, request = refined, refined_revision, retried, retried_request
             if (result is not None and plan['lookup_action'] == 'execute' and 'attachment_tools' not in consultation
                     and result.get('matched_candidate_count', len(result.get('candidates', [])))):
                 # The user asked to find people and records matched. The scout that follows is the

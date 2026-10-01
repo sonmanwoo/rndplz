@@ -24,6 +24,7 @@ WHO = '윤활유 마찰 마모 관련 테스트를 의뢰하고 싶은데 누구
 WHAT = '윤활유 마찰 계수가 뭐야?'
 WHO_OFFER = '윤활유 마찰 테스트를 해 본 전문가를 추천해 줘'
 FOLLOW = '정다솔 님께 맡겨도 될까?'
+OLIGO = '에틸렌 oligomerization 연구 전문가를 찾아줘'
 ANSWER = '테스트 목적을 조금 더 알려 주실 수 있을까요?'
 BUTTON = '‘이 정보로 수소문하기’를 누르면 누구인지와 근거를 보여 드려요.'
 CARD_LINE = '정다솔 님은 수소문에 등록된 분이에요 — GS칼텍스 · 윤활유기술개발팀 · 산업용 윤활유 개발 경험. 아래에서 이력을 바로 볼 수 있어요.'
@@ -43,11 +44,13 @@ def corpus():
                                 'tagline': '산업용 윤활유 개발 경험'}),
         'P-HS': Person(id='P-HS', name='Hugh Spikes', org='Imperial College London'),
         'P-CAT': Person(id='P-CAT', name='Catalyst Person', org='GS'),
+        'P-HY': Person(id='P-HY', name='Yoon-Ki Hong', org='GS칼텍스'),
     }
     records = {
         'R-LUBE': record('R-LUBE', 'P-DS', 'Dasol Jung', '산업용 윤활유 제품 개발', '산업용 윤활유 제품 개발과 시장 대응.'),
         'R-TRIB': record('R-TRIB', 'P-HS', 'Hugh Spikes', '경계 윤활에서의 마찰 조정제', '마찰과 마모를 줄이는 첨가제의 거동.'),
         'R-CAT': record('R-CAT', 'P-CAT', 'Catalyst Person', '촉매 반응기 설계', '고정층 촉매 반응기 설계와 실험.'),
+        'R-OLIGO': record('R-OLIGO', 'P-HY', 'Yoon-Ki Hong', '올레핀 올리고머화 방법', '올레핀 올리고머화 촉매계.'),
     }
     by_person = {}
     for row in records.values():
@@ -93,6 +96,8 @@ PLANS = {
     WHO_OFFER: lambda turn: plan('clarify', turn, WHO_OFFER, ['윤활유']),
     # a follow-up question: preserve, but the request is copied into scope and brief on both attempts
     FOLLOW: lambda turn: {**plan('answer', turn, FOLLOW, ['윤활유', '마찰']), 'request_effect': 'preserve'},
+    # a mixed-language phrase that no record has
+    OLIGO: lambda turn: plan('lookup', turn, OLIGO, ['에틸렌 oligomerization']),
 }
 
 
@@ -110,6 +115,10 @@ class ScriptedModels:
         if contract == 'dialogue_plan.v2':
             source = source_turns(messages)[-1]
             yield json.dumps(PLANS[source['input_text']](source['turn_id']), ensure_ascii=False)
+        elif contract == 'dialogue_refine.v1':
+            self.refine_inputs = getattr(self, 'refine_inputs', []) + [messages[-1]['content']]
+            yield json.dumps({'decision': 'execute', 'interpretations': [
+                {'label': '올리고머화', 'groups': [{'topic_ids': [], 'queries': ['올리고머화', 'oligomerization']}]}]}, ensure_ascii=False)
         elif contract == 'dialogue_answer.v1':
             self.answer_inputs.append('\n'.join(row.get('content', '') for row in messages))
             yield ANSWER
@@ -192,6 +201,14 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertEqual([a['validation'] for a in message['model_plan_attempts']], ['rejected', 'accepted'])
         self.assertEqual(message['text'], ANSWER + '\n\n' + CARD_LINE)
         self.assertEqual(scout['count'], before['count'])  # the accepted request and its lookup are kept
+
+    def test_a_lookup_that_matched_nobody_is_rewritten_with_the_records_words(self):
+        (message, scout, _), = self.converse([OLIGO])
+        self.assertIn('올리고머화', self.models.refine_inputs[0])  # every title's words reach the rewrite
+        self.assertEqual(message['model_plan']['interpretations'][0]['groups'][0]['queries'], ['올리고머화', 'oligomerization'])
+        self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret', 'refine'])
+        self.assertEqual((scout['count'], scout['auto']), (1, True))
+        self.assertTrue(message['text'].endswith('관련 기록이 있는 분을 1명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.'))
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])
