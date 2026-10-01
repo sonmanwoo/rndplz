@@ -164,7 +164,7 @@ function foundLabels(found){
   for(const id of source?.recordIds||[])labels.set(id,(labels.has(id)?labels.get(id)+" · ":"")+"「"+source.label+"」 "+suffix);
  return labels;
 }
-function markFound(found,labels){
+function markFound(found,labels,noteHost=null){
  const root=$("detailContent"),terms=(found?.terms||[]).filter(t=>Array.from(t).length>=2);
  if(terms.length){
   const pattern=new RegExp(terms.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|"),"giu"),walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
@@ -186,14 +186,63 @@ function markFound(found,labels){
  const note=document.createElement("p");note.className="found-note";
  note.textContent="찾은 조건: "+reasons.join(" · ")+(first?" — 해당하는 곳을 표시했어요.":" — 이 카드에 보이는 글에는 그 낱말이 없어요(별칭 등으로 일치).");
  if(first){const jump=document.createElement("button");jump.type="button";jump.textContent="표시한 곳으로 ↓";jump.addEventListener("click",()=>first.scrollIntoView({block:"center"}));note.append(jump);}
- root.prepend(note);
+ (noteHost||root).prepend(note);
 }
-function showPerson(p,candidate=false,found=null,docked=false){
+// Phones: the map's person card is a two-step bottom sheet. A short summary keeps the zoomed map in view;
+// "자세히 보기" lifts it to a compact full card, with the original card folded at its end.
+const SHEET_MEDIA=matchMedia("(max-width:900px)");
+let sheetPersonId=null;
+function sheetMode(){const d=$("detailDialog");return d.open&&d.classList.contains("sheet")?(d.classList.contains("sheet-full")?"full":"peek"):null;}
+function setSheetMode(mode,refocus=true){
+ const d=$("detailDialog");d.classList.toggle("sheet-full",mode==="full");d.classList.toggle("sheet-peek",mode!=="full");d.scrollTop=0;
+ // Back on the summary, the map above it shows the person again.
+ if(mode!=="full"&&refocus&&sheetPersonId)RndPeopleMap.ensure($("peopleMapHost"),api).then(map=>map?.focus(sheetPersonId,innerHeight-d.getBoundingClientRect().top));
+}
+function sheetHtml(p,found,labels,evidence,card,candidate){
+ const pr=p.profile||{},name=pr.display_name||p.name,path=pr.portrait?.path;
+ const thumb=typeof path==="string"&&/^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path)?path.replace(/\.(png|jpe?g)$/i,"-thumb.webp"):"";
+ const groups=(Array.isArray(pr.skill_groups)?pr.skill_groups:[]).filter(g=>g&&Array.isArray(g.items)&&g.items.length);
+ const skills=[...new Set([...(Array.isArray(pr.skills)?pr.skills:[]),...groups.flatMap(g=>g.items)].filter(s=>typeof s==="string"&&s))];
+ const topics=skills.length?skills:(p.profile_topics||[]),chips=list=>list.map(s=>'<span>'+esc(s)+'</span>').join("");
+ const historical=pr.display_type==="historical_researcher"||pr.current_status?.category==="deceased"||pr.affiliation_status==="deceased";
+ const tags=[found?.team?"우리 팀":"",RndCraft.isLaureate(pr)?[pr.award.year,pr.award.label_ko||"노벨상"].filter(Boolean).join(" "):"",historical?"역사적 연구 자료":""].filter(Boolean);
+ const letter=candidate&&canPropose(candidate)?'<button type="button" class="sheet-primary" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 보내기 ↗</button>':"";
+ const linked=found?.capability?" · 「"+found.capability.label+"」 연결 "+found.capability.recordIds.length+"건":found?.topic?" · 「"+found.topic.label+"」 기록 "+found.topic.recordIds.length+"건":"";
+ const rows=evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+esc(labels.get(e.id))+'</span>':'')+'<strong>'+esc(e.title)+'</strong><small>'+esc([e.date,e.evidence_label].filter(Boolean).join(" · "))+' ›</small></button>').join("");
+ const timeline=(Array.isArray(pr.timeline)?pr.timeline:[]).filter(t=>t&&typeof t.text==="string").map(t=>'<div class="sheet-row"><span class="sheet-clamp">'+esc(t.text)+'</span><small>'+esc(t.date||"")+'</small></div>').join("");
+ return '<div class="sheet-handle" aria-hidden="true"></div>'+
+  '<div class="sheet-head"><span class="sheet-face">'+(thumb?'<img src="'+esc(thumb)+'" alt="" decoding="async">':esc(Array.from(name)[0]||""))+'</span><div class="sheet-id"><strong>'+esc(name)+'</strong><span>'+esc(p.org||"")+'</span>'+(pr.tagline?'<em>'+esc(pr.tagline)+'</em>':'')+(tags.length?'<span class="sheet-tags">'+tags.map(t=>'<b>'+esc(t)+'</b>').join("")+'</span>':'')+'</div>'+
+  '<div class="sheet-nav"><button type="button" data-sheet-step="-1" aria-label="이전 인물">‹</button><button type="button" data-sheet-step="1" aria-label="다음 인물">›</button></div></div>'+
+  (topics.length?'<div class="sheet-chips">'+chips(topics.slice(0,4))+(topics.length>4?'<span>+'+(topics.length-4)+'</span>':'')+'</div>':'')+
+  '<p class="sheet-stats">근거 '+evidence.length+'건'+esc(linked)+'</p>'+
+  '<div class="sheet-actions sheet-peek-only"><button type="button" data-sheet-mode="full">자세히 보기 ↑</button>'+letter+'</div>'+
+  '<div class="sheet-full-only">'+
+   (pr.biography?'<section class="sheet-sec"><h3>소개</h3><p>'+esc(pr.biography)+'</p></section>':'')+
+   (groups.length?'<section class="sheet-sec"><h3>기술</h3>'+groups.map(g=>'<p class="sheet-group">'+esc(g.name||"")+'</p><div class="sheet-chips">'+chips(g.items)+'</div>').join("")+'</section>':
+    topics.length>4?'<section class="sheet-sec"><h3>기술·주제</h3><div class="sheet-chips">'+chips(topics)+'</div></section>':'')+
+   '<section class="sheet-sec"><h3>근거 기록 '+evidence.length+'건</h3>'+rows+'</section>'+
+   (timeline?'<section class="sheet-sec"><h3>이력</h3>'+timeline+'</section>':'')+
+   '<details class="sheet-more"><summary>출처와 근거 설명 전체 보기</summary>'+card+'</details>'+
+   '<div class="sheet-bar"><button type="button" data-sheet-mode="peek">맵으로 ↓</button>'+letter+'</div>'+
+  '</div>';
+}
+function showPerson(p,candidate=false,found=null,docked=false,sheet=null){
  if(!p)throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
  const labels=foundLabels(found),evidence=[...(p.evidence||[])].sort((a,b)=>labels.has(b.id)-labels.has(a.id));
- $("detailContent").innerHTML=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+evidence.map(e=>evidenceHtml(e,p.id,labels.get(e.id))).join("");
- markFound(found,labels);
- showDialog("detailDialog",docked);$("detailDialog").scrollTop=0;
+ const chosen=session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id);
+ const card=detailRequestAction(session?.pending?null:displayResult(session)?.candidates.find(c=>c.id===p.id))+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div><div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+(p.works_in_corpus!=null||p.record_count!=null?'코퍼스 안 기록 '+(p.works_in_corpus??p.record_count):'표시된 근거 '+(p.evidence||[]).length)+'건'+(p.works_count!=null?" · OpenAlex 전체 저작 "+nfmt(p.works_count)+"건":"")+'</p>'+(p.profile_topics?.length?'<p>프로필 주제: '+p.profile_topics.map(esc).join(" / ")+'</p>':"")+'<p class="scope-note">기록 수는 개인의 역량 점수가 아닙니다. 소속은 기록 시점에 따라 다를 수 있습니다.</p></div>'+evidence.map(e=>evidenceHtml(e,p.id,labels.get(e.id))).join("");
+ $("detailContent").innerHTML=sheet?sheetHtml(p,found,labels,evidence,card,chosen):card;
+ markFound(found,labels,sheet?$("detailContent").querySelector(".sheet-full-only"):null);
+ showDialog("detailDialog",docked);
+ const dialog=$("detailDialog");dialog.classList.toggle("sheet",Boolean(sheet));
+ if(sheet){sheetPersonId=p.id;setSheetMode(sheet,false);}else{dialog.classList.remove("sheet-full","sheet-peek");dialog.scrollTop=0;}
+}
+// Open a person chosen on the map: the panel beside the map, or on a phone the sheet with the map zoomed onto them.
+async function openMapPerson(id,map,mode=null){
+ const sheet=SHEET_MEDIA.matches?(mode||sheetMode()||"peek"):null;
+ showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,map.found(id),true,sheet);
+ const r=$("detailDialog").getBoundingClientRect();
+ if(sheet==="peek")map.focus(id,innerHeight-r.top);else if(!sheet)map.reveal(id,innerWidth-r.left,0);
 }
 async function openLetter(ids){
  checkProposalSelection(ids);
@@ -281,14 +330,10 @@ document.addEventListener("click",event=>{
   else if(action==="candidate")showPerson(displayResult(session)?.candidates.find(c=>c.id===id),true);
   else if(action==="person"){
    const map=mapButton?await RndPeopleMap.ensure($("peopleMapHost"),api):null;
-   showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,map?.found(id),Boolean(map)||detailDocked());
-   if(map){
-    // Keep the chosen person visible beside the panel (or above it when it is a bottom sheet).
-    const r=$("detailDialog").getBoundingClientRect(),sheet=r.width>innerWidth*.9;
-    map.reveal(id,sheet?0:innerWidth-r.left,sheet?innerHeight-r.top:0);
-   }
+   if(map)await openMapPerson(id,map);
+   else showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,null,detailDocked());
   }
-  else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id));$("detailContent").innerHTML='<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
+  else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id)),inSheet=Boolean(sheetMode());if(inSheet)setSheetMode("full");$("detailContent").innerHTML=(inSheet?'<button type="button" class="sheet-back" data-sheet-back>‹ 인물로 돌아가기</button>':'')+'<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
   else if(action==="letter")await openLetter([id]);
   else if(action==="route-letter")await openLetter((displayResult(session)?.candidates||[]).filter(canPropose).map(c=>c.id));
   else if(action==="draft-save")await saveLetter("draft");
@@ -343,6 +388,26 @@ document.addEventListener("pointerout",event=>{
 });
 
 $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail();});
+// Sheet controls: the handle (tap toggles, drag up/down lifts/lowers or closes), mode buttons, previous/next person.
+{const content=$("detailContent");let start=null;
+ content.addEventListener("pointerdown",e=>{start=sheetMode()&&e.target.closest(".sheet-handle")?e.clientY:null;if(start!==null)e.preventDefault();});
+ // The finger often leaves the sheet while dragging, so the release is read on the whole page.
+ document.addEventListener("pointercancel",()=>{start=null;});
+ document.addEventListener("pointerup",e=>{
+  if(start===null)return;const dy=e.clientY-start;start=null;
+  if(Math.abs(dy)<8)setSheetMode(sheetMode()==="full"?"peek":"full");
+  else if(dy<0)setSheetMode("full");
+  else if(sheetMode()==="full")setSheetMode("peek");else closeDetail();
+ });
+ content.addEventListener("click",e=>{
+  const mode=e.target.closest("[data-sheet-mode]"),step=e.target.closest("[data-sheet-step]"),back=e.target.closest("[data-sheet-back]");
+  if(mode)setSheetMode(mode.dataset.sheetMode);
+  else if(back&&sheetPersonId)task(async()=>{const map=await RndPeopleMap.ensure($("peopleMapHost"),api);if(map)await openMapPerson(sheetPersonId,map,"full");},back);
+  else if(step&&sheetPersonId)task(async()=>{
+   const map=await RndPeopleMap.ensure($("peopleMapHost"),api),next=map?.neighbor(sheetPersonId,Number(step.dataset.sheetStep));
+   if(next){map.select(next);await openMapPerson(next,map,sheetMode());}
+  },step);
+ });}
 // The docked card has no dimmed area: Escape, or a plain click on an empty place outside it, closes it.
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&detailDocked()){e.preventDefault();closeDetail();}});
 {let down=null;
