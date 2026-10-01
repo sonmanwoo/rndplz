@@ -1552,6 +1552,7 @@ if(touchComposer){const keyboardHint=document.querySelector(".keyboard-hint");if
 $ ("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!touchComposer){if(e.isComposing||composerComposing||e.keyCode===229)return;e.preventDefault();if(!composerSendLocked()&&!$("sendButton").disabled)$("chatForm").requestSubmit();}});
 $ ("stopButton").addEventListener("click",()=>{invalidateRegisteredUI();controller?.abort();});
 $ ("newButton").addEventListener("click",newChat);
+$ ("railNewButton").addEventListener("click",newChat);
 $ ("attachButton").addEventListener("click",()=>$ ("fileInput").click());
 $ ("fileInput").addEventListener("change",e=>upload([...e.target.files]));
 // Files dragged onto the page are attached like the + button; the composer shows where they land.
