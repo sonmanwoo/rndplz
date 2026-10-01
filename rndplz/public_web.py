@@ -493,7 +493,7 @@ class PublicApp:
                  'model_dialogue.py','evidence_search.py','model_conversation.py','scout_projection.py',
                  'auth_service.py','account_storage.py','profiles.py','service.py','gemini_native.py','llm_runtime.py','responses_stream.py','llm_budget.py','owner_budget_gate.py',
                  'public_profiles.py','person_cards.py','registered_experts.py','attachment_uploads.py','hosted_gemma.py','redis_gemma_relay.py',
-                 'mail_delivery.py')
+                 'mail_delivery.py','semantic_search.py')
         if self.hosted_demo_policy is not None:
             tracked += ('hosted_demo.py',)
         fingerprint=hashlib.sha256()
@@ -511,6 +511,13 @@ class PublicApp:
             for person_id, draft in self.auth.storage.card_drafts():
                 if draft.get('card', {}).get('person_id') == person_id and self.cards.available(person_id):
                     self.cards.apply(person_id, draft['profile'])
+        # Optional meaning-level search fallback (local multilingual embeddings); records are
+        # embedded in the background so the first lookup does not wait for them.
+        from .semantic_search import RecordEmbeddings
+        self.engine.semantic = RecordEmbeddings.from_env(self.env)
+        if self.engine.semantic is not None:
+            threading.Thread(target=self.engine.semantic.warm, args=(list(self.engine.corpus.records.values()),),
+                             daemon=True, name='record-embeddings').start()
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
