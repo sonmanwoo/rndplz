@@ -36,7 +36,9 @@ class Opener:
 
     def open(self, request, timeout=None):
         self.sink.append((request.full_url, dict(request.header_items()), json.loads(request.data.decode('utf-8'))))
-        return Response(self.lines)
+        # A list of lists scripts one response per call (for the retry tests).
+        scripted = self.lines[min(len(self.sink), len(self.lines)) - 1] if self.lines and isinstance(self.lines[0], list) else self.lines
+        return Response(scripted)
 
 
 class AiuProviderTests(unittest.TestCase):
@@ -81,6 +83,29 @@ class AiuProviderTests(unittest.TestCase):
                       frames({'event': 'text_chunk', 'data': {'text': '끊긴 답'}})):
             with self.subTest(lines=len(lines)), self.assertRaises(ValueError):
                 self.run_stream(lines)
+
+    def test_a_run_that_failed_before_any_text_is_tried_once_more(self):
+        failed = frames({'event': 'workflow_finished', 'data': {'status': 'failed'}})
+        good = frames({'event': 'text_chunk', 'data': {'text': '다시 받은 답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        models, sink = ChatModels(ENV), []
+        models.refreshed = 10 ** 12
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener([failed, good], sink)):
+            pieces = list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual((pieces, len(sink)), (['다시 받은 답'], 2))
+
+    def test_an_answer_cut_after_text_was_shown_is_not_repeated(self):
+        cut = frames({'event': 'text_chunk', 'data': {'text': '보인 답'}}, {'event': 'error', 'code': 'x', 'message': 'x', 'status': 500})
+        models, sink = ChatModels(ENV), []
+        models.refreshed = 10 ** 12
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener([cut, cut], sink)):
+            with self.assertRaises(ValueError):
+                list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual(len(sink), 1)
+
+    def test_a_stalled_run_is_dropped(self):
+        ping = [b'event: ping\n', b'data: {"event":"ping"}\n']
+        with patch.object(chat_models, 'AIU_FIRST_TEXT_SECONDS', -1), self.assertRaises(ValueError):
+            self.run_stream(ping * 3)
 
     def test_prompt_and_fence_helpers(self):
         text = aiu_text('지침', [{'role': 'user', 'content': '질문'}, {'role': 'assistant', 'content': '답'}], structured=False)

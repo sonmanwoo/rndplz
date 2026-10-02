@@ -48,6 +48,47 @@ PLAN_REPAIR_HEADER = '[서버의 계획 검증 결과 · 데이터]'
 # The app holds no instructions of its own, so the contract's system text and the conversation are
 # sent together as that one input. The platform enforces its own credit and rate limits.
 AIU_INPUT_LIMIT = 100000
+# Measured 2026-10-02: a normal run shows its first text within 2-5 s, but the platform sometimes
+# stalls (20-120 s before the first text, or a failed run). A run that shows nothing for this long
+# is dropped and tried once more; after any text was shown the failure is reported instead.
+AIU_FIRST_TEXT_SECONDS = 15
+
+
+class AiuRunFailed(Exception):
+    """The platform failed or stalled; `shown` tells whether any text had already come back."""
+    def __init__(self, shown):
+        super().__init__('aiu_run_failed')
+        self.shown = shown
+
+
+def aiu_run(config, payload, remaining):
+    """Text pieces of one workflow run. Raises AiuRunFailed on a failed, cut or stalled run."""
+    request=urllib.request.Request(config['url'],data=json.dumps(payload,ensure_ascii=False).encode(),method='POST',
+        headers={'Content-Type':'application/json','Authorization':'Bearer '+config['key']})
+    started=time.monotonic();shown=False;finished=False
+    try:
+        # The read timeout also ends a connection that sends nothing at all (keep-alive pings count as data).
+        with urllib.request.build_opener(NoRedirect()).open(request,timeout=min(remaining(),AIU_FIRST_TEXT_SECONDS+10)) as response:
+            for raw in response:
+                remaining()
+                if not shown and time.monotonic()-started>AIU_FIRST_TEXT_SECONDS:raise AiuRunFailed(False)
+                line=raw.decode('utf-8').strip()
+                if not line.startswith('data:'):continue
+                data=json.loads(line[5:].strip())
+                event,detail=data.get('event'),data.get('data') or {}
+                if event=='error':raise AiuRunFailed(shown)
+                if event=='text_chunk':
+                    piece=detail.get('text') or ''
+                    if piece:
+                        shown=True
+                        yield piece
+                elif event=='workflow_finished':
+                    if detail.get('status')!='succeeded':raise AiuRunFailed(shown)
+                    finished=True
+    except (AiuRunFailed,ValueError):raise
+    except Exception:
+        raise AiuRunFailed(shown) from None
+    if not finished:raise AiuRunFailed(shown)
 
 
 def aiu_text(system, messages, *, structured):
@@ -228,30 +269,19 @@ class ChatModels:
             if callable(observer):
                 try:observer(provider,copy.deepcopy(payload))
                 except Exception:pass
-            request=urllib.request.Request(config['url'],data=json.dumps(payload,ensure_ascii=False).encode(),method='POST',
-                headers={'Content-Type':'application/json','Authorization':'Bearer '+config['key']})
-            finished=False;collected=''
-            try:
-                with urllib.request.build_opener(NoRedirect()).open(request,timeout=remaining()) as response:
-                    for raw in response:
-                        remaining()
-                        line=raw.decode('utf-8').strip()
-                        if not line.startswith('data:'):continue
-                        data=json.loads(line[5:].strip())
-                        event,detail=data.get('event'),data.get('data') or {}
-                        if event=='error':raise ValueError('모델이 요청을 처리하지 못했습니다.')
-                        if event=='text_chunk':
-                            piece=detail.get('text') or ''
-                            collected+=piece
-                            if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
-                            if schema is None and piece:yield piece
-                        elif event=='workflow_finished':
-                            if detail.get('status')!='succeeded':raise ValueError('모델이 요청을 처리하지 못했습니다.')
-                            finished=True
-                if not finished:raise ValueError('모델 연결이 중간에 끝났습니다. 다시 시도해 주세요.')
-            except ValueError:raise
-            except Exception:
-                raise ValueError('모델 연결에 실패했습니다. 연결 상태·모델 ID를 확인한 뒤 다시 시도해 주세요.') from None
+            collected=''
+            for attempt in (1,2):
+                try:
+                    for piece in aiu_run(config,payload,remaining):
+                        collected+=piece
+                        if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
+                        if schema is None:yield piece
+                    break
+                except AiuRunFailed as failure:
+                    # Structured output is not shown until it is complete, so it may always start over once.
+                    if attempt==2 or (failure.shown and schema is None):
+                        raise ValueError('모델이 요청을 처리하지 못했습니다.') from None
+                    collected=''
             if schema is not None:
                 # Structured output is checked whole, then handed over once (the caller validates the schema).
                 collected=strip_json_fence(collected)
