@@ -2,6 +2,7 @@
 import json
 import copy
 import os
+import re
 import threading
 import time
 import urllib.request
@@ -42,6 +43,25 @@ OLLAMA_KEEP_ALIVE = '24h'
 # 32k tokens holds the 60k-char input budget plus output; on gemma4:e4b it cost 0.3 GB VRAM over 16k.
 OLLAMA_NUM_CTX = 32768
 PLAN_REPAIR_HEADER = '[서버의 계획 검증 결과 · 데이터]'
+# The company AI platform (AiU) runs one published workflow app: a single `text` input goes to its
+# model and the `text` output comes back (POST <url> {inputs:{text}, mode, user}, Bearer app key).
+# The app holds no instructions of its own, so the contract's system text and the conversation are
+# sent together as that one input. The platform enforces its own credit and rate limits.
+AIU_INPUT_LIMIT = 100000
+
+
+def aiu_text(system, messages, *, structured):
+    """One prompt for the workflow's text input: the instructions, then the turns in order."""
+    turns = '\n\n'.join('<' + row['role'] + '>\n' + row['content'] + '\n</' + row['role'] + '>' for row in messages)
+    closing = ('위 지침의 JSON Schema를 지키는 JSON 객체 하나만 출력하세요. 코드 블록 표시나 설명을 붙이지 마세요.' if structured
+               else '위 지침에 따라 마지막 user 메시지에 답하세요.')
+    return '[지침]\n' + system + '\n[지침 끝]\n\n[대화]\n' + turns + '\n[대화 끝]\n\n' + closing
+
+
+def strip_json_fence(text):
+    """A model that wraps its JSON in a ```json block still returned that JSON."""
+    match = re.fullmatch(r'\s*```(?:json)?\s*(.*?)\s*```\s*', text, re.S)
+    return match.group(1) if match else text.strip()
 
 
 def generation_spec(name):
@@ -121,12 +141,25 @@ class ChatModels:
             if not model and self.env.get('RNDPLZ_PROVIDER') in (provider,{'openai':'openai_compatible','claude':'claude'}[provider]):model=self.env.get('RNDPLZ_MODEL','')
             if provider=='openai' and not model:model=DEFAULT_OPENAI_MODEL
             if key and model:self.configs[provider]={'key':key,'model':model}
+        # The company AI platform is an explicit server opt-in: an app key and its run URL.
+        aiu_key=self.env.get('RNDPLZ_AIU_API_KEY','');aiu_url=self.env.get('RNDPLZ_AIU_URL','')
+        if aiu_key and aiu_url:
+            target=urlparse(aiu_url)
+            if target.scheme!='https' or not target.hostname or target.username or target.password:
+                raise ValueError('사내 AI 주소는 인증정보 없는 https 주소여야 합니다.')
+            self.configs['aiu']={'key':aiu_key,'url':aiu_url,'model':self.env.get('RNDPLZ_AIU_MODEL','사내 모델')}
 
     def gemini_option(self):
         config=self.configs.get('gemini')
         if not config:return None
         return {'id':'gemini:'+config['model'],'provider':'gemini','model':config['model'],
                 'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':True}
+
+    def aiu_option(self):
+        config=self.configs.get('aiu')
+        if not config:return None
+        return {'id':'aiu','provider':'aiu','model':config['model'],
+                'name':'사내 AI (AiU) · '+config['model'],'enabled':True,'local':False,'vision':False}
 
     def catalog(self,refresh=False):
         if refresh or time.monotonic()-self.refreshed>60:
@@ -144,6 +177,8 @@ class ChatModels:
         # Calculate the existing default before adding the explicitly selectable API.
         gemini=self.gemini_option()
         if gemini:items.append(gemini)
+        aiu=self.aiu_option()
+        if aiu:items.append(aiu)
         return {'models':items,'default':default}
 
     def configure(self,payload):
@@ -163,7 +198,7 @@ class ChatModels:
         # Read-only availability hint. The locked dispatch guard remains authoritative.
         if type(required_calls) is not int or required_calls<1:return False
         with self.lock:
-            return provider=='ollama' or self.calls.get(identifier,0)+required_calls<=20
+            return provider in ('ollama','aiu') or self.calls.get(identifier,0)+required_calls<=20
 
     def stream(self,identifier,messages,*,contract=None):
         deadline=getattr(messages,'generation_deadline',None)
@@ -178,13 +213,54 @@ class ChatModels:
         option=self.get(identifier);provider=option['provider']
         with self.lock:
             # The lifetime budget protects paid APIs; local models can keep serving.
-            if provider!='ollama' and self.calls.get(identifier,0)>=20:
+            if provider not in ('ollama','aiu') and self.calls.get(identifier,0)>=20:
                 diagnostic_event('model_provider_rejected',status='rejected',model_called=False,
                     failure_stage='predispatch',provider_error_reason='process_call_cap',
                     generation_contract=contract)
                 raise ModelProviderCapacity()
             self.calls[identifier]=self.calls.get(identifier,0)+1
             config=dict(self.configs.get(provider,{}))
+        if provider=='aiu':
+            text=aiu_text(system,messages,structured=schema is not None)
+            if len(text)>AIU_INPUT_LIMIT:raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
+            payload={'inputs':{'text':text},'mode':'streaming','user':'susomun'}
+            observer=getattr(self,'diagnostic_observer',None)
+            if callable(observer):
+                try:observer(provider,copy.deepcopy(payload))
+                except Exception:pass
+            request=urllib.request.Request(config['url'],data=json.dumps(payload,ensure_ascii=False).encode(),method='POST',
+                headers={'Content-Type':'application/json','Authorization':'Bearer '+config['key']})
+            finished=False;collected=''
+            try:
+                with urllib.request.build_opener(NoRedirect()).open(request,timeout=remaining()) as response:
+                    for raw in response:
+                        remaining()
+                        line=raw.decode('utf-8').strip()
+                        if not line.startswith('data:'):continue
+                        data=json.loads(line[5:].strip())
+                        event,detail=data.get('event'),data.get('data') or {}
+                        if event=='error':raise ValueError('모델이 요청을 처리하지 못했습니다.')
+                        if event=='text_chunk':
+                            piece=detail.get('text') or ''
+                            collected+=piece
+                            if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
+                            if schema is None and piece:yield piece
+                        elif event=='workflow_finished':
+                            if detail.get('status')!='succeeded':raise ValueError('모델이 요청을 처리하지 못했습니다.')
+                            finished=True
+                if not finished:raise ValueError('모델 연결이 중간에 끝났습니다. 다시 시도해 주세요.')
+            except ValueError:raise
+            except Exception:
+                raise ValueError('모델 연결에 실패했습니다. 연결 상태·모델 ID를 확인한 뒤 다시 시도해 주세요.') from None
+            if schema is not None:
+                # Structured output is checked whole, then handed over once (the caller validates the schema).
+                collected=strip_json_fence(collected)
+                try:
+                    if not isinstance(json.loads(collected),dict):raise ValueError('Expected JSON object')
+                except (ValueError,TypeError):
+                    raise ValueError('모델이 유효한 대화 계획 JSON을 반환하지 않았습니다.') from None
+                yield collected
+            return
         if provider=='gemini':
             from .gemini_native import GeminiError,make_payload,generate
             payload=make_payload(messages,system=system,
