@@ -330,8 +330,6 @@ def project_session(session):
     shaped['model_switch_retry_available'] = switch_retry
     shaped["scout"] = {"revision": revision, "status": status, "disclosed": disclosed,
                        "count": count if known else None, "count_status": "known" if known else "unknown"}
-    if known and count and status == "ready" and not disclosed and scout.get("auto") is True:
-        shaped["scout"]["auto"] = True
     count_basis = scout.get("count_basis")
     if known and count_basis in ("registered_record_matches", "assessed_displayed"):
         shaped["scout"]["count_basis"] = count_basis

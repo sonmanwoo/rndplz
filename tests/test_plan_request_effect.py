@@ -29,6 +29,15 @@ PRESERVE_WITH_NEW_PURPOSE = json.dumps({
     "summary": "요약", "reply": "답", "attachment_actions": []}, ensure_ascii=False)
 
 
+GO_AHEAD_LOOKUP = json.dumps({
+    "request_effect": "preserve", "decision": "lookup",
+    "scope": {"purposes": [{"source_turn_id": "t1", "source_quote": "증류 경험", "text": "증류 경험자 찾기"}],
+              "interpretations": [{"label": "증류", "groups": [{"topic_ids": [], "queries": ["증류"]}]}],
+              "record_ids": [], "person_names": [], "conditions": []},
+    "brief": {"requested_help": [], "open_questions": []},
+    "summary": "요약", "reply": "찾아볼게요.", "attachment_actions": []}, ensure_ascii=False)
+
+
 class PreserveWithoutRequestTests(unittest.TestCase):
     def test_first_turn_preserve_with_question_becomes_update(self):
         self.assertEqual(parse_request_effect(GREETING_WITH_QUESTION, preserve_available=False), "update")
@@ -57,6 +66,23 @@ class PreserveWithoutRequestTests(unittest.TestCase):
         raw = GREETING_WITH_QUESTION.replace('"preserve"', '"update"', 1)
         self.assertEqual(parse_request_effect(raw), "update")
         self.assertEqual(parse_request_effect(raw, preserve_available=False), "update")
+
+class GoAheadTests(unittest.TestCase):
+    """Observed 2026-10-02 (gemma4:e4b, with and without thinking): "네 맞아요, 그 방향으로 찾아 주세요"
+    after an offered lookup was planned as preserve; the answer form broke the preserve rule and the
+    repair, which said lookup, was refused for changing the decision. The turn failed."""
+
+    def test_a_go_ahead_that_runs_the_restated_request_is_an_update(self):
+        self.assertEqual(parse_request_effect(GO_AHEAD_LOOKUP, preserve_available=True), "update")
+
+    def test_a_preserve_repair_may_become_the_lookup(self):
+        from rndplz.model_conversation import repair_anchor
+        with self.assertRaises(PlanValidationError) as caught:
+            parse_request_effect(PRESERVE_WITH_NEW_PURPOSE, preserve_available=True)
+        self.assertIsNone(repair_anchor(PRESERVE_WITH_NEW_PURPOSE, caught.exception))
+        other = PlanValidationError("search_scope_missing", field="$.scope")
+        self.assertEqual(repair_anchor(PRESERVE_WITH_NEW_PURPOSE, other), "answer")
+
 
 
 if __name__ == "__main__":

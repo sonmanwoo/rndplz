@@ -1049,7 +1049,8 @@ def operation_metadata(values):
         if isinstance(value,str) and value in _OPERATION_ERRORS:result[key]=value
         elif value is not None:result[key]='other_code'
     value=values.get('generation_contract')
-    if value in ('dialogue_plan.v1','dialogue_plan.v2','dialogue_answer.v1','dialogue_response.v1','dialogue_refine.v1','dialogue_assessment.v1'):
+    if value in ('dialogue_plan.v1','dialogue_plan.v2','dialogue_answer.v1','dialogue_response.v1','dialogue_refine.v1','dialogue_assessment.v1',
+                 'dialogue_plan.v2+think'):
         result['generation_contract']=value
     if values.get('model_selected') in ('runtime','guide'):result['model_selected']=values['model_selected']
     if result['event_type'] in ('request_received','request_rejected'):

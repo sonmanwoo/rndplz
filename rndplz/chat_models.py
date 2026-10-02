@@ -13,14 +13,29 @@ from .diagnostics import event as diagnostic_event
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
 GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
                              'dialogue_plan.v2','dialogue_response.v1','request_intent.v1',
-                             'profile_reading.v1','profile_merge.v1','profile_request.v1')
+                             'profile_reading.v1','profile_merge.v1','profile_request.v1',
+                             'dialogue_plan.v2+think')
+# The "+think" variant of a contract is the same prompt and schema with the model's reasoning on;
+# it is sent only for a plan repair attempt after the first plan failed validation.
+THINKING_VARIANT = '+think'
+
+
+def base_contract(name):
+    return name[:-len(THINKING_VARIANT)] if isinstance(name,str) and name.endswith(THINKING_VARIANT) else name
+
+
 # Ollama request tuning measured on gemma4:e4b (2026-09-24). Hidden reasoning was
-# 60-80% of generated text. The consultation answer runs with think=false; plans keep
-# the model default because without it confirmation turns ("그 조건으로 진행해 주세요")
-# were read as answers and failed validation. keep_alive spares a ~5 s model reload.
+# 60-80% of generated text. The consultation answer runs with think=false, and since
+# 2026-10-02 the plan and its zero-result refinement too: replaying 34 hosted first questions,
+# thinking was 5 s of an 8 s plan (median 8.2 s -> 3.2 s) and the lookup decision matched 19/20.
+# A plan that fails validation (confirmation turns once did) is repaired with "+think".
+# The assessment keeps thinking: without it one in nine failed its quote and coverage checks
+# twice, and a thinking repair did not save the long ones (catalyst: 54-61 s, still rejected).
+# keep_alive spares a ~5 s model reload.
 # Profile reading: quotes are checked against the text, so a 9k-character part runs without
 # thinking (5-11 s per part on e4b) and deterministically; the merge only cites candidate ids.
-OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1','request_intent.v1','profile_reading.v1','profile_merge.v1','profile_request.v1'))
+OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1','request_intent.v1','profile_reading.v1','profile_merge.v1','profile_request.v1',
+                                       'dialogue_plan.v2','dialogue_refine.v1'))
 # A routing label or a document reading must not change between identical requests.
 OLLAMA_DETERMINISTIC_CONTRACTS = frozenset(('request_intent.v1','profile_reading.v1','profile_merge.v1','profile_request.v1'))
 OLLAMA_KEEP_ALIVE = '24h'
@@ -35,7 +50,7 @@ def generation_spec(name):
         raise ValueError('지원하지 않는 대화 생성 계약입니다.')
     try:
         from .model_dialogue import generation_contract
-        spec=copy.deepcopy(generation_contract(name))
+        spec=copy.deepcopy(generation_contract(base_contract(name)))
     except Exception:
         raise ValueError('대화 생성 계약을 불러오지 못했습니다.') from None
     if (not isinstance(spec,dict) or not isinstance(spec.get('system'),str) or not spec['system'].strip()

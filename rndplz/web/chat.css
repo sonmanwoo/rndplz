@@ -167,3 +167,12 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 .craft-lead #historyButton{font-size:18px;color:#636b61;flex-shrink:0}
 html[data-theme="dark"] .craft-lead #historyButton{color:var(--muted)}
 @media(max-width:700px){.craft-lead{gap:6px}.craft-lead #historyButton{width:27px;font-size:17px}}
+/* A wide screen keeps the scout result (people and map) beside the conversation, like a side panel:
+   the conversation a little left, the result a little right. The brief gives up its column and opens
+   from its bar; an open profile panel takes the column back. */
+@media(min-width:1440px){
+  .chat-page main.is-chat:has(> #proposalZone:not([hidden])):not(:has(> #profileChatHost:not([hidden]))){display:grid;grid-template-columns:minmax(0,1fr) minmax(520px,760px);column-gap:40px;align-items:start;max-width:1720px}
+  .chat-page main.is-chat:has(> #proposalZone:not([hidden])):not(:has(> #profileChatHost:not([hidden]))) > #proposalZone{grid-column:2;grid-row:1 / span 60;position:sticky;top:18px;align-self:start;margin:0;padding:0 4px 15px 0;max-height:calc(100dvh - 36px);overflow:auto;overscroll-behavior:contain}
+  .chat-page main.is-chat:has(> #proposalZone:not([hidden])):not(:has(> #profileChatHost:not([hidden]))) > #consultBriefHost{display:none}
+  .chat-page main.is-chat:has(> #proposalZone:not([hidden])):not(:has(> #profileChatHost:not([hidden]))) .brief-bar:not([hidden]){display:flex}
+}

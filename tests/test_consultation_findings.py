@@ -26,7 +26,7 @@ WHO_OFFER = '윤활유 마찰 테스트를 해 본 전문가를 추천해 줘'
 FOLLOW = '정다솔 님께 맡겨도 될까?'
 OLIGO = '에틸렌 oligomerization 연구 전문가를 찾아줘'
 ANSWER = '테스트 목적을 조금 더 알려 주실 수 있을까요?'
-BUTTON = '‘이 정보로 수소문하기’를 누르면 누구인지와 근거를 보여 드려요.'
+NARROW = '조금 더 알려 주시면 더 맞는 분으로 좁혀 드리고, 바로 보시려면 ‘이 정보로 수소문하기’를 눌러 주세요.'
 CARD_LINE = '정다솔 님은 수소문에 등록된 분이에요 — GS칼텍스 · 윤활유기술개발팀 · 산업용 윤활유 개발 경험. 아래에서 이력을 바로 볼 수 있어요.'
 
 
@@ -112,7 +112,8 @@ class ScriptedModels:
         return {'models': [self.get('scripted')], 'default': 'scripted'}
 
     def stream(self, identifier, messages, *, contract=None):
-        if contract == 'dialogue_plan.v2':
+        # A repair attempt asks for the same contract with thinking ("+think").
+        if contract in ('dialogue_plan.v2', 'dialogue_plan.v2+think'):
             source = source_turns(messages)[-1]
             yield json.dumps(PLANS[source['input_text']](source['turn_id']), ensure_ascii=False)
         elif contract == 'dialogue_refine.v1':
@@ -152,48 +153,50 @@ class ConsultationFindingsTests(unittest.TestCase):
                               dict(stored['scout']), project_session(stored)))
         return snapshots
 
-    def test_a_lookup_the_user_asked_for_says_how_many_and_starts_the_scout(self):
+    def test_a_lookup_the_user_asked_for_says_how_many_and_keeps_narrowing(self):
+        # 2026-10-02: the scout no longer starts by itself; the answer asks one narrowing question
+        # and the server says how many candidates the current conditions have.
         (message, scout, shown), = self.converse([ASK])
         self.assertEqual(message['status'], 'complete')
-        self.assertEqual(message['text'], '찾으시는 내용을 이렇게 이해했어요: 윤활유 마찰 마모 테스트를 맡을 사람'
-                         '\n\n관련 기록이 있는 분을 2명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.')
-        self.assertEqual(self.models.answer_inputs, [])  # no second model answer before the scout
-        self.assertEqual((scout['count'], scout['auto'], scout['disclosed']), (2, True, False))
-        self.assertIs(shown['scout']['auto'], True)  # the browser starts the scout; names stay hidden until then
+        self.assertEqual(message['text'], ANSWER + '\n\n지금 조건에 맞는 기록이 있는 후보가 2명이에요. ' + NARROW)
+        self.assertEqual(len(self.models.answer_inputs), 1)
+        self.assertIn('"anonymous_record_linked_people_count": 2', self.models.answer_inputs[0])
+        self.assertEqual((scout['count'], scout.get('auto'), scout['disclosed']), (2, None, False))
+        self.assertNotIn('auto', shown['scout'])
         self.assertNotIn('정다솔', json.dumps(shown, ensure_ascii=False))
 
     def test_a_named_registered_person_is_recognised_and_a_drifted_query_still_finds_records(self):
         _, (message, scout, shown) = self.converse([ASK, NAMED])
         self.assertEqual(message['status'], 'complete')
         self.assertEqual(message['text'], ANSWER + '\n\n' + CARD_LINE +
-                         '\n\n지금 정보로 관련 기록이 있는 분이 1명 있어요. ' + BUTTON)
+                         '\n\n지금 조건에 맞는 기록이 있는 후보가 1명이에요. ' + NARROW)
         self.assertEqual(message['mentions'], [{'id': 'P-DS', 'name': '정다솔'}])
-        self.assertEqual((scout['count'], scout['auto']), (1, False))  # "마찰학" matched "마찰" by its stem; not asked for -> button
+        self.assertEqual(scout['count'], 1)  # "마찰학" matched "마찰" by its stem
         self.assertNotIn('auto', shown['scout'])
         self.assertEqual(shown['messages'][-1]['mentions'], [{'id': 'P-DS', 'name': '정다솔'}])
-        self.assertEqual(len(self.models.answer_inputs), 1)  # the first turn's lookup skipped the answer model
-        self.assertIn('"mentioned_registered_people"', self.models.answer_inputs[0])
-        self.assertIn('산업용 윤활유 제품 개발', self.models.answer_inputs[0])
+        self.assertEqual(len(self.models.answer_inputs), 2)
+        self.assertIn('"mentioned_registered_people"', self.models.answer_inputs[1])
+        self.assertIn('산업용 윤활유 제품 개발', self.models.answer_inputs[1])
 
     def test_a_squeezed_quote_and_an_empty_group_do_not_fail_the_turn(self):
         (message, scout, _), = self.converse([SLIP])
         self.assertEqual((message['status'], message['error']), ('complete', ''))
         self.assertEqual(message['text'], ANSWER + '\n\n' + CARD_LINE +
-                         '\n\n지금 정보로 관련 기록이 있는 분이 1명 있어요. ' + BUTTON)
+                         '\n\n지금 조건에 맞는 기록이 있는 후보가 1명이에요. ' + NARROW)
         self.assertEqual(scout['count'], 1)  # the names-only lookup found the named person
 
     def test_a_who_question_planned_as_questions_only_still_looks_up_its_topic_words(self):
         (message, scout, shown), = self.converse([WHO])
         self.assertEqual(message['model_plan']['interpretations'], [
             {'label': '사람을 묻는 말의 주제어', 'groups': [{'topic_ids': [], 'queries': ['윤활유', '마찰', '마모']}]}])
-        self.assertTrue(message['text'].endswith('관련 기록이 있는 분을 2명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.'))
-        self.assertEqual((scout['count'], scout['auto'], shown['scout'].get('auto')), (2, True, True))
-        self.assertEqual(self.models.answer_inputs, [])
+        self.assertTrue(message['text'].endswith('후보가 2명이에요. ' + NARROW))
+        self.assertEqual((scout['count'], scout.get('auto'), shown['scout'].get('auto')), (2, None, None))
+        self.assertEqual(len(self.models.answer_inputs), 1)
 
     def test_a_who_question_with_an_offered_scope_runs_the_lookup(self):
         (message, scout, _), = self.converse([WHO_OFFER])
         self.assertEqual((message['model_plan']['intent'], message['model_plan']['lookup_action']), ('search', 'execute'))
-        self.assertEqual((scout['count'], scout['auto'], self.models.answer_inputs), (1, True, []))
+        self.assertEqual((scout['count'], scout.get('auto'), len(self.models.answer_inputs)), (1, None, 1))
 
     def test_a_preserve_that_restates_the_request_is_answered_not_failed(self):
         (_, before, _), (message, scout, _) = self.converse([ASK, FOLLOW])
@@ -207,8 +210,8 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertIn('올리고머화', self.models.refine_inputs[0])  # every title's words reach the rewrite
         self.assertEqual(message['model_plan']['interpretations'][0]['groups'][0]['queries'], ['올리고머화', 'oligomerization'])
         self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret', 'refine'])
-        self.assertEqual((scout['count'], scout['auto']), (1, True))
-        self.assertTrue(message['text'].endswith('관련 기록이 있는 분을 1명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.'))
+        self.assertEqual(scout['count'], 1)
+        self.assertTrue(message['text'].endswith('후보가 1명이에요. ' + NARROW))
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])

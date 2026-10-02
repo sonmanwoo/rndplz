@@ -7,7 +7,7 @@ import time
 import uuid
 from dataclasses import asdict
 
-from .chat_models import validate_generation_input, ModelProviderCapacity, PLAN_REPAIR_HEADER
+from .chat_models import validate_generation_input, ModelProviderCapacity, PLAN_REPAIR_HEADER, THINKING_VARIANT
 from .gemini_native import GeminiError
 from .llm_runtime import RuntimeChatModels, RuntimeConfigError, runtime_error_retryable
 from .responses_stream import LLMError
@@ -301,6 +301,12 @@ REPAIRABLE_RESPONSE_ERRORS = frozenset({
     'response_duplicate_record_id', 'response_mixed_lookup_modes',
     'response_record_read_requires_zero',
 })
+
+
+def repair_anchor(raw, error):
+    """The decision a plan repair must keep. A preserve that broke its rule (typically a go-ahead
+    answered while restating the request) may become the lookup the user asked for."""
+    return None if error.reason == 'preserve_request_has_changes' else plan_repair_decision(raw)
 
 
 def model_provider_retryable(exc):
@@ -916,7 +922,7 @@ class ModelConversation:
                     'rejected_output_is_user_evidence':False,
                     'rejected_output_was_displayed':False,
                     'rejected_output':raw,
-                    'required_decision':plan_repair_decision(raw),
+                    'required_decision':repair_anchor(raw, error),
                     'expected_output':plan_repair_feedback(error)}
         correction = {'role':'user', 'content':PLAN_REPAIR_HEADER + '\n' +
              json.dumps(feedback, ensure_ascii=False) + '\n[검증 결과 끝]\n' +
@@ -1582,14 +1588,9 @@ class ModelConversation:
                                     'requested_revision':session.get('scout_authorized_revision') if disclosed else None,
                                     'count_basis':'assessed_displayed' if disclosed else 'registered_record_matches'}
                 if kind is None and count and session['discovery']['lookup_ready']:
-                    # People were found but are shown only by the scout step. A small model keeps asking
-                    # questions instead of saying so, so the server says it; when the user asked for the
-                    # lookup (execute) the client starts the scout right away.
-                    auto = plan['lookup_action'] == 'execute'
-                    session['scout']['auto'] = auto
-                    message['text'] = message['text'].rstrip() + '\n\n' + (
-                        f'관련 기록이 있는 분을 {count}명 찾았어요. 바로 수소문해서 누구인지와 근거를 보여 드릴게요.' if auto else
-                        f'지금 정보로 관련 기록이 있는 분이 {count}명 있어요. ‘이 정보로 수소문하기’를 누르면 누구인지와 근거를 보여 드려요.')
+                    # People were found but are shown only by the scout step, which the user starts:
+                    # the answer keeps narrowing the request, and the server says how many there are.
+                    message['text'] = message['text'].rstrip() + '\n\n' + f'지금 조건에 맞는 기록이 있는 후보가 {count}명이에요. 조금 더 알려 주시면 더 맞는 분으로 좁혀 드리고, 바로 보시려면 ‘이 정보로 수소문하기’를 눌러 주세요.'
                 if (request_spec_content(request_spec) is not None
                         and (plan['intent'] != 'stop' or request_spec_content(session.get('request_spec')) is not None)):
                     # Prepare may revise retrieval, never the user's approved brief.
@@ -1721,7 +1722,9 @@ class ModelConversation:
                                           'basis_sha256':digest(basis),
                                           'model_generation_budget':self.get(sid).get('model_generation_budget')})
                 dispatched = model_was_called(current_messages, True); raw = ''
-                for piece in self.models.stream(option['id'], current_messages, contract='dialogue_plan.v2'):
+                # The repair attempt thinks; the first plan does not (chat_models).
+                contract = 'dialogue_plan.v2' + (THINKING_VARIANT if number == 2 else '')
+                for piece in self.models.stream(option['id'], current_messages, contract=contract):
                     raw += piece; attempt['raw'] = raw
                     if len(raw) > 24000:raise ValueError('모델의 조회 계획이 허용 크기를 넘었습니다.')
                     if time.monotonic() >= deadline:raise ValueError('이번 대화의 모델 처리 시간을 초과했습니다.')
@@ -1765,7 +1768,7 @@ class ModelConversation:
                         if (not self._model_feedback_available(sid,turn_id,required_calls=2) or
                                 not self._provider_calls_available(option,2)):
                             raise ModelChatBudgetExhausted() from None
-                        repair_decision = plan_repair_decision(raw)
+                        repair_decision = repair_anchor(raw, exc)
                         current_messages = self._repair_messages(messages, raw, exc, basis, deadline)
                         continue
                     raise
@@ -1812,19 +1815,9 @@ class ModelConversation:
                         # Keep the rewrite unless it finds fewer people than the original.
                         if retried.get('matched_candidate_count', len(retried.get('candidates', []))) >= found:
                             plan, revision, result, request = refined, refined_revision, retried, retried_request
-            if (result is not None and plan['lookup_action'] == 'execute' and 'attachment_tools' not in consultation
-                    and result.get('matched_candidate_count', len(result.get('candidates', [])))):
-                # The user asked to find people and records matched. The scout that follows is the
-                # answer, so the consultation answer (a small model fills it with more questions) is
-                # replaced by the understood scope; _finish_model_turn adds how many were found.
-                reply = '찾으시는 내용을 이렇게 이해했어요: ' + plan['summary']
-                consultation.update(dispatched=False, attempts=[{
-                    'attempt':1, 'raw':reply, 'provider_completed':False, 'validation':'accepted',
-                    'adopted':False, 'revision':revision, 'server_reply':True}])
-            else:
-                # Generate only after the optional anonymous lookup has completed.
-                reply = yield from self._stream_model_consultation(
-                    session, option, plan, revision, result, basis, deadline, consultation, request_spec)
+            # Generate only after the optional anonymous lookup has completed.
+            reply = yield from self._stream_model_consultation(
+                session, option, plan, revision, result, basis, deadline, consultation, request_spec)
             self._check_model_basis(sid, turn_id, basis, deadline)
             yield {'type':'delta', 'text':reply}
             self._check_model_basis(sid, turn_id, basis, deadline)
