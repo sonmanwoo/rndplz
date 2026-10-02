@@ -25,6 +25,7 @@ WHAT = '윤활유 마찰 계수가 뭐야?'
 WHO_OFFER = '윤활유 마찰 테스트를 해 본 전문가를 추천해 줘'
 FOLLOW = '정다솔 님께 맡겨도 될까?'
 OLIGO = '에틸렌 oligomerization 연구 전문가를 찾아줘'
+BILINGUAL = '윤활유 lubricant 전문가를 찾아줘'
 ANSWER = '테스트 목적을 조금 더 알려 주실 수 있을까요?'
 NARROW = '조금 더 알려 주시면 더 맞는 분으로 좁혀 드리고, 바로 보시려면 ‘이 정보로 수소문하기’를 눌러 주세요.'
 CARD_LINE = '정다솔 님은 수소문에 등록된 분이에요 — GS칼텍스 · 윤활유기술개발팀 · 산업용 윤활유 개발 경험. 아래에서 이력을 바로 볼 수 있어요.'
@@ -98,6 +99,8 @@ PLANS = {
     FOLLOW: lambda turn: {**plan('answer', turn, FOLLOW, ['윤활유', '마찰']), 'request_effect': 'preserve'},
     # a mixed-language phrase that no record has
     OLIGO: lambda turn: plan('lookup', turn, OLIGO, ['에틸렌 oligomerization']),
+    # the same word in two languages; the records have only the Korean one
+    BILINGUAL: lambda turn: plan('lookup', turn, BILINGUAL, ['윤활유', 'lubricant']),
 }
 
 
@@ -212,6 +215,12 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret', 'refine'])
         self.assertEqual(scout['count'], 1)
         self.assertTrue(message['text'].endswith('후보가 1명이에요. ' + NARROW))
+
+    def test_a_translation_beside_a_matching_word_spends_no_rewrite(self):
+        (message, scout, _), = self.converse([BILINGUAL])
+        self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret'])
+        self.assertFalse(hasattr(self.models, 'refine_inputs'))
+        self.assertEqual(scout['count'], 1)
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])

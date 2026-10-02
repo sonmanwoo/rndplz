@@ -1090,11 +1090,19 @@ class ModelConversation:
         return found[:3]
 
     def _dead_foreign_queries(self, plan):
-        """Latin-script queries that no current record has: a sign the records use another language."""
+        """Latin-script queries of a group that matched no current record: a sign the records use another language.
+
+        A group whose other wording already matches ("증류" beside "distillation") needs no rewrite.
+        """
         records = list(self.service.corpus.records.values())
-        return [query for interpretation in plan['interpretations'] for group in interpretation['groups']
-                for query in group['queries'] if re.search(r'[A-Za-z]{3,}', query) and not re.search(r'[가-힣]', query)
-                and not any(_query_hit(record, query) for record in records)]
+        dead = []
+        for interpretation in plan['interpretations']:
+            for group in interpretation['groups']:
+                if any(_query_hit(record, query) for query in group['queries'] for record in records):
+                    continue
+                dead += [query for query in group['queries']
+                         if re.search(r'[A-Za-z]{3,}', query) and not re.search(r'[가-힣]', query)]
+        return dead
 
     def _refine_zero_lookup(self, sid, turn_id, option, plan, basis, deadline, attempts, dead=()):
         """One rewrite of a lookup that matched nobody, using the words every record title actually has.
