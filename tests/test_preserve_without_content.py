@@ -43,9 +43,10 @@ class ScriptedModels:
 
     def stream(self, identifier, messages, *, contract=None):
         self.calls.append(contract)
-        if contract == 'dialogue_plan.v2':
+        # A repair attempt asks for the same contract with thinking ("+think").
+        if contract in ('dialogue_plan.v2', 'dialogue_plan.v2+think'):
             source = source_turns(messages)[-1]
-            attempt = sum(c == 'dialogue_plan.v2' for c in self.calls)
+            attempt = sum(c in ('dialogue_plan.v2', 'dialogue_plan.v2+think') for c in self.calls)
             yield json.dumps(self.plans(source['input_text'], source['turn_id'], attempt), ensure_ascii=False)
         elif contract == 'dialogue_answer.v1':
             yield '무엇을 도와드릴까요?'
@@ -110,7 +111,8 @@ class PreserveWithoutContentTests(unittest.TestCase):
         statuses, calls, stored = self.converse(plans, [seed, '고마워요'])
         self.assertEqual(statuses, ['complete', 'complete'])
         # The first preserve adds a question to a request with content: rejected, then repaired.
-        self.assertEqual(calls.count('dialogue_plan.v2'), 3)
+        # The repair asks for the plan with thinking.
+        self.assertEqual((calls.count('dialogue_plan.v2'), calls.count('dialogue_plan.v2+think')), (2, 1))
         self.assertEqual(stored['request_spec']['requested_help'][0]['text'], '증류 경험')
         self.assertEqual(stored['request_spec']['open_questions'], [])
 

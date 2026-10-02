@@ -38,15 +38,24 @@ class OllamaRequestTuningTests(unittest.TestCase):
         # Profile reading parts and their merge also run without thinking; quotes are checked in the text.
         # A profile request sentence too: its values are checked against the user's own words.
         self.assertEqual(OLLAMA_NO_THINK_CONTRACTS, {'dialogue_answer.v1', 'request_intent.v1', 'profile_reading.v1',
-                                                     'profile_merge.v1', 'profile_request.v1'})
+                                                     'profile_merge.v1', 'profile_request.v1',
+                                                     'dialogue_plan.v2', 'dialogue_refine.v1'})
         self.assertIs(self.payload('dialogue_answer.v1')['think'], False)
         intent = self.payload('request_intent.v1')
         self.assertEqual((intent['think'], intent['options']['temperature']), (False, 0))
 
-    def test_plan_and_assessment_keep_model_default_reasoning(self):
-        for contract in ('dialogue_plan.v2', 'dialogue_response.v1'):
+    def test_plan_thinks_only_when_repairing(self):
+        # Thinking was 5 s of an 8 s plan (2026-10-02); a plan repair after a failed validation keeps it.
+        for contract in ('dialogue_plan.v2', 'dialogue_refine.v1'):
             with self.subTest(contract=contract):
-                self.assertNotIn('think', self.payload(contract))
+                self.assertIs(self.payload(contract)['think'], False)
+        repair = self.payload('dialogue_plan.v2+think')
+        self.assertNotIn('think', repair)
+        self.assertEqual(repair['format'], self.payload('dialogue_plan.v2')['format'])  # same schema
+
+    def test_assessment_keeps_model_default_reasoning(self):
+        # Without it one assessment in nine failed its quote and coverage checks twice (2026-10-02).
+        self.assertNotIn('think', self.payload('dialogue_response.v1'))
 
     def test_plain_chat_still_disables_thinking(self):
         self.assertIs(self.payload(None)['think'], False)

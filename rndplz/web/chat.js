@@ -6,7 +6,7 @@ let modelSelectionOrigin="automatic",modelDefault="",modelSelectionEpoch=0,model
 let profileBusy=false,profileSubmission=null,intentBusy=false;
 let profileUI=null;
 let accountNavigationPending=false,accountInvalidated=false;
-let prepareBusy=false,prepareTicket=0,prepareProgress=null,autoScoutRevision=null;
+let prepareBusy=false,prepareTicket=0,prepareProgress=null;
 let composerInputRevision=0,composerComposing=false;
 function composerClientLocked(){return accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||uploading||intentBusy;}
 function composerSendLocked(){return composerClientLocked()||!!session?.pending;}
@@ -767,13 +767,6 @@ function failBriefSubmission(edit,sid){
  if(edit&&briefEditor===edit)edit.phase="failed";
 }
 
-// The user asked to find people and the lookup found some (scout.auto): start the scout as if its
-// button was pressed, once per request revision and only right after that turn completes here.
-function autoScout(){
- const scout=session?.scout,button=$("currentScoutButton");
- if(scout?.auto!==true||autoScoutRevision===scout.revision||!button||!canPrepareDiscovery())return;
- autoScoutRevision=scout.revision;prepareDiscovery(button);
-}
 async function prepareDiscovery(button,keyboard=false){
  if(!canPrepareDiscovery())return;
  let requested;try{requested=selectedRequestModel();}catch(e){error(e.message);return;}
@@ -1189,7 +1182,7 @@ async function send(payload,submission=null){
   if(e.name==="AbortError"){error("응답 수신을 중지했어요.");}
   else error(e.message);
   if(accepted&&session)await beginStreamRecovery(payload,recoveryRequestId,e.recoveryKind==="eof"?"eof":e.name==="AbortError"?"aborted":"stream_error");
- }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)focusComposer();autoScout();}
+ }finally{stopBusyCi();busy=false;responseProgress="";retryDisplay=null;optimistic=null;streamText="";controller=null;resizeInput();render();if(!session?.pending)focusComposer();}
 }
 function newChat(){if(composerClientLocked())return;invalidateRegisteredUI();invalidateRecovery(true);attachmentPreviewTicket++;prepareTicket++;profileUI.close();session=null;modelSelectionEpoch++;if(modelSelectionOrigin!=="explicit"){selectedModel="";modelSelectionOrigin="automatic";syncModelSelection();renderModelSelect();}files=[];inlineMessageLinks.clear();optimistic=null;retryPayload=null;$("message").value="";window.history.replaceState(null,"","/");error();autoScroll=true;renderFiles();render();resizeInput();focusComposer();}
 function dataUrl(file,signal){return new Promise((resolve,reject)=>{

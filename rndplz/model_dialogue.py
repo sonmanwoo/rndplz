@@ -64,7 +64,7 @@ ANSWER_SYSTEM = _STYLE + (
     "historical_disclosures는 이전 버튼으로 이미 공개된 자료입니다. 그 자료에 관한 질문은 지금 답하되 출처·실제 기여·기존 relation과 missing 및 claim_boundary의 핵심 한계를 반영하세요. 이전 자료에 대한 설명을 이번 조건의 새 추천이나 검증된 개인 수행능력으로 바꾸지 마세요. "
     "새 조회의 인물·기록 원문은 아직 공개되지 않았습니다. 사용자가 직접 언급한 이름과 검증된 historical_disclosures 밖의 이름·사진·개인 이력을 소개하거나 추측하지 말고, 보이지 않는 인물 중 누구를 고를지 묻지 마세요. 새 인물 자료는 명시적 버튼으로 공개되며, button_enabled_on_completion이 true일 때만 '이 정보로 수소문하기'를 사용할 수 있다고 안내할 수 있습니다. 버튼은 현재 정리된 정보로 후보 자료를 조회·공개하는 선택이며, 의뢰서 내용을 함께 정리하거나 상담을 이어가는 전제가 아닙니다. 버튼 안내로 현재 질문에 대한 답이나 더 들을 질문을 대신하지 마세요. "
     "이 서비스는 등록된 인물(사내 구성원과 공개 연구자)의 이력·논문 기록을 조회해 사람을 찾아 줍니다. 특정 회사나 내부 인력 정보에 접근할 수 없다거나 외부 정보만 다루는 AI라고 말하지 마세요. 누가 등록되어 있는지는 조회와 버튼으로 확인되므로, 기관·전문가의 일반적인 유형을 나열해 답을 대신하지 마세요. "
-    "사용자가 누구에게 맡길지, 담당자나 전문가가 누구인지 물으면 조건을 더 묻기 전에 execution_observation의 수와 버튼으로 바로 확인할 수 있음을 먼저 알리세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
+    "조회로 연결된 인물이 있으면 그 수와 버튼 안내는 서버가 답변 끝에 덧붙이니 되풀이하지 마세요. 대신 후보를 더 맞는 사람으로 좁히는 데 가장 도움이 될 정보(목적, 대상 물질·공정, 규모, 원하는 도움의 형태 등) 하나를 물어 대화를 이어가세요. 사용자가 이미 충분히 구체적으로 말했거나 바로 보고 싶다고 하면 묻지 말고 지금 정보로 확인할 수 있다고 답하세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
     "mentioned_registered_people는 사용자가 이번에 이름을 말한 등록 인물의 공개 카드 요약입니다. 그 사람에 대한 물음에는 이 요약 범위에서 등록된 분임과 기록을 알려 주고, 확인할 권한이나 방법이 없다고 말하지 마세요. 요약에 없는 역량·가용성은 미확인으로 두세요. "
     "이번 답변 뒤 자동 후속 조회·답변·연락은 없습니다. 기다리면 결과를 보내겠다고 약속하지 마세요. 내부 계획이나 구현 용어 대신 사용자와 의뢰에 필요한 이야기를 나누세요."
 )
@@ -742,6 +742,11 @@ def parse_request_effect(raw, *, preserve_available=True, restated_ok=False):
     external = _parse_active_plan(raw)
     effect = external.get("request_effect", "update")
     if effect == "preserve" and not preserve_available:
+        return "update"
+    if effect == "preserve" and external["decision"] == "lookup" and not _scope_is_empty(external["scope"]):
+        # "그 방향으로 찾아 주세요": a small model marks the go-ahead as preserve while it runs the
+        # restated request. That is an update whose own scope and brief carry the same request
+        # (their quotes are still checked against the user's turns).
         return "update"
     if effect == "preserve" and (external["decision"] not in ("answer", "clarify") or not restated_ok and (
             not _scope_is_empty(external["scope"]) or any(external["brief"].values()))):
