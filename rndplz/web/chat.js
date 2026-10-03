@@ -241,7 +241,7 @@ function modelExecutionLabel(id=selectedModel){
  if(model?.provider==="bridge")return "운영자 PC의 "+name;
  if(model?.local||model?.provider==="ollama")return "이 기기의 "+name;
  if(model?.provider==="guide")return "이 서비스의 "+name+" (AI 미사용)";
- const provider={gemini:"Google Gemini",openai:"OpenAI API",openai_api:"OpenAI API",codex_oauth:"Codex 연결"}[model?.provider];
+ const provider={gemini:"Google Gemini",openai:"OpenAI API",openai_api:"OpenAI API",codex_oauth:"Codex 연결",aiu:"사내 AI"}[model?.provider];
  return (provider||"선택한 연결")+"의 "+name;
 }
 function publicPaperNotice(){return modelExecutionLabel()+"로 이 대화와 공개 논문 근거"+(allowsScopedDocuments()?", 직접 선택해 보낸 문서의 추출 본문·출처":"")+"를 전송합니다. 등록된 개인 프로필·다른 대화의 자료는 포함하지 않습니다. "+(allowsScopedDocuments()?"일부만 추출된 자료는 표시된 범위만 읽습니다. ":"문서·링크는 이 대화에 추가하지 않습니다. ")+(allowsScopedImages()?"직접 선택한 이미지도 전송됩니다. ":"이미지는 이 선택에서 지원하지 않습니다. ")+"민감정보 전송에 유의해 주세요. 프로필 작업은 새 대화를 이용해 주세요.";}
@@ -1279,7 +1279,7 @@ async function submitComposer(){
  let toProfile=profileUI.shouldHandle(text),routed=false;
  // With the profile open, files sent without a message are profile material, not a research question.
  if(!text&&profileUI.isOpen())routed=toProfile=true;
- if(!toProfile&&text&&option()?.provider==="bridge"){
+ if(!toProfile&&text&&["bridge","aiu"].includes(option()?.provider)){
   intentBusy=true;controls();
   try{routed=toProfile=(await classifyIntent(text,attachmentPlan.files))==="profile_update";}finally{intentBusy=false;controls();}
  }

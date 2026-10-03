@@ -60,6 +60,26 @@ class AiuProviderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ChatModels({**ENV, 'RNDPLZ_AIU_URL': 'http://aiu.example/run'})  # https only
 
+    def test_further_apps_are_their_own_options_and_use_their_own_key(self):
+        env = {**ENV, 'RNDPLZ_AIU_APPS': 'gpt-luna=GPT luna;nokey=Missing;Bad Slug=x', 'RNDPLZ_AIU_API_KEY_GPT_LUNA': 'app-gpt'}
+        models, sink = ChatModels(env), []
+        models.refreshed = 10 ** 12
+        self.assertEqual([(m['id'], m['name']) for m in models.catalog()['models'] if m['provider'] == 'aiu'],
+                         [('aiu', '사내 AI (AiU) · GPT luna'), ('aiu:gpt-luna', '사내 AI (AiU) · GPT luna')])
+        good = frames({'event': 'text_chunk', 'data': {'text': '답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener(good, sink)):
+            list(models.stream('aiu:gpt-luna', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual(sink[0][1]['Authorization'], 'Bearer app-gpt')
+
+    def test_the_hosted_catalog_lists_aiu_first_as_the_default(self):
+        from rndplz.public_web import PublicModels
+        hosted = PublicModels({**ENV, 'RNDPLZ_PUBLIC_MODEL': 'bridge', 'RNDPLZ_BRIDGE_TOKEN': 'fixture-secret'})
+        catalog = hosted.catalog()
+        self.assertEqual(catalog['default'], 'aiu')
+        self.assertEqual([m['id'] for m in catalog['models']], ['bridge', 'guide', 'aiu'])
+        without = PublicModels({'RNDPLZ_PUBLIC_MODEL': 'bridge', 'RNDPLZ_BRIDGE_TOKEN': 'fixture-secret'})
+        self.assertEqual([m['id'] for m in without.catalog()['models']], ['bridge', 'guide'])
+
     def test_an_answer_streams_its_chunks(self):
         pieces, (url, headers, body) = self.run_stream(frames(
             {'event': 'workflow_started', 'data': {}}, {'event': 'text_chunk', 'data': {'text': '손만우 님이 '}},

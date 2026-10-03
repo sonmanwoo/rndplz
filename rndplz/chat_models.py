@@ -182,13 +182,20 @@ class ChatModels:
             if not model and self.env.get('RNDPLZ_PROVIDER') in (provider,{'openai':'openai_compatible','claude':'claude'}[provider]):model=self.env.get('RNDPLZ_MODEL','')
             if provider=='openai' and not model:model=DEFAULT_OPENAI_MODEL
             if key and model:self.configs[provider]={'key':key,'model':model}
-        # The company AI platform is an explicit server opt-in: an app key and its run URL.
+        # The company AI platform is an explicit server opt-in: an app key and its run URL. Each
+        # published workflow app runs one model, so further apps (RNDPLZ_AIU_APPS "slug=label;...",
+        # keys in RNDPLZ_AIU_API_KEY_<SLUG>) are listed as their own options "aiu:<slug>".
         aiu_key=self.env.get('RNDPLZ_AIU_API_KEY','');aiu_url=self.env.get('RNDPLZ_AIU_URL','')
         if aiu_key and aiu_url:
             target=urlparse(aiu_url)
             if target.scheme!='https' or not target.hostname or target.username or target.password:
                 raise ValueError('사내 AI 주소는 인증정보 없는 https 주소여야 합니다.')
             self.configs['aiu']={'key':aiu_key,'url':aiu_url,'model':self.env.get('RNDPLZ_AIU_MODEL','사내 모델')}
+            for entry in self.env.get('RNDPLZ_AIU_APPS','').split(';'):
+                slug,_,label=entry.strip().partition('=')
+                if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,29}',slug):continue
+                key=self.env.get('RNDPLZ_AIU_API_KEY_'+slug.upper().replace('-','_'),'')
+                if key:self.configs['aiu:'+slug]={'key':key,'url':aiu_url,'model':label.strip() or slug}
 
     def gemini_option(self):
         config=self.configs.get('gemini')
@@ -196,11 +203,11 @@ class ChatModels:
         return {'id':'gemini:'+config['model'],'provider':'gemini','model':config['model'],
                 'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':True}
 
-    def aiu_option(self):
-        config=self.configs.get('aiu')
-        if not config:return None
-        return {'id':'aiu','provider':'aiu','model':config['model'],
-                'name':'사내 AI (AiU) · '+config['model'],'enabled':True,'local':False,'vision':False}
+    def aiu_options(self):
+        """The configured AiU apps, the default app first."""
+        return [{'id':identifier,'provider':'aiu','model':config['model'],
+                 'name':'사내 AI (AiU) · '+config['model'],'enabled':True,'local':False,'vision':False}
+                for identifier,config in self.configs.items() if identifier=='aiu' or identifier.startswith('aiu:')]
 
     def catalog(self,refresh=False):
         if refresh or time.monotonic()-self.refreshed>60:
@@ -218,8 +225,7 @@ class ChatModels:
         # Calculate the existing default before adding the explicitly selectable API.
         gemini=self.gemini_option()
         if gemini:items.append(gemini)
-        aiu=self.aiu_option()
-        if aiu:items.append(aiu)
+        items.extend(self.aiu_options())
         return {'models':items,'default':default}
 
     def configure(self,payload):
@@ -260,7 +266,7 @@ class ChatModels:
                     generation_contract=contract)
                 raise ModelProviderCapacity()
             self.calls[identifier]=self.calls.get(identifier,0)+1
-            config=dict(self.configs.get(provider,{}))
+            config=dict(self.configs.get(identifier if provider=='aiu' else provider,{}))
         if provider=='aiu':
             text=aiu_text(system,messages,structured=schema is not None)
             if len(text)>AIU_INPUT_LIMIT:raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
