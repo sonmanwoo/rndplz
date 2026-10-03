@@ -5,6 +5,7 @@ assessment (Gemma 4 of 27) and cleaner candidates, but a first reply of 17.8 s a
 It is therefore an option, enabled only by RNDPLZ_AIU_API_KEY and RNDPLZ_AIU_URL.
 """
 import json
+import time
 import unittest
 from unittest.mock import patch
 
@@ -176,6 +177,62 @@ class AiuProviderTests(unittest.TestCase):
             with self.assertRaises(ModelProviderCapacity):
                 list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
         self.assertEqual(len(sink), 2)
+
+    def test_a_ping_does_not_extend_the_run_past_the_deadline(self):
+        # Reviewed 2026-10-03 (Codex): the socket timeout was set once at open, so a keep-alive ping
+        # followed by silence let a read block past the caller's deadline, and the retry was reserved
+        # and counted although the deadline no longer allowed it to be sent.
+        import socket, threading
+        receiver, sender = socket.socketpair()
+        stop = threading.Event()
+
+        def ping_then_silence():
+            if not stop.wait(0.4):
+                try:
+                    sender.sendall(b'data: {"event":"ping"}\n')
+                except OSError:
+                    pass
+            stop.wait(3)
+
+        class SocketReply:
+            def __enter__(self):
+                self.file = receiver.makefile('rb')
+                return self.file
+
+            def __exit__(self, *args):
+                self.file.close()
+                return False
+
+        class SocketOpener:
+            def __init__(self):
+                self.opens = []
+
+            def open(self, request, timeout=None):
+                self.opens.append(timeout)
+                receiver.settimeout(timeout)
+                return SocketReply()
+
+        class Deadlined(list):
+            generation_deadline = None
+
+        messages = Deadlined([{'role': 'user', 'content': '증류 전문가 찾아줘'}])
+        messages.generation_deadline = time.monotonic() + 0.6
+        models, opener = ChatModels(ENV), SocketOpener()
+        models.refreshed = 10 ** 12
+        writer = threading.Thread(target=ping_then_silence, daemon=True)
+        writer.start()
+        started = time.monotonic()
+        try:
+            with patch.object(chat_models.urllib.request, 'build_opener', return_value=opener), self.assertRaises(ValueError):
+                list(models.stream('aiu', messages))
+            elapsed = time.monotonic() - started
+        finally:
+            stop.set()
+            writer.join(1)
+            receiver.close()
+            sender.close()
+        self.assertLess(elapsed, 0.9)  # the deadline, not the socket's idle timeout, ended the wait
+        self.assertEqual((len(opener.opens), models.calls['aiu'], len(models.aiu_runs), models.aiu_active), (1, 1, 1, 0))
 
     def test_a_stalled_run_is_dropped(self):
         ping = [b'event: ping\n', b'data: {"event":"ping"}\n']

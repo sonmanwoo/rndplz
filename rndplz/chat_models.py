@@ -73,19 +73,39 @@ class AiuRunFailed(Exception):
         self.shown = shown
 
 
-def aiu_run(config, payload, remaining):
+def _set_read_timeout(response, seconds):
+    """The socket under a urllib response (or a socket file) waits at most this long for the next line."""
+    for path in (('fp','raw','_sock'),('raw','_sock')):
+        sock=response
+        for name in path:sock=getattr(sock,name,None)
+        if sock is not None and hasattr(sock,'settimeout'):
+            try:sock.settimeout(max(0.05,seconds))
+            except Exception:pass
+            return
+
+
+def aiu_run(config, payload, remaining, budget):
     """Text pieces of one workflow run.
 
     Reading stops at the success event (a socket kept open afterwards is not a failure). A platform
     error that another attempt cannot fix is a ValueError; a failed, cut or stalled run is AiuRunFailed.
+    `budget` is the time left when the run was reserved; every later wait is bounded by `remaining()`,
+    so a keep-alive ping cannot extend the run past the caller's deadline.
     """
     request=urllib.request.Request(config['url'],data=json.dumps(payload,ensure_ascii=False).encode(),method='POST',
         headers={'Content-Type':'application/json','Authorization':'Bearer '+config['key']})
     started=time.monotonic();shown=False;finished=False
-    try:
+
+    def lines(response):
         # The read timeout also ends a connection that sends nothing at all (keep-alive pings count as data).
-        with urllib.request.build_opener(NoRedirect()).open(request,timeout=min(remaining(),AIU_FIRST_TEXT_SECONDS+10)) as response:
-            for raw in response:
+        while True:
+            _set_read_timeout(response,min(remaining(),AIU_FIRST_TEXT_SECONDS+10))
+            raw=response.readline() if hasattr(response,'readline') else next(response,b'')
+            if not raw:return
+            yield raw
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(request,timeout=min(budget,AIU_FIRST_TEXT_SECONDS+10)) as response:
+            for raw in lines(response):
                 remaining()
                 if not shown and time.monotonic()-started>AIU_FIRST_TEXT_SECONDS:raise AiuRunFailed(False)
                 line=raw.decode('utf-8').strip()
@@ -327,9 +347,10 @@ class ChatModels:
                 except Exception:pass
             collected=''
             for attempt in (1,2):
+                budget=remaining()  # an expired deadline ends here, before a run is reserved and counted
                 self._aiu_reserve(identifier)
                 try:
-                    for piece in aiu_run(config,payload,remaining):
+                    for piece in aiu_run(config,payload,remaining,budget):
                         collected+=piece
                         if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
                         if schema is None:yield piece
