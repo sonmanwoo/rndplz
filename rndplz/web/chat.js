@@ -1275,7 +1275,8 @@ async function classifyIntent(text,attached){
  try{
   const body={text,session_id:session?.id||null,attachments:attached.map(f=>f.name).filter(n=>typeof n==="string").slice(0,4),
    active_task:profileUI.isOpen()?"profile_update":session?.messages?.length?"research_request":null,model_id:selectedModel};
-  const response=await fetch("/api/chat/intent",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body)});
+  // The chat waits for this; past the limit it proceeds with the command rules instead.
+  const response=await fetch("/api/chat/intent",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-RnDplz-Token":token},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
   if(!response.ok)return null;const value=await response.json();return typeof value.intent==="string"?value.intent:null;
  }catch{return null;}
 }
