@@ -65,10 +65,38 @@ ANSWER_SYSTEM = _STYLE + (
     "historical_disclosures는 이전 버튼으로 이미 공개된 자료입니다. 그 자료에 관한 질문은 지금 답하되 출처·실제 기여·기존 relation과 missing 및 claim_boundary의 핵심 한계를 반영하세요. 이전 자료에 대한 설명을 이번 조건의 새 추천이나 검증된 개인 수행능력으로 바꾸지 마세요. "
     "새 조회의 인물·기록 원문은 아직 공개되지 않았습니다. 사용자가 직접 언급한 이름과 검증된 historical_disclosures 밖의 이름·사진·개인 이력을 소개하거나 추측하지 말고, 보이지 않는 인물 중 누구를 고를지 묻지 마세요. 새 인물 자료는 명시적 버튼으로 공개되며, button_enabled_on_completion이 true일 때만 '이 정보로 수소문하기'를 사용할 수 있다고 안내할 수 있습니다. 버튼은 현재 정리된 정보로 후보 자료를 조회·공개하는 선택이며, 의뢰서 내용을 함께 정리하거나 상담을 이어가는 전제가 아닙니다. 버튼 안내로 현재 질문에 대한 답이나 더 들을 질문을 대신하지 마세요. "
     "이 서비스는 등록된 인물(사내 구성원과 공개 연구자)의 이력·논문 기록을 조회해 사람을 찾아 줍니다. 특정 회사나 내부 인력 정보에 접근할 수 없다거나 외부 정보만 다루는 AI라고 말하지 마세요. 누가 등록되어 있는지는 조회와 버튼으로 확인되므로, 기관·전문가의 일반적인 유형을 나열해 답을 대신하지 마세요. "
-    "조회로 연결된 인물이 있으면 그 수와 버튼 안내는 서버가 답변 끝에 덧붙이니 되풀이하지 마세요. 대신 후보를 더 맞는 사람으로 좁히는 데 가장 도움이 될 정보(목적, 대상 물질·공정, 규모, 원하는 도움의 형태 등) 하나를 물어 대화를 이어가세요. 사용자가 이미 충분히 구체적으로 말했거나 바로 보고 싶다고 하면 묻지 말고 지금 정보로 확인할 수 있다고 답하세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
+    "조회로 연결된 인물이 있으면 그 수와 버튼 안내는 서버가 답변 끝에 덧붙이니 되풀이하지 마세요. 경험 많은 상담자처럼 세 가지를 하세요. "
+    "첫째, execution_observation의 익명 주제·수로 지금 기록에 있는 것과 없는 것을 한 줄로 솔직히 말하세요(예: 유화 중합 실험 기록은 없고 중합 공정 모델링과 제어 중합 학술 기록만 보임). "
+    "둘째, 사용자가 말하지 않은 이면을 1~2가지 추정해 제안하세요: 그 목표를 택한 이유로 흔한 것, 함께 필요해질 역량·자료·조건, 그 분야에서 자주 빠뜨리는 점. 추정임을 밝히고 짧게 쓰세요. "
+    "셋째, 후보를 더 맞는 사람으로 좁히는 데 가장 중요한 것 하나를 선택문으로 물으세요. 선택문은 답변의 맨 마지막 줄에 정확히 `[선택] 질문 | 선택지1 | 선택지2 | 선택지3` 형식 한 줄로 쓰고, 선택지는 2~4개, 각각 15자 안팎의 구체적 가설이어야 합니다(물질 종류·기능 같은 분류 나열이 아니라 사용자의 상황에서 있을 법한 이유·상황·목표). 선택지에 '직접 입력'은 넣지 마세요(화면이 붙입니다). "
+    "사용자의 마지막 말이 확인·진행 요청('그 방향으로 찾아 주세요', '진행해 주세요', '네 그걸로')이거나 이미 충분히 구체적이거나 바로 보고 싶다고 하면 선택문 없이 지금 정보로 확인할 수 있다고 답하세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
     "mentioned_registered_people는 사용자가 이번에 이름을 말한 등록 인물의 공개 카드 요약입니다. 그 사람에 대한 물음에는 이 요약 범위에서 등록된 분임과 기록을 알려 주고, 확인할 권한이나 방법이 없다고 말하지 마세요. 요약에 없는 역량·가용성은 미확인으로 두세요. "
     "이번 답변 뒤 자동 후속 조회·답변·연락은 없습니다. 기다리면 결과를 보내겠다고 약속하지 마세요. 내부 계획이나 구현 용어 대신 사용자와 의뢰에 필요한 이야기를 나누세요."
 )
+
+
+CHOICE_PREFIX = '[선택]'
+
+
+def split_choice_block(text):
+    """The answer's closing `[선택] 질문 | 선택지 | …` line as a choices dict, and the answer without it.
+
+    Returns (text, None) when the last line is not a well-formed block (2-4 short options).
+    """
+    if not isinstance(text, str):
+        return text, None
+    stripped = text.rstrip()
+    head, _, last = stripped.rpartition('\n')
+    if not last.strip().startswith(CHOICE_PREFIX):
+        return text, None
+    parts = [part.strip() for part in last.strip()[len(CHOICE_PREFIX):].split('|')]
+    question, options = parts[0].strip(' :'), []
+    for option in parts[1:]:
+        if option and option not in options:
+            options.append(option)
+    if not question or len(question) > 160 or not 2 <= len(options) <= 4 or any(len(option) > 40 for option in options):
+        return text, None
+    return (head if _ else '').rstrip(), {'question':question, 'options':options}
 
 
 def _object(properties):
@@ -507,6 +535,10 @@ def _validate_shape(value, schema, field="$"):
                                           for item in branch["properties"][key].get("enum", [])))
                 raise PlanValidationError("enum_value_invalid" if isinstance(value[key], str) else "string_required",
                                           field=field + "." + key, expected={"type": "string", "enum": enums})
+        # A nullable object that failed inside: report the inner field, so a repair can fix it.
+        inner = [exc for branch, exc in errors if branch.get("type") == "object"]
+        if isinstance(value, dict) and len(inner) == 1:
+            raise inner[0]
         raise PlanValidationError("object_fields_mismatch", field=field, expected=schema)
     kind = schema["type"]
     if isinstance(kind, list):
@@ -1119,11 +1151,12 @@ def _validate_internal_plan(plan, *, user_messages, allowed_topic_ids, allowed_r
     allowed = set(allowed_topic_ids)
     for interpretation in plan["interpretations"]:
         for group in interpretation["groups"]:
+            # A repeated term ("friction", "friction") says nothing new; keep the first of each.
+            group["topic_ids"] = list(dict.fromkeys(group["topic_ids"]))
+            group["queries"] = list(dict.fromkeys(group["queries"]))
             topics, queries = group["topic_ids"], group["queries"]
             if not 1 <= len(topics) + len(queries) <= 10:
                 raise PlanValidationError("group_term_limit")
-            if len(set(topics)) != len(topics) or len(set(queries)) != len(queries):
-                raise PlanValidationError("duplicate_group_term")
             if not set(topics).issubset(allowed):
                 raise PlanValidationError("unknown_active_topic")
     if len(set(plan["person_names"])) != len(plan["person_names"]):

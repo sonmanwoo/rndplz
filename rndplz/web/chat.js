@@ -832,13 +832,21 @@ function setRail(open,remember=true){document.body.classList.toggle("rail-closed
 function render(){renderRail();
  const messages=[...(session?.messages||[])];if(optimistic)messages.push(optimistic);
  const started=messages.length>0||profileUI?.isOpen();$("main").className=started?"welcome is-chat":"welcome";$("thread").hidden=!started;
- $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formattedAnswer(m.text||"",m.role==="assistant"?m.status:null)+'</div>'+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+(m.mentions||[]).map(p=>'<button type="button" class="text-button" data-action="person" data-id="'+esc(p.id)+'">'+esc(p.name)+' 님 이력 보기 ↗</button>').join(" ")+'</article>').join("");
+ $("thread").innerHTML=messages.map(m=>m.role==="user"?'<article class="message user">'+esc(m.text)+(m.attachments?.length?'<div class="message-files">'+fileChips(m.attachments)+'</div>':"")+'</article>':'<article class="message assistant'+(m.status==="error"?' error-message':'')+'"><div class="message-meta"><span class="avatar"><span class="susomun-ci" aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span>'+esc(responseModelLabel(m))+'</span>'+(m.historical_assistant?'<span class="response-note">이전 조회</span>':'')+'</div><div class="message-body">'+formattedAnswer(m.text||"",m.role==="assistant"?m.status:null)+'</div>'+choiceChips(m,messages)+(m.status==="error"?'<p class="response-error">'+esc(displayError(m.error)||"응답이 중단됐어요. 다시 시도할 수 있습니다.")+'</p>'+(!canRetryMessage(m)?'':'<button class="retry" data-action="retry" data-id="'+esc(m.turn_id)+'">'+esc(retryButtonLabel(m))+'</button>'):m.status==="cancelled"?'<p class="response-note">응답을 중지했어요. 위 내용은 완성되지 않은 답변입니다.</p>':"")+(m.kind==="self_profile"?'<button type="button" class="text-button" data-action="profile-receipt" data-version="'+esc(m.profile_receipt?.version??"")+'">'+(m.profile_receipt?"변경 보기":"내 프로필 열기")+'</button>':"")+(m.mentions||[]).map(p=>'<button type="button" class="text-button" data-action="person" data-id="'+esc(p.id)+'">'+esc(p.name)+' 님 이력 보기 ↗</button>').join(" ")+'</article>').join("");
  if(busy&&(responseProgress||streamText))$("thread").innerHTML+='<article class="message assistant" data-response-progress><div class="message-meta"><span class="avatar"><span '+busyCiAttributes()+' aria-hidden="true"><span class="susomun-ci-h">H</span></span></span><span aria-hidden="true" style="font-size:12px;line-height:1.6;letter-spacing:0;min-width:0">'+esc(responseProgressLabel())+'</span></div>'+(streamText?'<div class="message-body">'+formatted(streamText)+'</div>':"")+'</article>';
  syncResponseProgress();
  renderBrief();
  renderCandidates();controls();drawController?.refreshBoundary();scrollBottom();
 }
 
+// One multiple-choice question under the latest answer: a chip sends its text as the next message.
+function choiceChips(m,messages){
+ const last=[...messages].reverse().find(x=>x.role==="assistant");
+ if(m!==last||m.status!=="complete"||!m.choices?.options?.length||busy)return "";
+ return '<div class="choice-block" role="group" aria-label="'+esc(m.choices.question)+'"><p class="choice-question">'+esc(m.choices.question)+'</p><div class="choice-options">'
+  +m.choices.options.map(o=>'<button type="button" class="choice-chip" data-action="choice" data-text="'+esc(o)+'">'+esc(o)+'</button>').join("")
+  +'<button type="button" class="choice-chip choice-free" data-action="choice-free">직접 입력</button></div></div>';
+}
 const canPropose=c=>Boolean(c)&&c.proposal_allowed!==false&&!c.lookup_only;
 function checkProposalSelection(ids){
  if(!Array.isArray(ids)||!ids.length)throw new Error("현재 근거로 제안할 인물을 선택해 주세요.");
@@ -1586,6 +1594,8 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   }
   else if(action==="recovery-status")await recoverSavedTurn(recoveryState);
   else if(action==="retry")await retryTurn(id);
+  else if(action==="choice"){if(composerSendLocked())return;setComposerDraft(button.dataset.text||"");await submitComposer();}
+  else if(action==="choice-free"){$("message").focus();}
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}
   else if(action==="registered-person")await showPerson(id,button,true);

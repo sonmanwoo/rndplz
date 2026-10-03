@@ -263,6 +263,13 @@ def _messages(value, *, disclosed, revision, historical_disclosures=None):
                     isinstance(row, dict) and set(row) == {"id", "name"}
                     and all(isinstance(row[key], str) and 0 < len(row[key]) <= 160 for key in row) for row in mentions)):
             message["mentions"] = [dict(row) for row in mentions]
+        choices = item.get("choices")
+        if (role == "assistant" and item.get("audience") == "consultation" and isinstance(choices, dict)
+                and set(choices) == {"question", "options"} and isinstance(choices["question"], str)
+                and 0 < len(choices["question"]) <= 160 and isinstance(choices["options"], list)
+                and 2 <= len(choices["options"]) <= 4
+                and all(isinstance(option, str) and 0 < len(option) <= 40 for option in choices["options"])):
+            message["choices"] = {"question": choices["question"], "options": list(choices["options"])}
         if role=="assistant" and item.get("status")=="error":
             if type(item.get("retry_available")) is bool:message["retry_available"]=item["retry_available"]
             if item.get("error_code") in ("model_generation_unavailable","model_generation_budget_exhausted"):

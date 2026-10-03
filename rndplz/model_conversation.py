@@ -16,7 +16,7 @@ from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
 from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, parse_request_effect, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
 from .service import now
-from .model_dialogue import parse_attachment_actions, parse_refinement
+from .model_dialogue import parse_attachment_actions, parse_refinement, split_choice_block
 from .attachment_reader import attachment_catalog, run_attachment_tools
 from .attachment_context import reader_items, source_previews
 
@@ -1511,7 +1511,9 @@ class ModelConversation:
                         if status == 'complete' and request_effect == 'preserve' and kind is None else None)
             session.pop('request_context', None)
             session.pop('proposal_policy_context', None)
-            message = {'role':'assistant', 'text':reply, 'status':status, 'error':error,
+            # The consultation answer may end with one multiple-choice question; the chat shows it as buttons.
+            shown, choices = (split_choice_block(reply) if status == 'complete' and kind is None else (reply, None))
+            message = {'role':'assistant', 'text':shown, 'status':status, 'error':error,
                        'turn_id':turn_id, 'model':option['name'], 'model_id':option['id'],
                        'source':'model', 'elapsed_ms':round(elapsed*1000),
                        'model_plan_raw':raw_plan, 'model_plan':plan,
@@ -1538,6 +1540,7 @@ class ModelConversation:
             message['audience'] = 'disclosed' if kind == 'recommendation' else 'consultation'
             message['scout_revision'] = revision
             if kind: message['kind'] = kind
+            if choices: message['choices'] = choices
             if status == 'complete' and kind is None:
                 # The server states a named registered person itself; the model often says it cannot check.
                 mentioned = self._mentioned_people(session, turn_id)
@@ -1827,7 +1830,7 @@ class ModelConversation:
             reply = yield from self._stream_model_consultation(
                 session, option, plan, revision, result, basis, deadline, consultation, request_spec)
             self._check_model_basis(sid, turn_id, basis, deadline)
-            yield {'type':'delta', 'text':reply}
+            yield {'type':'delta', 'text':split_choice_block(reply)[0]}
             self._check_model_basis(sid, turn_id, basis, deadline)
             status = 'complete'
             consultation['attempts'][0]['adopted'] = True

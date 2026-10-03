@@ -81,6 +81,12 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 .scout-prepare-progress{margin:12px 0 0}.scout-prepare-label{font:12px/1.6 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;letter-spacing:0;min-width:0;overflow-wrap:anywhere}
 
 /* Completed assistant tables and visible HTTPS destinations; existing palette and type stay. */
+.choice-block{margin:4px 0 2px;padding:12px 14px;border:1px dashed #b3c0a9;border-radius:10px;background:#f3f4ea}
+.choice-question{margin:0 0 9px;font-size:13px;line-height:1.6;color:#273626}
+.choice-options{display:flex;flex-wrap:wrap;gap:8px}
+.choice-chip{font-size:12px;line-height:1.4;padding:7px 12px;border:1px solid #abb99e;border-radius:999px;background:#fff;color:var(--green);cursor:pointer}
+.choice-chip:hover,.choice-chip:focus-visible{background:#e6ebde;border-color:#7f9573}
+.choice-free{background:transparent;color:#728066}
 .message-body .answer-table-wrap {
   box-sizing:border-box;max-width:100%;min-width:0;margin:1rem 0;
   overflow-x:auto;overscroll-behavior-inline:contain;white-space:normal;
