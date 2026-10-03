@@ -10,6 +10,7 @@ Conversation/Service; only the model is scripted.
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 import uuid
 from types import SimpleNamespace
 
@@ -221,6 +222,28 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret'])
         self.assertFalse(hasattr(self.models, 'refine_inputs'))
         self.assertEqual(scout['count'], 1)
+
+    def test_a_closing_choice_line_becomes_buttons_and_leaves_the_answer(self):
+        # The answer may end with one multiple-choice question; it is stored as choices, not text,
+        # and the server's candidate-count notice still follows the answer.
+        from rndplz.model_dialogue import split_choice_block
+        self.assertEqual(split_choice_block('본문\n[선택] 이유는? | 안정성 | 규격 | 친환경'),
+                         ('본문', {'question': '이유는?', 'options': ['안정성', '규격', '친환경']}))
+        self.assertEqual(split_choice_block('본문\n[선택] 이유는? | 하나뿐'), ('본문\n[선택] 이유는? | 하나뿐', None))
+        self.assertEqual(split_choice_block('[선택] 질문만 | 가 | 나'), ('', {'question': '질문만', 'options': ['가', '나']}))
+        original = ScriptedModels.stream
+
+        def with_choice(models, identifier, messages, *, contract=None):
+            for piece in original(models, identifier, messages, contract=contract):
+                yield piece
+            if contract == 'dialogue_answer.v1':
+                yield '\n\n[선택] 시험의 목적은? | 첨가제 선정 | 제품 규격 확인 | 고장 원인 분석'
+
+        with patch.object(ScriptedModels, 'stream', with_choice):
+            (message, scout, shown), = self.converse([ASK])
+        self.assertEqual(message['text'], ANSWER + '\n\n지금 조건에 맞는 기록이 있는 후보가 2명이에요. ' + NARROW)
+        self.assertEqual(message['choices'], {'question': '시험의 목적은?', 'options': ['첨가제 선정', '제품 규격 확인', '고장 원인 분석']})
+        self.assertEqual(shown['messages'][-1]['choices'], message['choices'])
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])
