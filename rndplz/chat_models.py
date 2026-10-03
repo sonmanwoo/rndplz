@@ -356,8 +356,9 @@ class ChatModels:
                         if schema is None:yield piece
                     break
                 except AiuRunFailed as failure:
-                    # Structured output is not shown until it is complete, so it may always start over once.
-                    if attempt==2 or (failure.shown and schema is None):
+                    # Structured output is not shown until it is complete, so it may start over once,
+                    # when the deadline still leaves room for a run to show its first text.
+                    if attempt==2 or (failure.shown and schema is None) or remaining()<AIU_FIRST_TEXT_SECONDS:
                         raise ValueError('모델이 요청을 처리하지 못했습니다.') from None
                     collected=''
                 finally:

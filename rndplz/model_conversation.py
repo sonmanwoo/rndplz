@@ -2073,6 +2073,15 @@ class ModelConversation:
                     if not exc.retry_available:
                         retry_prepare=copy.deepcopy(session)
                         retry_prepare['discovery']['lookup_ready']=False
+            elif isinstance(exc, AssessmentValidationError):
+                # The model's assessment failed validation; the user's request is unchanged, so the
+                # button may simply be pressed again (the ledger decides whether a call remains).
+                try:
+                    self._check_model_basis(sid, operation, basis, deadline)
+                except Exception as changed:
+                    failure = changed
+                else:
+                    retry_prepare = session
             error = str(failure) if isinstance(failure, ValueError) else '공개 근거 조회 또는 모델 설명을 완료하지 못했습니다.'
         finally:
             current = self._finish_model_turn(sid, operation, option, reply, status, error,
