@@ -1110,13 +1110,15 @@ def parse_response(raw, *, materials, base_plan, user_messages, allowed_topic_id
     lookup = response["next_lookup"]
     if lookup is None:
         return response, None
-    if not allow_next_lookup:
-        raise ResponseValidationError("next_lookup_not_allowed", field="$.next_lookup")
-    if any(row["relation"] != "insufficient" for row in response["assessments"]):
-        raise ResponseValidationError("next_lookup_requires_insufficient", field="$.next_lookup")
-    if not (base["intent"] in ("search", "person") and base["lookup_action"] == "execute"
-            or base["intent"] == "chat" and base["lookup_action"] == "offer"):
-        raise ResponseValidationError("next_lookup_base_not_executable", field="$.next_lookup")
+    # A next lookup the server did not allow, or that the assessments do not justify, is ignored:
+    # the assessment itself stands, and the server never runs a lookup it did not offer. (Observed
+    # 2026-10-04 with Gemini flash: a next_lookup beside an insufficient assessment failed the
+    # whole scout twice, and the chat then asked for a new message.)
+    if (not allow_next_lookup or any(row["relation"] != "insufficient" for row in response["assessments"])
+            or not (base["intent"] in ("search", "person") and base["lookup_action"] == "execute"
+                    or base["intent"] == "chat" and base["lookup_action"] == "offer")):
+        response["next_lookup"] = None
+        return response, None
     # Only the lookup representation changes. Names, user condition quotes and
     # original purpose remain exact deep copies of the server-owned base.
     base.update(intent="search", lookup_action="execute",

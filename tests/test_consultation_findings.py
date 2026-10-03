@@ -7,6 +7,7 @@ answered with "I cannot check that person". A replay also failed turns on a quot
 without a space and on an empty group beside a names-only lookup. Runs through the actual
 Conversation/Service; only the model is scripted.
 """
+import inspect
 import json
 import tempfile
 import unittest
@@ -155,6 +156,7 @@ class ConsultationFindingsTests(unittest.TestCase):
             stored = next(row for row in service.store.read()['sessions'] if row['id'] == sid)
             snapshots.append((next(m for m in reversed(stored['messages']) if m['role'] == 'assistant'),
                               dict(stored['scout']), project_session(stored)))
+        self.service, self.sid = service, sid
         return snapshots
 
     def test_a_lookup_the_user_asked_for_says_how_many_and_keeps_narrowing(self):
@@ -244,6 +246,70 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertEqual(message['text'], ANSWER + '\n\n지금 조건에 맞는 기록이 있는 후보가 2명이에요. ' + NARROW)
         self.assertEqual(message['choices'], {'question': '시험의 목적은?', 'options': ['첨가제 선정', '제품 규격 확인', '고장 원인 분석']})
         self.assertEqual(shown['messages'][-1]['choices'], message['choices'])
+
+    def test_a_disallowed_next_lookup_does_not_fail_the_scout(self):
+        # 2026-10-04, hosted (Gemini flash): the assessment carried a next_lookup the server had not
+        # allowed; the scout failed twice and the button then said to send a new message.
+        from rndplz.conversation import Conversation
+        original = ScriptedModels.stream
+        responses = []
+
+        def exposed_ids(messages):
+            ids = []
+            for row in messages:
+                for line in row.get('content', '').splitlines():
+                    if line.startswith('{') and 'retrieved_materials' in line:
+                        try:
+                            ids += [m['id'] for m in json.loads(line).get('retrieved_materials', [])]
+                        except ValueError:
+                            pass
+            return ids
+
+        def with_response(models, identifier, messages, *, contract=None):
+            if contract == 'dialogue_response.v1':
+                script = responses[0]  # a function of the exposed materials, or a fixed response
+                value = script(exposed_ids(messages)) if callable(script) else script
+                yield json.dumps(value, ensure_ascii=False)
+                return
+            yield from original(models, identifier, messages, contract=contract)
+
+        def prepare(chat, sid):
+            session = next(s for s in chat.service.store.read()['sessions'] if s['id'] == sid)
+            value = chat.prepare({'session_id': sid, 'discovery_revision': session['model_plan_revision']})
+            if inspect.isgenerator(value):
+                for _ in value:
+                    pass
+            return next(s for s in chat.service.store.read()['sessions'] if s['id'] == sid)
+
+        def insufficient(ids):
+            return {'assessments': [{'person_id': pid, 'relation': 'insufficient', 'text': '근거가 부족합니다.',
+                                     'evidence': [], 'missing': '윤활유 시험 수행 기록이 없음'} for pid in ids],
+                    'reply': '아직 근거가 부족합니다.',
+                    'next_lookup': {'interpretations': [{'label': '재조회', 'groups': [{'topic_ids': [], 'queries': ['마모']}]}], 'record_ids': []}}
+        # After an all-insufficient pass the server asks once more over the same materials, without a lookup.
+        with patch.object(ScriptedModels, 'stream', with_response):
+            responses[:] = [insufficient]
+            (message, scout, _), = self.converse([ASK])
+            chat = Conversation(self.service, self.models)
+            after = prepare(chat, self.sid)
+            self.assertEqual((after['scout']['status'], after['scout']['disclosed']), ('complete', True))
+            self.assertIsNone(after['messages'][-1].get('next_lookup'))
+            # A validation failure keeps the request (plan, revision, count) instead of wiping it; the
+            # turn's call ledger (4) is spent by then, so the button reports the budget, not a stale request.
+            responses[:] = [{'assessments': [{'person_id': 'NOBODY', 'relation': 'insufficient', 'text': 'x', 'evidence': [], 'missing': 'x'}],
+                             'reply': 'x', 'next_lookup': None}]
+            (message, scout, _), = self.converse([ASK])
+            chat = Conversation(self.service, self.models)
+            with self.assertRaises(ValueError):  # the failure reaches the button
+                prepare(chat, self.sid)
+            failed = next(s for s in self.service.store.read()['sessions'] if s['id'] == self.sid)
+            self.assertEqual(failed['messages'][-1]['status'], 'error')
+            self.assertIsNotNone(failed['model_plan'])
+            self.assertEqual((failed['model_plan_revision'], failed['scout']['count']), (message['scout_revision'], 2))
+            self.assertFalse(failed['discovery']['lookup_ready'])  # the ledger, not a lost request
+            from rndplz.model_conversation import ModelResponseBudgetExhausted
+            with self.assertRaises(ModelResponseBudgetExhausted):
+                prepare(chat, self.sid)
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])
