@@ -7,6 +7,7 @@ reading of it: tests/eval_profile_request.py).
 """
 import io
 import json
+import time
 import tempfile
 import unittest
 from http.cookies import SimpleCookie
@@ -111,6 +112,8 @@ class WebTests(unittest.TestCase):
         self.assertEqual((status, body), (200, {'intent': 'profile_update', 'method': 'model'}))
         identifier, contract, messages = models.calls[0]
         self.assertEqual((identifier, contract), ('bridge', CONTRACT))
+        # Classification runs before the chat request, so it carries its own short deadline.
+        self.assertLess(messages.generation_deadline - time.monotonic(), 13)
         payload = json.loads(messages[0]['content'].split('\n', 1)[1])
         self.assertEqual((payload['current_message'], payload['attachments']), ('내 프로필 업데이트 도와줄 수 있니?', ['연구노트.pdf']))
 

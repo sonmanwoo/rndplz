@@ -122,6 +122,61 @@ class AiuProviderTests(unittest.TestCase):
                 list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
         self.assertEqual(len(sink), 1)
 
+    def test_reading_stops_at_the_success_event(self):
+        # Reviewed 2026-10-03: a socket kept open after workflow_finished(succeeded) timed out and
+        # turned a complete answer into an error.
+        class Cut(Response):
+            def __enter__(self):
+                def lines():
+                    yield from self.lines
+                    raise TimeoutError('socket kept open after completion')
+                return lines()
+        done = frames({'event': 'text_chunk', 'data': {'text': '완성된 답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        models, sink = ChatModels(ENV), []
+        models.refreshed = 10 ** 12
+        opener = Opener(done, sink)
+        with patch.object(chat_models, 'Response', Cut, create=True), patch.object(chat_models.urllib.request, 'build_opener', return_value=opener):
+            opener.open = lambda request, timeout=None: (sink.append(request.full_url), Cut(done))[1]
+            pieces = list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual((pieces, len(sink)), (['완성된 답'], 1))
+
+    def test_a_permanent_platform_error_is_sent_once_and_named(self):
+        credit = frames({'event': 'error', 'code': 'credit_exceeded', 'message': 'x', 'status': 402})
+        models, sink = ChatModels(ENV), []
+        models.refreshed = 10 ** 12
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener([credit, credit], sink)):
+            with self.assertRaises(ValueError) as caught:
+                list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual((len(sink), models.calls['aiu']), (1, 1))
+        self.assertIn('크레딧', str(caught.exception))
+        busy = frames({'event': 'error', 'code': 'too_many_requests', 'message': 'x', 'status': 429})
+        good = frames({'event': 'text_chunk', 'data': {'text': '답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        models, sink = ChatModels(ENV), []
+        models.refreshed = 10 ** 12
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener([busy, good], sink)):
+            pieces = list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual((pieces, len(sink), models.calls['aiu']), (['답'], 2, 2))  # the retry is a counted run
+
+    def test_the_shared_app_has_an_hourly_and_a_concurrent_budget(self):
+        from rndplz.chat_models import ModelProviderCapacity
+        good = frames({'event': 'text_chunk', 'data': {'text': '답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        models, sink = ChatModels({**ENV, 'RNDPLZ_AIU_RUNS_PER_HOUR': '2'}), []
+        models.refreshed = 10 ** 12
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener(good, sink)):
+            for _ in range(2):
+                list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+            self.assertFalse(models.has_call_capacity('aiu', provider='aiu'))
+            with self.assertRaises(ModelProviderCapacity):
+                list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual(len(sink), 2)
+        models.aiu_runs.clear()
+        models.aiu_active = models.aiu_max_concurrent  # other runs in flight
+        self.assertFalse(models.has_call_capacity('aiu', provider='aiu'))
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener(good, sink)):
+            with self.assertRaises(ModelProviderCapacity):
+                list(models.stream('aiu', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
+        self.assertEqual(len(sink), 2)
+
     def test_a_stalled_run_is_dropped(self):
         ping = [b'event: ping\n', b'data: {"event":"ping"}\n']
         with patch.object(chat_models, 'AIU_FIRST_TEXT_SECONDS', -1), self.assertRaises(ValueError):

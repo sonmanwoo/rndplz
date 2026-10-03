@@ -5,7 +5,9 @@ import os
 import re
 import threading
 import time
+import urllib.error
 import urllib.request
+from collections import deque
 from urllib.parse import urlparse
 from .models import NoRedirect
 from .diagnostics import event as diagnostic_event
@@ -52,17 +54,31 @@ AIU_INPUT_LIMIT = 100000
 # stalls (20-120 s before the first text, or a failed run). A run that shows nothing for this long
 # is dropped and tried once more; after any text was shown the failure is reported instead.
 AIU_FIRST_TEXT_SECONDS = 15
+# The service-wide budget for the shared company app key: runs in flight and runs per hour,
+# counted per attempt (a retry is a second run). Each conversation turn makes about three runs.
+AIU_MAX_CONCURRENT = 4
+AIU_RUNS_PER_HOUR = 400
+# Platform errors that another attempt cannot fix (documented codes and HTTP statuses).
+AIU_PERMANENT_CODES = {'credit_exceeded','invalid_param','app_unavailable','unauthorized','not_found','provider_quota_exceeded',
+                       'provider_not_initialize','model_currently_not_support','not_chat_app','not_workflow_app','workflow_not_found'}
+AIU_PERMANENT_STATUSES = {400,401,402,403,404}
+AIU_MESSAGES = {'credit_exceeded':'사내 AI의 사용량(크레딧)이 소진되어 지금은 사용할 수 없습니다.',
+                'unauthorized':'사내 AI 연결 키가 유효하지 않습니다.'}
 
 
 class AiuRunFailed(Exception):
-    """The platform failed or stalled; `shown` tells whether any text had already come back."""
+    """A failed, cut or stalled run that another attempt may fix; `shown` tells whether any text had come back."""
     def __init__(self, shown):
         super().__init__('aiu_run_failed')
         self.shown = shown
 
 
 def aiu_run(config, payload, remaining):
-    """Text pieces of one workflow run. Raises AiuRunFailed on a failed, cut or stalled run."""
+    """Text pieces of one workflow run.
+
+    Reading stops at the success event (a socket kept open afterwards is not a failure). A platform
+    error that another attempt cannot fix is a ValueError; a failed, cut or stalled run is AiuRunFailed.
+    """
     request=urllib.request.Request(config['url'],data=json.dumps(payload,ensure_ascii=False).encode(),method='POST',
         headers={'Content-Type':'application/json','Authorization':'Bearer '+config['key']})
     started=time.monotonic();shown=False;finished=False
@@ -76,7 +92,11 @@ def aiu_run(config, payload, remaining):
                 if not line.startswith('data:'):continue
                 data=json.loads(line[5:].strip())
                 event,detail=data.get('event'),data.get('data') or {}
-                if event=='error':raise AiuRunFailed(shown)
+                if event=='error':
+                    code=str(data.get('code') or detail.get('code') or '')
+                    if code in AIU_PERMANENT_CODES or data.get('status') in AIU_PERMANENT_STATUSES:
+                        raise ValueError(AIU_MESSAGES.get(code,'사내 AI가 요청을 거절했습니다'+(' ('+code+')' if code else '')+'.'))
+                    raise AiuRunFailed(shown)
                 if event=='text_chunk':
                     piece=detail.get('text') or ''
                     if piece:
@@ -85,6 +105,12 @@ def aiu_run(config, payload, remaining):
                 elif event=='workflow_finished':
                     if detail.get('status')!='succeeded':raise AiuRunFailed(shown)
                     finished=True
+                    break
+    except urllib.error.HTTPError as error:
+        if error.code in AIU_PERMANENT_STATUSES:
+            raise ValueError(AIU_MESSAGES.get('credit_exceeded' if error.code==402 else 'unauthorized' if error.code in (401,403) else '',
+                                              '사내 AI가 요청을 거절했습니다 (HTTP '+str(error.code)+').')) from None
+        raise AiuRunFailed(shown) from None
     except (AiuRunFailed,ValueError):raise
     except Exception:
         raise AiuRunFailed(shown) from None
@@ -170,6 +196,9 @@ class ChatModels:
         if u.scheme not in ('http','https') or u.hostname not in ('127.0.0.1','localhost','::1') or u.username or u.password or u.query or u.fragment:
             raise ValueError('로컬 모델 주소는 이 기기의 Ollama 주소여야 합니다.')
         self.local=[];self.refreshed=0;self.configs={};self.lock=threading.Lock();self.calls={}
+        self.aiu_runs=deque();self.aiu_active=0
+        self.aiu_max_concurrent=int(self.env.get('RNDPLZ_AIU_MAX_CONCURRENT') or AIU_MAX_CONCURRENT)
+        self.aiu_runs_per_hour=int(self.env.get('RNDPLZ_AIU_RUNS_PER_HOUR') or AIU_RUNS_PER_HOUR)
         # Gemini is an explicit server opt-in; no key files, inferred model or fallback.
         gemini_key=self.env.get('GEMINI_API_KEY','')
         gemini_model=self.env.get('RNDPLZ_GEMINI_MODEL','')
@@ -245,7 +274,28 @@ class ChatModels:
         # Read-only availability hint. The locked dispatch guard remains authoritative.
         if type(required_calls) is not int or required_calls<1:return False
         with self.lock:
-            return provider in ('ollama','aiu') or self.calls.get(identifier,0)+required_calls<=20
+            if provider=='aiu':
+                self._aiu_prune()
+                return self.aiu_active<self.aiu_max_concurrent and len(self.aiu_runs)+required_calls<=self.aiu_runs_per_hour
+            return provider=='ollama' or self.calls.get(identifier,0)+required_calls<=20
+
+    def _aiu_prune(self,now=None):
+        now=time.monotonic() if now is None else now
+        while self.aiu_runs and now-self.aiu_runs[0]>3600:self.aiu_runs.popleft()
+
+    def _aiu_reserve(self,identifier):
+        """One run of the shared company app: counted now, refused over the hourly or concurrent budget."""
+        with self.lock:
+            self._aiu_prune()
+            if self.aiu_active>=self.aiu_max_concurrent or len(self.aiu_runs)>=self.aiu_runs_per_hour:
+                diagnostic_event('model_provider_rejected',status='rejected',model_called=False,
+                    failure_stage='predispatch',provider_error_reason='aiu_budget')
+                raise ModelProviderCapacity()
+            self.aiu_runs.append(time.monotonic());self.aiu_active+=1
+            self.calls[identifier]=self.calls.get(identifier,0)+1
+
+    def _aiu_release(self):
+        with self.lock:self.aiu_active-=1
 
     def stream(self,identifier,messages,*,contract=None):
         deadline=getattr(messages,'generation_deadline',None)
@@ -265,7 +315,7 @@ class ChatModels:
                     failure_stage='predispatch',provider_error_reason='process_call_cap',
                     generation_contract=contract)
                 raise ModelProviderCapacity()
-            self.calls[identifier]=self.calls.get(identifier,0)+1
+            if provider!='aiu':self.calls[identifier]=self.calls.get(identifier,0)+1  # AiU counts each run below
             config=dict(self.configs.get(identifier if provider=='aiu' else provider,{}))
         if provider=='aiu':
             text=aiu_text(system,messages,structured=schema is not None)
@@ -277,6 +327,7 @@ class ChatModels:
                 except Exception:pass
             collected=''
             for attempt in (1,2):
+                self._aiu_reserve(identifier)
                 try:
                     for piece in aiu_run(config,payload,remaining):
                         collected+=piece
@@ -288,6 +339,8 @@ class ChatModels:
                     if attempt==2 or (failure.shown and schema is None):
                         raise ValueError('모델이 요청을 처리하지 못했습니다.') from None
                     collected=''
+                finally:
+                    self._aiu_release()
             if schema is not None:
                 # Structured output is checked whole, then handed over once (the caller validates the schema).
                 collected=strip_json_fence(collected)

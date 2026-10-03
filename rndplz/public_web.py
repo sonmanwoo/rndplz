@@ -329,6 +329,14 @@ PREVIEW_ROUTES = {
 }
 
 
+INTENT_SECONDS = 12
+
+
+class DeadlineMessages(list):
+    """A message list that carries the generation deadline the model layer reads."""
+    generation_deadline = None
+
+
 class PublicModels(ChatModels):
     """No local Ollama probing or visitor changes to shared API credentials."""
     def __init__(self, env=None):
@@ -662,6 +670,9 @@ class PublicApp:
                                  and m.get('model') == 'gemma4:e4b' and m.get('enabled')), model_id)
             messages = intent_messages(payload['text'], attachments=[a for a in payload.get('attachments', []) if isinstance(a, str)],
                                        active_task=payload.get('active_task'), recent_turns=turns)
+            # Classification runs before the conversation request; a slow model must not hold the chat.
+            messages = DeadlineMessages(messages)
+            messages.generation_deadline = time.monotonic() + INTENT_SECONDS
             return {'intent': parse_intent(''.join(self.models.stream(model_id, messages, contract=CONTRACT))),
                     'method': 'model'}
         except Exception:
