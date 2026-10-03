@@ -347,9 +347,13 @@ class PublicModels(ChatModels):
                               'provider':'bridge','model':model,'name':model+' · 운영자 PC'+suffix,
                               'enabled':ready,'local':False,'vision':False})
             items.append({'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False})
+            # A configured company AI (AiU) app is the default; Gemma on the operator PC stays selectable.
+            aiu = self.aiu_options()
+            items.extend(aiu)
             option = self.gemini_option()
             if option: items.append(option)
-            return {'models':items,'default':option['id'] if option else ('bridge' if items[0]['enabled'] else 'guide'),'public':True}
+            default = aiu[0]['id'] if aiu else option['id'] if option else ('bridge' if items[0]['enabled'] else 'guide')
+            return {'models':items,'default':default,'public':True}
         items = [{'id': p, 'provider': p, 'name': label + ' · ' + c['model'],
                   'enabled': True, 'local': False, 'vision': False}
                  for p, label in [('openai', 'OpenAI API'), ('claude', 'Claude API')]
@@ -648,7 +652,8 @@ class PublicApp:
         try:
             model_id = payload['model_id']
             option = self.models.get(model_id)
-            if option['provider'] != 'bridge':
+            # Gemma on the operator PC and the company AI read intent; other APIs are not paid for it.
+            if option['provider'] not in ('bridge', 'aiu'):
                 return {'intent': None, 'method': 'unavailable'}
             # gemma4:e2b misrouted about one message in eight (held-out set, 2026-09-28); e4b fits
             # beside it in VRAM, so it reads e2b users' intent. 26b classifies itself (no swap).
