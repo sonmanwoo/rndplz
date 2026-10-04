@@ -7,7 +7,7 @@ import time
 import uuid
 from dataclasses import asdict
 
-from .chat_models import validate_generation_input, ModelProviderCapacity, PLAN_REPAIR_HEADER, THINKING_VARIANT
+from .chat_models import validate_generation_input, input_limit, ModelProviderCapacity, PLAN_REPAIR_HEADER, THINKING_VARIANT
 from .gemini_native import GeminiError
 from .llm_runtime import RuntimeChatModels, RuntimeConfigError, runtime_error_retryable
 from .responses_stream import LLMError
@@ -697,12 +697,12 @@ class ModelConversation:
                                 json.dumps(context, ensure_ascii=False) + '\n[도구 자료 끝]'}
         messages.insert(max(0, len(messages)-1), tool_message())
         try:
-            validate_generation_input(messages, 'dialogue_plan.v2')
+            validate_generation_input(messages, 'dialogue_plan.v2', limit=input_limit(option))
         except ValueError:
             for key in ('record_vocabulary', 'record_vocabulary_rule'):
                 context['public_search_tool'].pop(key)
             messages[max(0, len(messages)-2)] = tool_message()
-            validate_generation_input(messages, 'dialogue_plan.v2')
+            validate_generation_input(messages, 'dialogue_plan.v2', limit=input_limit(option))
         basis = {'source_turns':sources, 'historical_disclosures':historical,
                  'attachment_provider_scope':copy.deepcopy(session.get('provider_scope')),
                  'corpus_fingerprint':self._model_corpus_fingerprint(),
@@ -915,7 +915,7 @@ class ModelConversation:
                 budget['extra_consumed'] = True
         self.store.transaction(reserve)
 
-    def _repair_messages(self, messages, raw, error, basis, deadline):
+    def _repair_messages(self, messages, raw, error, basis, deadline, limit=None):
         feedback = {'kind':'plan_validation_error', 'reason':error.reason,
                     'attempt':1, 'maximum_corrections':1, 'search_executed':False,
                     'source_status':'original_user_sources_unchanged',
@@ -936,7 +936,7 @@ class ModelConversation:
         # Rejected output is validation data, never a conversational assistant
         # turn. Keep the actual latest user message last, as on the first call.
         corrected.insert(max(0, len(corrected)-1), correction)
-        validate_generation_input(corrected, 'dialogue_plan.v2')
+        validate_generation_input(corrected, 'dialogue_plan.v2', limit=limit or input_limit(None))
         return PlanMessages(corrected, basis=basis, deadline=deadline)
 
     def _check_consultation_reply(self, plan, sources, historical_disclosures=()):
@@ -1125,7 +1125,7 @@ class ModelConversation:
         attempt = {'attempt':len(attempts) + 1, 'phase':'refine', 'origin_turn_id':turn_id, 'raw':'',
                    'provider_completed':False, 'validation':None, 'adopted':False}
         try:
-            validate_generation_input(messages, 'dialogue_refine.v1')
+            validate_generation_input(messages, 'dialogue_refine.v1', limit=input_limit(option))
             self._reserve_model_call(sid, turn_id, turn_id)
         except ValueError:
             return None
@@ -1194,7 +1194,7 @@ class ModelConversation:
         messages.insert(max(0, len(messages)-1), {'role':'user', 'content':
             '[상담 문맥 · 모델 해석과 실제 조회 관측을 구분한 데이터]\n' +
             json.dumps(grounding, ensure_ascii=False) + '\n[상담 문맥 끝]'})
-        validate_generation_input(messages, 'dialogue_answer.v1')
+        validate_generation_input(messages, 'dialogue_answer.v1', limit=input_limit(option))
         return PlanMessages(messages, basis=basis, deadline=deadline)
 
     def _stream_model_consultation(self, session, option, plan, revision, result, basis, deadline, state, request_spec):
@@ -1296,7 +1296,7 @@ class ModelConversation:
                          '이것은 검색어와 연결된 자료입니다. 아직 사용자 목적에 맞는 사람으로 판단하지 않았습니다. '
                          '원래 발화와 최신 정정에 비추어 각 인물의 어떤 기록이 무엇을 뒷받침하는지 판단하세요. '
                          '검색식이나 이전 답변이 과도하게 넓었다면 그대로 적합하다고 따르지 마세요.'})
-        validate_generation_input(messages, 'dialogue_response.v1')
+        validate_generation_input(messages, 'dialogue_response.v1', limit=input_limit(option))
         exposed = set(plan.get('record_ids', []))
         exposed.update(e['id'] for person in materials for e in person['evidence'])
         if allow_next_lookup and not materials:
@@ -1390,7 +1390,7 @@ class ModelConversation:
                  '자료가 뒷받침하지 않는 본문 주장은 함께 바로잡고, 조회·연락을 추가 수행했다고 말하지 마세요. '
                  '추가 조회는 허용되지 않으므로 next_lookup=null입니다.'},
             ])
-            validate_generation_input(prepared, 'dialogue_response.v1')
+            validate_generation_input(prepared, 'dialogue_response.v1', limit=input_limit(option))
         attempt = {'attempt':len(history)+1, 'tool_call_id':result['tool_call_id'],
                    'discovery_revision':result.get('request_revision'), 'raw':'', 'parsed':None,
                    'materials':prepared.materials, 'validation':None, 'adopted':False,
@@ -1723,7 +1723,7 @@ class ModelConversation:
             for number in (1, 2):
                 phase = 'interpret' if number == 1 else 'repair'
                 self._check_model_basis(sid, turn_id, basis, deadline)
-                validate_generation_input(current_messages, 'dialogue_plan.v2')
+                validate_generation_input(current_messages, 'dialogue_plan.v2', limit=input_limit(option))
                 attempt = {'attempt':number, 'phase':phase, 'origin_turn_id':turn_id, 'raw':'',
                            'provider_completed':False, 'validation':None, 'adopted':False}
                 attempts.append(attempt)
@@ -1787,7 +1787,7 @@ class ModelConversation:
                                 not self._provider_calls_available(option,2)):
                             raise ModelChatBudgetExhausted() from None
                         repair_decision = repair_anchor(raw, exc)
-                        current_messages = self._repair_messages(messages, raw, exc, basis, deadline)
+                        current_messages = self._repair_messages(messages, raw, exc, basis, deadline, limit=input_limit(option))
                         continue
                     raise
                 attempt.update(validation='accepted', adopted=True)
