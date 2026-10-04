@@ -28,8 +28,10 @@ WHO_OFFER = '윤활유 마찰 테스트를 해 본 전문가를 추천해 줘'
 FOLLOW = '정다솔 님께 맡겨도 될까?'
 OLIGO = '에틸렌 oligomerization 연구 전문가를 찾아줘'
 BILINGUAL = '윤활유 lubricant 전문가를 찾아줘'
+EVIDENCE = 'MPC 전문가를 추천할 때 그 판단에 쓴 기록 제목과 근거를 함께 보여 주세요.'
+META = '제 프로필을 수정하려는 것은 아닙니다.'
 ANSWER = '테스트 목적을 조금 더 알려 주실 수 있을까요?'
-NARROW = '조금 더 알려 주시면 더 맞는 분으로 좁혀 드리고, 바로 보시려면 ‘이 정보로 수소문하기’를 눌러 주세요.'
+NARROW = '요청과 맞는지는 ‘이 정보로 수소문하기’에서 근거를 보며 가려지고, 조금 더 알려 주시면 더 맞는 분으로 좁혀 드려요.'
 CARD_LINE = '정다솔 님은 수소문에 등록된 분이에요 — GS칼텍스 · 윤활유기술개발팀 · 산업용 윤활유 개발 경험. 아래에서 이력을 바로 볼 수 있어요.'
 
 
@@ -103,6 +105,15 @@ PLANS = {
     OLIGO: lambda turn: plan('lookup', turn, OLIGO, ['에틸렌 oligomerization']),
     # the same word in two languages; the records have only the Korean one
     BILINGUAL: lambda turn: plan('lookup', turn, BILINGUAL, ['윤활유', 'lubricant']),
+    # a lookup whose brief the model left empty (S051 of the 100-scenario run)
+    EVIDENCE: lambda turn: {**plan('lookup', turn, EVIDENCE, ['마찰']),
+                            'scope': {'purposes': [], 'interpretations': [{'label': '마찰', 'groups': [{'topic_ids': [], 'queries': ['마찰']}]}],
+                                      'record_ids': [], 'person_names': [], 'conditions': []},
+                            'brief': {'requested_help': [], 'open_questions': []}},
+    # a remark with no request of its own, planned as an update with an empty brief (S100)
+    META: lambda turn: {'request_effect': 'update', 'decision': 'answer', 'scope': None,
+                        'brief': {'requested_help': [], 'open_questions': []}, 'summary': '프로필 수정 아님',
+                        'reply': '네, 알겠습니다.', 'attachment_actions': []},
 }
 
 
@@ -164,7 +175,7 @@ class ConsultationFindingsTests(unittest.TestCase):
         # and the server says how many candidates the current conditions have.
         (message, scout, shown), = self.converse([ASK])
         self.assertEqual(message['status'], 'complete')
-        self.assertEqual(message['text'], ANSWER + '\n\n지금 조건에 맞는 기록이 있는 후보가 2명이에요. ' + NARROW)
+        self.assertEqual(message['text'], ANSWER + '\n\n관련 검색어와 연결된 기록이 있는 분이 2명이에요. ' + NARROW)
         self.assertEqual(len(self.models.answer_inputs), 1)
         self.assertIn('"anonymous_record_linked_people_count": 2', self.models.answer_inputs[0])
         self.assertEqual((scout['count'], scout.get('auto'), scout['disclosed']), (2, None, False))
@@ -175,7 +186,7 @@ class ConsultationFindingsTests(unittest.TestCase):
         _, (message, scout, shown) = self.converse([ASK, NAMED])
         self.assertEqual(message['status'], 'complete')
         self.assertEqual(message['text'], ANSWER + '\n\n' + CARD_LINE +
-                         '\n\n지금 조건에 맞는 기록이 있는 후보가 1명이에요. ' + NARROW)
+                         '\n\n관련 검색어와 연결된 기록이 있는 분이 1명이에요. ' + NARROW)
         self.assertEqual(message['mentions'], [{'id': 'P-DS', 'name': '정다솔'}])
         self.assertEqual(scout['count'], 1)  # "마찰학" matched "마찰" by its stem
         self.assertNotIn('auto', shown['scout'])
@@ -188,14 +199,14 @@ class ConsultationFindingsTests(unittest.TestCase):
         (message, scout, _), = self.converse([SLIP])
         self.assertEqual((message['status'], message['error']), ('complete', ''))
         self.assertEqual(message['text'], ANSWER + '\n\n' + CARD_LINE +
-                         '\n\n지금 조건에 맞는 기록이 있는 후보가 1명이에요. ' + NARROW)
+                         '\n\n관련 검색어와 연결된 기록이 있는 분이 1명이에요. ' + NARROW)
         self.assertEqual(scout['count'], 1)  # the names-only lookup found the named person
 
     def test_a_who_question_planned_as_questions_only_still_looks_up_its_topic_words(self):
         (message, scout, shown), = self.converse([WHO])
         self.assertEqual(message['model_plan']['interpretations'], [
             {'label': '사람을 묻는 말의 주제어', 'groups': [{'topic_ids': [], 'queries': ['윤활유', '마찰', '마모']}]}])
-        self.assertTrue(message['text'].endswith('후보가 2명이에요. ' + NARROW))
+        self.assertTrue(message['text'].endswith('분이 2명이에요. ' + NARROW))
         self.assertEqual((scout['count'], scout.get('auto'), shown['scout'].get('auto')), (2, None, None))
         self.assertEqual(len(self.models.answer_inputs), 1)
 
@@ -217,7 +228,7 @@ class ConsultationFindingsTests(unittest.TestCase):
         self.assertEqual(message['model_plan']['interpretations'][0]['groups'][0]['queries'], ['올리고머화', 'oligomerization'])
         self.assertEqual([a['phase'] for a in message['model_plan_attempts']], ['interpret', 'refine'])
         self.assertEqual(scout['count'], 1)
-        self.assertTrue(message['text'].endswith('후보가 1명이에요. ' + NARROW))
+        self.assertTrue(message['text'].endswith('분이 1명이에요. ' + NARROW))
 
     def test_a_translation_beside_a_matching_word_spends_no_rewrite(self):
         (message, scout, _), = self.converse([BILINGUAL])
@@ -243,7 +254,7 @@ class ConsultationFindingsTests(unittest.TestCase):
 
         with patch.object(ScriptedModels, 'stream', with_choice):
             (message, scout, shown), = self.converse([ASK])
-        self.assertEqual(message['text'], ANSWER + '\n\n지금 조건에 맞는 기록이 있는 후보가 2명이에요. ' + NARROW)
+        self.assertEqual(message['text'], ANSWER + '\n\n관련 검색어와 연결된 기록이 있는 분이 2명이에요. ' + NARROW)
         self.assertEqual(message['choices'], {'question': '시험의 목적은?', 'options': ['첨가제 선정', '제품 규격 확인', '고장 원인 분석']})
         self.assertEqual(shown['messages'][-1]['choices'], message['choices'])
 
@@ -310,6 +321,22 @@ class ConsultationFindingsTests(unittest.TestCase):
             from rndplz.model_conversation import ModelResponseBudgetExhausted
             with self.assertRaises(ModelResponseBudgetExhausted):
                 prepare(chat, self.sid)
+
+    def test_an_empty_brief_gets_no_button_notice(self):
+        # 2026-10-04 (100-scenario review, S051): the answer said to press the scout button while the brief
+        # was empty and the chat, correctly, showed no button.
+        (message, scout, shown), = self.converse([EVIDENCE])
+        self.assertEqual(message['status'], 'complete')
+        self.assertNotIn('수소문하기', message['text'])
+        self.assertIn('"button_enabled_on_completion": false', self.models.answer_inputs[0])
+        self.assertFalse(shown['request_spec'].get('has_content'))
+
+    def test_a_remark_without_a_request_keeps_the_accepted_brief(self):
+        # 2026-10-04 (100-scenario review, S100): "제 프로필을 수정하려는 것은 아닙니다" emptied the brief.
+        (_, before, _), (message, scout, shown) = self.converse([ASK, META])
+        self.assertEqual((message['status'], message['text']), ('complete', ANSWER))
+        self.assertTrue(shown['request_spec']['has_content'])
+        self.assertEqual([row['text'] for row in shown['request_spec']['purposes']], ['윤활유 마찰 마모 테스트 의뢰'])
 
     def test_a_question_about_a_topic_is_not_turned_into_a_lookup(self):
         (message, scout, shown), = self.converse([WHAT])
