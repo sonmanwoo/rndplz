@@ -1162,7 +1162,8 @@ class ModelConversation:
                        'status':'completed' if result is not None else 'not_executed',
                        'anonymous_record_linked_people_count':count,
                        'count_status':'known' if count is not None else 'unknown',
-                       'button_enabled_on_completion':self._model_discovery(plan, revision, lookup_paused=paused)['lookup_ready'],
+                       'button_enabled_on_completion':(self._model_discovery(plan, revision, lookup_paused=paused)['lookup_ready']
+                                                       and (request_spec or {}).get('has_content') is True),
                        'button_label':'이 정보로 수소문하기',
                        'new_people_disclosed':False,
                        'automatic_follow_up':False,
@@ -1598,10 +1599,11 @@ class ModelConversation:
                                     'disclosed':disclosed, 'count':count, 'count_status':'known' if count is not None else 'unknown',
                                     'requested_revision':session.get('scout_authorized_revision') if disclosed else None,
                                     'count_basis':'assessed_displayed' if disclosed else 'registered_record_matches'}
-                if kind is None and count and session['discovery']['lookup_ready']:
+                if kind is None and count and session['discovery']['lookup_ready'] and (request_spec or {}).get('has_content') is True:
                     # People were found but are shown only by the scout step, which the user starts:
-                    # the answer keeps narrowing the request, and the server says how many there are.
-                    message['text'] = message['text'].rstrip() + '\n\n' + f'지금 조건에 맞는 기록이 있는 후보가 {count}명이에요. 조금 더 알려 주시면 더 맞는 분으로 좁혀 드리고, 바로 보시려면 ‘이 정보로 수소문하기’를 눌러 주세요.'
+                    # the answer keeps narrowing the request, and the server says how many records matched.
+                    # The count is of people with matching records; fit is judged by the scout assessment.
+                    message['text'] = message['text'].rstrip() + '\n\n' + f'관련 검색어와 연결된 기록이 있는 분이 {count}명이에요. 요청과 맞는지는 ‘이 정보로 수소문하기’에서 근거를 보며 가려지고, 조금 더 알려 주시면 더 맞는 분으로 좁혀 드려요.'
                 if (request_spec_content(request_spec) is not None
                         and (plan['intent'] != 'stop' or request_spec_content(session.get('request_spec')) is not None)):
                     # Prepare may revise retrieval, never the user's approved brief.
@@ -1767,6 +1769,11 @@ class ModelConversation:
                         # Stopping changes execution authority, not the accepted
                         # brief. Bind revision, answer context and storage to the
                         # same unchanged content so follow-up continuity survives.
+                        request_spec = copy.deepcopy(basis['request_spec_basis'])
+                    elif (request_spec.get('has_content') is not True
+                            and (basis.get('request_spec_basis') or {}).get('has_content') is True):
+                        # A remark that states no request of its own ("제 프로필을 수정하려는 것은
+                        # 아닙니다") does not empty the accepted brief; only a new request replaces it.
                         request_spec = copy.deepcopy(basis['request_spec_basis'])
                 except PlanValidationError as exc:
                     attempt.update(validation='rejected', reason=exc.reason)
