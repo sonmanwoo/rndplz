@@ -168,14 +168,26 @@ def generation_spec(name):
     return spec
 
 
-def validate_generation_input(messages, contract):
+GENERATION_INPUT_LIMIT = 60000  # sized for the operator-PC Gemma's context window
+
+
+def input_limit(option):
+    """Characters of system text plus messages one call may carry, by provider.
+
+    The company AI app takes one text input of at most AIU_INPUT_LIMIT characters (the wrapper
+    around the prompt is a few hundred); Gemma keeps the context-sized cap.
+    """
+    return AIU_INPUT_LIMIT - 4000 if (option or {}).get('provider') == 'aiu' else GENERATION_INPUT_LIMIT
+
+
+def validate_generation_input(messages, contract, limit=GENERATION_INPUT_LIMIT):
     """Admit the complete, untrimmed model-visible input before any dispatch."""
     spec = generation_spec(contract)
     if not isinstance(messages, list) or any(
             not isinstance(row, dict) or row.get('role') not in ('user', 'assistant')
             or not isinstance(row.get('content'), str) for row in messages):
         raise ValueError('대화 생성 메시지 형식이 올바르지 않습니다.')
-    if len(spec['system']) + sum(len(row['content']) for row in messages) > 60000:
+    if len(spec['system']) + sum(len(row['content']) for row in messages) > limit:
         raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
     return spec
 
@@ -324,10 +336,10 @@ class ChatModels:
             if value<=0:raise ValueError('이번 대화의 모델 처리 시간을 초과했습니다.')
             return value
         remaining()
-        spec=validate_generation_input(messages,contract) if contract is not None else None
+        option=self.get(identifier);provider=option['provider']
+        spec=validate_generation_input(messages,contract,limit=input_limit(option)) if contract is not None else None
         system=spec['system'] if spec is not None else CHAT_SYSTEM
         schema=spec.get('format') if spec is not None else None
-        option=self.get(identifier);provider=option['provider']
         with self.lock:
             # The lifetime budget protects paid APIs; local models can keep serving.
             if provider not in ('ollama','aiu') and self.calls.get(identifier,0)>=20:

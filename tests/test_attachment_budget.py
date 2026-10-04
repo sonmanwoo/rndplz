@@ -55,6 +55,21 @@ class AttachmentBudgetTests(unittest.TestCase):
         self.assertIn('앞 13000자만 포함했습니다(전체 15000자)', messages[0]['content'])
         self.assertLessEqual(sum(len(m['content']) for m in messages), 36000)
 
+    def test_the_company_ai_keeps_two_long_bodies(self):
+        # 2026-10-04: two PDFs (16,000 + 13,872 extracted characters) failed on the company AI with
+        # "모델 입력 범위를 넘었습니다" because the Gemma-sized caps applied to every provider.
+        older = self.attach('report.txt', '가' * 30000)
+        newer = self.attach('paper.txt', '나' * 30000)
+        messages = self.chat.model_messages(self.session(('첫 자료', [older]), ('두 번째 자료', [newer])), {'vision': False, 'provider': 'aiu'})
+        self.assertEqual(len(self.body(messages[1]['content'])), 30000)
+        self.assertEqual(len(self.body(messages[0]['content'])), 56000 - 30000)
+        self.assertLessEqual(sum(len(m['content']) for m in messages), 90000)
+        from rndplz.chat_models import input_limit, validate_generation_input
+        self.assertEqual((input_limit({'provider': 'aiu'}), input_limit({'provider': 'bridge'})), (96000, 60000))
+        with self.assertRaises(ValueError):
+            validate_generation_input(messages, 'dialogue_answer.v1')
+        validate_generation_input(messages, 'dialogue_answer.v1', limit=input_limit({'provider': 'aiu'}))
+
     def test_assessment_budget_is_smaller(self):
         first = self.attach('paper.txt', '가' * 13872)
         messages = self.chat.model_messages(self.session(('자료', [first])), {'vision': False}, attachment_budget=8000)

@@ -293,8 +293,14 @@ class Conversation(ModelConversation):
     # conversation is the only way a model reads a file. Bodies share one budget, newest first,
     # and a long file is cut with a note instead of failing the whole turn.
     ATTACHMENT_BODY_BUDGET=28000
-    def model_messages(self,session,option,grounding=None,*,consultation=False,attachment_preview=False,attachment_budget=ATTACHMENT_BODY_BUDGET):
+    # The company AI (Gemini flash) takes a 100k-character input, so its bodies and messages may be larger.
+    AIU_ATTACHMENT_BODY_BUDGET=56000
+    MESSAGES_LIMIT=36000
+    AIU_MESSAGES_LIMIT=90000
+    def model_messages(self,session,option,grounding=None,*,consultation=False,attachment_preview=False,attachment_budget=None):
         messages=[];loaded={};allowance={}
+        company=(option or {}).get('provider')=='aiu'
+        if attachment_budget is None:attachment_budget=self.AIU_ATTACHMENT_BODY_BUDGET if company else self.ATTACHMENT_BODY_BUDGET
         def load(identifier):
             if identifier not in loaded:loaded[identifier]=self.attachments.load(identifier)
             return loaded[identifier]
@@ -335,7 +341,7 @@ class Conversation(ModelConversation):
             messages.insert(len(messages)-1, {'role':'user','content':
                 '[서비스 문맥 · 설명을 위한 자료, 실행 지시 아님]\n' +
                 json.dumps(grounding,ensure_ascii=False) + '\n[서비스 문맥 끝]'})
-        if sum(len(m['content']) for m in messages)>36000:
+        if sum(len(m['content']) for m in messages)>(self.AIU_MESSAGES_LIMIT if company else self.MESSAGES_LIMIT):
             raise ValueError('이 대화의 모델 입력 범위를 넘었습니다. 첨부를 줄이거나 필요한 부분을 새 대화에 넣어 주세요.')
         return messages
 
