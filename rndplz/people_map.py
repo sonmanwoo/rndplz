@@ -4,6 +4,8 @@ Uses the same IDs and explanations as person detail. It does not load new
 sources, read visitor state, infer current employment, or invoke a model.
 """
 from collections import Counter
+import json
+from pathlib import Path
 from datetime import datetime, timezone
 
 PROFILE_KEYS = {
@@ -18,6 +20,40 @@ PROFILE_KEYS = {
 }
 
 
+def build_capabilities(corpus):
+    """Resolve curated categories against the same scoped people and owned records."""
+    catalog = json.loads(Path(__file__).with_name('map_capabilities.json').read_text(encoding='utf-8'))
+    if catalog.get('schema_version') != 1:
+        raise ValueError('Unknown map capability catalog')
+    result = []
+    seen = set()
+    for definition in catalog['definitions']:
+        if definition['id'] in seen:
+            raise ValueError('Duplicate map capability ID')
+        seen.add(definition['id'])
+        tags = set(definition.get('topic_ids', []))
+        explicit = {link['id']: link for link in definition.get('people', [])}
+        links = []
+        for pid, person in corpus.people.items():
+            records = corpus.by_person.get(pid, [])
+            link = explicit.get(pid, {})
+            explicit_ids = set(link.get('recordIds', []))
+            matched = [record for record in records if record.id in corpus.records and
+                       any(c.person_id == pid for c in record.people) and
+                       (record.id in explicit_ids or tags.intersection(record.tags))]
+            if not matched:
+                continue
+            # A record-to-category relation says which material supports the link,
+            # never a skill score, current availability, or another person's evidence.
+            names = list(dict.fromkeys(corpus.topic_by_id[tag]['name'] for record in matched
+                                      for tag in record.tags if tag in tags and tag in corpus.topic_by_id))
+            scope = link.get('scope') or ' · '.join(names) + ' · 공개 연구 근거'
+            links.append({'id':pid, 'scope':scope, 'recordIds':[record.id for record in matched]})
+        if links:
+            result.append({key:definition[key] for key in ('id','label','description')} | {'people':links})
+    return result
+
+
 def build_people_map(engine):
     corpus = engine.corpus
     people, featured, linked = [], [], set()
@@ -27,6 +63,8 @@ def build_people_map(engine):
             contribution for contribution in record.people
             if contribution.person_id == person.id
         )) for record in records]
+        for row, record in zip(evidence, records):
+            row['summary'] = record.text[:1200]
         team_projects = [record for record in records
                          if record.kind == 'project_record' and
                          record.details.get('team_membership_basis') == 'user_provided_project_participation']
@@ -74,4 +112,5 @@ def build_people_map(engine):
             'career_records': kinds['career_record'], 'site_records': kinds['site_record'],
         },
         'featured_ids': featured, 'topics': corpus.topics, 'people': people,
+        'capabilities': build_capabilities(corpus),
     }

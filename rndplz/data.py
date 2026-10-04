@@ -157,12 +157,13 @@ class Corpus:
             for tag in raw["tags"]:
                 if tag not in self.topic_by_id:
                     self.errors.append("미해결 주제 참조: " + tag)
-            details = {"text_kind": "editorial_public_profile_summary", "abstract_available": False}
+            research_profile = raw.get("publication_type") == "official_research_profile"
+            details = {"text_kind": "editorial_summary" if research_profile else "editorial_public_profile_summary", "abstract_available": False}
             for key in ("boundary_note", "metadata_sources", "publication_type", "source_published_at"):
                 if key in raw:
                     details[key] = raw[key]
             self.add(self.records, Record(raw["id"], "public_profile_record", raw["title"], raw["summary"], raw["date"],
-                [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw["field"], "public_profile",
+                [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw["field"], "public_research_case" if research_profile else "public_profile",
                 "curated_primary_sources", raw["id"], raw["url"], raw["checked_at"], "public_profile",
                 raw["classification_basis"], details=details))
             self.checked_at = max(self.checked_at, raw["checked_at"])

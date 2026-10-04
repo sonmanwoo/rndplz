@@ -966,5 +966,200 @@
     ],
     "boundary_note": "제공된 연구·공동발명 주제의 분류이며 현재 소속·개인 수행 수준·사업화 성과를 확인한 결과가 아닙니다.",
     "color": "#8b9278"
+  },
+  {
+    "id": "CHE-THERMO",
+    "name": "열역학·상평형",
+    "field": "chemical_thermodynamics",
+    "color": "#46758c",
+    "keywords": [
+      "열역학",
+      "상평형",
+      "전해질",
+      "thermodynamics",
+      "phase equilibrium",
+      "phase equilibria",
+      "electrolytes"
+    ]
+  },
+  {
+    "id": "CHE-DISTILL",
+    "name": "증류·반응분리",
+    "field": "distillation",
+    "color": "#aa714b",
+    "keywords": [
+      "증류",
+      "반응증류",
+      "분벽탑",
+      "distillation",
+      "reactive separation",
+      "dividing wall"
+    ]
+  },
+  {
+    "id": "CHE-MEMBRANE",
+    "name": "막분리·나노여과",
+    "field": "membrane_separation",
+    "color": "#40857c",
+    "keywords": [
+      "막분리",
+      "분리막",
+      "멤브레인",
+      "나노여과",
+      "membrane",
+      "nanofiltration",
+      "OSN"
+    ]
+  },
+  {
+    "id": "CHE-CRYSTAL",
+    "name": "결정화·결정형 제어",
+    "field": "crystallization",
+    "color": "#85648f",
+    "keywords": [
+      "결정화",
+      "결정형",
+      "다형",
+      "crystallization",
+      "crystallisation",
+      "polymorph",
+      "crystal shape"
+    ]
+  },
+  {
+    "id": "CHE-PARTICLE",
+    "name": "분체·입자·다상유동",
+    "field": "particle_multiphase",
+    "color": "#9a7748",
+    "keywords": [
+      "분체",
+      "입자",
+      "다상유동",
+      "기체-고체",
+      "particle",
+      "particulate",
+      "multiphase",
+      "gas-solid"
+    ]
+  },
+  {
+    "id": "CHE-RHEOLOGY",
+    "name": "유변학·점탄성",
+    "field": "rheology",
+    "color": "#aa6380",
+    "keywords": [
+      "유변학",
+      "점탄성",
+      "비뉴턴",
+      "rheology",
+      "viscoelastic",
+      "non-Newtonian",
+      "extensional"
+    ]
+  },
+  {
+    "id": "CHE-BIOPROCESS",
+    "name": "발효·대사공학·합성생물학",
+    "field": "bioprocess_engineering",
+    "color": "#518269",
+    "keywords": [
+      "발효",
+      "대사공학",
+      "합성생물학",
+      "세포공장",
+      "fermentation",
+      "metabolic engineering",
+      "bioprocess",
+      "synthetic biology"
+    ]
+  },
+  {
+    "id": "CHE-BATTERY",
+    "name": "이차전지·배터리 진단",
+    "field": "battery_engineering",
+    "color": "#697cad",
+    "keywords": [
+      "이차전지",
+      "배터리",
+      "전기화학",
+      "rechargeable battery",
+      "battery diagnostics",
+      "battery management"
+    ]
+  },
+  {
+    "id": "CHE-SAFETY",
+    "name": "공정안전·인적요인",
+    "field": "process_safety",
+    "color": "#aa645c",
+    "keywords": [
+      "공정안전",
+      "인적요인",
+      "인지공학",
+      "이상 탐지",
+      "process safety",
+      "human factors",
+      "cognitive engineering",
+      "fault detection"
+    ]
+  },
+  {
+    "id": "CHE-WATER",
+    "name": "수처리·담수화·폐수 재이용",
+    "field": "water_treatment",
+    "color": "#468f9d",
+    "keywords": [
+      "수처리",
+      "담수화",
+      "폐수",
+      "재이용",
+      "desalination",
+      "wastewater",
+      "water treatment"
+    ]
+  },
+  {
+    "id": "CHE-INTENSIFY",
+    "name": "반응기·연속흐름·공정 강화",
+    "field": "reactor_intensification",
+    "color": "#9c734b",
+    "keywords": [
+      "미세반응기",
+      "연속흐름",
+      "유동 화학",
+      "공정 강화",
+      "microreactor",
+      "flow chemistry",
+      "process intensification"
+    ]
+  },
+  {
+    "id": "CHE-INTEGRATION",
+    "name": "공정 통합·지속가능 설계",
+    "field": "process_integration",
+    "color": "#698365",
+    "keywords": [
+      "공정 통합",
+      "지속가능",
+      "기술경제성",
+      "process integration",
+      "sustainable design",
+      "techno-economic"
+    ]
+  },
+  {
+    "id": "CHE-TRANSPORT",
+    "name": "수송현상·확산·유동 측정",
+    "field": "transport_measurement",
+    "color": "#747ea6",
+    "keywords": [
+      "수송현상",
+      "확산",
+      "자기공명",
+      "transport",
+      "diffusion",
+      "magnetic resonance",
+      "MRI"
+    ]
   }
 ]
