@@ -1176,7 +1176,8 @@ class ModelConversation:
                      'prior_anonymous_observation':self._prior_anonymous_observation(session),
                      'observation_continuity_rule':'execution_observation은 이번 턴의 실행 사실만 뜻합니다. 이번 턴의 not_executed/unknown은 이전 조회가 없었다거나 0건이었다는 뜻이 아닙니다. prior_anonymous_observation이 있으면 현재 출처·권한과 연결된 이전 서버 조회의 익명 수·등록 주제입니다. 이전 관측은 그때의 범위만 설명하며 이번 조건의 결과나 개인 역량·수행·현재 가용성 확인이 아닙니다. 이 필드가 없으면 이전 assistant 주장만으로 조회 사실을 확정하지 마세요. 현재 질문에 답할 수 있는 관측과 미확인 사항을 구분하고, 재조회나 질문을 의무적으로 요구하지 마세요.',
                      'execution_observation':observation,
-                     'source_turns':source_previews(basis['source_turns']) if attachment_tools is not None else copy.deepcopy(basis['source_turns']),
+                     'source_turns':source_previews(basis['source_turns']) if attachment_tools is not None else source_previews(
+                         basis['source_turns'], reading_scope='preview_here_bounded_attachment_text_in_conversation_message_check_reading_notes'),
                      'historical_disclosures':copy.deepcopy(basis['historical_disclosures']),
                      'historical_disclosure_rule':'이미 공개되고 현재 원자료와 연결이 확인된 이력입니다. 이전 자료의 출처·기여·관련성·한계를 설명할 수 있지만 이번 조건의 새 결과나 평가로 바꾸지 마세요.'}
         coverage = search_scope(self, session)
@@ -1268,7 +1269,8 @@ class ModelConversation:
                 'retrieved_materials':materials, 'retrieval_person_count':len(materials),
                 'search_interpretation':copy.deepcopy(plan),
                 'search_interpretation_is_verified_user_intent':False,
-                'original_user_sources':self._model_sources(session),
+                'original_user_sources':source_previews(
+                    self._model_sources(session), reading_scope='preview_here_bounded_attachment_text_in_conversation_message_check_reading_notes'),
                 'purpose_assessment':'not_performed',
                 # A nonempty result gets only actual materials. It may propose
                 # revised queries if all assessments are insufficient. Catalog
