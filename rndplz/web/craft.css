@@ -411,3 +411,24 @@ html[data-theme="dark"] .chat-page .message-meta .avatar { --ci-surface:var(--de
 }
 @keyframes susomun-ci-orbit { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 /* Existing OS reduction and app data-motion-toggle -> body.no-motion rules apply. */
+/* grape-egg:start */
+.hero-object .mini-sheet.egg-grape{background:none!important;border:0!important;box-shadow:none!important;cursor:pointer;animation:egg-pop .5s ease both}
+.mini-sheet.egg-grape svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 5px 6px #3a1f5530)}
+@keyframes egg-pop{0%{scale:.55;opacity:.3}60%{scale:1.18}100%{scale:1;opacity:1}}
+.no-motion .mini-sheet.egg-grape{animation:none}
+.egg-dialog{width:min(580px,calc(100vw - 28px));max-height:min(88dvh,780px);overflow:auto}
+.egg-lock{display:grid;gap:12px;padding:6px 2px 4px}
+.egg-hint{margin:0;line-height:1.6}
+.egg-hint small{display:block;color:#6E6379;margin-top:2px}
+.egg-lock input{font:inherit;font-size:20px;letter-spacing:.14em;padding:10px 12px;border:1px solid #CBB6DC;border-radius:8px;background:#fff;color:#241B2C}
+.egg-error{margin:0;color:#B26A18}
+.egg-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.egg-tab{font:inherit;padding:6px 14px;border:1px solid #CBB6DC;border-radius:999px;background:transparent;color:inherit;cursor:pointer}
+.egg-tab[aria-pressed="true"]{background:#6D3B94;border-color:#6D3B94;color:#fff}
+.egg-paper{background:#fdfaf3;color:#2b2233;border-top:5px solid #6D3B94;border-radius:4px;padding:22px 24px 18px;font-family:"Gaegu","Nanum Pen Script","Segoe Print","Malgun Gothic",cursive;font-size:18px;line-height:1.85;word-break:keep-all;overflow-wrap:break-word}
+.egg-paper p{margin:0 0 14px}
+.egg-paper .greet{font-weight:700;font-size:20px}
+.egg-paper .sign{text-align:right;font-weight:700}
+@media(max-width:480px){.egg-paper{padding:18px 16px 14px;font-size:17px}}
+.egg-bunch{display:block;width:72px;height:auto;margin-top:6px}
+/* grape-egg:end */
