@@ -7,7 +7,7 @@ from .data import Corpus, matches
 from .demo_pool import project_corpus, historical_person
 
 SCOPE = {"provided_bibliography":"사용자 제공 논문·특허 목록","user_provided_project":"사용자 제공 프로젝트 이력","public_profile":"공식 공개 경력·학력","public_research_case":"공개 연구 사례","provided_resume":"제공된 직무 경력","self_reported":"본인 제공 경력","ai_foundations":"AI 기초 연구 · 공개 사례","direct":"직접 관련","adjacent_ev":"인접 분야 · 전기차","adjacent_transformer":"인접 분야 · 변압기","other":"적용 범위 추가 확인","other_field":"다른 연구 분야","virtual_site":"가상 현장 기록"}
-KIND = {"patent_bibliography":"제공 특허 목록","project_participation":"제공 프로젝트 이력","public_profile":"공식 공개 경력·학력 기록","career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
+KIND = {"patent_bibliography":"제공 특허 목록","project_participation":"제공 프로젝트 이력","public_profile":"공식 공개 프로필 기록","career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
 MODE = {"advice":"자문","verify":"검증 요청","member":"프로젝트 멤버","site_request":"현장 의뢰","resource_request":"자원 요청"}
 ROLE = {"co_inventor":"공동발명자","participant_unspecified":"참여 · 역할 미기재","first":"1저자","middle":"공저자","last":"마지막 저자","unknown":"저자","recorded_role":"기록상 담당"}
 

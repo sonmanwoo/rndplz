@@ -664,3 +664,7 @@ body:has(#detailDialog.docked[open]) #peopleMapHost .mp-spatial-edge:not(.active
 /* Keep the map viewport in place while its person/record dialog is open as a modal. */
 html:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)),
 body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;overscroll-behavior:none}
+
+/* Keep expanded research categories beside the map as the pool grows. */
+#peopleMapHost .mp-capability-list{max-height:min(65dvh,640px);overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+@media(max-width:760px){#peopleMapHost .mp-capability-list{max-height:18rem}}
