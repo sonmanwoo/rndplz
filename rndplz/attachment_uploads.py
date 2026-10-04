@@ -17,6 +17,8 @@ from .redis_state import _LEASE_MS, _RELEASE, _loads
 
 CHUNK_BYTES = 524288
 EXPIRES_IN = 600
+COMPLETE_WAIT_POLLS = 40      # a duplicate completion waits up to ~20 s for the first one
+COMPLETE_WAIT_SECONDS = 0.5
 _READ = "if redis.call('EXISTS',KEYS[1]) ~= 0 then return {0,false} end return {1,redis.call('GET',KEYS[2]) or false}"
 _APPLY = """if redis.call('GET',KEYS[1]) ~= ARGV[1] or redis.call('PTTL',KEYS[1]) <= 0 or redis.call('EXISTS',KEYS[2]) ~= 0 then return 0 end
 local ops=cjson.decode(ARGV[2])
@@ -243,6 +245,10 @@ class AttachmentUploads:
         if base64.b64encode(raw).decode('ascii')!=data:raise AttachmentUploadError('invalid')
         with self._guard(quota=True) as token:
             m=self._meta(identifier)
+            # The same piece arriving again (a mobile network or proxy resent the request after the
+            # first answer was lost) is the piece already stored: acknowledge it, do not fail the file.
+            if m['phase']=='receiving' and index==m['next']-1 and self._read(identifier+'.'+str(index))==data:
+                return {'upload_id':identifier,'index':index,'received':True}
             if m['phase']!='receiving' or index!=m['next']:raise AttachmentUploadError('conflict')
             expected=min(CHUNK_BYTES,m['size']-index*CHUNK_BYTES)
             if len(raw)!=expected or expected<=0:raise AttachmentUploadError('corrupt')
@@ -253,6 +259,14 @@ class AttachmentUploads:
 
     def complete(self,payload):
         _payload(payload,('upload_id',));identifier=payload['upload_id']
+        # A second completion request while the first is still publishing (a resent request) waits
+        # for that result instead of being refused; the file is published once either way.
+        for _ in range(COMPLETE_WAIT_POLLS):
+            with self._guard() as token:
+                m=self._meta(identifier)
+                if m['phase']=='complete':return m['result']
+                if m['phase']=='receiving':break
+            time.sleep(COMPLETE_WAIT_SECONDS)
         with self._guard() as token:
             m=self._meta(identifier)
             if m['phase']=='complete':return m['result']
