@@ -18,8 +18,8 @@ from .service import now
 FIELD_NAMES = {'name': '표시 이름', 'organization': '소속·부서', 'role': '현재 역할', 'bio': '짧은 소개', 'skills': '전문분야', 'interests': '관심 분야'}
 GUIDE = {
     'help': "바꿀 내용을 한 문장으로 말씀해 주세요. 예: '소속을 바이오공정팀으로 바꿔줘', '관심 분야에 수소 액화 추가'. "
-            "이력서·연구노트 같은 파일을 이 입력창에 첨부해 보내면 Gemma가 끝까지 읽고 변경안을 만들어요.",
-    'document': "말씀하신 파일을 이 입력창에 첨부해 보내 주세요. 프로필 창이 열려 있을 때 보낸 파일은 Gemma가 끝까지 읽고 "
+            "논문·연구보고서·이력서를 첨부해 보내면 선택한 AI가 추출문을 읽고 변경안을 만들어요. 저자와 내 역할을 확인한 뒤 선택 저장해 주세요.",
+    'document': "말씀하신 파일을 이 입력창에 첨부해 보내 주세요. 프로필 창이 열려 있을 때 보낸 파일은 선택한 AI가 추출문을 읽고 "
                 "경력·기술·관심 분야 변경안을 만들어요. 반영은 고른 항목만 됩니다.",
     'again': "프로필 창에서 이어서 하면 돼요. 바꿀 항목과 값을 말씀하시거나 파일을 첨부해 보내 주세요.",
 }
@@ -192,8 +192,11 @@ class ProfileChat:
                      'upload': '프로필 자료를 받았어요. 반영할 내용은 직접 선택해 주세요.',
                      'suggest': '자료의 변경 후보를 준비했어요. 아직 프로필에 반영하지 않았어요.',
                      'undo': '선택한 한 항목의 변경을 되돌렸어요.', 'source-action': '프로필 자료 상태를 변경했어요.'}[effective]
-            if effective == 'suggest' and (view.get('operation') or {}).get('model_calls'):
-                reply = 'Gemma가 자료 전체를 읽고 변경안을 만들었어요. 근거 원문을 확인하고 반영할 항목만 골라 주세요.'
+            if effective == 'suggest' and (view.get('operation') or {}).get('method') == 'model_reading':
+                operation = view['operation']
+                scope = '일부만 추출된 내용' if operation.get('truncated') else '저장된 추출문'
+                reply = (f"선택한 AI가 {scope} {operation.get('read_parts', 0)}개 구간을 읽어 변경안 {operation.get('created', 0)}개를 만들었어요. "
+                         '아직 반영하지 않았어요. 저자·본인 역할과 근거를 확인하고 필요한 항목만 선택해 주세요.')
             if view.get('card_update') and effective in ('save', 'undo', 'source-action'):
                 reply += ' 연구맵 카드에도 바로 반영했어요.'
             if intent and intent.get('guide'):

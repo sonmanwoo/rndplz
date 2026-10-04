@@ -453,22 +453,32 @@ class Profiles:
     def _reading_path(self, source_id):
         return self._check_path(self.directory / 'readings' / (_id(source_id) + '.json'))
 
-    def _reading(self, source):
+    def _reading(self, source, context):
         path = self._reading_path(source['id'])
         try:
             record = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             record = None
         if (not isinstance(record, dict) or record.get('source_version') != source['version']
-                or record.get('text_sha256') != source.get('text_sha256')):
+                or record.get('text_sha256') != source.get('text_sha256') or record.get('context') != context):
             record = {'source_id': source['id'], 'source_version': source['version'],
-                      'text_sha256': source.get('text_sha256'), 'parts': {}}
+                      'text_sha256': source.get('text_sha256'), 'context': context, 'parts': {}}
         return record
 
     def _snapshot(self, data):
         fields = data['profile']['fields']
-        return {'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
+        return {**{key: fields[key] for key in ('name', 'organization', 'role')},
+                'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
                 'career_titles': [c['title'] for c in data['profile']['careers'] if c.get('title')]}
+
+    def _reading_context(self, data, model_id):
+        try:
+            resolved = self.reader._model(model_id)
+        except ReadingError as error:
+            raise ProfileError(str(error), code='model_unavailable', status=503) from None
+        fields = data['profile']['fields']
+        return {'model_id': resolved, 'identity': _digest({key: fields[key] for key in ('name', 'organization', 'role')}),
+                'reader_revision': 2}
 
     def read_part(self, payload):
         _keys(payload, ('source_id', 'part', 'model_id'))
@@ -483,11 +493,13 @@ class Profiles:
         parts = split_parts(self.attachments.load(source['attachment_id'])['text'])
         if part > len(parts):
             raise ProfileError('읽을 부분을 확인해 주세요.')
-        record = self._reading(source)
+        context = self._reading_context(data, payload.get('model_id'))
+        record = self._reading(source, context)
         done = record['parts'].get(str(part))
+        cached = done is not None
         if done is None:
             try:
-                kept, dropped = self.reader.read_part(payload.get('model_id'), source['name'], parts, part, self._snapshot(data))
+                kept, dropped = self.reader.read_part(context['model_id'], source['name'], parts, part, self._snapshot(data))
             except ReadingError as error:
                 raise ProfileError(str(error), code='model_unavailable', status=503) from None
             done = record['parts'][str(part)] = {'kept': kept, 'dropped': dropped}
@@ -497,7 +509,9 @@ class Profiles:
             temporary.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
             temporary.replace(path)
         return {'part': part, 'total': len(parts), 'kept': len(done['kept']), 'dropped': done['dropped'],
-                'read_parts': len(record['parts']), 'done': len(record['parts']) >= len(parts)}
+                'read_parts': len(record['parts']), 'done': len(record['parts']) >= len(parts),
+                'cached': cached, 'model_calls': 0 if cached else 1, 'model_id': context['model_id'],
+                'truncated': bool(source.get('truncated')), 'characters': source.get('characters')}
 
     def _suggest_from_reading(self, payload):
         identifiers = payload.get('source_ids')
@@ -510,12 +524,13 @@ class Profiles:
         self._path(source['attachment_id'])
         text = self.attachments.load(source['attachment_id'])['text']
         total = len(split_parts(text))
-        record = self._reading(source)
+        context = self._reading_context(data, payload.get('model_id'))
+        record = self._reading(source, context)
         if len(record['parts']) < total:
             raise ProfileError('자료를 아직 끝까지 읽지 않았어요. 다시 읽기를 이어가 주세요.', code='reading_incomplete', status=409)
         candidates = [row for key in sorted(record['parts'], key=int) for row in record['parts'][key]['kept']]
         try:
-            proposals = self.reader.merge(payload.get('model_id'), candidates, self._snapshot(data), text) if candidates else []
+            proposals = self.reader.merge(context['model_id'], candidates, self._snapshot(data), text) if candidates else []
         except ReadingError as error:
             raise ProfileError(str(error), code='model_unavailable', status=503) from None
 
@@ -534,13 +549,18 @@ class Profiles:
                     'source_version': current['version'], 'base_version': data['profile']['version'] + 1,
                     'field': item['field'], 'before': None, 'after': item['after'], 'career': item['career'],
                     'quote': item['quote'], 'evidence': item['evidence'],
+                    'participation': item.get('participation', 'needs_review'),
                     'location': {'basis': 'extracted_text', 'start': item['start'], 'end': item['end'],
                                  'line': text.count('\n', 0, item['start']) + 1},
                     'origin': 'source_claim', 'method': 'model_reading', 'decision': 'pending',
                     **({'actor': self._actor()} if self.account else {}),
-                    'notice': 'Gemma가 자료를 읽고 만든 변경안입니다. 근거 원문과 내 역할을 확인하고 선택해 주세요.'})
+                    'notice': '선택한 AI가 추출문을 읽고 만든 변경안입니다. 저자·본인 참여 여부와 역할을 확인하고 선택해 주세요.'})
                 created += 1
-            return {'created': created, 'model_calls': total + 1, 'candidates': len(candidates)}
+            current['reading'] = {'source_version': current['version'], 'model_id': context['model_id'],
+                                  'read_parts': total, 'created': created, 'truncated': bool(source.get('truncated'))}
+            return {'created': created, 'model_calls': 1 if candidates else 0, 'candidates': len(candidates),
+                    'method': 'model_reading', 'model_id': context['model_id'], 'read_parts': total,
+                    'truncated': bool(source.get('truncated')), 'characters': len(text)}
 
         return self._mutate(payload, 'suggest', make)
 
@@ -559,7 +579,7 @@ class Profiles:
                 source = self._find_source(data, identifier)
                 self._path(source['attachment_id'])
                 typed = [p for p in data['suggestions'] if p['source_id'] == identifier and p.get('method') == 'model_reading']
-                if typed:
+                if typed or source.get('reading', {}).get('source_version') == source['version']:
                     # A read document keeps its model proposals; refreshing only re-bases them.
                     for p in typed:
                         if p['decision'] in ('pending', 'deferred', 'excluded'):
@@ -673,7 +693,7 @@ class Profiles:
             profile['careers'] = new
         seen_decisions = set()
         for decision in decisions:
-            _keys(decision, ('id', 'decision', 'field', 'value', 'item_id'))
+            _keys(decision, ('id', 'decision', 'field', 'value', 'item_id', 'career'))
             identifier = _id(decision.get('id'))
             if identifier in seen_decisions:
                 raise ProfileError('같은 변경 후보가 중복되었습니다.')
@@ -698,6 +718,8 @@ class Profiles:
             field = decision.get('field')
             if field not in (*FIELDS, 'career'):
                 raise ProfileError('변경 후보를 적용할 항목을 선택해 주세요.')
+            if 'career' in decision and (field != 'career' or choice != 'edit'):
+                raise ProfileError('경력 상세 수정은 경력 변경안의 수정 선택으로 보내 주세요.')
             value = decision.get('value', proposal['after']) if choice == 'edit' else proposal['after']
             target = field if field != 'career' else 'career:' + (decision.get('item_id') or uuid.uuid4().hex)
             # A model proposal for a list field adds one entry, so several may apply together.
@@ -718,6 +740,10 @@ class Profiles:
                 if isinstance(typed, dict):
                     # A new career from a model proposal keeps its title, period and role.
                     base = {k: _text(typed.get(k, '') or '', n, k) for k, n in CAREER_FIELDS.items()}
+                if 'career' in decision:
+                    details = decision['career']
+                    _keys(details, ('title', 'organization', 'period', 'role'))
+                    base = {**base, **{k: _text(v, CAREER_FIELDS[k], k) for k, v in details.items()}}
                 clean = {**base, 'id': identifier,
                          'description': _text(value, 4000, '경력 설명')}
                 if existing:
@@ -734,7 +760,7 @@ class Profiles:
                     entries = list_items(before)
                     added = _text(value, FIELDS[field], field).strip()
                     value = list_join(entries + ([added] if added not in entries else []), before)
-                self._set_field(data, field, value, [source['id']], edited=choice == 'edit')
+                self._set_field(data, field, value, list(dict.fromkeys(lineage + [source['id']])) if appends else [source['id']], edited=choice == 'edit')
             proposal.update(field=field, before=before, after=copy.deepcopy(value),
                 decision='edited_accepted' if choice == 'edit' else 'accepted',
                 target=target, reviewed_at=self._now(), applied_version=profile['version'] + 1,

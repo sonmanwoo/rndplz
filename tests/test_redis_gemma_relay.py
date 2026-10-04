@@ -292,7 +292,7 @@ class RedisGemmaRelayTests(unittest.TestCase):
             next(self.a.stream(messages))
         before = len(self.commands)
         with self.assertRaises(ValueError):
-            next(self.a.stream([{'role': 'user', 'content': 'x' * 42001}], contract='dialogue_plan.v2'))
+            next(self.a.stream([{'role': 'user', 'content': 'x' * 60001}], contract='dialogue_plan.v2'))
         self.assertEqual(len(self.commands), before)
         short = relay.RedisGemmaRelay(self.env, timeout=.08)
         consumer = self.start(short)

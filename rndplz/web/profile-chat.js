@@ -140,10 +140,10 @@
     function shouldHandle(value) {
       const t=String(value||"").normalize("NFKC").trim().replace(/[.!]+$/u,"").trim();
       if(/[\n?？"“”‘’`]/u.test(t)||/(?:만약|예를\s*들|가정|하지\s*마|지\s*않|안\s*바꿔|라고)/u.test(t))return false;
-      const end=/(?:보여\s*줘|보여주세요|열어\s*줘|확인|조회|(?:수정|편집|갱신|추가|삭제|제거|저장|등록|변경)(?:해\s*줘|해주세요)?|바꿔\s*줘|고쳐\s*줘|지워\s*줘|빼\s*줘|되돌려\s*줘)$/u;
+      const end=/(?:보여\s*줘|보여주세요|열어\s*줘|확인|조회|(?:수정|편집|갱신|추가|삭제|제거|저장|등록|변경|업데이트|반영)(?:해\s*줘|해주세요)?|바꿔\s*줘|고쳐\s*줘|지워\s*줘|빼\s*줘|되돌려\s*줘)$/u;
       if(!end.test(t))return false;
       const own=/^(?:내|제)\s*(?:프로필(?:의)?\s*)?(?:프로필|이력|경력|전문\s*분야|기술|스킬|관심\s*분야|역할|직급|직무|소속|부서|표시\s*이름|이름|자기소개|소개)/u;
-      const documentRequest=/^(?:이|첨부한|선택한)\s*(?:자료|파일|문서)(?:로|를|을)?\s*(?:내|제)\s*(?:프로필|이력|경력)/u;
+      const documentRequest=/^(?:이|첨부한|선택한)\s*(?:자료|파일|문서|논문|연구보고서|보고서)(?:으로|로|를|을)?\s*(?:내|제)\s*(?:프로필|이력|경력)/u;
       return own.test(t)||documentRequest.test(t);
     }
     async function submit(value,files=[],{routed=false}={}) {
@@ -151,13 +151,13 @@
       if(busy||uncertain){showError(new Error("이전 프로필 요청의 결과부터 확인해 주세요."));return true;}
       if(!opened||!view){await open();if(!view)return true;}
       if(files.length){
-        if(!routed&&(!/(?:자료|파일|문서)/u.test(value)||!/(?:프로필|내\s*이력|내\s*경력)/u.test(value)||!/(?:갱신|반영|추가|등록|업데이트|수정)/u.test(value))){showError(new Error("파일은 ‘이 자료로 내 프로필 갱신해줘’처럼 목적을 명시해 주세요. 아직 전송하지 않았습니다."));return true;}
+        if(!routed&&(!/(?:자료|파일|문서|논문|보고서)/u.test(value)||!/(?:프로필|(?:내|제)\s*(?:이력|경력))/u.test(value)||!/(?:갱신|반영|추가|등록|업데이트|수정)/u.test(value))){showError(new Error("파일은 ‘이 자료로 내 프로필 갱신해줘’처럼 목적을 명시해 주세요. 아직 전송하지 않았습니다."));return true;}
         if(files.length>1){showError(new Error("프로필 자료는 한 번에 파일 하나씩 검토해 주세요. 선택한 파일은 아직 전송하지 않았습니다."));return true;}
         await upload(files[0]);return true;
       }
       if(editor||selected.size){showError(new Error("작성 중인 항목이나 자료 선택이 있습니다. 먼저 저장하거나 ‘적용 전 취소’로 정리해 주세요."));return true;}
-      // Gemma interprets a routed sentence with the chat's operator-PC model.
-      const modelId=getModelId()||"",model=/^bridge(:|$)/.test(modelId)?{model_id:modelId}:{};
+      // Keep the user's selected provider for profile requests too.
+      const modelId=getModelId()||"",model=modelId&&!["rules","guide"].includes(modelId)?{model_id:modelId}:{};
       await mutation("text",{}, routed?{text:String(value),routed:true,...model}:{text:String(value)});return true;
     }
     function compare(before,after,a="As is · 지금",b="To be · 바뀔 값") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,(value&&typeof value==="object"?careerText(value):text(value))||"미입력"));n.append(col);}return n;}
@@ -218,7 +218,7 @@
     // The chosen target now (As is) and after this proposal is applied the way the server applies it (To be).
     function preview(p,s) {
       const value=selectedValue(p,s);if(!s.field)return ["적용 위치를 선택해 주세요.",value];
-      if(s.field==="career"){const existing=s.item_id?view.profile.careers.find(c=>c.id===s.item_id):null,typed=!existing&&p.method==="model_reading"&&p.career?p.career:{};return [existing||"없음 · 새 경력",{...cleanCareer(existing||typed),description:value}];}
+      if(s.field==="career"){const existing=s.item_id?view.profile.careers.find(c=>c.id===s.item_id):null,typed=!existing&&p.method==="model_reading"&&p.career?p.career:{};return [existing||"없음 · 새 경력",{...cleanCareer(existing||typed),...s.career,description:value}];}
       const now=view.profile.fields[s.field]||"";
       if(p.method==="model_reading"&&["skills","interests"].includes(s.field)){const entries=listItems(now),added=String(value).trim();return [now,entries.includes(added)?now:listJoin([...entries,added],now)];}
       return [now,value];
@@ -226,7 +226,7 @@
     function paintReview() {
       review.replaceChildren();review.hidden=!reviewVisible;if(!reviewVisible)return;
       const pending=(view.suggestions||[]).filter(eligible),modelRead=pending.some(p=>p.method==="model_reading");
-      review.append(el("h3",null,"자료에서 가져올 내용"),note(modelRead?"Gemma가 자료 전체를 읽고 만든 변경안이에요. 근거 원문과 내 역할을 확인하고 반영할 항목만 골라 주세요. 선택한 내용만 한 번에 저장합니다.":"문단 후보이며 자동 분류·확정 결과가 아닙니다. 필요한 항목과 적용 위치를 직접 선택해 주세요. 선택한 내용만 한 번에 저장합니다."));
+      review.append(el("h3",null,"자료에서 가져올 내용"),note(modelRead?"선택한 AI가 저장된 추출문으로 만든 변경안이에요. 논문·보고서의 저자, 본인 참여 여부와 역할을 확인해 주세요. 경력 제목·기간·역할도 수정할 수 있고 선택한 내용만 저장합니다. 전문분야·관심 분야는 기존 목록에 추가됩니다.":"문단 후보이며 자동 분류·확정 결과가 아닙니다. 필요한 항목과 적용 위치를 직접 선택해 주세요. 선택한 내용만 한 번에 저장합니다."));
       if(!pending.length){review.append(note("추가할 항목을 확정하지 못했어요. 자료의 읽힌 범위와 원문을 확인해 주세요."));return;}
       const rest=el("details","more");rest.dataset.profileOpen="review-more";rest.append(el("summary",null,`나머지 ${modelRead?"변경안":"문단"} ${Math.max(0,pending.length-3)}개 펼치기`));
       pending.forEach((p,index)=>{
@@ -237,13 +237,18 @@
         const select=el("select");select.append(option("","아직 분류하지 않음"),...Object.entries(FIELDS).map(([k,v])=>option(k,v)),option("career","경력 설명"));select.value=s.field;select.dataset.profileLock="";
         card.append(field(`${p.method==="model_reading"?"변경안":"문단"} ${index+1} 적용`,checkbox,"select-"+p.id),field("적용할 항목",select,"target-"+p.id));
         if(p.career)card.append(note("새 경력: "+[p.career.title,p.career.organization,p.career.period,p.career.role].filter(Boolean).join(" · ")));
+        if(p.participation==="needs_review")card.append(note("본인 참여 여부 확인 필요 · 자료만으로 역할을 확정하지 못했어요. 실제 참여한 연구라면 역할과 문장을 수정한 뒤 선택해 주세요."));
         const target=el("select");target.append(option("","새 경력으로 추가"),...view.profile.careers.map((c,i)=>option(c.id,c.title||`경력 ${i+1}`)));target.value=s.item_id;target.dataset.profileLock="";const targetField=field("적용할 경력",target,"career-target-"+p.id);targetField.hidden=s.field!=="career";card.append(targetField);
+        const careerFields=el("div"),careerInputs={};careerFields.hidden=s.field!=="career";
+        for(const k of ["title","organization","period","role"]){const input=el("input");input.maxLength=view.limits.career_fields[k];input.dataset.profileLock="";careerInputs[k]=input;careerFields.append(field(CAREER[k]+" · 확인 후 수정",input,"review-career-"+k+"-"+p.id));input.addEventListener("input",()=>{s.career={...s.career,[k]:input.value};remember();});}
+        function syncCareer(){const base=s.item_id?view.profile.careers.find(c=>c.id===s.item_id):p.career;for(const k of Object.keys(careerInputs))careerInputs[k].value=s.career?.[k]??base?.[k]??"";}
+        syncCareer();card.append(careerFields);
         const value=el("textarea");value.value=text(selectedValue(p,s));value.rows=3;value.maxLength=s.field==="career"?4000:view.limits.fields[s.field]||4000;value.dataset.profileLock="";
         const comparison=compare(...preview(p,s));card.append(comparison,field("적용할 문장 · 필요하면 수정",value,"value-"+p.id));
         card.append(note(`${source.name} · 추출문 ${p.location?.line||1}줄 · 문자 ${Number(p.location?.start||0)+1}–${p.location?.end||0}`));
         const quote=el("details","quote");quote.dataset.profileOpen="quote-"+p.id;quote.append(el("summary",null,"읽은 원문 보기"),el("blockquote",null,p.quote||""));card.append(quote);
-        function remember(){selected.set(p.id,s);selectionRevision++;targetField.hidden=s.field!=="career";const fresh=compare(...preview(p,s));comparison.replaceChildren(...fresh.childNodes);value.maxLength=s.field==="career"?4000:view.limits.fields[s.field]||4000;updateApplyLabel();}
-        checkbox.addEventListener("change",()=>{s.checked=checkbox.checked;remember();});select.addEventListener("change",()=>{s.field=select.value;s.item_id="";target.value="";remember();});target.addEventListener("change",()=>{s.item_id=target.value;remember();});value.addEventListener("input",()=>{s.value=value.value;remember();});
+        function remember(){selected.set(p.id,s);selectionRevision++;targetField.hidden=s.field!=="career";careerFields.hidden=s.field!=="career";const fresh=compare(...preview(p,s));comparison.replaceChildren(...fresh.childNodes);value.maxLength=s.field==="career"?4000:view.limits.fields[s.field]||4000;updateApplyLabel();}
+        checkbox.addEventListener("change",()=>{s.checked=checkbox.checked;remember();});select.addEventListener("change",()=>{s.field=select.value;s.item_id="";s.career=undefined;target.value="";syncCareer();remember();});target.addEventListener("change",()=>{s.item_id=target.value;s.career=undefined;syncCareer();remember();});value.addEventListener("input",()=>{s.value=value.value;remember();});
         (index<3?review:rest).append(card);
       });
       if(pending.length>3)review.append(rest);
@@ -259,7 +264,8 @@
         const target=selectedTarget(s,id),appends=p.method==="model_reading"&&["skills","interests"].includes(s.field);
         if(!appends&&targets.has(target)){showError(new Error("같은 항목에 여러 문단을 선택했습니다. 반영할 값 한 행만 선택해 주세요."));return;}targets.add(target);
         const value=selectedValue(p,s),limit=s.field==="career"?4000:view.limits.fields[s.field];if(Array.from(value).length>limit){showError(new Error(`${FIELDS[s.field]||"경력 설명"}의 길이를 ${limit}자 이하로 줄여 주세요.`));return;}
-        decisions.push({id,decision:value===p.after?"accept":"edit",field:s.field,...(s.item_id?{item_id:s.item_id}:{}),...(value===p.after?{}:{value})});
+        const details=s.field==="career"&&s.career?{career:s.career}:{};
+        decisions.push({id,decision:value===p.after&&!details.career?"accept":"edit",field:s.field,...(s.item_id?{item_id:s.item_id}:{}),...(value===p.after?{}:{value}),...details});
       }
       if(!decisions.length){showError(new Error("적용할 문단을 하나 이상 선택해 주세요."));return;}
       if(editor){showError(new Error("직접 편집 중인 항목을 먼저 저장하거나 취소해 주세요. 자료 선택은 유지됩니다."));return;}
@@ -300,25 +306,24 @@
       if(!uploadId||e!==generation||!opened)return;
       const request=newRequest("upload",{upload_id:uploadId});
       request.after=async data=>{const operation=data.profile_view?.operation||data.operation;const id=operation?.source_id;
-        if(id){if(!(await readDocument(id)))await mutation("suggest",{source_ids:[id]});}else{reply="자료를 읽었습니다. 아래 자료의 ‘문단 비교’를 눌러 검토해 주세요.";paint();}};
+        if(id){const source=view.sources.find(s=>s.id===id);if(operation.duplicate&&source?.reading?.source_version===source?.version)await mutation("suggest",{source_ids:[id]});else await readDocument(id);}else{reply="자료를 보관했습니다. 아래 자료에서 ‘AI로 변경안 만들기 · 이어 읽기’를 눌러 주세요.";paint();}};
       await perform(request);
     }
-    // Gemma reads the whole document part by part (progress in the status line), then one merge
-    // turns the checked candidates into proposals. False when no operator-PC Gemma is chosen.
+    // Read extracted text in parts with the selected AI, then merge into reviewable proposals.
     async function readDocument(id) {
       const modelId=getModelId()||"";
-      if(view?.limits?.extraction!=="model_reading"||!/^bridge(:|$)/.test(modelId))return false;
+      if(view?.limits?.extraction!=="model_reading"||!modelId||["rules","guide"].includes(modelId)){showError(new Error("자료는 보관했지만 AI로 읽지는 않았어요. 대화창에서 AI 모델을 선택한 뒤 아래 자료의 ‘AI로 변경안 만들기 · 이어 읽기’를 눌러 주세요."));return false;}
       const e=generation;busy=true;activeMutation=true;error=null;errorRequest=null;paintError();let total=1;
       try{
         for(let part=1;part<=total;part++){
-          readingProgress=total>1?`Gemma가 자료를 읽고 있어요 (${part}/${total})`:"Gemma가 자료를 읽고 있어요";controls();
+          readingProgress=total>1?`선택한 AI가 추출문을 읽고 있어요 (${part}/${total})`:"선택한 AI가 추출문을 읽고 있어요";controls();
           const result=await api("/api/self-profile/read-part",{source_id:id,part,model_id:modelId});
           if(e!==generation||!opened)return true;
           total=result.total;
         }
-      }catch(err){showError(new Error((err.message||"자료를 끝까지 읽지 못했어요.")+" 같은 파일을 다시 올리면 읽은 부분부터 이어서 읽어요."));return true;}
+      }catch(err){showError(new Error((err.message||"자료를 끝까지 읽지 못했어요.")+" 아래 자료의 ‘AI로 변경안 만들기 · 이어 읽기’를 누르면 같은 모델로 읽은 부분부터 이어서 읽어요."));return true;}
       finally{busy=false;activeMutation=false;readingProgress="";controls();}
-      readingProgress="Gemma가 읽은 내용을 합쳐 변경안을 만들고 있어요";
+      readingProgress="선택한 AI가 읽은 내용을 합쳐 변경안을 만들고 있어요";
       try{await mutation("suggest",{source_ids:[id],model_id:modelId});}finally{readingProgress="";controls();}
       return true;
     }
@@ -410,7 +415,8 @@
       allBody.append(el("h3",null,"읽은 자료"),note(`텍스트·PDF·DOCX · 파일당 최대 ${Math.round(view.limits.file_bytes/1048576)} MiB · 원본 미보관 · OCR 미지원. 자료를 읽는 것과 프로필에 적용하는 것은 별개입니다.`));
       const file=el("input");file.type="file";file.accept=(view.limits.formats||[]).map(x=>"."+x).join(",");file.dataset.profileLock="";file.addEventListener("change",()=>{if(file.files?.[0])upload(file.files[0]);});allBody.append(field("내 프로필에 사용할 새 자료",file,"file"));
       for(const source of view.sources||[]){const row=el("article","source");row.dataset.sourceId=source.id;row.append(el("h4",null,source.name),note(({active:"검토 가능",unlinked:"연결 해제됨",replaced:"새 자료로 교체됨",deleting:"삭제 마무리 필요",deleted:"삭제됨"}[source.status]||"자료 상태 확인 필요")+` · ${source.truncated?"일부 읽음":"저장된 추출문 기준"} · 원본 미보관`));
-        if(!["deleted","deleting"].includes(source.status)){const preview=button("읽은 내용 보기",()=>previewSource(source,preview),"preview-source");row.append(actions(preview,...(source.status==="active"?[button("문단 비교",()=>mutation("suggest",{source_ids:[source.id]}),"suggest-source")]:[]),button("읽은 자료 삭제",()=>{deleteSource=source;paintAll();controls();},"delete-source")));}
+        if(source.reading)row.append(note(`AI 검토 ${source.reading.read_parts}개 구간 · 생성한 변경안 ${source.reading.created}개. 같은 파일은 기존 검토를 이어갑니다.`));
+        if(!["deleted","deleting"].includes(source.status)){const preview=button("읽은 내용 보기",()=>previewSource(source,preview),"preview-source");row.append(actions(preview,...(source.status==="active"?[button("AI로 변경안 만들기 · 이어 읽기",()=>readDocument(source.id),"read-source"),button(source.reading?"변경안 다시 보기":"문단 직접 비교",()=>mutation("suggest",{source_ids:[source.id]}),"suggest-source")]:[]),button("읽은 자료 삭제",()=>{deleteSource=source;paintAll();controls();},"delete-source")));}
         if(source.status==="deleting")row.append(button("삭제 마무리 다시 시도",()=>mutation("source-action",{id:source.id,action:"delete"}),"finish-delete"));
         if(deleteSource?.id===source.id&&source.status!=="deleted"){const impact=source.impact||{};row.append(note(`이 자료에서 나온 항목 ${(impact.profile_items||[]).length}개, 후보 ${impact.suggestions||0}개와 변경 기록 ${impact.history_entries||0}개도 삭제·가림 처리됩니다. 직접 쓴 독립 항목은 유지됩니다.`),actions(button("영향 확인 · 자료 삭제",()=>mutation("source-action",{id:source.id,action:"delete"}),"confirm-delete"),button("자료 삭제 취소",()=>{deleteSource=null;paintAll();controls();},"cancel-delete",true)));}
         allBody.append(row);
