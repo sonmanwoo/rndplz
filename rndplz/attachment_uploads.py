@@ -12,7 +12,7 @@ import re
 import secrets
 import time
 
-from .attachments import AttachmentError, MAX_FILE_BYTES
+from .attachments import AttachmentError, MAX_FILE_BYTES, MAX_TEXT
 from .redis_state import _LEASE_MS, _RELEASE, _loads
 
 CHUNK_BYTES = 524288
@@ -62,7 +62,7 @@ def _public_result(value, meta):
             or not 0<len(value['name'])<=240 or type(value.get('size')) is not int
             or value['size']!=meta['size'] or type(value.get('truncated')) is not bool
             or value.get('kind') not in ('image','document')
-            or type(value.get('characters')) is not int or not 0<=value['characters']<=16000
+            or type(value.get('characters')) is not int or not 0<=value['characters']<=MAX_TEXT
             or ('extraction' in value and not isinstance(value['extraction'],dict))
             or len(_encoded(value).encode('utf8'))>32768):
         raise AttachmentUploadError('corrupt')

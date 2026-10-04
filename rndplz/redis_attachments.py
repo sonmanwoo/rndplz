@@ -10,6 +10,8 @@ import time
 from .redis_state import _BUSY, _ERROR, _LEASE_MS, _RELEASE, _loads
 
 _CHUNK_CHARS = 1_000_000
+from .attachments import MAX_TEXT
+
 _MAX_CHARS = 16_000_000
 _MAX_BYTES = 20_000_000
 _MAX_CHUNKS = 16
@@ -43,7 +45,7 @@ def _item(value, identifier):
     if (not isinstance(value, dict) or not _identifier(identifier) or value.get('id') != identifier
             or not isinstance(value.get('name'), str) or not 0 < len(value['name']) <= 240
             or type(value.get('size')) is not int or not 0 < value['size'] <= 10 * 1024 * 1024
-            or not isinstance(value.get('text'), str) or len(value['text']) > 16000
+            or not isinstance(value.get('text'), str) or len(value['text']) > MAX_TEXT
             or not isinstance(value.get('image'), str) or len(value['image']) > 13_981_016
             or type(value.get('truncated')) is not bool
             or value.get('mime') not in ('', 'image/png', 'image/jpeg', 'image/webp')
