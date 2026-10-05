@@ -120,6 +120,14 @@
         {
           "name": "데이터 분석"
         }
+      ],
+      "links": [
+        {
+          "label": "스크롤 이력서 · 손만우 — Process Engineer",
+          "url": "https://sonmanwoo.github.io/BioProcess_Lab/resume/",
+          "kind": "personal_site",
+          "note": "본인이 만든 개인 소개 사이트 (GitHub Pages)"
+        }
       ]
     },
     {

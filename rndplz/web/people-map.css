@@ -669,6 +669,10 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 #peopleMapHost .mp-capability-list{max-height:min(65dvh,640px);overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
 @media(max-width:760px){#peopleMapHost .mp-capability-list{max-height:18rem}}
 
+#peopleMapHost .mp-intro-links{margin:6px 0 10px;font-size:12px;line-height:1.8}
+#peopleMapHost .mp-intro-label{display:block;font-size:10px;letter-spacing:.4px;color:var(--mp-muted,#62685f)}
+#peopleMapHost .mp-intro-link{font-weight:600}
+
 /* A card without a portrait should lead with its research, not a blank image. */
 #detailDialog.docked .researcher-detail-hero:has(.portrait-unavailable){max-width:none;margin:12px 0}
 #detailDialog.docked .researcher-detail-hero .portrait-unavailable{aspect-ratio:auto;min-height:0;padding:12px 14px;gap:4px;align-items:flex-start;text-align:left}
