@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 PROFILE_KEYS = {
     'id', 'slug', 'name', 'display_name', 'aliases', 'org', 'org_type', 'curated',
     'source_type', 'tagline', 'biography', 'skills', 'skill_groups', 'interests',
-    'timeline', 'projects', 'education', 'sources', 'portrait', 'portrait_note',
+    'timeline', 'projects', 'education', 'sources', 'links', 'portrait', 'portrait_note',
     'profile_note', 'featured_work', 'topics', 'award', 'affiliation',
     'affiliation_as_of', 'current_role', 'role', 'field_label', 'research_field',
     'checked_at', 'limit', 'internal_employee', 'employment_verification',

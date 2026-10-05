@@ -97,6 +97,14 @@
   }
   return '<details class="profile-info asset-sources"><summary>일러스트·수상 출처</summary>'+body+'</details>';
  }
+ // Links the person provided to introduce themselves (a personal site, a scroll resume): shown as
+ // plain outbound links, never fetched, embedded or treated as evidence.
+ function renderIntroLinks(p){
+  const links=Array.isArray(p.sourceProfile?.links)?p.sourceProfile.links:[];
+  const items=links.map(link=>{const url=safeUrl(link?.url);if(!url)return "";const label=typeof link.label==="string"&&link.label.trim()?link.label.trim():"소개 페이지";
+   return '<a class="source-link mp-intro-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer"'+(typeof link.note==="string"&&link.note?' title="'+esc(link.note)+'"':'')+'>'+esc(label)+' ↗</a>';}).filter(Boolean);
+  return items.length?'<p class="mp-intro-links"><span class="mp-intro-label">본인이 소개하는 자료</span>'+items.join(' · ')+'</p>':"";
+ }
  function renderProfile(p){
   const raw=p.sourceProfile||{},keys={tagline:"프로필 한 줄",biography:"소개",skills:"프로필에 기재된 기술",skill_groups:"기술 묶음",interests:"관심 주제",timeline:"제공 이력",projects:"기재 프로젝트",education:"학력",sources:"프로필 출처",portrait_note:"일러스트 참고 정보",profile_note:"프로필 표시 범위",current_role:"기재된 현재 역할",role:"기재 역할",source_type:"정보 제공 방식",checked_at:"자료 확인 시점",profile_observed_as_of:"공개 프로필 관측일 · 재직 확인 아님",limit:"해석 범위",employment_verification:"재직 확인 상태",collaboration_availability:"자문 가능 여부",contact_consent:"연락 동의 상태"};
   const rows=Object.entries(keys).filter(([key])=>raw[key]!=null&&raw[key]!==""&&(!Array.isArray(raw[key])||raw[key].length));
@@ -131,6 +139,7 @@
   if(!p)return '<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 class="mp-evidence-title">인물을 선택해 주세요</h2><p class="mp-empty">연결된 기록과 그 자료의 범위를 살펴볼 수 있어요.</p>';
   const records=C.visibleEvidence(s,p);
   let html='<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 id="detail-title" class="mp-evidence-title" tabindex="-1">'+esc(title(p))+'</h2><p class="mp-evidence-scope">'+esc(shortScope(s,p))+'</p><div class="mp-detail-links"><button type="button" data-map-open="person" data-id="'+esc(p.id)+'">인물 상세 보기 ↗</button><button type="button" data-map-action="close">선택 닫기</button></div>';
+  html+=renderIntroLinks(p);
   if(historical(p))html+='<p class="mp-record-limit">'+historicalNotice+'</p>';
   if(!records.length)return html+'<p class="mp-empty">현재 조건에 연결된 기록이 없습니다. 경험이 없다는 뜻은 아닙니다.</p>';
   html+='<div class="mp-evidence-list">'+records.map((r,i)=>'<details class="mp-record"'+(!i?' open':'')+'><summary class="mp-record-summary"><span class="mp-record-meta">'+esc(recordType(r))+' · '+esc(recordDate(r))+'</span><strong class="mp-record-title">'+esc(r.title||"제목 미기재")+'</strong><span class="mp-record-toggle">근거 읽기</span></summary><div class="mp-record-body">'+recordCard(r,s,i)+'</div></details>').join("")+'</div>';
