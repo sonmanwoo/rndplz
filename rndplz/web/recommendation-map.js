@@ -119,8 +119,8 @@ export function initRecommendationMap(host, {
     return items.map(item => ({ ...item }));
   }
   let displayRecords = records === undefined ? null : readyRecords(records);
-  const staging = doc.createElement('div');
-  staging.innerHTML = win.createPeopleMapView(C).renderMap(state);
+  const staging = doc.createElement('div'), view = win.createPeopleMapView(C);
+  staging.innerHTML = view.renderMap(state);
   const stage = staging.querySelector('.mp-graph-stage');
   if (!stage || stage.querySelectorAll('[data-map-node]').length !== graph.nodes.length ||
     stage.querySelectorAll('.mp-spatial-edge').length !== graph.edges.length) {
@@ -186,6 +186,8 @@ export function initRecommendationMap(host, {
 
   const nodeElements = [...stage.querySelectorAll('[data-map-node]')];
   const edgeElements = [...stage.querySelectorAll('.mp-spatial-edge')];
+  const rings = new Map(nodeElements.filter(element => element.classList.contains('mp-spatial-person'))
+    .map(element => [element.dataset.mapNode, view.ringRadius(element)]));
   nodeElements.forEach(element => {
     const node = nodeByKey.get(element.dataset.mapNode);
     if (!node) throw new Error('연구맵 노드를 확인할 수 없습니다.');
@@ -274,11 +276,18 @@ export function initRecommendationMap(host, {
       element.style.transform = 'translate(' + (camera.x + node.x * camera.scale) + 'px,' +
         (camera.y + node.y * camera.scale) + 'px) translate(-50%,-50%) scale(' + camera.scale + ')';
     }
+    // As on the research map: a line meets a person at the centre of the 48px portrait at the top of
+    // the card and stops at its outer ring, so it never crosses the face.
+    const end = node => {
+      const ring = rings.get(node.key) || 0, k = camera.scale;
+      return { x: camera.x + node.x * k, y: camera.y + (node.y + (ring ? 24 - node.height / 2 : 0)) * k, r: ring * k };
+    };
     for (const element of edgeElements) {
       const a = nodeByKey.get(element.dataset.from), b = nodeByKey.get(element.dataset.to);
-      if (a && b) element.setAttribute('d', 'M' + (camera.x + a.x * camera.scale) + ',' +
-        (camera.y + a.y * camera.scale) + ' L' + (camera.x + b.x * camera.scale) + ',' +
-        (camera.y + b.y * camera.scale));
+      if (!a || !b) continue;
+      const p = end(a), q = end(b), dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+      element.setAttribute('d', d <= p.r + q.r + 1 ? '' : 'M' + (p.x + dx / d * p.r) + ',' + (p.y + dy / d * p.r) +
+        ' L' + (q.x - dx / d * q.r) + ',' + (q.y - dy / d * q.r));
     }
     zoomLevel.textContent = Math.round(camera.scale * 100) + '%';
   }

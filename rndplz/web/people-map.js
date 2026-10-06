@@ -162,14 +162,118 @@
    return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(n.kind==='project'?'프로젝트 참여':filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
   }).join('');
   const edges=graph.edges.map(e=>'<path class="mp-spatial-edge" style="--field-color:'+fieldColor(e.from)+'" data-from="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-record-ids="'+esc(e.recordIds.join(','))+'"></path>').join('');
-  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">드래그로 이동 · + / − 확대 · 방향키 이동 · Home 화면 맞춤. 전체 보기에서 글자가 작으면 확대해 주세요.</p></div></div>';
+  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">카드를 끌어 옮기면 주변 카드가 다시 자리를 잡아요 · 빈 곳을 끌면 지도 이동 · 휠·+/− 확대 · Home 화면 맞춤 · 오른쪽 위 톱니(그래프 설정)에서 필터·색·장력 조절</p></div></div>';
  }
+ // Graph settings (people-map-live.js): filter, colour groups, display and forces, kept in this browser.
+ const LIVE_SLIDERS=[
+  {key:'textZoom',label:'이름이 보이는 배율',min:0,max:1,step:.05,section:'look',format:v=>v?Math.round(v*100)+'% 이상':'항상'},
+  {key:'nodeSize',label:'카드 크기',min:.5,max:1.6,step:.05,section:'look',format:v=>Math.round(v*100)+'%'},
+  {key:'lineWidth',label:'연결선 두께',min:.3,max:3,step:.1,section:'look',format:v=>v.toFixed(1)},
+  {key:'center',label:'중심 장력',min:0,max:3,step:.05,section:'force',format:v=>v.toFixed(2)},
+  {key:'repel',label:'반발력',min:0,max:8,step:.25,section:'force',format:v=>v.toFixed(2)},
+  {key:'link',label:'링크 장력',min:0,max:2,step:.05,section:'force',format:v=>v.toFixed(2)},
+  {key:'distance',label:'링크 거리',min:60,max:400,step:10,section:'force',format:v=>String(v)}];
+ const LIVE_TOGGLES=[
+  {key:'capabilities',label:'역량 알약',section:'filter'},{key:'topics',label:'자료 주제 알약',section:'filter'},
+  {key:'projects',label:'프로젝트 알약',section:'filter'},{key:'orphans',label:'연결 없는 카드',section:'filter'},
+  {key:'labels',label:'이름 표시',section:'look'},{key:'edges',label:'연결선 표시',section:'look'}];
+ const GROUP_COLORS=['#c4683a','#3b7db3','#8b5cb4','#2f8c68','#b38a2b','#c0456f'];
+ const PREFS_KEY='rndplz.map.graph.v1';
+ // Outer radius of a 48px portrait with its paper ring, team double ring or laureate ring (people-map.css);
+ // lines to a person stop here. Also used by the chat's recommendation map.
+ function ringRadius(el){const team=el.classList.contains('mp-person-team'),nobel=el.classList.contains('mp-person-nobel');return team&&nobel?40:team?36:nobel?35:30;}
  function mount(doc,host){
-  const win=doc.defaultView,$=id=>host.querySelector('#'+id);
+  const win=doc.defaultView,$=id=>host.querySelector('#'+id),Live=win.RndPeopleMapLive;
+  if(!Live)throw new TypeError('Load people-map-live.js before mounting the research map.');
   let state=C.initialState(),graph=null,frame=0,mobileMap=true,lastPerson=null;
   const camera={x:0,y:0,scale:1},pointers=new Map();let drag=null,pinch=null,dragged=false;
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const observer=win.ResizeObserver?new win.ResizeObserver(()=>schedule()):null;
+  // Cards keep their positions across filters, settle by force and can be dragged; the fixed layout only seeds them.
+  const live=new Map(),statics=new Map(),infos=new Map(),peopleById=new Map(C.people.map(p=>[p.id,p]));
+  let prefs=loadPrefs(),shown=null,lastTest=()=>true,mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[],rings=new Map();
+  let autoFit=true,fitted=false,lastSize='',loop=0,lastFrame=0,counts='',phase='',flash='',flashTimer=0,selectedBefore=null,lastTap=null;
+  const sim=new Live.Simulation(prefs),ui=liveControls();
+  const quiet=()=>doc.body.classList.contains('no-motion')||win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function loadPrefs(){
+   const out={...Live.DEFAULTS,groups:[]};
+   try{
+    const saved=JSON.parse(win.localStorage.getItem(PREFS_KEY)||'null');
+    if(saved&&typeof saved==='object'){
+     for(const s of LIVE_SLIDERS)if(Number.isFinite(saved[s.key]))out[s.key]=clamp(saved[s.key],s.min,s.max);
+     for(const t of LIVE_TOGGLES)if(typeof saved[t.key]==='boolean')out[t.key]=saved[t.key];
+     if(typeof saved.filter==='string')out.filter=saved.filter.slice(0,300);
+     if(Array.isArray(saved.groups))out.groups=saved.groups.filter(g=>g&&typeof g.query==='string'&&/^#[0-9a-f]{6}$/i.test(g.color)).slice(0,12).map(g=>({query:g.query.slice(0,200),color:g.color}));
+    }
+   }catch{}
+   return out;
+  }
+  function savePrefs(){try{win.localStorage.setItem(PREFS_KEY,JSON.stringify(prefs));}catch{}}
+  function info(n){
+   let item=infos.get(n.key);if(item)return item;
+   if(n.type==='person'){const p=peopleById.get(n.id);item={kind:'person',label:p.name,org:p.organization||'',text:p.searchKey};}
+   else{const source=(n.kind==='topic'?C.topics:C.capabilities).find(x=>x.id===n.id)||{};item={kind:n.kind,label:n.label,org:'',text:source.description||''};}
+   infos.set(n.key,item);return item;
+  }
+  // Which cards and links the settings leave on the map; the model's own search and capability come first.
+  function display(){
+   const on={person:true,capability:prefs.capabilities,topic:prefs.topics,project:prefs.projects};
+   let test=lastTest;
+   try{test=Live.compileFilter(prefs.filter);lastTest=test;ui.error('');}catch(error){ui.error(error.message);}
+   let keys=new Set(graph.nodes.filter(n=>on[n.kind]&&test(info(n))).map(n=>n.key));
+   let links=graph.edges.filter(e=>keys.has(e.from)&&keys.has(e.to));
+   let root=mode==='local'&&keys.has(localRoot)?localRoot:null;
+   if(mode==='local'&&!root){mode='global';syncBar();}
+   if(root){const near=Live.reach(root,depth,links);keys=new Set([...keys].filter(k=>near.has(k)));links=links.filter(e=>keys.has(e.from)&&keys.has(e.to));}
+   if(!prefs.orphans){const linked=new Set(links.flatMap(e=>[e.from,e.to]));keys=new Set([...keys].filter(k=>linked.has(k)||k===root));}
+   return {keys,links,root};
+  }
+  function relayout(reseed){
+   if(!graph)return;
+   shown=display();
+   const placed=new Set(),nodes=[];
+   for(const n of graph.nodes){
+    if(!shown.keys.has(n.key))continue;
+    let node=live.get(n.key);
+    if(node&&!reseed)placed.add(n.key);else{node={key:n.key,x:NaN,y:NaN,vx:0,vy:0};live.set(n.key,node);}
+    const compact=n.type==='person'&&!prefs.labels;
+    node.w=(compact?64:n.width)*prefs.nodeSize;node.h=(compact?64:n.height)*prefs.nodeSize;nodes.push(node);
+   }
+   // A card new to the map starts beside the cards it links to, otherwise at its fixed-layout place.
+   nodes.forEach((node,index)=>{
+    if(Number.isFinite(node.x))return;
+    const near=shown.links.filter(e=>e.from===node.key||e.to===node.key).map(e=>e.from===node.key?e.to:e.from).filter(k=>placed.has(k)).map(k=>live.get(k)),n=statics.get(node.key);
+    if(near.length){node.x=near.reduce((s,m)=>s+m.x,0)/near.length+Math.cos(index*2.4)*40;node.y=near.reduce((s,m)=>s+m.y,0)/near.length+Math.sin(index*2.4)*40;}
+    else{node.x=n.x;node.y=n.y;}
+   });
+   const stage=$('mp-graph-stage');sim.aspect=stage&&stage.clientHeight?stage.clientWidth/stage.clientHeight:1.6;
+   sim.setGraph(nodes,shown.links);if(quiet())settle();
+   for(const [el,key] of nodeEls)el.style.display=shown.keys.has(key)?'':'none';
+   for(const [el,from,to] of edgeEls)el.style.display=shown.keys.has(from)&&shown.keys.has(to)?'':'none';
+   const kinds={person:0,capability:0,topic:0,project:0};for(const key of shown.keys)kinds[statics.get(key).kind]++;
+   counts=['인물 '+kinds.person,'역량 '+kinds.capability,kinds.topic?'주제 '+kinds.topic:'',kinds.project?'프로젝트 '+kinds.project:'','연결 '+shown.links.length].filter(Boolean).join(' · ');
+   $('graph-empty-note')?.remove();
+   if(stage&&!shown.keys.size&&graph.nodes.length)stage.insertAdjacentHTML('beforeend','<p id="graph-empty-note" class="mp-empty mp-live-empty">그래프 설정의 조건에 맞는 카드가 없어요. 오른쪽 위 톱니(그래프 설정)에서 필터를 바꿔 보세요.</p>');
+   autoFit=true;start();
+  }
+  function settle(){for(let i=0;i<500&&sim.alpha>.003;i++)sim.tick();}
+  function start(){if(!loop)loop=win.requestAnimationFrame(step);}
+  function step(now){
+   loop=0;if(!shown||!$('mp-graph-stage'))return;
+   const still=quiet(),moving=sim.active&&(!still||Boolean(drag?.pinned));
+   if(moving&&!doc.hidden){const ticks=clamp(Math.round((now-lastFrame)/16.7),1,3);for(let i=0;i<ticks;i++)sim.tick();}
+   lastFrame=now;
+   let easing=false;
+   if(autoFit){const to=fitTarget();if(to){const k=still||!fitted?1:.14;for(const p of ['x','y','scale'])camera[p]+=(to[p]-camera[p])*k;fitted=true;easing=Math.abs(to.scale-camera.scale)>.001||Math.hypot(to.x-camera.x,to.y-camera.y)>.5;}}
+   cameraApply();
+   phase=drag?.pinned?'카드 이동 중':moving?'균형을 찾는 중':'배치 안정';status();
+   if(moving||easing)start();
+  }
+  function status(){
+   const root=shown?.root&&statics.get(shown.root),text=flash||[root?root.label+' 주변 '+depth+'단계':'',counts,phase].filter(Boolean).join(' · ');
+   if(ui.status.textContent!==text)ui.status.textContent=text;
+  }
+  function note(message){flash=message;status();win.clearTimeout(flashTimer);flashTimer=win.setTimeout(()=>{flash='';status();},2800);}
   function legacyLines(){
    const map=host.querySelector('.mp-graph'),node=map?.querySelector('.mp-capability-node'),svg=map?.querySelector('.mp-lines');
    if(!map||!node||!svg)return;
@@ -182,37 +286,70 @@
     path.setAttribute('class',button.dataset.person===state.selectedId?'mp-line-active':'mp-line');svg.append(path);
    });
   }
+  // Beside the map: in the page margin to the right when it is wide enough, otherwise as a third
+  // column that narrows the map; on phones (one column) below the map.
+  function placePanel(){
+   const layout=host.querySelector('.mp-layout'),stage=$('mp-graph-stage'),panel=ui.panel;
+   layout.classList.remove('mp-live-side','mp-live-column');panel.style.width=panel.style.top=panel.style.marginTop=panel.style.height='';
+   if(panel.hidden||!stage||win.matchMedia('(max-width:760px)').matches)return;
+   const room=doc.documentElement.clientWidth-layout.getBoundingClientRect().right,side=room>=244;
+   layout.classList.add(side?'mp-live-side':'mp-live-column');
+   // Measured after the column is added, which can rewrap the map heading: the panel lines up with the map.
+   const box=layout.getBoundingClientRect(),area=stage.getBoundingClientRect();
+   panel.style.height=area.height+'px';
+   if(side){panel.style.width=Math.min(300,room-24)+'px';panel.style.top=(area.top-box.top)+'px';}
+   else panel.style.marginTop=(area.top-box.top)+'px';
+  }
   function cameraApply(){
-   const stage=$('mp-graph-stage');if(!stage||!graph)return;
-   const nodes=new Map(graph.nodes.map(n=>[n.key,n]));
-   for(const el of stage.querySelectorAll('[data-map-node]')){
-    const n=nodes.get(el.dataset.mapNode);if(!n)continue;
-    el.style.width=n.width+'px';el.style.height=n.height+'px';
-    el.style.transform='translate('+(camera.x+n.x*camera.scale)+'px,'+(camera.y+n.y*camera.scale)+'px) translate(-50%,-50%) scale('+camera.scale+')';
+   const stage=$('mp-graph-stage');if(!stage||!shown)return;
+   const size=prefs.nodeSize;
+   for(const [el,key] of nodeEls){
+    const n=live.get(key);if(!n||!shown.keys.has(key))continue;
+    el.style.width=n.w/size+'px';el.style.height=n.h/size+'px';
+    el.style.transform='translate('+(camera.x+n.x*camera.scale)+'px,'+(camera.y+n.y*camera.scale)+'px) translate(-50%,-50%) scale('+camera.scale*size+')';
    }
-   for(const el of stage.querySelectorAll('.mp-spatial-edge')){
-    const a=nodes.get(el.dataset.from),b=nodes.get(el.dataset.to);if(!a||!b)continue;
-    el.setAttribute('d','M'+(camera.x+a.x*camera.scale)+','+(camera.y+a.y*camera.scale)+' L'+(camera.x+b.x*camera.scale)+','+(camera.y+b.y*camera.scale));
+   // A line meets a person at the centre of the portrait and stops at its outer ring, so it never
+   // crosses the face; a pill draws over the end of its own lines.
+   const end=key=>{const n=live.get(key),ring=rings.get(key)||0,k=camera.scale;return {x:camera.x+n.x*k,y:camera.y+(n.y+(ring&&prefs.labels?24*size-n.h/2:0))*k,r:ring*size*k};};
+   for(const [el,from,to] of edgeEls){
+    if(!live.has(from)||!live.has(to)||!shown.keys.has(from)||!shown.keys.has(to))continue;
+    const a=end(from),b=end(to),dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+    if(d<=a.r+b.r+1){el.setAttribute('d','');continue;}
+    el.setAttribute('d','M'+(a.x+dx/d*a.r)+','+(a.y+dy/d*a.r)+' L'+(b.x-dx/d*b.r)+','+(b.y-dy/d*b.r));
    }
+   stage.classList.toggle('mp-names-faded',Boolean(prefs.textZoom)&&camera.scale<prefs.textZoom);
    $('mp-zoom-level').textContent=Math.round(camera.scale*100)+'%';
   }
-  function fit(){
-   if(state.view==='organization'){legacyLines();return;}
-   const stage=$('mp-graph-stage');if(!stage||!stage.clientWidth||!stage.clientHeight||!graph)return;
-   if(!graph.nodes.length){camera.x=stage.clientWidth/2;camera.y=stage.clientHeight/2;camera.scale=1;cameraApply();return;}
-   const left=Math.min(...graph.nodes.map(n=>n.x-n.width/2)),right=Math.max(...graph.nodes.map(n=>n.x+n.width/2)),top=Math.min(...graph.nodes.map(n=>n.y-n.height/2)),bottom=Math.max(...graph.nodes.map(n=>n.y+n.height/2));
-   camera.scale=clamp(Math.min((stage.clientWidth-44)/Math.max(right-left,180),(stage.clientHeight-44)/Math.max(bottom-top,140)),.15,1.1);
-   camera.x=stage.clientWidth/2-(left+right)/2*camera.scale;camera.y=stage.clientHeight/2-(top+bottom)/2*camera.scale;cameraApply();
+  // The camera that shows every card on the map, below the graph tools at the top of the stage.
+  function fitTarget(){
+   const stage=$('mp-graph-stage');if(!stage||!stage.clientWidth||!stage.clientHeight||!shown)return null;
+   const nodes=[...shown.keys].map(key=>live.get(key)),area=stage.getBoundingClientRect(),top=56;
+   // Leave out what the open settings panel (left) and a person card docked beside the map (right) cover.
+   // Leave out what a person card docked beside the map covers.
+   const card=doc.querySelector('#detailDialog.docked[open]:not(.sheet)')?.getBoundingClientRect();
+   const inRight=card&&card.left>area.left+200?clamp(area.right-card.left+8,0,stage.clientWidth/2):0;
+   const width=stage.clientWidth-inRight,height=stage.clientHeight;
+   if(!nodes.length)return {x:width/2,y:height/2,scale:1};
+   const left=Math.min(...nodes.map(n=>n.x-n.w/2)),right=Math.max(...nodes.map(n=>n.x+n.w/2)),upper=Math.min(...nodes.map(n=>n.y-n.h/2)),lower=Math.max(...nodes.map(n=>n.y+n.h/2));
+   const scale=clamp(Math.min((width-44)/Math.max(right-left,180),(height-top-22)/Math.max(lower-upper,140)),.15,1.1);
+   return {scale,x:width/2-(left+right)/2*scale,y:top+(height-top-22)/2-(upper+lower)/2*scale};
   }
-  function schedule(){if(!frame)frame=win.requestAnimationFrame(()=>{frame=0;fit();});}
+  function fit(){if(state.view==='organization'){legacyLines();return;}autoFit=true;start();}
+  function schedule(){if(!frame)frame=win.requestAnimationFrame(()=>{
+   frame=0;if(state.view==='organization'){legacyLines();return;}
+   const stage=$('mp-graph-stage'),size=stage?stage.clientWidth+'x'+stage.clientHeight:'';
+   if(size!==lastSize){lastSize=size;if(autoFit)fitted=false;}
+   placePanel();start();
+  });}
   function zoom(factor,at){
    const stage=$('mp-graph-stage');if(!stage)return;
-   const p=at||{x:stage.clientWidth/2,y:stage.clientHeight/2},old=camera.scale;
+   const p=at||{x:stage.clientWidth/2,y:stage.clientHeight/2},old=camera.scale;autoFit=false;
    camera.scale=clamp(old*factor,.15,3);camera.x=p.x-(p.x-camera.x)*camera.scale/old;camera.y=p.y-(p.y-camera.y)*camera.scale/old;cameraApply();
   }
+  const world=(e,stage)=>{const r=stage.getBoundingClientRect();return {x:(e.clientX-r.left-camera.x)/camera.scale,y:(e.clientY-r.top-camera.y)/camera.scale};};
   function emphasis(hover){
    const key=hover||(state.selectedId?'person:'+state.selectedId:null),related=new Set(key?[key]:[]);
-   for(const edge of graph?.edges||[])if(edge.from===key||edge.to===key){related.add(edge.from);related.add(edge.to);}
+   for(const edge of shown?.links||[])if(edge.from===key||edge.to===key){related.add(edge.from);related.add(edge.to);}
    for(const el of host.querySelectorAll('[data-map-node]'))el.classList.toggle('related',related.has(el.dataset.mapNode));
    for(const el of host.querySelectorAll('[data-person]'))el.setAttribute('aria-pressed',String(el.dataset.person===state.selectedId));
    for(const el of host.querySelectorAll('.mp-spatial-edge'))el.classList.toggle('active',!!key&&(el.dataset.from===key||el.dataset.to===key));
@@ -222,6 +359,12 @@
    container.innerHTML=renderDetail(state);container.hidden=!selected;
    const label=$('mp-selection-label');if(label)label.textContent=selected?title(selected)+' 선택':'인물을 선택하면 연결 근거가 열립니다.';
    for(const button of host.querySelectorAll('[data-map-action="show-detail"],[data-map-action="clear-selection"]'))button.hidden=!selected;
+   if(state.selectedId&&state.selectedId!==selectedBefore){
+    // The person card docks over the right of the window, where the settings would sit.
+    ui.open(false);
+    if(mode==='local'&&graph&&localRoot!=='person:'+state.selectedId){localRoot='person:'+state.selectedId;relayout(false);}
+   }
+   selectedBefore=state.selectedId;
    emphasis();if(state.view==='organization')legacyLines();
   }
   function mobile(){
@@ -232,7 +375,13 @@
   function render(){
    const people=C.visiblePeople(state),capability=currentCapability(state),ids=new Set(people.flatMap(p=>C.visibleEvidence(state,p).map(r=>r.id)));
    graph=state.view==='organization'?null:G.graph(state);
+   statics.clear();if(graph)graph.nodes.forEach(n=>statics.set(n.key,n));
    $('capability-controls').innerHTML=renderCapabilities(state);$('people-map').innerHTML=renderMap(state);
+   const stage=$('mp-graph-stage');
+   nodeEls=stage?[...stage.querySelectorAll('[data-map-node]')].map(el=>[el,el.dataset.mapNode]):[];
+   edgeEls=stage?[...stage.querySelectorAll('.mp-spatial-edge')].map(el=>[el,el.dataset.from,el.dataset.to]):[];
+   if(stage){stage.append(ui.bar,ui.gear);host.querySelector('.mp-graph-controls')?.append(ui.status);rings=new Map(nodeEls.filter(([el])=>el.classList.contains('mp-spatial-person')).map(([el,key])=>[key,ringRadius(el)]));look();colorize();relayout(false);}
+   else ui.open(false);
    $('people-map-content').dataset.mpCount=String(people.length);
    $('map-title').textContent=capability?.label||'연구 경험의 연결';
    $('map-explanation').textContent=(capability?.description||'이름·기술·이력으로 검색하거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
@@ -241,8 +390,109 @@
    $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 검색 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
    $('view-control').value=state.view;$('topic-controls').value=state.topic;if($('name-search').value!==state.query)$('name-search').value=state.query;
    detail();mobile();pointers.clear();drag=null;pinch=null;
-   observer?.disconnect();const stage=$('mp-graph-stage');if(stage)observer?.observe(stage);schedule();
+   observer?.disconnect();if(stage)observer?.observe(stage);schedule();
   }
+  // Display switches that change only how the cards look.
+  function look(){
+   const stage=$('mp-graph-stage');if(!stage)return;
+   stage.classList.toggle('mp-names-off',!prefs.labels);stage.classList.toggle('mp-edges-off',!prefs.edges);
+   stage.style.setProperty('--mp-edge-scale',String(prefs.lineWidth));
+  }
+  function compileGroups(){groupTests=prefs.groups.flatMap(g=>{try{return g.query.trim()?[{color:g.color,test:Live.compileFilter(g.query)}]:[];}catch{return [];}});}
+  function colorize(){
+   const color=key=>{const n=statics.get(key);if(!n)return null;const item=info(n),group=groupTests.find(g=>g.test(item));return group?group.color:null;};
+   for(const [el,key] of nodeEls){
+    const value=color(key);
+    if(el.classList.contains('mp-spatial-person')){el.classList.toggle('mp-grouped',Boolean(value));if(value)el.style.setProperty('--group-color',value);else el.style.removeProperty('--group-color');}
+    else el.style.setProperty('--field-color',value||fieldColor(key));
+   }
+   for(const [el,from] of edgeEls)el.style.setProperty('--field-color',color(from)||fieldColor(from));
+  }
+  function setMode(next,root){
+   if(next==='local'){
+    root=root||(state.selectedId?'person:'+state.selectedId:localRoot);
+    if(!root||!shown?.keys.has(root)){note('주변 그래프는 맵에서 인물을 먼저 고른 뒤 볼 수 있어요.');return;}
+    localRoot=root;
+   }
+   mode=next;syncBar();relayout(false);
+  }
+  function syncBar(){
+   for(const button of ui.bar.querySelectorAll('[data-live-mode]'))button.setAttribute('aria-pressed',String(button.dataset.liveMode===mode));
+   ui.bar.querySelector('.mp-live-depth').hidden=mode!=='local';
+  }
+  function liveControls(){
+   const bar=doc.createElement('div'),gear=doc.createElement('button'),panel=doc.createElement('section'),status=doc.createElement('p');
+   bar.className='mp-live-bar';status.className='mp-live-status';
+   bar.innerHTML='<div class="mp-live-modes" role="group" aria-label="그래프 범위"><button type="button" data-live-mode="global" aria-pressed="true">전체 그래프</button><button type="button" data-live-mode="local" aria-pressed="false" title="선택한 인물과 이어진 카드만 · 인물을 빠르게 두 번 눌러도 돼요">주변 그래프</button></div><label class="mp-live-depth" hidden>깊이 <select data-live-depth aria-label="주변 그래프 연결 깊이"><option value="1">1단계</option><option value="2" selected>2단계</option><option value="3">3단계</option></select></label>';
+   gear.type='button';gear.className='mp-live-gear';gear.dataset.liveToggle='';gear.setAttribute('aria-expanded','false');gear.setAttribute('aria-controls','mp-live-panel');gear.setAttribute('aria-label','그래프 설정');gear.title='그래프 설정';
+   gear.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+   const toggle=t=>'<label class="mp-live-toggle"><span>'+esc(t.label)+'</span><input type="checkbox" role="switch" data-live-pref="'+t.key+'"></label>';
+   const slider=s=>'<div class="mp-live-slider"><label for="mp-live-'+s.key+'">'+esc(s.label)+'</label><output for="mp-live-'+s.key+'" data-live-out="'+s.key+'"></output><input id="mp-live-'+s.key+'" type="range" min="'+s.min+'" max="'+s.max+'" step="'+s.step+'" data-live-pref="'+s.key+'"></div>';
+   const part=section=>LIVE_TOGGLES.filter(t=>t.section===section).map(toggle).join('')+LIVE_SLIDERS.filter(s=>s.section===section).map(slider).join('');
+   panel.id='mp-live-panel';panel.className='mp-live-panel';panel.hidden=true;panel.setAttribute('aria-label','그래프 설정');
+   panel.innerHTML='<div class="mp-live-head"><strong>그래프 설정</strong><button type="button" data-live-reset aria-label="그래프 설정을 기본값으로" title="기본값으로">↺</button><button type="button" data-live-close aria-label="그래프 설정 닫기">×</button></div>'+
+    '<details open><summary>필터</summary><input type="text" data-live-pref="filter" maxlength="300" placeholder="예: type:사람 촉매 -org:대학" aria-label="그래프 필터" spellcheck="false" autocomplete="off"><p class="mp-live-error" role="alert" hidden></p><details class="mp-live-syntax"><summary>검색 문법</summary><p>낱말 · "띄어 쓴 말" · AND · OR · -제외 · 괄호<br>type:사람 · 역량 · 주제 · 프로젝트<br>name:이름 · org:소속 (종류: · 이름: · 소속:도 돼요)</p></details>'+part('filter')+'</details>'+
+    '<details open><summary>그룹</summary><div data-live-groups></div><button type="button" class="mp-live-wide" data-live-add-group>+ 새 그룹</button><p class="mp-live-note">조건에 맞는 카드와 알약에 색을 입혀요. 여러 그룹에 맞으면 위쪽 색을 씁니다.</p></details>'+
+    '<details open><summary>표시</summary>'+part('look')+'</details>'+
+    '<details open><summary>장력</summary>'+part('force')+'<button type="button" class="mp-live-wide" data-live-reheat>다시 정렬</button></details>'+
+    '<p class="mp-live-note">설정은 이 브라우저에만 저장돼요. 카드의 위치와 거리는 숙련도나 순위를 뜻하지 않습니다.</p>';
+   const filterInput=panel.querySelector('[data-live-pref="filter"]'),errorLine=panel.querySelector('.mp-live-error');
+   function output(s){panel.querySelector('[data-live-out="'+s.key+'"]').textContent=s.format(prefs[s.key]);}
+   function groups(){
+    panel.querySelector('[data-live-groups]').innerHTML=prefs.groups.map((g,i)=>'<div class="mp-live-group"><input type="text" value="'+esc(g.query)+'" data-live-group="'+i+'" maxlength="200" placeholder="예: org:GS칼텍스" aria-label="그룹 '+(i+1)+' 조건" spellcheck="false" autocomplete="off"><input type="color" value="'+esc(g.color)+'" data-live-group-color="'+i+'" aria-label="그룹 '+(i+1)+' 색"><button type="button" data-live-group-remove="'+i+'" aria-label="그룹 '+(i+1)+' 지우기">×</button></div>').join('');
+   }
+   function sync(){
+    filterInput.value=prefs.filter;
+    for(const t of LIVE_TOGGLES)panel.querySelector('[data-live-pref="'+t.key+'"]').checked=prefs[t.key];
+    for(const s of LIVE_SLIDERS){panel.querySelector('[data-live-pref="'+s.key+'"]').value=String(prefs[s.key]);output(s);}
+    groups();compileGroups();
+   }
+   function open(show){panel.hidden=!show;gear.setAttribute('aria-expanded',String(show));placePanel();}
+   function groupsChanged(){compileGroups();colorize();savePrefs();}
+   panel.addEventListener('input',e=>{
+    const t=e.target,key=t.dataset.livePref,s=LIVE_SLIDERS.find(x=>x.key===key);
+    if(key==='filter'){prefs.filter=t.value;relayout(false);if(errorLine.hidden)savePrefs();}
+    else if(s){
+     prefs[key]=Number(t.value);output(s);savePrefs();
+     if(s.section==='force'){sim.configure(prefs);if(quiet())settle();autoFit=true;start();}
+     else if(key==='nodeSize')relayout(false);
+     else{look();cameraApply();}
+    }
+    else if(t.dataset.liveGroup!=null){
+     const group=prefs.groups[Number(t.dataset.liveGroup)];if(!group)return;group.query=t.value;
+     try{Live.compileFilter(t.value);t.removeAttribute('aria-invalid');}catch{t.setAttribute('aria-invalid','true');}
+     groupsChanged();
+    }
+    else if(t.dataset.liveGroupColor!=null){const group=prefs.groups[Number(t.dataset.liveGroupColor)];if(group){group.color=t.value;groupsChanged();}}
+   });
+   panel.addEventListener('change',e=>{
+    const key=e.target.dataset.livePref,t=LIVE_TOGGLES.find(x=>x.key===key);if(!t)return;
+    prefs[key]=e.target.checked;savePrefs();look();
+    if(t.section==='filter'||key==='labels')relayout(false);else cameraApply();
+   });
+   function click(e){
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.liveMode)setMode(b.dataset.liveMode);
+    else if(b.hasAttribute('data-live-toggle'))open(panel.hidden);
+    else if(b.hasAttribute('data-live-close')){open(false);gear.focus({preventScroll:true});}
+    else if(b.hasAttribute('data-live-reset')){prefs={...Live.DEFAULTS,groups:[]};savePrefs();sync();sim.configure(prefs);look();colorize();relayout(false);note('그래프 설정을 기본값으로 되돌렸어요.');}
+    else if(b.hasAttribute('data-live-reheat'))relayout(true);
+    else if(b.hasAttribute('data-live-add-group')){
+     if(prefs.groups.length>=12)return;
+     prefs.groups.push({query:'',color:GROUP_COLORS[prefs.groups.length%GROUP_COLORS.length]});groups();groupsChanged();
+     panel.querySelector('[data-live-groups]').lastElementChild?.querySelector('input')?.focus({preventScroll:true});
+    }
+    else if(b.dataset.liveGroupRemove!=null){prefs.groups.splice(Number(b.dataset.liveGroupRemove),1);groups();groupsChanged();}
+   }
+   bar.addEventListener('click',click);gear.addEventListener('click',click);panel.addEventListener('click',click);
+   // The panel sits beside the map (in the page margin when there is room), never over it.
+   host.querySelector('.mp-layout').append(panel);
+   bar.addEventListener('change',e=>{if(e.target.matches('[data-live-depth]')){depth=Number(e.target.value);relayout(false);}});
+   sync();
+   return {bar,gear,panel,status,open,isOpen:()=>!panel.hidden,focusGear:()=>gear.focus({preventScroll:true}),
+    error(message){errorLine.hidden=!message;errorLine.textContent=message;if(message)filterInput.setAttribute('aria-invalid','true');else filterInput.removeAttribute('aria-invalid');}};
+  }
+  function letGo(){if(drag?.pinned)sim.release(drag.node);drag=null;}
   const filtering=new Set(['QUERY','TOPIC','SCOPE','CAPABILITY','CLEAR_FILTERS','PAGE','VIEW']);
   function dispatch(action){state=C.reduce(state,action);if(filtering.has(action.type))render();else detail();}
   function clearSelection(restore){const id=state.selectedId;dispatch({type:'CLOSE_DETAIL'});if(restore){const candidates=[...host.querySelectorAll('[data-person]')].filter(b=>b.dataset.person===(id||lastPerson));candidates.find(b=>b.getClientRects().length)?.focus({preventScroll:true});}}
@@ -255,7 +505,7 @@
   host.addEventListener('input',event=>{const t=event.target;if(t.id==='name-search'){dispatch({type:'QUERY',value:t.value});return;}const types={problem:'PROBLEM',draft:'DRAFT',aiText:'AI_TEXT'};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
   host.addEventListener('change',event=>{const t=event.target;if(t.id==='topic-controls')dispatch({type:'TOPIC',value:t.value});else if(t.id==='view-control')dispatch({type:'VIEW',value:t.value});else if(t.dataset.evidence){const id=t.id;dispatch({type:'EVIDENCE',id:t.dataset.evidence,checked:t.checked});$(id)?.focus({preventScroll:true});}else if(t.id==='include-ai'){dispatch({type:'INCLUDE_AI',value:t.checked});$('include-ai')?.focus({preventScroll:true});}});
   host.addEventListener('click',event=>{
-   const button=event.target.closest('button');if(!button||!host.contains(button))return;
+   const button=event.target.closest('button');if(!button||!host.contains(button)||button.closest('.mp-live-bar,.mp-live-gear,.mp-live-panel'))return;
    if(dragged&&button.closest('#mp-graph-stage')){event.preventDefault();event.stopPropagation();return;}
    if(button.dataset.mapCamera){if(button.dataset.mapCamera==='fit')fit();else zoom(button.dataset.mapCamera==='in'?1.2:1/1.2);return;}
    if(button.dataset.mapFilter){const type=button.dataset.mapFilter,value=button.dataset.mapFilterValue,field=type==='TOPIC'?'topic':'capability';dispatch({type,value:state[field]===value?'':value});const target=[...host.querySelectorAll('[data-map-filter]')].find(b=>b.dataset.mapFilter===type&&b.dataset.mapFilterValue===value);(target||$('mp-graph-stage'))?.focus({preventScroll:true});}
@@ -269,34 +519,58 @@
    else if(button.dataset.mapAction==='ack-draft'){dispatch({type:'ACK_DRAFT_CONTEXT'});$('draft')?.focus({preventScroll:true});}
    else if(button.dataset.mapAction==='reset-draft'){dispatch({type:'RESET_DRAFT'});$('draft')?.focus({preventScroll:true});}
   });
+  host.addEventListener('dragstart',e=>{if(e.target.closest?.('#mp-graph-stage'))e.preventDefault();});
   host.addEventListener('pointerover',e=>{const node=e.target.closest('[data-map-node]');if(node)emphasis(node.dataset.mapNode);});
   host.addEventListener('pointerout',e=>{const node=e.target.closest('[data-map-node]');if(node&&!node.contains(e.relatedTarget))emphasis();});
   host.addEventListener('focusin',e=>{const node=e.target.closest('[data-map-node]');if(node)emphasis(node.dataset.mapNode);});
   host.addEventListener('focusout',e=>{if(e.target.closest('[data-map-node]'))emphasis();});
   host.addEventListener('keydown',e=>{
+   if(e.key==='Escape'&&ui.isOpen()&&e.target.closest?.('.mp-live-panel,.mp-live-bar,.mp-live-gear')){e.preventDefault();e.stopPropagation();ui.open(false);ui.focusGear();return;}
    if(e.target.matches('input,textarea,select'))return;
    if(e.key==='Escape'&&state.selectedId){e.preventDefault();clearSelection(true);return;}
    if(e.target.id!=='mp-graph-stage')return;
    const moves={ArrowLeft:[45,0],ArrowRight:[-45,0],ArrowUp:[0,45],ArrowDown:[0,-45]};
-   if(moves[e.key]){e.preventDefault();camera.x+=moves[e.key][0];camera.y+=moves[e.key][1];cameraApply();}
+   if(moves[e.key]){e.preventDefault();autoFit=false;camera.x+=moves[e.key][0];camera.y+=moves[e.key][1];cameraApply();}
    else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')fit();else zoom(e.key==='-'?1/1.2:1.2);}
   });
-  host.addEventListener('wheel',e=>{const stage=e.target.closest('#mp-graph-stage');if(!stage)return;e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?1.08:1/1.08,{x:e.clientX-r.left,y:e.clientY-r.top});},{passive:false});
+  host.addEventListener('wheel',e=>{const stage=e.target.closest('#mp-graph-stage');if(!stage||e.target.closest('.mp-live-bar,.mp-live-gear'))return;e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?1.08:1/1.08,{x:e.clientX-r.left,y:e.clientY-r.top});},{passive:false});
+  // A press on a card drags that card (the rest of the map gives way); a press on empty paper pans.
   host.addEventListener('pointerdown',e=>{
-   const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0)return;
+   const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0||e.target.closest('.mp-live-bar,.mp-live-gear'))return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});dragged=false;
-   if(pointers.size===2){const[a,b]=[...pointers.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);drag=null;stage.setPointerCapture(e.pointerId);}
-   else{const onNode=Boolean(e.target.closest('button'));drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,captured:!onNode};if(!onNode)stage.setPointerCapture(e.pointerId);}
+   if(pointers.size===2){const[a,b]=[...pointers.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);letGo();stage.setPointerCapture(e.pointerId);}
+   else{
+    const onNode=Boolean(e.target.closest('button')),key=e.target.closest('[data-map-node]')?.dataset.mapNode,node=key&&live.get(key),at=world(e,stage);
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,captured:!onNode,node:node?key:null,dx:node?node.x-at.x:0,dy:node?node.y-at.y:0,pinned:false};
+    if(!onNode)stage.setPointerCapture(e.pointerId);
+   }
   });
   host.addEventListener('pointermove',e=>{
    if(!pointers.has(e.pointerId))return;const stage=$('mp-graph-stage');if(!stage)return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(pointers.size===2){const[a,b]=[...pointers.values()],distance=Math.hypot(a.x-b.x,a.y-b.y),r=stage.getBoundingClientRect();if(pinch>0)zoom(distance/pinch,{x:(a.x+b.x)/2-r.left,y:(a.y+b.y)/2-r.top});pinch=distance;dragged=true;}
-   else if(drag?.id===e.pointerId){if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>4)dragged=true;if(dragged&&!drag.captured){drag.captured=true;try{stage.setPointerCapture(e.pointerId);}catch{}}if(dragged){camera.x+=e.clientX-drag.x;camera.y+=e.clientY-drag.y;cameraApply();stage.classList.add('dragging');}drag.x=e.clientX;drag.y=e.clientY;}
+   else if(drag?.id===e.pointerId){
+    if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>4)dragged=true;
+    if(dragged&&!drag.captured){drag.captured=true;try{stage.setPointerCapture(e.pointerId);}catch{}}
+    if(dragged&&drag.node){const at=world(e,stage);sim.pin(drag.node,at.x+drag.dx,at.y+drag.dy);drag.pinned=true;autoFit=false;stage.classList.add('moving-card');start();}
+    else if(dragged){autoFit=false;camera.x+=e.clientX-drag.x;camera.y+=e.clientY-drag.y;cameraApply();stage.classList.add('dragging');}
+    drag.x=e.clientX;drag.y=e.clientY;
+   }
   });
-  function end(e){pointers.delete(e.pointerId);if(drag?.id===e.pointerId)drag=null;pinch=null;$('mp-graph-stage')?.classList.remove('dragging');win.setTimeout(()=>{dragged=false;},0);}
+  function end(e){
+   pointers.delete(e.pointerId);
+   if(drag?.id===e.pointerId){
+    const {pinned,node}=drag;letGo();
+    if(pinned){if(quiet())settle();start();}
+    // Two quick presses on a person show only the cards around them (Obsidian's local graph). The
+    // person button is disabled while its card loads, so the browser's dblclick cannot be relied on.
+    else if(!dragged&&node&&node.startsWith('person:')){const now=win.performance.now();if(lastTap&&lastTap.node===node&&now-lastTap.at<450){lastTap=null;setMode('local',node);}else lastTap={node,at:now};}
+   }
+   pinch=null;$('mp-graph-stage')?.classList.remove('dragging','moving-card');win.setTimeout(()=>{dragged=false;},0);
+  }
   host.addEventListener('pointerup',end);host.addEventListener('pointercancel',end);
-  win.addEventListener('blur',()=>{pointers.clear();drag=null;pinch=null;dragged=false;$('mp-graph-stage')?.classList.remove('dragging');});
+  win.addEventListener('blur',()=>{pointers.clear();letGo();pinch=null;dragged=false;$('mp-graph-stage')?.classList.remove('dragging','moving-card');start();});
+  doc.addEventListener('visibilitychange',()=>{if(!doc.hidden){lastFrame=win.performance.now();start();}});
   win.addEventListener('resize',schedule);render();
   // How a listed person was found: the searched words, and the records behind the chosen capability or topic.
   function found(id){
@@ -310,6 +584,7 @@
   function reveal(id,right,bottom){
    const node=[...host.querySelectorAll('[data-map-node]')].find(el=>el.dataset.mapNode==='person:'+id),stage=$('mp-graph-stage');
    if(!node||!stage||!graph)return;
+   autoFit=false;
    const r=node.getBoundingClientRect(),area=stage.getBoundingClientRect();
    const covered=Math.max(0,r.bottom-(win.innerHeight-bottom-24)),still=win.matchMedia('(prefers-reduced-motion: reduce)').matches;
    const dx=clamp(r.right-(win.innerWidth-right-24),0,Math.max(0,r.left-area.left-12)),dy=Math.min(covered,Math.max(0,r.top-area.top-12));
@@ -323,7 +598,8 @@
   }
   // Phones: zoom onto a person (at least 70%) and centre them in the map area left above a bottom sheet.
   function focus(id,bottom){
-   const stage=$('mp-graph-stage'),n=graph?.nodes.find(node=>node.key==='person:'+id);if(!stage||!n)return;
+   const stage=$('mp-graph-stage'),n=shown?.keys.has('person:'+id)?live.get('person:'+id):null;if(!stage||!n)return;
+   autoFit=false;
    const top=stage.getBoundingClientRect().top;if(Math.abs(top-8)>4)win.scrollBy(0,top-8);
    const area=stage.getBoundingClientRect(),visible=Math.max(area.top+80,Math.min(area.bottom,win.innerHeight-bottom-8));
    const scale=clamp(Math.max(camera.scale,.7),.15,1),to={x:area.width/2-n.x*scale,y:(Math.max(area.top,0)+visible)/2-area.top-n.y*scale,scale};
@@ -333,14 +609,14 @@
   }
   // The person before/after this one among the people the map currently shows.
   function neighbor(id,step){
-   const people=C.visiblePeople(state),index=people.findIndex(p=>p.id===id);
+   const people=C.visiblePeople(state).filter(p=>!shown||shown.keys.has('person:'+p.id)),index=people.findIndex(p=>p.id===id);
    return people.length&&index>=0?people[(index+step+people.length)%people.length].id:null;
   }
   function select(id){lastPerson=id;dispatch({type:'SELECT',id});}
   return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal,focus,neighbor,select};
  }
 
- return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};
+ return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount,ringRadius};
 });
 
 (function(root){
