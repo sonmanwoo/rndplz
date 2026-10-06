@@ -52,6 +52,10 @@ AIU_INPUT_LIMIT = 100000
 # stalls (20-120 s before the first text, or a failed run). A run that shows nothing for this long
 # is dropped and tried once more; after any text was shown the failure is reported instead.
 AIU_FIRST_TEXT_SECONDS = 15
+# The profile app reads a whole document once with a reasoning model: Claude Fable 5 at high
+# effort thought ~20 s on a 78k-character note before its first text (2026-10-06), so its runs
+# wait longer before they count as stalled.
+AIU_PROFILE_FIRST_TEXT_SECONDS = 90
 # The service-wide budget for the shared company app key: runs in flight and runs per hour,
 # counted per attempt (a retry is a second run). Each conversation turn makes about three runs.
 AIU_MAX_CONCURRENT = 4
@@ -88,7 +92,7 @@ def _set_read_timeout(response, seconds):
             return
 
 
-def aiu_run(config, payload, remaining, budget):
+def aiu_run(config, payload, remaining, budget, first_text=AIU_FIRST_TEXT_SECONDS):
     """Text pieces of one workflow run.
 
     Reading stops at the success event (a socket kept open afterwards is not a failure). A platform
@@ -103,15 +107,15 @@ def aiu_run(config, payload, remaining, budget):
     def lines(response):
         # The read timeout also ends a connection that sends nothing at all (keep-alive pings count as data).
         while True:
-            _set_read_timeout(response,min(remaining(),AIU_FIRST_TEXT_SECONDS+10))
+            _set_read_timeout(response,min(remaining(),first_text+10))
             raw=response.readline() if hasattr(response,'readline') else next(response,b'')
             if not raw:return
             yield raw
     try:
-        with urllib.request.build_opener(NoRedirect()).open(request,timeout=min(budget,AIU_FIRST_TEXT_SECONDS+10)) as response:
+        with urllib.request.build_opener(NoRedirect()).open(request,timeout=min(budget,first_text+10)) as response:
             for raw in lines(response):
                 remaining()
-                if not shown and time.monotonic()-started>AIU_FIRST_TEXT_SECONDS:raise AiuRunFailed(False)
+                if not shown and time.monotonic()-started>first_text:raise AiuRunFailed(False)
                 line=raw.decode('utf-8').strip()
                 if not line.startswith('data:'):continue
                 data=json.loads(line[5:].strip())
@@ -365,12 +369,12 @@ class ChatModels:
             if callable(observer):
                 try:observer(provider,copy.deepcopy(payload))
                 except Exception:pass
-            collected=''
+            collected='';first_text=AIU_PROFILE_FIRST_TEXT_SECONDS if identifier==AIU_PROFILE_APP else AIU_FIRST_TEXT_SECONDS
             for attempt in (1,2):
                 budget=remaining()  # an expired deadline ends here, before a run is reserved and counted
                 self._aiu_reserve(identifier)
                 try:
-                    for piece in aiu_run(config,payload,remaining,budget):
+                    for piece in aiu_run(config,payload,remaining,budget,first_text):
                         collected+=piece
                         if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
                         if schema is None:yield piece
@@ -378,7 +382,7 @@ class ChatModels:
                 except AiuRunFailed as failure:
                     # Structured output is not shown until it is complete, so it may start over once,
                     # when the deadline still leaves room for a run to show its first text.
-                    if attempt==2 or (failure.shown and schema is None) or remaining()<AIU_FIRST_TEXT_SECONDS:
+                    if attempt==2 or (failure.shown and schema is None) or remaining()<first_text:
                         raise ValueError('모델이 요청을 처리하지 못했습니다.') from None
                     collected=''
                 finally:

@@ -64,4 +64,14 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 .profile-page .digest-chip.digest-add[aria-pressed="true"]:before{content:"+ "}
 .profile-page .digest-add[aria-pressed="false"]{border:1px dashed var(--line);background:transparent;opacity:.55;text-decoration:line-through}
 .digest-view .button-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.digest-item{display:inline-flex;align-items:center;gap:2px;max-width:100%}
+.digest-item.is-block{display:flex;align-items:flex-start;width:100%;margin-bottom:6px}
+.digest-item.is-block>.digest-add{flex:1;min-width:0}
+.profile-page .digest-edit{flex:none;min-width:28px;min-height:28px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:13px;line-height:1;text-decoration:none}
+.profile-page .digest-edit:hover,.profile-page .digest-edit:focus-visible{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green)}
+.digest-editor{display:grid;gap:8px;width:100%;margin-bottom:6px;padding:10px;border:1px solid var(--green);border-radius:8px;background:var(--sheet)}
+.digest-editor label{display:grid;gap:4px;font-size:11px;color:var(--muted)}
+.profile-page .digest-editor input,.profile-page .digest-editor textarea{width:100%;font-size:12px}
+.digest-editor-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.profile-page .digest-editor-actions button{min-height:34px;padding:6px 12px;font-size:12px}
 @media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{gap:6px}.digest-col{padding:9px}}

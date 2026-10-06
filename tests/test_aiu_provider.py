@@ -239,6 +239,22 @@ class AiuProviderTests(unittest.TestCase):
         with patch.object(chat_models, 'AIU_FIRST_TEXT_SECONDS', -1), self.assertRaises(ValueError):
             self.run_stream(ping * 3)
 
+    def test_the_profile_app_waits_longer_for_its_first_text(self):
+        # A reasoning model on the profile app thought ~20 s before its first text (Claude Fable 5,
+        # 2026-10-06); the chat app keeps the short stall limit.
+        seen = []
+
+        def fake_run(config, payload, remaining, budget, first_text=chat_models.AIU_FIRST_TEXT_SECONDS):
+            seen.append((config['key'], first_text))
+            yield '답'
+        for identifier in ('aiu', chat_models.AIU_PROFILE_APP):
+            models = ChatModels({**ENV, 'RNDPLZ_AIU_PROFILE_API_KEY': 'app-profile'})
+            models.refreshed = 10 ** 12
+            with patch.object(chat_models, 'aiu_run', fake_run):
+                list(models.stream(identifier, [{'role': 'user', 'content': '안녕'}]))
+        self.assertEqual(seen, [('app-test', chat_models.AIU_FIRST_TEXT_SECONDS),
+                                ('app-profile', chat_models.AIU_PROFILE_FIRST_TEXT_SECONDS)])
+
     def test_prompt_and_fence_helpers(self):
         text = aiu_text('지침', [{'role': 'user', 'content': '질문'}, {'role': 'assistant', 'content': '답'}], structured=False)
         self.assertEqual(text, '[지침]\n지침\n[지침 끝]\n\n[대화]\n<user>\n질문\n</user>\n\n<assistant>\n답\n</assistant>\n[대화 끝]\n\n'

@@ -207,12 +207,27 @@
     finally{busy=false;updateControls();}
   }
   function closeDigest(){digestTicket++;digest=null;renderDigest();announce("제안을 닫았어요. 올린 자료의 ‘제안 보기’로 다시 열 수 있어요.");}
+  // A proposed piece: pressing it leaves it out or back in; ✎ beside it edits its words in place.
   function proposalItem(id,content,cls){
+    const wrap=node("span","digest-item"+(cls.includes("digest-chip")?"":" is-block"));
     const item=node("button",cls);item.type="button";item.dataset.lock="";
     if(typeof content==="string")item.textContent=content;else item.append(...content);
     const show=()=>{const on=!digest.skip.has(id);item.setAttribute("aria-pressed",String(on));item.title=on?"누르면 넣지 않아요":"누르면 다시 넣어요";};
     item.addEventListener("click",()=>{if(digest.skip.has(id))digest.skip.delete(id);else digest.skip.add(id);show();});show();
-    return item;
+    const pen=button("✎",()=>{digest.editing=id;renderDigest();},"digest-edit");pen.title="고치기";pen.setAttribute("aria-label","이 제안 고치기");
+    wrap.append(item,pen);return wrap;
+  }
+  // The editor that replaces a piece while it is edited; an edited piece goes in (it was worth fixing).
+  function proposalEditor(id,fields,save){
+    const form=node("div","digest-editor"),inputs={};
+    for(const f of fields){const label=node("label","",f.label),input=node(f.rows?"textarea":"input");if(f.rows)input.rows=f.rows;else input.type="text";
+      input.value=f.value||"";input.maxLength=f.max;label.append(input);inputs[f.key]=input;form.append(label);}
+    const close=()=>{digest.editing=null;renderDigest();};
+    const done=()=>{const values=Object.fromEntries(Object.entries(inputs).map(([k,input])=>[k,input.value.trim()]));if(save(values)!==false)digest.skip.delete(id);close();};
+    form.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();close();}else if(e.key==="Enter"&&e.target.tagName==="INPUT"){e.preventDefault();done();}});
+    const actions=node("div","digest-editor-actions");actions.append(button("고치기 완료",done,"primary-button"),button("취소",close,"secondary-button"));form.append(actions);
+    setTimeout(()=>form.querySelector("input,textarea")?.focus(),0);
+    return form;
   }
   function renderDigest(){
     const host=$("digestView");host.replaceChildren();host.hidden=!digest;if(!digest)return;
@@ -223,24 +238,29 @@
     if(p.summary)title.append(node("p","digest-summary",p.summary));
     const rows=digestRows(p);
     if(!rows.length){host.append(empty("이 자료에서 카드에 더할 새 내용을 찾지 못했어요."));return;}
-    host.append(node("p","section-help","오른쪽에서 강조된 항목이 카드에 들어가요. 넣지 않을 항목은 눌러서 빼 주세요."));
+    host.append(node("p","section-help","오른쪽에서 강조된 항목이 카드에 들어가요. 넣지 않을 항목은 눌러서 빼고, ✎로 내용을 고칠 수 있어요."));
     for(const [key,label] of rows){
       const row=node("section","digest-row"),now=node("div","digest-col"),next=node("div","digest-col is-next");
       row.append(node("h4","digest-label",label));now.append(node("span","digest-side","지금 카드"));next.append(node("span","digest-side","AiU 제안"));
-      if(key==="bio"){now.append(node("p","digest-text",draft.fields.bio||"비어 있어요"));next.append(proposalItem("bio","＋ "+p.bio_addition,"digest-add digest-text"));
+      if(key==="bio"){now.append(node("p","digest-text",draft.fields.bio||"비어 있어요"));next.append(digest.editing==="bio"?proposalEditor("bio",[{key:"text",label:"덧붙일 문장",value:p.bio_addition,rows:4,max:view.limits.fields.bio}],v=>v.text?(p.bio_addition=v.text,true):false)
+          :proposalItem("bio","＋ "+p.bio_addition,"digest-add digest-text"));
         if(draft.fields.bio)next.append(node("p","digest-none","지금 약력 뒤에 덧붙여요."));}
       else if(key==="careers"){
         const rowsNow=draft.careers.filter(c=>c.title);
         if(!rowsNow.length)now.append(node("p","digest-none","비어 있어요"));
         for(const c of rowsNow)now.append(node("p","digest-career",careerLine(c)));
-        p.careers.forEach((c,i)=>{const meta=[c.organization,c.role].filter(Boolean).join(" · ");
-          next.append(proposalItem("career:"+i,[node("strong","",careerLine(c)),...(meta?[node("small","",meta)]:[]),node("span","",c.description)],"digest-add digest-career"));});
+        p.careers.forEach((c,i)=>{const meta=[c.organization,c.role].filter(Boolean).join(" · "),id="career:"+i;
+          if(digest.editing===id){next.append(proposalEditor(id,Object.entries(careerLabels).map(([k,label])=>({key:k,label,value:c[k],max:view.limits.career_fields[k],rows:k==="description"?4:0})),
+            v=>v.title?(p.careers[i]={...c,...v},true):false));return;}
+          next.append(proposalItem(id,[node("strong","",careerLine(c)),...(meta?[node("small","",meta)]:[]),node("span","",c.description)],"digest-add digest-career"));});
         if(rowsNow.length)next.append(node("p","digest-none",`지금 이력 ${rowsNow.length}개는 그대로 둬요.`));
       }else{
         const current=listItems(draft.fields[key]),chips=node("div","digest-chips"),nextChips=node("div","digest-chips");
         if(!current.length)chips.append(node("span","digest-none","비어 있어요"));
         for(const v of current)chips.append(node("span","digest-chip",v));
-        for(const v of p[key])nextChips.append(proposalItem(key+":"+v,v,"digest-add digest-chip"));
+        p[key].forEach((v,i)=>{const id=key+":"+i;
+          nextChips.append(digest.editing===id?proposalEditor(id,[{key:"value",label:label+" 고치기",value:v,max:60}],e=>e.value?(p[key][i]=e.value,true):false)
+            :proposalItem(id,v,"digest-add digest-chip"));});
         now.append(chips);next.append(nextChips);
         if(current.length)next.append(node("p","digest-none",`지금 ${current.length}개는 그대로 두고 더해요.`));
       }
@@ -253,7 +273,7 @@
     if(!digest?.proposal||busy)return;const p=digest.proposal,keep=id=>!digest.skip.has(id);let count=0;
     if(p.bio_addition&&keep("bio")){draft.fields.bio=withAddition(draft.fields.bio,p.bio_addition);count++;}
     for(const key of ["skills","interests"]){const current=listItems(draft.fields[key]),known=new Set(current.map(v=>v.toLowerCase()));
-      const added=(p[key]||[]).filter(v=>keep(key+":"+v)&&!known.has(v.toLowerCase()));if(added.length){draft.fields[key]=listJoin([...current,...added],draft.fields[key]);count+=added.length;}}
+      const added=(p[key]||[]).filter((v,i)=>keep(key+":"+i)&&!known.has(v.toLowerCase()));if(added.length){draft.fields[key]=listJoin([...current,...added],draft.fields[key]);count+=added.length;}}
     (p.careers||[]).forEach((c,i)=>{if(!keep("career:"+i)||draft.careers.length>=view.limits.careers)return;draft.careers.push({_key:requestId(),...Object.fromEntries(Object.keys(careerLabels).map(k=>[k,c[k]||""]))});count++;});
     digestTicket++;digest=null;renderDigest();
     if(!count){announce("넣을 제안을 남기지 않아 카드는 그대로예요.");return;}
