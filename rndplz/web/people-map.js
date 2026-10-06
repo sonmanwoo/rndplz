@@ -162,7 +162,7 @@
    return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(n.kind==='project'?'프로젝트 참여':filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
   }).join('');
   const edges=graph.edges.map(e=>'<path class="mp-spatial-edge" style="--field-color:'+fieldColor(e.from)+'" data-from="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-record-ids="'+esc(e.recordIds.join(','))+'"></path>').join('');
-  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">카드를 끌어 옮기면 주변 카드가 다시 자리를 잡아요 · 빈 곳을 끌면 지도 이동 · 휠·+/− 확대 · Home 화면 맞춤 · 오른쪽 위 톱니(그래프 설정)에서 필터·색·장력 조절</p></div></div>';
+  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">사진이나 알약을 끌어 옮기면 주변 카드가 다시 자리를 잡아요 · 이름·선·빈 곳을 끌면 지도 이동 · 휠·+/− 확대 · Home 화면 맞춤 · 오른쪽 위 톱니(그래프 설정)에서 필터·색·장력 조절</p></div></div>';
  }
  // Graph settings (people-map-live.js): filter, colour groups, display and forces, kept in this browser.
  const LIVE_SLIDERS=[
@@ -534,14 +534,18 @@
    else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')fit();else zoom(e.key==='-'?1/1.2:1.2);}
   });
   host.addEventListener('wheel',e=>{const stage=e.target.closest('#mp-graph-stage');if(!stage||e.target.closest('.mp-live-bar,.mp-live-gear'))return;e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?1.08:1/1.08,{x:e.clientX-r.left,y:e.clientY-r.top});},{passive:false});
-  // A press on a card drags that card (the rest of the map gives way); a press on empty paper pans.
+  // A press on a portrait or a pill drags that card (the rest of the map gives way); a press anywhere
+  // else, including a name, a line or empty paper, pans the map. A touch is judged by the element under
+  // the finger: the browser may retarget a touch near a pill to the pill, which would drag it instead.
   host.addEventListener('pointerdown',e=>{
    const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0||e.target.closest('.mp-live-bar,.mp-live-gear'))return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});dragged=false;
    if(pointers.size===2){const[a,b]=[...pointers.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);letGo();stage.setPointerCapture(e.pointerId);}
    else{
-    const onNode=Boolean(e.target.closest('button')),key=e.target.closest('[data-map-node]')?.dataset.mapNode,node=key&&live.get(key),at=world(e,stage);
-    drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,captured:!onNode,node:node?key:null,dx:node?node.x-at.x:0,dy:node?node.y-at.y:0,pinned:false};
+    const under=doc.elementFromPoint(e.clientX,e.clientY)||e.target,onNode=Boolean(e.target.closest('button'));
+    const card=under.closest?.('[data-map-node]')?.dataset.mapNode||null,handle=under.closest?.('.mp-face-shell,.mp-spatial-field');
+    const key=handle?card:null,node=key&&live.get(key),at=world(e,stage);
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,captured:!onNode,card,node:node?key:null,dx:node?node.x-at.x:0,dy:node?node.y-at.y:0,pinned:false};
     if(!onNode)stage.setPointerCapture(e.pointerId);
    }
   });
@@ -560,11 +564,11 @@
   function end(e){
    pointers.delete(e.pointerId);
    if(drag?.id===e.pointerId){
-    const {pinned,node}=drag;letGo();
+    const {pinned,card}=drag;letGo();
     if(pinned){if(quiet())settle();start();}
     // Two quick presses on a person show only the cards around them (Obsidian's local graph). The
     // person button is disabled while its card loads, so the browser's dblclick cannot be relied on.
-    else if(!dragged&&node&&node.startsWith('person:')){const now=win.performance.now();if(lastTap&&lastTap.node===node&&now-lastTap.at<450){lastTap=null;setMode('local',node);}else lastTap={node,at:now};}
+    else if(!dragged&&card&&card.startsWith('person:')){const now=win.performance.now();if(lastTap&&lastTap.node===card&&now-lastTap.at<450){lastTap=null;setMode('local',card);}else lastTap={node:card,at:now};}
    }
    pinch=null;$('mp-graph-stage')?.classList.remove('dragging','moving-card');win.setTimeout(()=>{dragged=false;},0);
   }
