@@ -260,6 +260,23 @@ class AiuProviderTests(unittest.TestCase):
         deep = next(m for m in models.catalog()['models'] if m['id'] == 'aiu:deep')
         self.assertEqual((deep['name'], deep['slow']), ('깊은 상담 · 클로드 페이블 5', True))
 
+    def test_an_option_can_pick_a_mode_of_a_branched_app(self):
+        # Agent #4 picks its model with a condition node on a `model` input (2026-10-06); its answer may
+        # arrive only as the end node's output.
+        env = {**ENV, 'RNDPLZ_AIU_MODE': 'normal', 'RNDPLZ_AIU_APPS': 'deep=깊은 상담', 'RNDPLZ_AIU_API_KEY_DEEP': 'app-test',
+               'RNDPLZ_AIU_MODE_DEEP': 'deep'}
+        finished_only = frames({'event': 'workflow_finished', 'data': {'status': 'succeeded', 'outputs': {'text': '끝 노드 답'}}})
+        bodies = []
+        for identifier in ('aiu', 'aiu:deep'):
+            models, sink = ChatModels(env), []
+            models.refreshed = 10 ** 12
+            with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener(finished_only, sink)):
+                self.assertEqual(''.join(models.stream(identifier, [{'role': 'user', 'content': '증류 전문가'}])), '끝 노드 답')
+            bodies.append(sink[0][2]['inputs'])
+        self.assertEqual([b.get('model') for b in bodies], ['normal', 'deep'])
+        self.assertNotIn('model', self.run_stream(frames({'event': 'text_chunk', 'data': {'text': '답'}},
+                                                        {'event': 'workflow_finished', 'data': {'status': 'succeeded'}}))[1][2]['inputs'])
+
     def test_prompt_and_fence_helpers(self):
         text = aiu_text('지침', [{'role': 'user', 'content': '질문'}, {'role': 'assistant', 'content': '답'}], structured=False)
         self.assertEqual(text, '[지침]\n지침\n[지침 끝]\n\n[대화]\n<user>\n질문\n</user>\n\n<assistant>\n답\n</assistant>\n[대화 끝]\n\n'
