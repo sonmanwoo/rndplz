@@ -669,6 +669,9 @@ class PublicApp:
             if option.get('model') == 'gemma4:e2b':
                 model_id = next((m['id'] for m in self.models.catalog()['models'] if m.get('provider') == 'bridge'
                                  and m.get('model') == 'gemma4:e4b' and m.get('enabled')), model_id)
+            # A deep-consultation app thinks 25-35 s per call; the routing label is the fast default app's.
+            if option['provider'] == 'aiu' and model_id != 'aiu':
+                model_id = next((m['id'] for m in self.models.catalog()['models'] if m['id'] == 'aiu' and m.get('enabled')), model_id)
             messages = intent_messages(payload['text'], attachments=[a for a in payload.get('attachments', []) if isinstance(a, str)],
                                        active_task=payload.get('active_task'), recent_turns=turns)
             # Classification runs before the conversation request; a slow model must not hold the chat.

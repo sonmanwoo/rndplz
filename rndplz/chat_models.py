@@ -52,10 +52,10 @@ AIU_INPUT_LIMIT = 100000
 # stalls (20-120 s before the first text, or a failed run). A run that shows nothing for this long
 # is dropped and tried once more; after any text was shown the failure is reported instead.
 AIU_FIRST_TEXT_SECONDS = 15
-# The profile app reads a whole document once with a reasoning model: Claude Fable 5 at high
-# effort thought ~20 s on a 78k-character note before its first text (2026-10-06), so its runs
-# wait longer before they count as stalled.
-AIU_PROFILE_FIRST_TEXT_SECONDS = 90
+# Apps other than the default chat app run slower, stronger models: the profile app (Claude Fable 5
+# thought ~20 s on a 78k-character note) and the deep-consultation option (Claude Fable 5, 25-35 s
+# per call on 2026-10-06). Their runs wait longer before they count as stalled.
+AIU_SLOW_FIRST_TEXT_SECONDS = 90
 # The service-wide budget for the shared company app key: runs in flight and runs per hour,
 # counted per attempt (a retry is a second run). Each conversation turn makes about three runs.
 AIU_MAX_CONCURRENT = 4
@@ -275,9 +275,10 @@ class ChatModels:
                 'name':'Google Gemini · '+config['model'],'enabled':True,'local':False,'vision':True}
 
     def aiu_options(self):
-        """The configured AiU apps, the default app first."""
+        """The configured AiU apps, the default app first. Each app's label names its mode and model
+        (RNDPLZ_AIU_MODEL, RNDPLZ_AIU_APPS); an app other than the default is a slower, deeper model."""
         return [{'id':identifier,'provider':'aiu','model':config['model'],
-                 'name':'사내 AI (AiU) · '+config['model'],'enabled':True,'local':False,'vision':False}
+                 'name':config['model'],'enabled':True,'local':False,'vision':False,'slow':identifier!='aiu'}
                 for identifier,config in self.configs.items() if identifier=='aiu' or identifier.startswith('aiu:')]
 
     def catalog(self,refresh=False):
@@ -369,7 +370,7 @@ class ChatModels:
             if callable(observer):
                 try:observer(provider,copy.deepcopy(payload))
                 except Exception:pass
-            collected='';first_text=AIU_PROFILE_FIRST_TEXT_SECONDS if identifier==AIU_PROFILE_APP else AIU_FIRST_TEXT_SECONDS
+            collected='';first_text=AIU_FIRST_TEXT_SECONDS if identifier=='aiu' else AIU_SLOW_FIRST_TEXT_SECONDS
             for attempt in (1,2):
                 budget=remaining()  # an expired deadline ends here, before a run is reserved and counted
                 self._aiu_reserve(identifier)
