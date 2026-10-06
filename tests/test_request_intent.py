@@ -140,6 +140,22 @@ class WebTests(unittest.TestCase):
         status, body = self.call('POST', '/api/chat/intent', {'text': '제 관심 분야에 수소 액화 추가', 'model_id': 'bridge:gemma4:e2b'})
         self.assertEqual((status, body['intent'], models.calls[0][0]), (200, 'profile_update', 'bridge'))
 
+    def test_deep_consultation_is_classified_by_the_fast_app(self):
+        # The deep-consultation app thinks 25-35 s per call (2026-10-06); routing reads the default app.
+        class TwoApps(FakeModels):
+            def catalog(self, refresh=False):
+                row = {'provider': 'aiu', 'enabled': True, 'local': False, 'vision': False}
+                return {'models': [{**row, 'id': 'aiu', 'model': '빠른 상담', 'name': '빠른 상담'},
+                                   {**row, 'id': 'aiu:deep', 'model': '깊은 상담', 'name': '깊은 상담', 'slow': True}],
+                        'default': 'aiu', 'public': True}
+
+            def get(self, identifier):
+                return next(m for m in self.catalog()['models'] if m['id'] == identifier)
+
+        self.app.models = models = TwoApps()
+        status, body = self.call('POST', '/api/chat/intent', {'text': '제 관심 분야에 수소 액화 추가', 'model_id': 'aiu:deep'})
+        self.assertEqual((status, body['intent'], models.calls[0][0]), (200, 'profile_update', 'aiu'))
+
     def routed(self, turn, text, reply=None, session_id=None):
         """A routed profile sentence; reply is the scripted profile_request.v1 answer (None: no model chosen)."""
         models = FakeModels(reply=json.dumps(reply, ensure_ascii=False)) if reply is not None else FakeModels()

@@ -57,7 +57,7 @@ class AiuProviderTests(unittest.TestCase):
         configured = ChatModels(ENV)
         configured.refreshed = 10 ** 12
         option = next(m for m in configured.catalog()['models'] if m['id'] == 'aiu')
-        self.assertEqual((option['provider'], option['name']), ('aiu', '사내 AI (AiU) · GPT luna'))
+        self.assertEqual((option['provider'], option['name'], option['slow']), ('aiu', 'GPT luna', False))
         with self.assertRaises(ValueError):
             ChatModels({**ENV, 'RNDPLZ_AIU_URL': 'http://aiu.example/run'})  # https only
 
@@ -66,7 +66,7 @@ class AiuProviderTests(unittest.TestCase):
         models, sink = ChatModels(env), []
         models.refreshed = 10 ** 12
         self.assertEqual([(m['id'], m['name']) for m in models.catalog()['models'] if m['provider'] == 'aiu'],
-                         [('aiu', '사내 AI (AiU) · GPT luna'), ('aiu:gpt-luna', '사내 AI (AiU) · GPT luna')])
+                         [('aiu', 'GPT luna'), ('aiu:gpt-luna', 'GPT luna')])
         good = frames({'event': 'text_chunk', 'data': {'text': '답'}}, {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
         with patch.object(chat_models.urllib.request, 'build_opener', return_value=Opener(good, sink)):
             list(models.stream('aiu:gpt-luna', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
@@ -239,21 +239,26 @@ class AiuProviderTests(unittest.TestCase):
         with patch.object(chat_models, 'AIU_FIRST_TEXT_SECONDS', -1), self.assertRaises(ValueError):
             self.run_stream(ping * 3)
 
-    def test_the_profile_app_waits_longer_for_its_first_text(self):
-        # A reasoning model on the profile app thought ~20 s before its first text (Claude Fable 5,
-        # 2026-10-06); the chat app keeps the short stall limit.
+    def test_apps_beside_the_default_wait_longer_for_their_first_text(self):
+        # The profile app and the deep-consultation app run Claude Fable 5, ~20-35 s before the first
+        # text (2026-10-06); the default chat app keeps the short stall limit.
         seen = []
 
         def fake_run(config, payload, remaining, budget, first_text=chat_models.AIU_FIRST_TEXT_SECONDS):
             seen.append((config['key'], first_text))
             yield '답'
-        for identifier in ('aiu', chat_models.AIU_PROFILE_APP):
-            models = ChatModels({**ENV, 'RNDPLZ_AIU_PROFILE_API_KEY': 'app-profile'})
+        env = {**ENV, 'RNDPLZ_AIU_PROFILE_API_KEY': 'app-profile', 'RNDPLZ_AIU_APPS': 'deep=깊은 상담 · 클로드 페이블 5',
+               'RNDPLZ_AIU_API_KEY_DEEP': 'app-deep'}
+        for identifier in ('aiu', chat_models.AIU_PROFILE_APP, 'aiu:deep'):
+            models = ChatModels(env)
             models.refreshed = 10 ** 12
             with patch.object(chat_models, 'aiu_run', fake_run):
                 list(models.stream(identifier, [{'role': 'user', 'content': '안녕'}]))
         self.assertEqual(seen, [('app-test', chat_models.AIU_FIRST_TEXT_SECONDS),
-                                ('app-profile', chat_models.AIU_PROFILE_FIRST_TEXT_SECONDS)])
+                                ('app-profile', chat_models.AIU_SLOW_FIRST_TEXT_SECONDS),
+                                ('app-deep', chat_models.AIU_SLOW_FIRST_TEXT_SECONDS)])
+        deep = next(m for m in models.catalog()['models'] if m['id'] == 'aiu:deep')
+        self.assertEqual((deep['name'], deep['slow']), ('깊은 상담 · 클로드 페이블 5', True))
 
     def test_prompt_and_fence_helpers(self):
         text = aiu_text('지침', [{'role': 'user', 'content': '질문'}, {'role': 'assistant', 'content': '답'}], structured=False)
