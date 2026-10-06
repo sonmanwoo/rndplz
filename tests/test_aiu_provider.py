@@ -4,6 +4,8 @@ Measured 2026-10-02 against local gemma4:e4b on 34 hosted first questions: no fa
 assessment (Gemma 4 of 27) and cleaner candidates, but a first reply of 17.8 s against 5.3 s.
 It is therefore an option, enabled only by RNDPLZ_AIU_API_KEY and RNDPLZ_AIU_URL.
 """
+import base64
+import io
 import json
 import time
 import unittest
@@ -276,6 +278,51 @@ class AiuProviderTests(unittest.TestCase):
         self.assertEqual([b.get('model') for b in bodies], ['normal', 'deep'])
         self.assertNotIn('model', self.run_stream(frames({'event': 'text_chunk', 'data': {'text': '답'}},
                                                         {'event': 'workflow_finished', 'data': {'status': 'succeeded'}}))[1][2]['inputs'])
+
+    def test_a_vision_app_gets_attached_images_as_uploaded_files(self):
+        # Agent #4 reads images through its LLM nodes' vision on sys.files (2026-10-06): each image is
+        # uploaded to the app once and passed with every run of the turn, in message order.
+        png = base64.b64encode(b'\x89PNG\r\n\x1a\n' + b'0' * 32).decode()
+        jpeg = base64.b64encode(b'\xff\xd8\xff' + b'1' * 32).decode()
+        finished = frames({'event': 'text_chunk', 'data': {'text': '사진을 봤어요'}},
+                          {'event': 'workflow_finished', 'data': {'status': 'succeeded'}})
+        uploads, runs = [], []
+
+        class Upload(io.BytesIO):
+            def __init__(self, data):
+                super().__init__(json.dumps(data).encode())
+
+        class Files:
+            def open(self, request, timeout=None):
+                if request.full_url.endswith('/files/upload'):
+                    uploads.append((request.full_url, request.data))
+                    return Upload({'id': 'file-' + str(len(uploads))})
+                runs.append(json.loads(request.data.decode('utf-8')))
+                return Response(finished)
+
+        models = ChatModels({**ENV, 'RNDPLZ_AIU_VISION': '1'})
+        models.refreshed = 10 ** 12
+        self.assertIs(next(m for m in models.catalog()['models'] if m['id'] == 'aiu')['vision'], True)
+        messages = [{'role': 'user', 'content': '이 사진 봐 주세요', 'images': [png, jpeg]}, {'role': 'assistant', 'content': '네'},
+                    {'role': 'user', 'content': '하나 더', 'images': [png]}]
+        with patch.object(chat_models.urllib.request, 'build_opener', return_value=Files()):
+            for _ in range(2):
+                self.assertEqual(''.join(models.stream('aiu', messages)), '사진을 봤어요')
+        self.assertEqual([url for url, _ in uploads], ['https://aiu.example/ext/v1/files/upload'] * 2)
+        self.assertIn(b'Content-Type: image/jpeg', uploads[1][1])
+        self.assertEqual([[f['upload_file_id'] for f in run['files']] for run in runs], [['file-1', 'file-2', 'file-1']] * 2)
+        self.assertEqual(runs[0]['files'][0]['type'], 'image')
+        self.assertIn('함께 보낸 이미지 중 1~2번째', runs[0]['inputs']['text'])
+        self.assertIn('함께 보낸 이미지 중 3번째', runs[0]['inputs']['text'])
+
+    def test_an_app_without_vision_takes_no_images(self):
+        models = ChatModels(ENV)
+        models.refreshed = 10 ** 12
+        self.assertIs(next(m for m in models.catalog()['models'] if m['id'] == 'aiu')['vision'], False)
+        png = base64.b64encode(b'\x89PNG\r\n\x1a\n' + b'0' * 32).decode()
+        with patch.object(chat_models.urllib.request, 'build_opener', side_effect=AssertionError('no request')):
+            with self.assertRaises(ValueError):
+                list(models.stream('aiu', [{'role': 'user', 'content': '사진', 'images': [png]}]))
 
     def test_prompt_and_fence_helpers(self):
         text = aiu_text('지침', [{'role': 'user', 'content': '질문'}, {'role': 'assistant', 'content': '답'}], structured=False)
