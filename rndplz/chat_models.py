@@ -1,4 +1,6 @@
 """Interchangeable streaming chat providers; credentials stay in this process."""
+import base64
+import hashlib
 import json
 import copy
 import os
@@ -7,6 +9,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from collections import deque
 from urllib.parse import urlparse
 from .models import NoRedirect
@@ -68,6 +71,10 @@ AIU_MESSAGES = {'credit_exceeded':'사내 AI의 사용량(크레딧)이 소진�
                 'unauthorized':'사내 AI 연결 키가 유효하지 않습니다.'}
 # The app that reads profile documents (its own key, RNDPLZ_AIU_PROFILE_API_KEY): not a chat choice.
 AIU_PROFILE_APP = 'aiu-profile'
+# An app whose LLM nodes read images (vision on the system file list, sys.files; agent #4 on 2026-10-06)
+# gets attached images uploaded to its file store and passed with the run. One turn makes about three
+# runs, so an image uploaded to an app is reused for this long instead of being sent again.
+AIU_FILE_SECONDS = 600
 
 
 class AiuRejected(ValueError):
@@ -151,9 +158,40 @@ def aiu_run(config, payload, remaining, budget, first_text=AIU_FIRST_TEXT_SECOND
     if not finished:raise AiuRunFailed(shown)
 
 
+def aiu_upload(config, value, timeout):
+    """The app's file id for one base64 PNG/JPEG/WebP image, uploaded to its file store."""
+    from .gemini_native import image_part
+    mime = image_part(value)['inlineData']['mimeType']  # the same size and format checks as Gemini's
+    boundary = uuid.uuid4().hex
+    body = ('--' + boundary + '\r\nContent-Disposition: form-data; name="user"\r\n\r\nsusomun\r\n--' + boundary +
+            '\r\nContent-Disposition: form-data; name="file"; filename="image.' + mime.split('/')[1] +
+            '"\r\nContent-Type: ' + mime + '\r\n\r\n').encode() + base64.b64decode(value) + ('\r\n--' + boundary + '--\r\n').encode()
+    request = urllib.request.Request(config['url'].rsplit('/workflows/', 1)[0] + '/files/upload', data=body, method='POST',
+        headers={'Content-Type': 'multipart/form-data; boundary=' + boundary, 'Authorization': 'Bearer ' + config['key']})
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(request, timeout=timeout) as response:
+            file_id = json.load(response).get('id')
+    except urllib.error.HTTPError as error:
+        if error.code in (401, 403):raise AiuRejected(AIU_MESSAGES['unauthorized']) from None
+        if error.code == 413:raise ValueError('이미지가 커서 사내 AI에 올리지 못했습니다. 크기를 줄여 주세요.') from None
+        raise ValueError('사내 AI에 이미지를 올리지 못했습니다.') from None
+    except Exception:
+        raise ValueError('사내 AI에 이미지를 올리지 못했습니다.') from None
+    if not isinstance(file_id, str) or not file_id:raise ValueError('사내 AI에 이미지를 올리지 못했습니다.')
+    return file_id
+
+
 def aiu_text(system, messages, *, structured):
-    """One prompt for the workflow's text input: the instructions, then the turns in order."""
-    turns = '\n\n'.join('<' + row['role'] + '>\n' + row['content'] + '\n</' + row['role'] + '>' for row in messages)
+    """One prompt for the workflow's text input: the instructions, then the turns in order. A turn's
+    images go with the run as files, in message order, and the turn says which of them it carried."""
+    rows, sent = [], 0
+    for row in messages:
+        count = len(row.get('images') or [])
+        note = ('\n[이 메시지의 첨부 이미지: 함께 보낸 이미지 중 ' + str(sent + 1) + ('' if count == 1 else '~' + str(sent + count)) +
+                '번째]') if count else ''
+        sent += count
+        rows.append('<' + row['role'] + '>\n' + row['content'] + note + '\n</' + row['role'] + '>')
+    turns = '\n\n'.join(rows)
     closing = ('위 지침의 JSON Schema를 지키는 JSON 객체 하나만 출력하세요. 코드 블록 표시나 설명을 붙이지 마세요.' if structured
                else '위 지침에 따라 마지막 user 메시지에 답하세요.')
     return '[지침]\n' + system + '\n[지침 끝]\n\n[대화]\n' + turns + '\n[대화 끝]\n\n' + closing
@@ -256,7 +294,7 @@ class ChatModels:
         if u.scheme not in ('http','https') or u.hostname not in ('127.0.0.1','localhost','::1') or u.username or u.password or u.query or u.fragment:
             raise ValueError('로컬 모델 주소는 이 기기의 Ollama 주소여야 합니다.')
         self.local=[];self.refreshed=0;self.configs={};self.lock=threading.Lock();self.calls={}
-        self.aiu_runs=deque();self.aiu_active=0
+        self.aiu_runs=deque();self.aiu_active=0;self.aiu_files={}
         self.aiu_max_concurrent=int(self.env.get('RNDPLZ_AIU_MAX_CONCURRENT') or AIU_MAX_CONCURRENT)
         self.aiu_runs_per_hour=int(self.env.get('RNDPLZ_AIU_RUNS_PER_HOUR') or AIU_RUNS_PER_HOUR)
         # Gemini is an explicit server opt-in; no key files, inferred model or fallback.
@@ -276,19 +314,21 @@ class ChatModels:
         # keys in RNDPLZ_AIU_API_KEY_<SLUG>) are listed as their own options "aiu:<slug>". An app whose
         # condition node picks the model by a `model` input (agent #4: normal|deep) gets that input from
         # RNDPLZ_AIU_MODE (default app) or RNDPLZ_AIU_MODE_<SLUG>, so two options may share one app.
+        # RNDPLZ_AIU_VISION(_<SLUG>)=1 marks an app whose LLM nodes read images.
         aiu_key=self.env.get('RNDPLZ_AIU_API_KEY','');aiu_url=self.env.get('RNDPLZ_AIU_URL','')
         if aiu_key and aiu_url:
             target=urlparse(aiu_url)
             if target.scheme!='https' or not target.hostname or target.username or target.password:
                 raise ValueError('사내 AI 주소는 인증정보 없는 https 주소여야 합니다.')
             self.configs['aiu']={'key':aiu_key,'url':aiu_url,'model':self.env.get('RNDPLZ_AIU_MODEL','사내 모델'),
-                                 'mode':self.env.get('RNDPLZ_AIU_MODE','')}
+                                 'mode':self.env.get('RNDPLZ_AIU_MODE',''),'vision':self.env.get('RNDPLZ_AIU_VISION')=='1'}
             for entry in self.env.get('RNDPLZ_AIU_APPS','').split(';'):
                 slug,_,label=entry.strip().partition('=')
                 if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,29}',slug):continue
                 key=self.env.get('RNDPLZ_AIU_API_KEY_'+slug.upper().replace('-','_'),'')
                 if key:self.configs['aiu:'+slug]={'key':key,'url':aiu_url,'model':label.strip() or slug,
-                                                  'mode':self.env.get('RNDPLZ_AIU_MODE_'+slug.upper().replace('-','_'),'')}
+                                                  'mode':self.env.get('RNDPLZ_AIU_MODE_'+slug.upper().replace('-','_'),''),
+                                                  'vision':self.env.get('RNDPLZ_AIU_VISION_'+slug.upper().replace('-','_'))=='1'}
             profile_key=self.env.get('RNDPLZ_AIU_PROFILE_API_KEY','')
             if profile_key:self.configs[AIU_PROFILE_APP]={'key':profile_key,'url':aiu_url,'model':'역량 게시용 앱'}
 
@@ -302,7 +342,7 @@ class ChatModels:
         """The configured AiU apps, the default app first. Each app's label names its mode and model
         (RNDPLZ_AIU_MODEL, RNDPLZ_AIU_APPS); an app other than the default is a slower, deeper model."""
         return [{'id':identifier,'provider':'aiu','model':config['model'],
-                 'name':config['model'],'enabled':True,'local':False,'vision':False,'slow':identifier!='aiu'}
+                 'name':config['model'],'enabled':True,'local':False,'vision':config.get('vision') is True,'slow':identifier!='aiu'}
                 for identifier,config in self.configs.items() if identifier=='aiu' or identifier.startswith('aiu:')]
 
     def catalog(self,refresh=False):
@@ -366,6 +406,17 @@ class ChatModels:
     def _aiu_release(self):
         with self.lock:self.aiu_active-=1
 
+    def _aiu_file(self,config,value,remaining):
+        """The app's file id for one image; an image sent to the same app within AIU_FILE_SECONDS is reused."""
+        key=(config['key'],hashlib.sha256(value.encode()).hexdigest())
+        with self.lock:
+            now=time.monotonic()
+            self.aiu_files={k:v for k,v in self.aiu_files.items() if now-v[1]<AIU_FILE_SECONDS}
+            if key in self.aiu_files:return self.aiu_files[key][0]
+        file_id=aiu_upload(config,value,min(remaining(),30))
+        with self.lock:self.aiu_files[key]=(file_id,time.monotonic())
+        return file_id
+
     def stream(self,identifier,messages,*,contract=None):
         deadline=getattr(messages,'generation_deadline',None)
         def remaining():
@@ -390,6 +441,11 @@ class ChatModels:
             text=aiu_text(system,messages,structured=schema is not None)
             if len(text)>AIU_INPUT_LIMIT:raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
             payload={'inputs':{'text':text,**({'model':config['mode']} if config.get('mode') else {})},'mode':'streaming','user':'susomun'}
+            images=[value for row in messages for value in (row.get('images') or [])]
+            if images:
+                if not config.get('vision'):raise ValueError('선택한 모델은 이미지를 읽지 못합니다.')
+                payload['files']=[{'type':'image','transfer_method':'local_file','upload_file_id':self._aiu_file(config,value,remaining)}
+                                  for value in images]
             observer=getattr(self,'diagnostic_observer',None)
             if callable(observer):
                 try:observer(provider,copy.deepcopy(payload))
