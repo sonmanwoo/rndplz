@@ -179,6 +179,9 @@
   {key:'labels',label:'이름 표시',section:'look'},{key:'edges',label:'연결선 표시',section:'look'}];
  const GROUP_COLORS=['#c4683a','#3b7db3','#8b5cb4','#2f8c68','#b38a2b','#c0456f'];
  const PREFS_KEY='rndplz.map.graph.v1';
+ // Outer radius of a 48px portrait with its paper ring, team double ring or laureate ring (people-map.css);
+ // lines to a person stop here. Also used by the chat's recommendation map.
+ function ringRadius(el){const team=el.classList.contains('mp-person-team'),nobel=el.classList.contains('mp-person-nobel');return team&&nobel?40:team?36:nobel?35:30;}
  function mount(doc,host){
   const win=doc.defaultView,$=id=>host.querySelector('#'+id),Live=win.RndPeopleMapLive;
   if(!Live)throw new TypeError('Load people-map-live.js before mounting the research map.');
@@ -283,8 +286,6 @@
     path.setAttribute('class',button.dataset.person===state.selectedId?'mp-line-active':'mp-line');svg.append(path);
    });
   }
-  // Outer radius of a portrait with its paper ring, team double ring or laureate ring (people-map.css).
-  function ringRadius(el){const team=el.classList.contains('mp-person-team'),nobel=el.classList.contains('mp-person-nobel');return team&&nobel?40:team?36:nobel?35:30;}
   // Beside the map: in the page margin to the right when it is wide enough, otherwise as a third
   // column that narrows the map; on phones (one column) below the map.
   function placePanel(){
@@ -615,7 +616,7 @@
   return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal,focus,neighbor,select};
  }
 
- return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount};
+ return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount,ringRadius};
 });
 
 (function(root){
