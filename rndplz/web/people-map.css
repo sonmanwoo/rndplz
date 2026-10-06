@@ -676,3 +676,59 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 /* A card without a portrait should lead with its research, not a blank image. */
 #detailDialog.docked .researcher-detail-hero:has(.portrait-unavailable){max-width:none;margin:12px 0}
 #detailDialog.docked .researcher-detail-hero .portrait-unavailable{aspect-ratio:auto;min-height:0;padding:12px 14px;gap:4px;align-items:flex-start;text-align:left}
+/* Live graph (people-map-live.js): cards settle by force and can be dragged; graph tools sit at the
+   top left of the map because the person card docks over the right of the window. */
+#peopleMapHost .mp-graph-stage{user-select:none;-webkit-user-select:none}
+#peopleMapHost .mp-graph-stage img{-webkit-user-drag:none}
+#peopleMapHost .mp-graph-stage.moving-card,#peopleMapHost .mp-graph-stage.moving-card .mp-spatial-node{cursor:grabbing}
+#peopleMapHost .mp-spatial-edge{stroke-width:calc(1.2px * var(--mp-edge-scale,1))}
+#peopleMapHost .mp-spatial-edge.active{stroke-width:calc(2.8px * var(--mp-edge-scale,1))}
+#peopleMapHost .mp-edges-off .mp-spatial-edges{display:none}
+#peopleMapHost .mp-names-off .mp-spatial-person{justify-content:center}
+#peopleMapHost .mp-names-off .mp-spatial-person :is(.mp-node-name,.mp-node-field){display:none}
+#peopleMapHost .mp-names-faded .mp-spatial-person:not(:hover,:focus-visible,[aria-pressed="true"]) :is(.mp-node-name,.mp-node-field){opacity:0}
+#peopleMapHost .mp-spatial-person.mp-grouped:not(.related):not([aria-pressed="true"]) .mp-node-face{box-shadow:0 0 0 3px var(--mp-graph-paper),0 0 0 6px var(--group-color)}
+#peopleMapHost .mp-live-empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(320px,80%);margin:0;text-align:center}
+#peopleMapHost .mp-live-bar{position:absolute;top:10px;left:10px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:6px;cursor:auto}
+#peopleMapHost .mp-live-modes{display:flex;padding:3px;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb}
+#peopleMapHost .mp-live-modes button{min-height:34px;padding:5px 11px;border:0;border-radius:6px;background:transparent;color:var(--mp-muted);font-size:12px;line-height:1.3;cursor:pointer}
+#peopleMapHost .mp-live-modes button[aria-pressed="true"]{background:#e5eddd;color:#23472f;font-weight:600}
+#peopleMapHost .mp-live-depth{display:flex;white-space:nowrap;align-items:center;gap:5px;padding:0 6px;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb;font-size:12px;color:var(--mp-muted)}
+#peopleMapHost .mp-live-depth[hidden]{display:none}
+#peopleMapHost .mp-live-depth select{min-height:34px;padding:4px 2px;border:0;background:transparent;font:inherit;color:var(--mp-ink)}
+#peopleMapHost .mp-live-gear{display:flex;align-items:center;justify-content:center;width:42px;height:42px;min-height:42px;padding:0;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb;color:var(--mp-graph-accent);font-size:18px;line-height:1;cursor:pointer}
+#peopleMapHost .mp-live-gear[aria-expanded="true"]{background:#e5eddd;border-color:var(--mp-graph-accent)}
+#peopleMapHost .mp-live-panel{position:absolute;top:62px;left:10px;z-index:4;width:300px;max-width:calc(100% - 20px);max-height:calc(100% - 72px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;user-select:text;-webkit-user-select:text;cursor:auto;padding:0 14px 12px;border:1px solid var(--mp-line);border-radius:10px;background:#fffefb;box-shadow:0 10px 30px #2a3a2c24;color:var(--mp-ink);font-size:12px;line-height:1.5}
+#peopleMapHost .mp-live-panel[hidden]{display:none}
+#peopleMapHost .mp-live-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:2px;padding:8px 0 6px;background:inherit}
+#peopleMapHost .mp-live-head strong{flex:1;font-size:13px}
+#peopleMapHost .mp-live-head button,#peopleMapHost .mp-live-group button{width:34px;height:34px;min-height:34px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--mp-muted);font-size:16px;cursor:pointer}
+#peopleMapHost .mp-live-head button:hover,#peopleMapHost .mp-live-group button:hover{background:#eef2e8;color:var(--mp-ink)}
+#peopleMapHost .mp-live-panel>details{padding:8px 0;border-top:1px solid var(--mp-line)}
+#peopleMapHost .mp-live-panel summary{padding:3px 0;font-size:12.5px;font-weight:600;cursor:pointer}
+#peopleMapHost .mp-live-panel input[type="text"]{width:100%;min-height:36px;margin:4px 0;padding:6px 9px;border:1px solid var(--mp-line);border-radius:7px;background:#fff;font:inherit;font-size:12px;color:var(--mp-ink)}
+#peopleMapHost .mp-live-panel input[aria-invalid="true"]{border-color:#b8573e;box-shadow:0 0 0 1px #b8573e}
+#peopleMapHost .mp-live-error{margin:2px 0 4px;color:#a5492f;font-size:11.5px}
+#peopleMapHost .mp-live-error[hidden]{display:none}
+#peopleMapHost .mp-live-syntax summary{font-size:11.5px;font-weight:400;color:var(--mp-muted)}
+#peopleMapHost .mp-live-syntax p{margin:4px 0 6px;color:var(--mp-muted);font-size:11.5px;line-height:1.7}
+#peopleMapHost .mp-live-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px;cursor:pointer}
+#peopleMapHost .mp-live-toggle input{position:relative;flex-shrink:0;width:34px;height:20px;margin:0;border:0;border-radius:10px;appearance:none;-webkit-appearance:none;background:#cfd5ca;cursor:pointer;transition:background .15s}
+#peopleMapHost .mp-live-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+#peopleMapHost .mp-live-toggle input:checked{background:var(--mp-graph-accent)}
+#peopleMapHost .mp-live-toggle input:checked::after{transform:translateX(14px)}
+#peopleMapHost .mp-live-panel :is(input,button,select):focus-visible,#peopleMapHost .mp-live-bar :is(button,select):focus-visible{outline:2px solid #b8753e;outline-offset:2px}
+#peopleMapHost .mp-live-slider{display:grid;grid-template-columns:1fr auto;gap:0 8px;align-items:center;padding:4px 0}
+#peopleMapHost .mp-live-slider input{grid-column:1/-1;width:100%;margin:2px 0;accent-color:var(--mp-graph-accent)}
+#peopleMapHost .mp-live-slider output{color:var(--mp-muted);font-size:11px;font-variant-numeric:tabular-nums}
+#peopleMapHost .mp-live-panel .mp-live-wide{width:100%;text-align:center;min-height:36px;margin-top:6px;border:1px solid var(--mp-line);border-radius:7px;background:#fffefb;color:var(--mp-graph-accent);font-size:12px;cursor:pointer}
+#peopleMapHost .mp-live-panel .mp-live-wide:hover{border-color:var(--mp-graph-accent);background:#f1f5ee}
+#peopleMapHost .mp-live-group{display:grid;grid-template-columns:minmax(0,1fr) 36px 34px;gap:4px;align-items:center}
+#peopleMapHost .mp-live-group input[type="color"]{width:36px;height:34px;padding:2px;border:1px solid var(--mp-line);border-radius:7px;background:#fff;cursor:pointer}
+#peopleMapHost .mp-live-note{margin:6px 0 0;color:var(--mp-muted);font-size:11px;line-height:1.6}
+#peopleMapHost .mp-live-status{flex:1 1 100%;margin:0;color:var(--mp-muted);font-size:11px;font-variant-numeric:tabular-nums}
+@media(max-width:760px){
+  #peopleMapHost .mp-live-bar{top:8px;left:8px;right:8px}
+  #peopleMapHost .mp-live-modes button{padding:5px 9px}
+  #peopleMapHost .mp-live-panel{top:58px;left:8px;right:8px;width:auto;max-width:none;max-height:calc(100% - 66px)}
+}

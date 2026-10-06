@@ -191,3 +191,14 @@ html[data-theme="dark"] .message-body strong { color:var(--green); }
 html[data-theme="dark"] :is(.tag,.profile-chat-badge) { color:var(--theme-badge); }
 html[data-theme="dark"] :is(.error,.response-error) { color:var(--error); }
 html[data-theme="dark"] .stop-button { background:var(--error); color:var(--desk); border-color:var(--error); }
+/* Live graph tools on the dark map. */
+html[data-theme="dark"] #peopleMapHost :is(.mp-live-modes,.mp-live-depth,.mp-live-gear,.mp-live-panel,.mp-live-wide) { background:var(--sheet); border-color:var(--theme-control-edge); color:var(--ink); }
+html[data-theme="dark"] #peopleMapHost .mp-live-panel { box-shadow:0 10px 30px #00000070; }
+html[data-theme="dark"] #peopleMapHost :is(.mp-live-modes button[aria-pressed="true"],.mp-live-gear[aria-expanded="true"],.mp-live-wide:hover,.mp-live-head button:hover,.mp-live-group button:hover) { background:var(--theme-hover); color:var(--green); }
+html[data-theme="dark"] #peopleMapHost .mp-live-gear { color:var(--green); }
+html[data-theme="dark"] #peopleMapHost .mp-live-depth select { background:transparent; border:0; }
+html[data-theme="dark"] #peopleMapHost .mp-live-toggle input { background:#3a4560; }
+html[data-theme="dark"] #peopleMapHost .mp-live-toggle input:checked { background:var(--green); }
+html[data-theme="dark"] #peopleMapHost .mp-live-toggle input::after { background:var(--ink); }
+html[data-theme="dark"] #peopleMapHost .mp-live-error { color:#ee8b75; }
+html[data-theme="dark"] #peopleMapHost .mp-live-slider input { accent-color:var(--green); }
