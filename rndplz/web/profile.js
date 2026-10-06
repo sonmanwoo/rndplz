@@ -1,17 +1,15 @@
-/* A private draft: explicit edits and document choices, with no model calls. */
+/* A private draft: typed edits, and documents the company AI turns into card proposals. */
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
   const labels = {name:"표시 이름",organization:"소속·부서",role:"현재 역할",bio:"짧은 소개",skills:"다뤄본 분야·기술",interests:"관심 분야",career:"경력·프로젝트 설명"};
   const careerLabels = {title:"경력·프로젝트명",organization:"소속·조직",period:"기간",role:"맡은 역할",description:"한 일과 적용 조건"};
-  const choices = {accept:"채택",edit:"수정해서 채택",exclude:"제외",defer:"나중에 검토"};
-  const reviewed = {pending:"미검토",accepted:"채택됨",edited_accepted:"수정 후 채택됨",excluded:"제외됨",deferred:"보류됨",withdrawn:"근거 변경 · 재확인 필요",redacted:"관련 자료 삭제됨"};
   let view=null, token="", draft=null, busy=false, conflict=null, uncertain=null, action=null;
   let accountNavigationPending=false,accountInvalidated=false;
-  let previewRequest=null, previewGeneration=0;
+  let digest=null, digestTicket=0; // the company AI's card proposal for one document
   // A bound account edits its research-map card: the card as saving would show it, one block open at a time.
-  let cardPerson=null, cardEditing=null, cardSeq=0, cardTimer=0, cardError="";
-  const selections=new Map(), deletionRetries=new Map(), dialogOpeners=new Map();
+  let cardPerson=null, cardEditing=null, cardBefore=null, cardSeq=0, cardTimer=0, cardError="";
+  const deletionRetries=new Map(), dialogOpeners=new Map();
   const clone=value=>JSON.parse(JSON.stringify(value));
   const requestId=()=>crypto.randomUUID().replaceAll("-","");
   const text=value=>value==null?"":typeof value==="string"?value:JSON.stringify(value,null,2);
@@ -24,7 +22,7 @@
   function showError(message,retry){const box=$("pageError");box.replaceChildren(node("p","",message));if(retry){const b=button("같은 요청으로 다시 확인",retry,"secondary-button");delete b.dataset.lock;box.append(b);}box.hidden=false;box.focus();}
   function cleanCareers(rows){return rows.map(row=>{const value={};if(row.id)value.id=row.id;for(const k of Object.keys(careerLabels))value[k]=row[k]||"";return value;});}
   function manualChanges(){if(!view||!draft)return {fields:{},careers:false};const fields={};for(const k of Object.keys(view.profile.fields))if(draft.fields[k]!==view.profile.fields[k])fields[k]=draft.fields[k];return {fields,careers:JSON.stringify(cleanCareers(draft.careers))!==JSON.stringify(cleanCareers(view.profile.careers))};}
-  function hasChanges(){const c=manualChanges();return Object.keys(c.fields).length+(c.careers?1:0)+selections.size;}
+  function hasChanges(){const c=manualChanges();return Object.keys(c.fields).length+(c.careers?1:0);}
   function fieldOrigin(key){const p=view.profile.provenance[key];if(!p)return "근거 미제공";const origin={user_input:"직접 입력",public_card:"연구맵 카드에서 가져옴",source_claim:"자료에서 추출",user_edited_source:"자료를 바탕으로 직접 수정"}[p.origin]||"출처 확인 필요";const status={linked_claim:"근거 연결됨",not_provided:"근거 미제공",requires_review:"근거 재확인 필요",source_deleted:"연결 자료 삭제됨"}[p.evidence_status]||"근거 상태 확인 필요";return `${origin} · ${status}`;}
   function updateControls(){const locked=accountNavigationPending||busy||!view||!!uncertain;$("profileFields").disabled=locked;document.querySelectorAll("[data-lock]").forEach(el=>el.disabled=locked);$("saveProfile").disabled=locked||!hasChanges()||!!conflict;$("changeCount").textContent=hasChanges()?`변경 ${hasChanges()}개 · 아직 저장하지 않음`:"변경 없음";$("saveProfile").firstChild.textContent=busy?"처리 중 ":`변경 ${hasChanges()||""}${hasChanges()?"개 ":""}저장 `;if(draft){$("previewName").textContent=draft.fields.name.trim()||"당신의 이름";$("previewRole").textContent=[draft.fields.organization,draft.fields.role].filter(Boolean).join("\n")||"지금 하는 일부터 적어보세요.";}}
   async function api(path,payload){if(accountNavigationPending||accountInvalidated)throw new Error("계정이 바뀌고 있어요. 새 화면에서 다시 확인해 주세요.");const options={credentials:"same-origin",cache:"no-store"};if(payload!==undefined)Object.assign(options,{method:"POST",headers:{"Content-Type":"application/json","X-Rndplz-Token":token},body:JSON.stringify(payload)});let response,data;try{response=await fetch(path,options);}catch(_){const e=new Error("전송 결과를 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}try{data=await response.json();}catch(_){const e=new Error("서버 응답을 확인하지 못했습니다. 입력은 그대로 두었습니다.");e.uncertain=payload!==undefined;throw e;}if(accountInvalidated)throw new Error("이전 계정의 응답을 적용하지 않았습니다.");if(!response.ok){const e=new Error(typeof data.error==="string"?data.error:"요청을 처리하지 못했습니다. 입력은 그대로 두었습니다.");e.status=response.status;e.code=data.code;e.uncertain=payload!==undefined&&response.status>=500;throw e;}return data;}
@@ -64,8 +62,6 @@
       for(const [k,value] of Object.entries(changes.fields)){if(derived(k)){removed++;continue;}draft.fields[k]=value;}
       if(changes.careers){const merged=mergeCareerEdits(old.profile.careers,oldDraft.careers,data.profile.careers,derived);draft.careers=merged.rows;removed+=merged.removed;}
     }
-    const live=new Set(data.suggestions.filter(p=>["pending","excluded","deferred"].includes(p.decision)).map(p=>p.id));
-    for(const id of selections.keys())if(!live.has(id))selections.delete(id);
     render();
     if(removed)announce(`삭제된 자료에서 나온 편집 ${removed}개를 지웠습니다. 독립적으로 작성한 입력은 유지했습니다.`);
   }
@@ -87,9 +83,9 @@
   function render(){
     renderScope();
     $("savedVersion").textContent=view.profile.id?`초안 v${view.profile.version}\n마지막 저장 ${date(view.profile.updated_at)}`:"저장된 프로필 없음";
-    $("uploadLimits").textContent=`${view.limits.formats.map(x=>x.toUpperCase()).join(" · ")} / 파일당 ${Math.round(Math.min(view.limits.file_bytes,1048576)/1024/1024)} MiB / 최대 ${view.limits.sources}개. 이미지·OCR 미지원.`;
+    $("uploadLimits").textContent=`PDF · DOCX · 텍스트 문서, 파일당 ${Math.round(view.limits.file_bytes/1048576)} MB까지. 이미지·스캔 문서는 읽지 못해요.`;
     $("sourceFile").accept=view.limits.formats.map(x=>"."+x).join(",");
-    renderFields();cardEditing=null;renderCareers();renderCardMode();renderSources();renderSuggestions();renderHistory();updateControls();
+    renderFields();cardEditing=null;renderCareers();renderCardMode();renderSources();renderDigest();renderHistory();updateControls();
   }
   const cardMode=()=>view?.scope?.kind==="person_card"&&view.scope.identity_status==="google_authenticated";
   // Card blocks and the draft values they show. Skill chips and skill groups are both the skills list.
@@ -102,10 +98,9 @@
     document.querySelectorAll("[data-card-number]").forEach(el=>{el.dataset.formNumber??=el.textContent;el.textContent=on?el.dataset.cardNumber:el.dataset.formNumber;});
     if(on)scheduleCard(0);
   }
-  function selectedDecisions(){const list=[];for(const [id,s] of selections){const p=view.suggestions.find(x=>x.id===id);if(!p||!["accept","edit"].includes(s.decision)||!s.field||p.base_version!==view.profile.version)continue;const d={id,decision:s.decision,field:s.field};if(s.item_id)d.item_id=s.item_id;if(s.decision==="edit")d.value=s.value;list.push(d);}return list;}
   function scheduleCard(delay=250){if(!cardMode())return;clearTimeout(cardTimer);cardTimer=setTimeout(refreshCard,delay);}
   async function refreshCard(){
-    const seq=++cardSeq,changes=manualChanges(),payload={fields:changes.fields,decisions:selectedDecisions()};if(changes.careers)payload.careers=cleanCareers(draft.careers);
+    const seq=++cardSeq,changes=manualChanges(),payload={fields:changes.fields,decisions:[]};if(changes.careers)payload.careers=cleanCareers(draft.careers);
     try{const data=await api("/api/self-profile/card-preview",payload);if(seq!==cardSeq)return;cardPerson=data.card;cardError="";}
     catch(e){if(seq!==cardSeq)return;cardError="카드 미리보기를 만들지 못했어요. "+e.message;}
     renderCard();
@@ -119,8 +114,7 @@
     return undefined;
   }
   function blockChanged(cfg){
-    const chosen=field=>[...selections.values()].some(s=>["accept","edit"].includes(s.decision)&&s.field===field);
-    return cfg.careers?manualChanges().careers||chosen("career"):(cfg.fields||[]).some(k=>draft.fields[k]!==view.profile.fields[k]||chosen(k));
+    return cfg.careers?manualChanges().careers:(cfg.fields||[]).some(k=>draft.fields[k]!==view.profile.fields[k]);
   }
   function savedValues(cfg){
     const box=node("div","card-asis-body");
@@ -157,10 +151,14 @@
     block.addEventListener("click",e=>{if(e.target.closest("a,summary,details,button")||$("profileFields").disabled)return;openBlock(key);});
     return block;
   }
-  async function openBlock(key){if(cardEditing===key)return;if(cardEditing){cardEditing=null;await refreshCard();}cardEditing=key;renderCard();}
-  function closeBlock(){cardEditing=null;$("cardView").querySelector(".card-block-editor")?.closest(".card-block")?.classList.add("is-applying");refreshCard();}
+  async function openBlock(key){if(cardEditing===key)return;if(cardEditing){cardEditing=null;await refreshCard();}cardEditing=key;cardBefore=blockValues(CARD_BLOCKS[key]);renderCard();}
+  function blockValues(cfg){return cfg.careers?clone(draft.careers):Object.fromEntries(cfg.fields.map(k=>[k,draft.fields[k]]));}
+  // × (or Escape) leaves the block as it was when it opened and shows the card again.
+  function cancelBlock(){const cfg=CARD_BLOCKS[cardEditing];if(cfg&&cardBefore){if(cfg.careers)draft.careers=cardBefore;else Object.assign(draft.fields,cardBefore);}cardEditing=null;cardBefore=null;renderCard();updateControls();}
+  function closeBlock(){cardEditing=null;cardBefore=null;$("cardView").querySelector(".card-block-editor")?.closest(".card-block")?.classList.add("is-applying");refreshCard();}
   function blockEditor(cfg){
-    const box=node("div","card-block-editor");box.append(node("h3","",cfg.label+" 수정"));
+    const box=node("div","card-block-editor"),head=node("div","card-editor-head"),close=button("×",cancelBlock,"close-button");
+    close.setAttribute("aria-label",cfg.label+" 수정 취소하고 닫기");close.title="수정 취소";head.append(node("h3","",cfg.label+" 수정"),close);box.append(head);
     if(cfg.careers){const rows=node("div");rows.id="cardCareerRows";box.append(rows,button("＋ 경력·프로젝트 추가",addCareerRow,"add-row"));}
     else{
       const grid=node("div","field-grid");
@@ -171,7 +169,7 @@
     const actions=node("div","button-row");
     actions.append(button("카드에 반영해 보기",closeBlock,"primary-button"),button("이 항목 되돌리기",()=>{if(cfg.careers)draft.careers=draftFrom(view.profile).careers;else for(const k of cfg.fields)draft.fields[k]=view.profile.fields[k];$("cardView").querySelector(".card-block-editor")?.remove();renderCard();updateControls();},"secondary-button"));
     box.append(actions,node("p","section-help","저장 버튼을 누르기 전까지 연구맵에는 보이지 않아요."));
-    box.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();closeBlock();}});
+    box.addEventListener("keydown",e=>{if(e.key==="Escape"){e.preventDefault();cancelBlock();}});
     return box;
   }
   function editableField(key,label,value,{wide=false,multiline=false,max=2000,onInput,id,origin,reset}={}){
@@ -180,61 +178,136 @@
     input.addEventListener("input",()=>{onInput(input.value);updateControls();});wrap.append(lab,input);
     if(origin!==undefined){const meta=node("div","field-meta");meta.append(node("span","",origin));if(reset)meta.append(button("저장값으로 되돌리기",reset));wrap.append(meta);}return wrap;
   }
-  function renderFields(){for(const [container,keys] of [["basicFields",["name","organization","role","bio"]],["expertiseFields",["skills","interests"]]]){$(container).replaceChildren(...keys.map(k=>editableField(k,labels[k],draft.fields[k],{id:"field-"+k,wide:["name","bio","skills","interests"].includes(k),multiline:["bio","skills","interests"].includes(k),max:view.limits.fields[k],origin:fieldOrigin(k),onInput:value=>{draft.fields[k]=value;},reset:()=>{draft.fields[k]=view.profile.fields[k];renderFields();renderSuggestions();updateControls();}})));}}
-  function renderCareers(){const list=cardMode()?$("cardCareerRows"):$("careerRows");if(!list)return;list.replaceChildren();if(!draft.careers.length)list.append(empty("아직 적은 경력이 없어요. 프로젝트 하나부터 시작해도 좋습니다."));draft.careers.forEach((row,index)=>{const section=node("article","career-row");const head=node("div","career-heading");head.append(node("h3","",`경력·프로젝트 ${index+1}`),button("이 경력 제외",()=>{draft.careers.splice(index,1);renderCareers();renderSuggestions();updateControls();$("addCareer").focus();}));section.append(head);const grid=node("div","field-grid");for(const [k,label] of Object.entries(careerLabels))grid.append(editableField(k,label,row[k]||"",{id:`career-${row._key}-${k}`,wide:k==="title"||k==="description",multiline:k==="description",max:view.limits.career_fields[k],onInput:value=>{row[k]=value;}}));section.append(grid,node("p","section-help",row.id?fieldOrigin("career:"+row.id):"직접 입력 · 아직 저장하지 않음"));list.append(section);});}
-  function renderSources(){const list=$("sourceList");list.replaceChildren();if(!view.sources.length)list.append(empty("등록한 자료가 없습니다. 자료 없이도 프로필을 직접 작성할 수 있어요."));for(const source of view.sources){const row=node("article","source-row"),head=node("div","source-heading"),state={active:source.truncated?"일부 읽음":"텍스트 읽음",unlinked:"연결 해제됨",replaced:"다른 자료로 교체됨",deleting:"삭제 처리 중",deleted:"삭제됨"}[source.status]||"상태 확인 필요";head.append(node("h3","",source.name),node("span","source-state",state));row.append(head);
-      if(!["deleted","deleting"].includes(source.status)){row.append(node("p","source-meta",`자료 v${source.version} · ${date(source.created_at)} · 추출문 ${Number(source.characters||0).toLocaleString()}자\n${source.truncated?"일부 텍스트만 저장되었습니다. 읽지 못한 내용은 반영하지 않습니다. ":""}원본 미보관 · 위치는 추출문 기준 · 이 초안에서만 열람`));const actions=node("div","source-actions");actions.append(button("읽은 내용 보기",e=>previewSource(source,e.currentTarget)));if(source.status==="active")actions.append(button("작성할 항목 찾기",()=>suggest([source.id],true)),button("연결 해제",()=>confirmSource(source,"unlink")),button("새 자료로 교체",()=>confirmSource(source,"replace")));actions.append(button("읽은 내용 삭제",()=>confirmSource(source,"delete"),"text-button danger"));row.append(actions);const impacted=source.impact?.profile_items||[];if(impacted.length)row.append(node("p","source-meta","연결된 항목: "+impacted.map(itemLabel).join(", ")));}
-      else if(source.status==="deleting"){row.append(node("p","source-meta","초안의 파생내용과 열람은 이미 차단됐습니다. 저장 파일 정리를 마치지 못했습니다."));const retry=deletionRetries.get(source.id);if(retry)row.append(button("삭제 처리 다시 시도",()=>perform(retry)));else row.append(button("삭제 처리 다시 시도",()=>mutation("source-action",{id:source.id,action:"delete"})));}list.append(row);}}
+  function renderFields(){for(const [container,keys] of [["basicFields",["name","organization","role","bio"]],["expertiseFields",["skills","interests"]]]){$(container).replaceChildren(...keys.map(k=>editableField(k,labels[k],draft.fields[k],{id:"field-"+k,wide:["name","bio","skills","interests"].includes(k),multiline:["bio","skills","interests"].includes(k),max:view.limits.fields[k],origin:fieldOrigin(k),onInput:value=>{draft.fields[k]=value;},reset:()=>{draft.fields[k]=view.profile.fields[k];renderFields();updateControls();}})));}}
+  function renderCareers(){const list=cardMode()?$("cardCareerRows"):$("careerRows");if(!list)return;list.replaceChildren();if(!draft.careers.length)list.append(empty("아직 적은 경력이 없어요. 프로젝트 하나부터 시작해도 좋습니다."));draft.careers.forEach((row,index)=>{const section=node("article","career-row");const head=node("div","career-heading");head.append(node("h3","",`경력·프로젝트 ${index+1}`),button("이 경력 제외",()=>{draft.careers.splice(index,1);renderCareers();updateControls();$("addCareer").focus();}));section.append(head);const grid=node("div","field-grid");for(const [k,label] of Object.entries(careerLabels))grid.append(editableField(k,label,row[k]||"",{id:`career-${row._key}-${k}`,wide:k==="title"||k==="description",multiline:k==="description",max:view.limits.career_fields[k],onInput:value=>{row[k]=value;}}));section.append(grid,node("p","section-help",row.id?fieldOrigin("career:"+row.id):"직접 입력 · 아직 저장하지 않음"));list.append(section);});}
+  function renderSources(){const list=$("sourceList");list.replaceChildren();const shown=view.sources.filter(s=>s.status!=="deleted");
+    for(const source of shown){const row=node("article","source-row"),head=node("div","source-heading");head.append(node("h3","",source.name),node("span","source-state",date(source.created_at)));row.append(head);
+      if(source.status==="deleting"){row.append(node("p","source-meta","삭제를 마치지 못했어요. 다시 시도해 주세요."));const retry=deletionRetries.get(source.id);row.append(button("삭제 다시 시도",()=>retry?perform(retry):mutation("source-action",{id:source.id,action:"delete"})));}
+      else{const actions=node("div","source-actions");if(source.status==="active")actions.append(button("제안 보기",()=>readSource(source)));actions.append(button("자료 삭제",()=>confirmSource(source),"text-button danger"));row.append(actions);}
+      list.append(row);}}
   function itemLabel(key){if(key.startsWith("career:")){const row=view.profile.careers.find(r=>r.id===key.slice(7));return row?.title||"경력·프로젝트";}if(key.startsWith("source:"))return "근거 자료";return labels[key]||key;}
-  function option(value,label){const o=node("option","",label);o.value=value;return o;}
   function compare(current,proposed,currentLabel="현재 저장값",proposedLabel="제안 값"){const box=node("div","comparison");for(const [label,value] of [[currentLabel,current],[proposedLabel,proposed]]){const col=node("div");col.append(node("h4","",label),node("pre","",text(value)||"미입력"));box.append(col);}return box;}
-  function currentValue(selected){if(!selected?.field)return "적용할 항목을 선택하면 현재 값이 보입니다.";if(selected.field==="career")return selected.item_id?(view.profile.careers.find(x=>x.id===selected.item_id)?.description||""):"새 경력의 설명으로 추가";return view.profile.fields[selected.field]||"";}
-  function renderSuggestions(){const list=$("suggestionList");list.replaceChildren();const pending=view.suggestions.filter(p=>["pending","deferred","excluded"].includes(p.decision));$("reviewCount").textContent=String(pending.length);$("refreshSuggestions").hidden=!pending.length;if(!view.suggestions.length){list.append(empty("자료의 ‘작성할 항목 찾기’를 누르면 문서의 문장을 여기서 비교할 수 있어요."));return;}
-    for(const [index,p] of view.suggestions.entries()){const card=node("article","suggestion-card"),head=node("div","suggestion-head");card.id="suggestion-"+p.id;head.append(node("h3","",`자료 문장 ${index+1}`),node("span","",reviewed[p.decision]||"미검토"));card.append(head);const source=view.sources.find(s=>s.id===p.source_id);if(["redacted","withdrawn"].includes(p.decision)){card.append(node("p","review-done",p.decision==="redacted"?"관련 자료가 삭제되어 이 내용은 표시하지 않습니다.":"자료의 연결 또는 버전이 바뀌어 채택할 수 없습니다."));list.append(card);continue;}
-      card.append(node("p","source-meta",`${source?.name||"자료"} · 자료 v${p.source_version} · 추출문 ${p.location?.line||1}줄, 문자 ${Number(p.location?.start||0)+1}–${p.location?.end||0}`),node("blockquote","",p.quote||""));
-      if(["accepted","edited_accepted"].includes(p.decision)){card.append(node("p","review-done",`${itemLabel(p.target||p.field||"")} · ${view.scope.reviewer_label} · 본인·경력 확인과 별개`));list.append(card);continue;}
-      const selected=selections.get(p.id)||{decision:"",field:"",value:p.after||"",item_id:""};
-      const controls=node("div","suggestion-controls");const fieldLabel=node("label","","적용할 항목"),fieldSelect=node("select");fieldSelect.id="target-"+p.id;fieldLabel.htmlFor=fieldSelect.id;fieldSelect.dataset.lock="";fieldSelect.append(option("","아직 분류하지 않음"),...Object.entries(labels).map(([k,v])=>option(k,v)));fieldSelect.value=selected.field;fieldLabel.append(fieldSelect);
-      const choiceLabel=node("label","","검토 선택"),choiceSelect=node("select");choiceSelect.id="choice-"+p.id;choiceLabel.htmlFor=choiceSelect.id;choiceSelect.dataset.lock="";choiceSelect.append(option("","선택 안 함 · 미채택"),...Object.entries(choices).map(([k,v])=>option(k,v)));choiceSelect.value=selected.decision;choiceLabel.append(choiceSelect);controls.append(fieldLabel,choiceLabel);card.append(controls);
-      const comparisons=compare(currentValue(selected),selected.decision==="edit"?selected.value:p.after);card.append(comparisons);
-      const editWrap=node("div","edit-value"),editLabel=node("label","","수정한 제안 값"),editInput=node("textarea");editInput.id="edit-"+p.id;editLabel.htmlFor=editInput.id;editInput.rows=4;editInput.value=selected.value;editInput.maxLength=selected.field==="career"?4000:view.limits.fields[selected.field]||4000;editInput.dataset.lock="";editWrap.hidden=selected.decision!=="edit";editWrap.append(editLabel,editInput);card.append(editWrap);
-      const careerWrap=node("div","edit-value"),careerLabel=node("label","","적용할 경력"),careerSelect=node("select");careerSelect.id="career-target-"+p.id;careerLabel.htmlFor=careerSelect.id;careerSelect.dataset.lock="";careerSelect.append(option("","새 경력으로 추가"),...view.profile.careers.map((row,i)=>option(row.id,row.title||`경력 ${i+1}`)));careerSelect.value=selected.item_id||"";careerWrap.hidden=selected.field!=="career";careerWrap.append(careerLabel,careerSelect);card.append(careerWrap);
-      const stale=node("p","stale-note",p.base_version!==view.profile.version?"후보 생성 뒤 저장값이 바뀌었습니다. 위의 ‘최신 저장값으로 후보 다시 비교’를 눌러 확인해 주세요.":"선택 후 아래 저장 버튼을 눌러야 반영됩니다.");card.append(stale);
-      function remember(){if(selected.decision)selections.set(p.id,selected);else selections.delete(p.id);updateComparison();editWrap.hidden=selected.decision!=="edit";careerWrap.hidden=selected.field!=="career";updateControls();scheduleCard(400);}
-      // Keep the comparison node stable so typing never loses focus.
-      function updateComparison(){const fresh=compare(currentValue(selected),selected.decision==="edit"?selected.value:p.after);comparisons.replaceChildren(...fresh.childNodes);return comparisons;}
-      fieldSelect.addEventListener("change",()=>{selected.field=fieldSelect.value;selected.item_id="";careerSelect.value="";editInput.maxLength=selected.field==="career"?4000:view.limits.fields[selected.field]||4000;remember();});choiceSelect.addEventListener("change",()=>{selected.decision=choiceSelect.value;remember();});careerSelect.addEventListener("change",()=>{selected.item_id=careerSelect.value;remember();});editInput.addEventListener("input",()=>{selected.value=editInput.value;remember();});list.append(card);
+  // ---- A document the company AI read: the card as it is (left) beside what it proposes (right).
+  // Every proposed piece starts included and is pressed to leave it out; the kept ones go into the
+  // draft like typed edits, so nothing reaches the card until 변경 저장.
+  const listItems=value=>String(value||"").split(String(value||"").includes("\n")?"\n":/[,;]+/).map(v=>v.trim()).filter(Boolean);
+  const listJoin=(entries,like)=>entries.join(String(like||"").includes("\n")||entries.some(e=>e.includes(","))?"\n":", ");
+  const careerLine=c=>[c.period,c.title].filter(Boolean).join(" · ");
+  const DIGEST_ROWS=[["bio","약력"],["skills","대표 기술"],["interests","관심 분야"],["careers","이력의 발자취"]];
+  function digestRows(p){return DIGEST_ROWS.filter(([key])=>key==="bio"?!!p?.bio_addition:(p?.[key]||[]).length>0);}
+  const withAddition=(bio,addition)=>[String(bio||"").trim(),addition].filter(Boolean).join(" ");
+  async function readSource(source){
+    if(busy||uncertain||!view)return;const ticket=++digestTicket;busy=true;clearError();
+    digest={loading:true,name:source.name};renderDigest();updateControls();
+    announce("사내 AI가 자료를 읽고 카드에 맞게 정리하고 있어요. 보통 10~40초 걸려요.");
+    try{const data=await api("/api/self-profile/digest",{source_id:source.id});if(ticket!==digestTicket)return;
+      digest={...data,skip:new Set()};renderDigest();$("digestView").scrollIntoView({block:"start",behavior:"auto"});$("digestView").focus({preventScroll:true});
+      announce(digestRows(data.proposal).length?"제안을 만들었어요. 지금 카드와 나란히 보고 넣을 것만 남겨 주세요.":"이 자료에서 카드에 더할 새 내용을 찾지 못했어요.");}
+    catch(e){if(ticket!==digestTicket)return;digest=null;renderDigest();showError(e.message);}
+    finally{busy=false;updateControls();}
+  }
+  function closeDigest(){digestTicket++;digest=null;renderDigest();announce("제안을 닫았어요. 올린 자료의 ‘제안 보기’로 다시 열 수 있어요.");}
+  function proposalItem(id,content,cls){
+    const item=node("button",cls);item.type="button";item.dataset.lock="";
+    if(typeof content==="string")item.textContent=content;else item.append(...content);
+    const show=()=>{const on=!digest.skip.has(id);item.setAttribute("aria-pressed",String(on));item.title=on?"누르면 넣지 않아요":"누르면 다시 넣어요";};
+    item.addEventListener("click",()=>{if(digest.skip.has(id))digest.skip.delete(id);else digest.skip.add(id);show();});show();
+    return item;
+  }
+  function renderDigest(){
+    const host=$("digestView");host.replaceChildren();host.hidden=!digest;if(!digest)return;
+    const head=node("div","digest-head"),title=node("div");title.append(node("h3","",`「${digest.name}」에서 찾은 내용`));head.append(title);host.append(head);
+    if(digest.loading){host.setAttribute("aria-busy","true");title.append(node("p","digest-summary","사내 AI가 읽고 있어요"));return;}
+    host.removeAttribute("aria-busy");
+    const p=digest.proposal||{},close=button("×",closeDigest,"close-button");close.setAttribute("aria-label","제안 닫기");head.append(close);
+    if(p.summary)title.append(node("p","digest-summary",p.summary));
+    const rows=digestRows(p);
+    if(!rows.length){host.append(empty("이 자료에서 카드에 더할 새 내용을 찾지 못했어요."));return;}
+    host.append(node("p","section-help","오른쪽에서 강조된 항목이 카드에 들어가요. 넣지 않을 항목은 눌러서 빼 주세요."));
+    for(const [key,label] of rows){
+      const row=node("section","digest-row"),now=node("div","digest-col"),next=node("div","digest-col is-next");
+      row.append(node("h4","digest-label",label));now.append(node("span","digest-side","지금 카드"));next.append(node("span","digest-side","AiU 제안"));
+      if(key==="bio"){now.append(node("p","digest-text",draft.fields.bio||"비어 있어요"));next.append(proposalItem("bio","＋ "+p.bio_addition,"digest-add digest-text"));
+        if(draft.fields.bio)next.append(node("p","digest-none","지금 약력 뒤에 덧붙여요."));}
+      else if(key==="careers"){
+        const rowsNow=draft.careers.filter(c=>c.title);
+        if(!rowsNow.length)now.append(node("p","digest-none","비어 있어요"));
+        for(const c of rowsNow)now.append(node("p","digest-career",careerLine(c)));
+        p.careers.forEach((c,i)=>{const meta=[c.organization,c.role].filter(Boolean).join(" · ");
+          next.append(proposalItem("career:"+i,[node("strong","",careerLine(c)),...(meta?[node("small","",meta)]:[]),node("span","",c.description)],"digest-add digest-career"));});
+        if(rowsNow.length)next.append(node("p","digest-none",`지금 이력 ${rowsNow.length}개는 그대로 둬요.`));
+      }else{
+        const current=listItems(draft.fields[key]),chips=node("div","digest-chips"),nextChips=node("div","digest-chips");
+        if(!current.length)chips.append(node("span","digest-none","비어 있어요"));
+        for(const v of current)chips.append(node("span","digest-chip",v));
+        for(const v of p[key])nextChips.append(proposalItem(key+":"+v,v,"digest-add digest-chip"));
+        now.append(chips);next.append(nextChips);
+        if(current.length)next.append(node("p","digest-none",`지금 ${current.length}개는 그대로 두고 더해요.`));
+      }
+      const cols=node("div","digest-cols");cols.append(now,next);row.append(cols);host.append(row);
     }
+    const actions=node("div","button-row");actions.append(button("남긴 제안을 카드에 넣기",applyDigest,"primary-button"),button("넣지 않고 닫기",closeDigest,"secondary-button"));
+    host.append(actions,node("p","section-help",`넣은 뒤에도 아래 ‘변경 저장’을 눌러야 ${cardMode()?"연구맵에 보여요":"저장돼요"}.`));
+  }
+  function applyDigest(){
+    if(!digest?.proposal||busy)return;const p=digest.proposal,keep=id=>!digest.skip.has(id);let count=0;
+    if(p.bio_addition&&keep("bio")){draft.fields.bio=withAddition(draft.fields.bio,p.bio_addition);count++;}
+    for(const key of ["skills","interests"]){const current=listItems(draft.fields[key]),known=new Set(current.map(v=>v.toLowerCase()));
+      const added=(p[key]||[]).filter(v=>keep(key+":"+v)&&!known.has(v.toLowerCase()));if(added.length){draft.fields[key]=listJoin([...current,...added],draft.fields[key]);count+=added.length;}}
+    (p.careers||[]).forEach((c,i)=>{if(!keep("career:"+i)||draft.careers.length>=view.limits.careers)return;draft.careers.push({_key:requestId(),...Object.fromEntries(Object.keys(careerLabels).map(k=>[k,c[k]||""]))});count++;});
+    digestTicket++;digest=null;renderDigest();
+    if(!count){announce("넣을 제안을 남기지 않아 카드는 그대로예요.");return;}
+    cardEditing=null;cardBefore=null;renderFields();renderCareers();updateControls();
+    if(cardMode())scheduleCard(0);(cardMode()?$("cardEditor"):$("basics")).scrollIntoView({block:"start",behavior:"auto"});
+    announce(`제안 ${count}개를 카드에 넣었어요. 확인한 뒤 ‘변경 저장’을 눌러야 ${cardMode()?"연구맵에 보여요":"저장돼요"}.`);
   }
   function renderHistory(){$("historyCount").textContent=String(view.history.length);const list=$("historyList");list.replaceChildren();if(!view.history.length)list.append(empty("저장과 자료 검토를 마치면 변경 기록이 남습니다."));for(const h of [...view.history].reverse()){const row=node("article","history-entry");row.append(node("strong","",`${itemLabel(h.field||"")} · v${h.version}`),node("p","source-meta",`${date(h.at)} · ${view.scope.reviewer_label}`));if(h.redacted)row.append(node("p","","관련 자료가 삭제되어 이전·이후 내용은 표시하지 않습니다."));else if(h.before!=null||h.after!=null)row.append(compare(h.before,h.after,"변경 전","변경 후"));else row.append(node("p","",{delete_source:"자료와 파생내용 삭제",unlink_source:"자료 연결 변경",remove_item:"항목 제외"}[h.action]||"자료 상태 변경"));list.append(row);}}
-  async function perform(request){if(busy)return;busy=true;clearError();$("actionError").hidden=true;updateControls();try{const data=await api("/api/self-profile/"+request.route,request.payload);uncertain=null;if(request.route==="save")selections.clear();adopt(data,{preserve:request.route!=="save"});if(request.route==="source-action"){
-        if(request.payload.action==="delete"){if(data.operation?.deletion_pending)deletionRetries.set(request.payload.id,request);else deletionRetries.delete(request.payload.id);$("sourceText").textContent="";if($("sourceDialog").open)$("sourceDialog").close();renderSources();}
+  async function perform(request){if(busy)return;busy=true;clearError();$("actionError").hidden=true;updateControls();try{const data=await api("/api/self-profile/"+request.route,request.payload);uncertain=null;adopt(data,{preserve:request.route!=="save"});if(request.route==="source-action"){
+        if(request.payload.action==="delete"){if(data.operation?.deletion_pending)deletionRetries.set(request.payload.id,request);else deletionRetries.delete(request.payload.id);if(digest?.source_id===request.payload.id){digestTicket++;digest=null;renderDigest();}renderSources();}
         if($("actionDialog").open)$("actionDialog").close();action=null;
       }
-      const messages={save:cardMode()?"저장했어요. 연구맵 카드에도 바로 반영했어요.":"선택한 변경을 초안에 저장했습니다.",upload:data.operation?.duplicate?"이미 등록한 같은 자료입니다. 기존 자료를 그대로 사용합니다.":"자료의 읽힌 내용을 저장했습니다. ‘작성할 항목 찾기’로 검토를 시작하세요.",suggest:"현재 저장값을 기준으로 후보를 열었습니다. 필요한 문장을 선택해 주세요.","source-action":data.operation?.deletion_pending?"열람과 파생내용은 차단됐습니다. 저장 파일 삭제는 다시 시도해 주세요.":"자료 변경을 반영했습니다."};announce(messages[request.route]);if(request.route==="upload")$("sourceFile").value="";if(request.focusReview){$("review").focus();$("review").scrollIntoView({block:"start",behavior:"auto"});}return data;
+      const messages={save:cardMode()?"저장했어요. 연구맵 카드에도 바로 반영했어요.":"선택한 변경을 초안에 저장했습니다.",upload:data.operation?.duplicate?"이미 올린 같은 자료예요. 그 자료로 제안을 보여 드릴게요.":"자료를 받았어요.","source-action":data.operation?.deletion_pending?"읽은 내용은 더 쓰지 않아요. 저장 파일 삭제는 다시 시도해 주세요.":"자료를 삭제했어요."};announce(messages[request.route]);return data;
     }catch(e){if(e.uncertain){uncertain=request;if($("actionDialog").open)$("actionDialog").close();showError(e.message+" 중복 적용을 막기 위해 같은 요청으로 다시 확인해 주세요.",()=>perform(uncertain));}else{uncertain=null;showError(e.message);if(e.status===409){conflict={ready:false};$("conflictPanel").hidden=false;$("conflictActions").hidden=true;$("conflictComparison").replaceChildren();if($("actionDialog").open)$("actionDialog").close();}if($("actionDialog").open){$("actionError").textContent=e.message;$("actionError").hidden=false;}}}finally{busy=false;updateControls();}}
   function mutation(route,payload,extra={}){if(conflict){showError("최신 저장값과 작성 중 입력을 먼저 비교해 주세요.");return;}return perform({route,payload:{...payload,base_version:view.profile.version,request_id:requestId()},...extra});}
-  async function suggest(ids,focusReview=false){if(busy||uncertain)return;if(conflict){showError("저장 충돌의 최신 값을 먼저 확인해 주세요.");return;}return mutation("suggest",{source_ids:ids},{focusReview});}
   function openDialog(id,opener=document.activeElement){dialogOpeners.set(id,opener);$(id).showModal();}
-  async function previewSource(source,opener){
-    const request={sourceId:source.id,generation:++previewGeneration};previewRequest=request;
-    const isCurrent=()=>previewRequest===request&&$("sourceDialog").open&&view.sources.some(s=>s.id===request.sourceId&&!["deleted","deleting"].includes(s.status));
-    $("sourceTitle").textContent=source.name+" · 읽은 내용";$("sourceInfo").textContent="추출문을 불러오고 있어요.";$("sourceText").textContent="";openDialog("sourceDialog",opener);
-    try{const data=await api("/api/self-profile/source?id="+encodeURIComponent(source.id));if(!isCurrent())return;$("sourceInfo").textContent=`원본 미보관 · 저장된 추출문 기준 · ${data.source.truncated?"일부 읽음":"텍스트 읽음"}`;$("sourceText").textContent=data.text;}
-    catch(e){if(isCurrent())$("sourceInfo").textContent=e.message;}
-  }
-  function confirmSource(source,kind){action={source,kind};$("actionTitle").textContent={delete:"읽은 내용과 파생항목을 삭제할까요?",unlink:"자료의 근거 연결을 해제할까요?",replace:"새 자료로 근거를 교체할까요?"}[kind];$("actionDescription").textContent={delete:"현재 초안에 저장한 추출문과 이 자료에서 나온 값·경력·제안·이전값을 삭제합니다. 자료 기반 경력은 행 전체가 삭제됩니다. 원본 파일은 보관하지 않습니다.",unlink:"추출문은 계속 볼 수 있습니다. 연결된 프로필 값은 남지만 근거 재확인 상태가 되며, 이 자료의 후보는 철회됩니다.",replace:"이미 등록한 새 자료와 버전 관계를 만듭니다. 현재 프로필 값은 그대로 두고 근거를 재확인 상태로 바꿉니다. 새 자료는 별도로 검토해야 합니다."}[kind];const impact=source.impact||{};$("actionImpact").textContent=`${source.name}\n연결 항목 ${(impact.profile_items||[]).length}개: ${(impact.profile_items||[]).map(itemLabel).join(", ")||"없음"}\n관련 후보 ${impact.suggestions||0}개 · 변경 기록 ${impact.history_entries||0}개${kind==="delete"?"\n독립적으로 직접 작성한 항목은 유지합니다. 다른 곳에 이미 전달한 사본의 삭제를 뜻하지 않습니다.":""}`;$("replacementField").hidden=kind!=="replace";$("replacementSource").replaceChildren(option("","새 자료 선택"),...view.sources.filter(s=>s.id!==source.id&&s.status==="active").map(s=>option(s.id,s.name)));$("actionError").hidden=true;$("confirmAction").textContent={delete:"영향 확인 · 삭제",unlink:"연결 해제",replace:"영향 확인 · 교체"}[kind];openDialog("actionDialog");}
-  $("confirmAction").addEventListener("click",()=>{if(!action)return;const payload={id:action.source.id,action:action.kind};if(action.kind==="replace"){payload.replacement_id=$("replacementSource").value;if(!payload.replacement_id){$("actionError").textContent="대신 연결할 자료를 선택해 주세요. 새 파일은 먼저 등록해야 합니다.";$("actionError").hidden=false;return;}}mutation("source-action",payload);});
-  document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{if(!busy)$(b.dataset.close).close();}));for(const id of ["sourceDialog","actionDialog"]){$(id).addEventListener("cancel",e=>{if(busy)e.preventDefault();});$(id).addEventListener("close",()=>{if(id==="sourceDialog"&&!$(id).open){previewRequest=null;$("sourceText").textContent="";$("sourceInfo").textContent="";}const opener=dialogOpeners.get(id);if(opener?.isConnected)opener.focus();else $("sourceFile").focus();});}
+  function confirmSource(source){action={source};$("actionTitle").textContent="자료를 삭제할까요?";$("actionDescription").textContent="읽은 내용과 이 자료로 만든 제안을 지웁니다. 카드에 넣어 저장한 내용은 그대로 남아요. 원본 파일은 처음부터 보관하지 않았어요.";const linked=(source.impact?.profile_items||[]).map(itemLabel);$("actionImpact").textContent=source.name+(linked.length?`\n예전에 이 자료와 연결해 채택한 항목도 함께 지워져요: ${linked.join(", ")}`:"");$("actionError").hidden=true;$("confirmAction").textContent="자료 삭제";openDialog("actionDialog");}
+  $("confirmAction").addEventListener("click",()=>{if(action)mutation("source-action",{id:action.source.id,action:"delete"});});
+  document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>{if(!busy)$(b.dataset.close).close();}));for(const id of ["actionDialog"]){$(id).addEventListener("cancel",e=>{if(busy)e.preventDefault();});$(id).addEventListener("close",()=>{const opener=dialogOpeners.get(id);if(opener?.isConnected)opener.focus();else $("sourceFile").focus();});}
   function addCareerRow(){if(draft.careers.length>=view.limits.careers){showError(`경력은 ${view.limits.careers}개까지 추가할 수 있습니다.`);return;}const row={_key:requestId(),...Object.fromEntries(Object.keys(careerLabels).map(k=>[k,""]))};draft.careers.push(row);renderCareers();updateControls();$("career-"+row._key+"-title").focus();}
   $("addCareer").addEventListener("click",addCareerRow);
-  $("profileForm").addEventListener("submit",event=>{event.preventDefault();if(busy||uncertain||conflict||!view)return;const changed=manualChanges(),payload={fields:changed.fields,decisions:[]},targets=new Set(Object.keys(changed.fields));if(changed.careers)payload.careers=cleanCareers(draft.careers);
-    for(const [id,selected] of selections){const p=view.suggestions.find(p=>p.id===id),d={id,decision:selected.decision};if(["accept","edit"].includes(d.decision)){if(!selected.field){showError("채택할 문장을 적용할 항목부터 선택해 주세요.");$("target-"+id).focus();return;}if(p.base_version!==view.profile.version){showError("후보의 기준이 오래되었습니다. ‘최신 저장값으로 후보 다시 비교’를 눌러 주세요.");$("refreshSuggestions").focus();return;}const target=selected.field==="career"?(selected.item_id?"career:"+selected.item_id:"new:"+id):selected.field;if(targets.has(target)||(changed.careers&&selected.field==="career"&&selected.item_id)){showError("같은 항목의 직접 편집과 자료 선택이 겹칩니다. 한쪽 변경을 취소하고 최종 값 하나를 선택해 주세요.");return;}targets.add(target);d.field=selected.field;if(selected.item_id)d.item_id=selected.item_id;if(selected.decision==="edit")d.value=selected.value;const value=selected.decision==="edit"?selected.value:p.after,limit=selected.field==="career"?4000:view.limits.fields[selected.field];if(value.length>limit){showError(`${labels[selected.field]}은 ${limit}자까지 저장할 수 있습니다. ‘수정해서 채택’으로 줄여 주세요.`);return;}}payload.decisions.push(d);}if(hasChanges())mutation("save",payload);});
-  $("sourceFile").addEventListener("change",async event=>{const file=event.target.files[0];if(!file||busy||uncertain||!view)return;if(!view.limits.formats.includes(file.name.split(".").pop().toLowerCase())){showError("텍스트·PDF·DOCX 문서를 선택해 주세요. 이미지와 OCR은 지원하지 않습니다.");return;}if(file.size===0||file.size>Math.min(view.limits.file_bytes,1048576)){showError("빈 자료이거나 파일 용량 제한을 넘었습니다. 이 페이지는 1 MiB까지, 대화 속 프로필 창은 Gemma가 읽는 큰 자료도 받아요.");return;}busy=true;updateControls();announce("자료에서 텍스트를 읽고 있습니다.");try{const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(",")[1]);reader.onerror=()=>reject(new Error("파일을 읽지 못했습니다. 선택한 파일을 다시 확인해 주세요."));reader.readAsDataURL(file);});busy=false;await mutation("upload",{name:file.name,data});}catch(e){showError(e.message);}finally{busy=false;updateControls();}});
-  $("refreshSuggestions").addEventListener("click",()=>{const ids=[...new Set(view.suggestions.filter(p=>["pending","excluded","deferred"].includes(p.decision)&&view.sources.some(s=>s.id===p.source_id&&s.status==="active")).map(p=>p.source_id))];if(ids.length)suggest(ids);});
+  $("profileForm").addEventListener("submit",event=>{event.preventDefault();if(busy||uncertain||conflict||!view)return;const changed=manualChanges(),payload={fields:changed.fields,decisions:[]};if(changed.careers)payload.careers=cleanCareers(draft.careers);if(hasChanges())mutation("save",payload);});
+  // Documents go in 512 KB pieces like chat attachments (one 8 MB request failed from a phone);
+  // the profile then claims the staged file by its upload id and the company AI reads it.
+  async function sendPieces(file){
+    if(!crypto.subtle)throw new Error("이 브라우저에서 파일 무결성 확인을 사용할 수 없어요.");
+    let raw;try{raw=await file.arrayBuffer();}catch(_){throw new Error("파일을 읽지 못했습니다. 선택한 파일을 확인해 주세요.");}
+    const hash=await crypto.subtle.digest("SHA-256",raw),sha256=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,"0")).join("");
+    const begin=await api("/api/attachments/begin",{name:file.name,size:raw.byteLength,sha256});
+    const id=begin?.upload_id,size=begin?.chunk_bytes,count=begin?.chunk_count;
+    if(!/^[a-f0-9]{32}$/.test(id||"")||!Number.isSafeInteger(size)||size<1||count!==Math.ceil(raw.byteLength/size))throw new Error("파일 분할 전송 설정을 확인하지 못했어요.");
+    try{
+      for(let index=0;index<count;index++){
+        announce(`자료를 보내고 있어요 (${Math.round(index/count*100)}%)`);
+        const bytes=new Uint8Array(raw,index*size,Math.min(size,raw.byteLength-index*size));let text="";
+        for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
+        const got=await api("/api/attachments/chunk",{upload_id:id,index,data:btoa(text)});
+        if(got?.upload_id!==id||got.index!==index||got.received!==true)throw new Error("파일 조각의 전송 결과를 확인하지 못했어요.");
+      }
+    }catch(e){api("/api/attachments/cancel",{upload_id:id}).catch(()=>{});throw e;}
+    return id;
+  }
+  $("sourceFile").addEventListener("change",async event=>{const file=event.target.files[0];event.target.value="";if(!file||busy||uncertain||!view)return;
+    if(!view.limits.formats.includes(file.name.split(".").pop().toLowerCase())){showError("PDF·DOCX·텍스트 문서를 선택해 주세요. 이미지와 스캔 문서는 읽지 못해요.");return;}
+    if(file.size===0||file.size>view.limits.file_bytes){showError(`빈 파일이거나 ${Math.round(view.limits.file_bytes/1048576)} MB를 넘었어요.`);return;}
+    busy=true;clearError();updateControls();let uploadId=null;
+    try{uploadId=await sendPieces(file);}catch(e){showError(e.message);}finally{busy=false;updateControls();}
+    if(!uploadId)return;
+    const data=await mutation("upload",{upload_id:uploadId}),id=data?.operation?.source_id,source=id&&view.sources.find(s=>s.id===id);
+    if(source)readSource(source);
+  });
   $("refreshConflict").addEventListener("click",async()=>{if(busy)return;busy=true;updateControls();try{const latest=await api("/api/self-profile");adopt(latest);conflict={ready:true};const box=$("conflictComparison");box.replaceChildren();for(const [k,value] of Object.entries(manualChanges().fields)){const heading=node("h3","",labels[k]);box.append(heading,compare(latest.profile.fields[k],value,"최신 저장값","작성 중인 내 입력"));}if(manualChanges().careers)box.append(node("h3","","경력·프로젝트"),compare(latest.profile.careers,cleanCareers(draft.careers),"최신 저장값","작성 중인 내 입력"));if(!box.childNodes.length)box.append(empty("직접 입력의 차이는 없습니다. 남겨둔 자료 선택도 다시 비교해 주세요."));$("conflictActions").hidden=false;announce("최신 값을 읽었습니다. 작성 중 입력과 비교한 뒤 아래에서 선택해 주세요.");}catch(e){showError(e.message);}finally{busy=false;updateControls();}});
-  $("keepEdits").addEventListener("click",()=>{if(!conflict?.ready)return;const ids=new Set(view.profile.careers.map(r=>r.id));if(draft.careers.some(r=>r.id&&!ids.has(r.id))){showError("저장소에서 삭제된 경력이 편집 중 목록에 남아 있습니다. 해당 경력을 제외하거나 최신 저장값을 사용해 주세요.");return;}conflict=null;$("conflictPanel").hidden=true;clearError();renderSuggestions();updateControls();announce("내 수정을 유지했습니다. 자료 후보는 최신 기준으로 다시 비교한 뒤 명시적으로 저장하세요.");});
-  $("useLatest").addEventListener("click",()=>{if(!conflict?.ready)return;draft=draftFrom(view.profile);selections.clear();conflict=null;$("conflictPanel").hidden=true;clearError();render();announce("확인한 최신 저장값을 사용합니다.");});
+  $("keepEdits").addEventListener("click",()=>{if(!conflict?.ready)return;const ids=new Set(view.profile.careers.map(r=>r.id));if(draft.careers.some(r=>r.id&&!ids.has(r.id))){showError("저장소에서 삭제된 경력이 편집 중 목록에 남아 있습니다. 해당 경력을 제외하거나 최신 저장값을 사용해 주세요.");return;}conflict=null;$("conflictPanel").hidden=true;clearError();updateControls();announce("내 수정을 유지했습니다. 확인한 뒤 다시 저장해 주세요.");});
+  $("useLatest").addEventListener("click",()=>{if(!conflict?.ready)return;draft=draftFrom(view.profile);conflict=null;$("conflictPanel").hidden=true;clearError();render();announce("확인한 최신 저장값을 사용합니다.");});
   window.addEventListener("rndplz:before-account-navigation",event=>{
     event.detail.checkedScopes.push("profile");
     if(accountNavigationPending||busy||uncertain){event.preventDefault();event.detail.message="프로필 처리 결과를 먼저 확인해 주세요. 입력과 선택은 유지했습니다.";return;}
@@ -242,7 +315,7 @@
   });
   window.addEventListener("rndplz:account-navigation",event=>{
     accountNavigationPending=event.detail?.phase!=="cancel";
-    if(event.detail?.phase==="invalidate"){accountInvalidated=true;previewGeneration++;previewRequest=null;token="";}
+    if(event.detail?.phase==="invalidate"){accountInvalidated=true;digestTicket++;token="";}
     updateControls();
   });
   window.addEventListener("beforeunload",event=>{if(!accountNavigationPending&&(hasChanges()||uncertain)){event.preventDefault();event.returnValue="";}});

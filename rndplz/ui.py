@@ -94,8 +94,6 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
             try:
                 if parsed.path=="/api/self-profile":
                     return self.send(200,{"token":token,**profiles.read()})
-                if parsed.path=="/api/self-profile/source":
-                    return self.send(200,profiles.source(query.get("id",[""])[0]))
                 if parsed.path=="/api/chat/bootstrap":
                     return self.send(200,{"token":token,"history":chat.history(),"session_mode":"local_single_user","logout_supported":False,**chat.models.catalog()})
                 if parsed.path=="/api/chat/session":

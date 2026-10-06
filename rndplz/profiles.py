@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .attachments import Attachments, MAX_BYTES, MAX_FILE_BYTES
-from .profile_reading import MAX_PROFILE_TEXT, ReadingError, split_parts
+from .profile_reading import MAX_PROFILE_TEXT, ReadingError
 
 
 FIELDS = {'name': 120, 'organization': 180, 'role': 180, 'bio': 2000,
@@ -93,8 +93,8 @@ class Profiles:
         # The map card of the person this account is bound to (person_cards.CardBinding): it seeds
         # the draft once, and each saved draft is shown as that card.
         self.card = card if self.account else None
-        # Optional Gemma reader (profile_reading.ProfileReader); without it documents are
-        # offered as paragraph rows as before.
+        # Optional reader (profile_reading.ProfileReader): the company AI turns a document into a
+        # card proposal; without it documents are offered as paragraph rows as before.
         self.reader = reader
         # Optional upload_id -> (name, bytes) for documents sent in chunks (the chat's staging).
         self.staged = staged
@@ -195,8 +195,8 @@ class Profiles:
                             'sources': MAX_SOURCES, 'careers': MAX_CAREERS,
                             'fields': FIELDS, 'career_fields': CAREER_FIELDS,
                             'formats': ['txt', 'md', 'csv', 'json', 'log', 'pdf', 'docx'],
-                            'model_calls': 0 if self.reader is None else 'per_part',
-                            'extraction': 'paragraph_rules' if self.reader is None else 'model_reading',
+                            'model_calls': 0 if self.reader is None else 1,
+                            'extraction': 'paragraph_rules' if self.reader is None else 'ai_digest',
                             'text_characters': MAX_PROFILE_TEXT}
         return result
 
@@ -386,14 +386,6 @@ class Profiles:
             raise ProfileError('연결 해제되거나 교체된 자료입니다. 새 자료로 검토해 주세요.', code='source_inactive')
         return source
 
-    def source(self, identifier):
-        data = self._state(self.store.read())
-        source = self._find_source(data, identifier, readable=True)
-        self._path(source['attachment_id'])
-        item = self.attachments.load(source['attachment_id'])
-        return {'source': {k: copy.deepcopy(v) for k, v in source.items() if k != 'attachment_id'},
-                'text': item['text'], 'original_stored': False, 'location_basis': 'extracted_text'}
-
     def upload(self, payload):
         _keys(payload, ('name', 'data', 'upload_id', 'base_version', 'request_id'))
         if 'upload_id' in payload:
@@ -448,126 +440,50 @@ class Profiles:
                 self._path(identifier).unlink(missing_ok=True)
             raise
 
-    # ---- Gemma reading: parts are cached beside the draft (not versioned); the merge creates
-    # typed proposals in one versioned suggest, so reading progress never moves the profile version.
-    def _reading_path(self, source_id):
-        return self._check_path(self.directory / 'readings' / (_id(source_id) + '.json'))
+    # ---- The company AI's card proposal for one document. It is cached beside the draft by the
+    # document and the card it was made for, so asking again is instant; nothing is applied and the
+    # profile version does not move. The page shows it beside the current card.
+    def _digest_path(self, source_id):
+        return self._check_path(self.directory / 'digests' / (_id(source_id) + '.json'))
 
-    def _reading(self, source, context):
-        path = self._reading_path(source['id'])
+    @staticmethod
+    def _card(data):
+        fields = data['profile']['fields']
+        return {**{key: fields[key] for key in ('name', 'organization', 'role', 'bio')},
+                'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
+                'careers': [{'title': c['title'], 'period': c['period']} for c in data['profile']['careers'] if c.get('title')]}
+
+    def digest(self, payload):
+        _keys(payload, ('source_id',))
+        if self.reader is None:
+            raise ProfileError('자료를 읽을 사내 AI가 연결되어 있지 않습니다.', code='model_unavailable', status=503)
+        data = self._state(self.store.read())
+        source = self._find_source(data, payload.get('source_id'))
+        self._path(source['attachment_id'])
+        card = self._card(data)
+        key = _digest({'text': source.get('text_sha256'), 'card': card, 'revision': 2})  # 2: biography additions
+        path = self._digest_path(source['id'])
         try:
             record = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             record = None
-        if (not isinstance(record, dict) or record.get('source_version') != source['version']
-                or record.get('text_sha256') != source.get('text_sha256') or record.get('context') != context):
-            record = {'source_id': source['id'], 'source_version': source['version'],
-                      'text_sha256': source.get('text_sha256'), 'context': context, 'parts': {}}
-        return record
-
-    def _snapshot(self, data):
-        fields = data['profile']['fields']
-        return {**{key: fields[key] for key in ('name', 'organization', 'role')},
-                'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
-                'career_titles': [c['title'] for c in data['profile']['careers'] if c.get('title')]}
-
-    def _reading_context(self, data, model_id):
-        try:
-            resolved = self.reader._model(model_id)
-        except ReadingError as error:
-            raise ProfileError(str(error), code='model_unavailable', status=503) from None
-        fields = data['profile']['fields']
-        return {'model_id': resolved, 'identity': _digest({key: fields[key] for key in ('name', 'organization', 'role')}),
-                'reader_revision': 2}
-
-    def read_part(self, payload):
-        _keys(payload, ('source_id', 'part', 'model_id'))
-        if self.reader is None:
-            raise ProfileError('자료를 읽을 모델이 연결되어 있지 않습니다.', code='model_unavailable', status=503)
-        part = payload.get('part')
-        if type(part) is not int or part < 1:
-            raise ProfileError('읽을 부분을 확인해 주세요.')
-        data = self._state(self.store.read())
-        source = self._find_source(data, payload.get('source_id'))
-        self._path(source['attachment_id'])
-        parts = split_parts(self.attachments.load(source['attachment_id'])['text'])
-        if part > len(parts):
-            raise ProfileError('읽을 부분을 확인해 주세요.')
-        context = self._reading_context(data, payload.get('model_id'))
-        record = self._reading(source, context)
-        done = record['parts'].get(str(part))
-        cached = done is not None
-        if done is None:
+        cached = isinstance(record, dict) and record.get('key') == key
+        if not cached:
+            text = self.attachments.load(source['attachment_id'])['text']
             try:
-                kept, dropped = self.reader.read_part(context['model_id'], source['name'], parts, part, self._snapshot(data))
+                model_id, proposal = self.reader.digest(source['name'], text, card)
             except ReadingError as error:
                 raise ProfileError(str(error), code='model_unavailable', status=503) from None
-            done = record['parts'][str(part)] = {'kept': kept, 'dropped': dropped}
-            path = self._reading_path(source['id'])
+            record = {'key': key, 'model_id': model_id, 'proposal': proposal}
             path.parent.mkdir(parents=True, exist_ok=True)
             temporary = path.with_suffix('.tmp')
             temporary.write_text(json.dumps(record, ensure_ascii=False), encoding='utf-8')
             temporary.replace(path)
-        return {'part': part, 'total': len(parts), 'kept': len(done['kept']), 'dropped': done['dropped'],
-                'read_parts': len(record['parts']), 'done': len(record['parts']) >= len(parts),
-                'cached': cached, 'model_calls': 0 if cached else 1, 'model_id': context['model_id'],
-                'truncated': bool(source.get('truncated')), 'characters': source.get('characters')}
-
-    def _suggest_from_reading(self, payload):
-        identifiers = payload.get('source_ids')
-        if not isinstance(identifiers, list) or len(identifiers) != 1 or not isinstance(identifiers[0], str):
-            raise ProfileError('읽은 자료 하나를 선택해 주세요.')
-        if self.reader is None:
-            raise ProfileError('자료를 읽을 모델이 연결되어 있지 않습니다.', code='model_unavailable', status=503)
-        data = self._state(self.store.read())
-        source = self._find_source(data, identifiers[0])
-        self._path(source['attachment_id'])
-        text = self.attachments.load(source['attachment_id'])['text']
-        total = len(split_parts(text))
-        context = self._reading_context(data, payload.get('model_id'))
-        record = self._reading(source, context)
-        if len(record['parts']) < total:
-            raise ProfileError('자료를 아직 끝까지 읽지 않았어요. 다시 읽기를 이어가 주세요.', code='reading_incomplete', status=409)
-        candidates = [row for key in sorted(record['parts'], key=int) for row in record['parts'][key]['kept']]
-        try:
-            proposals = self.reader.merge(context['model_id'], candidates, self._snapshot(data), text) if candidates else []
-        except ReadingError as error:
-            raise ProfileError(str(error), code='model_unavailable', status=503) from None
-
-        def make(data):
-            current = self._find_source(data, identifiers[0])
-            if current['version'] != source['version']:
-                raise ProfileError('자료 버전이 바뀌었습니다. 다시 읽어 주세요.', code='conflict', status=409)
-            # Reading again replaces this source's undecided model proposals.
-            data['suggestions'] = [p for p in data['suggestions'] if not (
-                p['source_id'] == current['id'] and p.get('method') == 'model_reading' and p['decision'] in ('pending', 'deferred'))]
-            created = 0
-            for item in proposals:
-                if len(data['suggestions']) >= MAX_SUGGESTIONS:
-                    break
-                data['suggestions'].append({'id': uuid.uuid4().hex, 'source_id': current['id'],
-                    'source_version': current['version'], 'base_version': data['profile']['version'] + 1,
-                    'field': item['field'], 'before': None, 'after': item['after'], 'career': item['career'],
-                    'quote': item['quote'], 'evidence': item['evidence'],
-                    'participation': item.get('participation', 'needs_review'),
-                    'location': {'basis': 'extracted_text', 'start': item['start'], 'end': item['end'],
-                                 'line': text.count('\n', 0, item['start']) + 1},
-                    'origin': 'source_claim', 'method': 'model_reading', 'decision': 'pending',
-                    **({'actor': self._actor()} if self.account else {}),
-                    'notice': '선택한 AI가 추출문을 읽고 만든 변경안입니다. 저자·본인 참여 여부와 역할을 확인하고 선택해 주세요.'})
-                created += 1
-            current['reading'] = {'source_version': current['version'], 'model_id': context['model_id'],
-                                  'read_parts': total, 'created': created, 'truncated': bool(source.get('truncated'))}
-            return {'created': created, 'model_calls': 1 if candidates else 0, 'candidates': len(candidates),
-                    'method': 'model_reading', 'model_id': context['model_id'], 'read_parts': total,
-                    'truncated': bool(source.get('truncated')), 'characters': len(text)}
-
-        return self._mutate(payload, 'suggest', make)
+        return {'source_id': source['id'], 'name': source['name'], 'base_version': data['profile']['version'],
+                'proposal': record['proposal'], 'model_id': record['model_id'], 'cached': cached}
 
     def suggest(self, payload):
-        _keys(payload, ('source_ids', 'base_version', 'request_id', 'model_id'))
-        if payload.get('model_id') is not None:
-            return self._suggest_from_reading(payload)
+        _keys(payload, ('source_ids', 'base_version', 'request_id'))
         identifiers = payload.get('source_ids')
         if not isinstance(identifiers, list) or not 1 <= len(identifiers) <= MAX_SOURCES or any(not isinstance(x, str) for x in identifiers):
             raise ProfileError('변경 후보를 만들 자료를 선택해 주세요.')
@@ -851,6 +767,9 @@ class Profiles:
             source = next(s for s in data['sources'] if s['id'] == identifier)
             if source['status'] == 'deleting':
                 try:
+                    # The card proposal (and an earlier part reading) came from this text too.
+                    self._digest_path(identifier).unlink(missing_ok=True)
+                    self._check_path(self.directory / 'readings' / (identifier + '.json')).unlink(missing_ok=True)
                     self._path(source['attachment_id']).unlink(missing_ok=True)
                 except OSError:
                     result['operation']['deletion_pending'] = True

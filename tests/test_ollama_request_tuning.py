@@ -35,10 +35,8 @@ class OllamaRequestTuningTests(unittest.TestCase):
 
     def test_consultation_answer_disables_thinking(self):
         # The intent label also runs without thinking: with it, 2.3 s instead of 0.1 s and no better (2026-09-28).
-        # Profile reading parts and their merge also run without thinking; quotes are checked in the text.
         # A profile request sentence too: its values are checked against the user's own words.
-        self.assertEqual(OLLAMA_NO_THINK_CONTRACTS, {'dialogue_answer.v1', 'request_intent.v1', 'profile_reading.v1',
-                                                     'profile_merge.v1', 'profile_request.v1',
+        self.assertEqual(OLLAMA_NO_THINK_CONTRACTS, {'dialogue_answer.v1', 'request_intent.v1', 'profile_request.v1',
                                                      'dialogue_plan.v2', 'dialogue_refine.v1'})
         self.assertIs(self.payload('dialogue_answer.v1')['think'], False)
         intent = self.payload('request_intent.v1')

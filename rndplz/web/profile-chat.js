@@ -20,15 +20,11 @@
     const prefix="profile-chat-"+uid(), selected=new Map(), cancelActions=new Set(["cancel-editor","cancel-selection","cancel-delete"]);
     let view=null,opened=false,busy=false,activeMutation=false,uncertain=null,error=null,conflict=null,editor=null,editorRevision=0,selectionRevision=0;
     let accountNavigationPending=false,accountInvalidated=false;
-    let generation=0,readTicket=0,sourceTicket=0,focusReceipt=null,reviewVisible=false,reply="",deleteSource=null,errorRequest=null,readingProgress="",draft=null;
+    let generation=0,readTicket=0,focusReceipt=null,reviewVisible=false,reply="",deleteSource=null,errorRequest=null,readingProgress="",draft=null;
     const wrap=el("section","panel"),status=el("p","status"),errors=el("div","error"),summary=el("div","summary"),editorBox=el("details","editor"),editorBody=el("div","editor-body"),all=el("details","all"),allBody=el("div","all-body"),review=el("section","review"),receipts=el("section","receipts"),conflicts=el("section","conflict"),drafts=el("section","draft");
     wrap.setAttribute("aria-label","대화 속 내 프로필");status.setAttribute("role","status");status.setAttribute("aria-live","polite");errors.setAttribute("role","alert");errors.tabIndex=-1;
     editorBox.append(el("summary",null,"항목 직접 수정"),editorBody);all.append(el("summary",null,"전체 정보와 자료 펼치기"),allBody);
     wrap.append(status,errors,summary,editorBox,conflicts,drafts,review,receipts,all);host.append(wrap);host.hidden=true;
-    const sourceDialog=el("dialog","source-dialog"),sourceHeading=el("h2",null,"읽은 자료"),sourceInfo=el("p","note"),sourceText=el("pre","source-text");
-    let sourceOpener=null;
-    sourceDialog.append(sourceHeading,sourceInfo,sourceText,button("닫기",()=>sourceDialog.close(),"close-source",true));host.append(sourceDialog);
-    sourceDialog.addEventListener("close",()=>{sourceTicket++;sourceText.textContent="";if(opened&&sourceOpener?.isConnected&&!sourceOpener.disabled)sourceOpener.focus();});
     function button(label,fn,action,free=false) { const b=el("button","button",label);b.type="button";b.dataset.profileAction=action;if(!free)b.dataset.profileLock="";b.addEventListener("click",event=>{if(cancelActions.has(action)&&(activeMutation||uncertain)){showError(new Error("저장 결과를 아직 확인하지 못했습니다. 입력과 선택은 유지하며, 이 작업을 취소한 것은 아닙니다."));return;}fn(event);});return b; }
     function field(label,input,key) { const box=el("label","field",label);input.id=prefix+"-"+key;input.dataset.profileKey=key;box.htmlFor=input.id;box.append(input);return box; }
     function note(value) { return el("p","note",value); }
@@ -74,7 +70,6 @@
       const valid=new Map((next.suggestions||[]).map(p=>[p.id,p]));
       for(const [id] of selected){const p=valid.get(id);if(!p||!eligible(p)||gone.has(p.source_id))selected.delete(id);}
       if(deleteSource&&!available.has(deleteSource.id))deleteSource=null;
-      if(sourceDialog.open&&gone.size){sourceTicket++;sourceText.textContent="";sourceDialog.close();}
     }
     function adopt(next) {
       if(view&&next.profile.version<view.profile.version)return false;
@@ -107,7 +102,7 @@
           if(request.selectionRevision===selectionRevision&&request.body.action==="save"&&request.body.payload.decisions?.length){for(const item of request.body.payload.decisions)selected.delete(item.id);reviewVisible=(view.suggestions||[]).some(eligible);}
         }
         if(request.body.action==="suggest")reviewVisible=true;
-        if(request.body.action==="source-action"){deleteSource=null;sourceTicket++;sourceText.textContent="";if(sourceDialog.open)sourceDialog.close();}
+        if(request.body.action==="source-action")deleteSource=null;
         if(request.body.action==="upload")all.open=true;
         conflict=null;
       } catch(e) {
@@ -136,7 +131,7 @@
       finally{busy=false;if(opened&&ticket!==readTicket&&!view)showError(new Error("조회 화면이 바뀌었습니다. 프로필을 다시 읽어 주세요."));controls();}
     }
     async function open() {opened=true;generation++;host.hidden=false;if(busy||uncertain){paint();return;}await read();}
-    function close() {if(activeMutation||uncertain){showError(new Error(uncertain?"저장 결과가 아직 확인되지 않았습니다. 같은 요청으로 먼저 확인해 주세요.":"저장 요청이 진행 중입니다. 결과를 확인한 뒤 대화를 계속할 수 있어요. 이 요청을 취소한 것은 아닙니다."));paint();return;}const wasOpen=opened;opened=false;generation++;readTicket++;sourceTicket++;if(sourceDialog.open)sourceDialog.close();host.hidden=true;if(busy)notify(onBusy,true);if(wasOpen)notify(onClose);}
+    function close() {if(activeMutation||uncertain){showError(new Error(uncertain?"저장 결과가 아직 확인되지 않았습니다. 같은 요청으로 먼저 확인해 주세요.":"저장 요청이 진행 중입니다. 결과를 확인한 뒤 대화를 계속할 수 있어요. 이 요청을 취소한 것은 아닙니다."));paint();return;}const wasOpen=opened;opened=false;generation++;readTicket++;host.hidden=true;if(busy)notify(onBusy,true);if(wasOpen)notify(onClose);}
     function shouldHandle(value) {
       const t=String(value||"").normalize("NFKC").trim().replace(/[.!]+$/u,"").trim();
       if(/[\n?？"“”‘’`]/u.test(t)||/(?:만약|예를\s*들|가정|하지\s*마|지\s*않|안\s*바꿔|라고)/u.test(t))return false;
@@ -200,17 +195,23 @@
     // A change asked for in the chat: shown as As is -> To be, saved only when the user confirms.
     function paintDraft() {
       drafts.replaceChildren();drafts.hidden=!draft;if(!draft)return;
-      drafts.append(el("h3",null,"요청한 변경 · As is → To be"),note(view.scope?.kind==="person_card"?"아직 저장하지 않았어요. 저장하면 연구맵 카드에 바로 반영돼요.":"아직 저장하지 않았어요. 맞으면 저장을 눌러 주세요."));
-      for(const [key,value] of Object.entries(draft.fields||{})){if(!Object.prototype.hasOwnProperty.call(FIELDS,key))continue;const row=el("article","delta");row.append(el("strong",null,FIELDS[key]),compare(view.profile.fields[key],value));drafts.append(row);}
-      for(const c of draft.careers||[]){const row=el("article","delta");row.append(el("strong",null,"경력 추가"),compare("없음 · 새 경력",c));drafts.append(row);}
+      drafts.append(el("h3",null,draft.source?`「${draft.source}」에서 찾은 변경 · As is → To be`:"요청한 변경 · As is → To be"));
+      if(draft.summary)drafts.append(note(draft.summary));
+      drafts.append(note(view.scope?.kind==="person_card"?"아직 저장하지 않았어요. 저장하면 연구맵 카드에 바로 반영돼요.":"아직 저장하지 않았어요. 맞으면 저장을 눌러 주세요."));
+      // A document's proposal: each item can be left out before saving.
+      const keep=(key,row)=>{if(!draft.skip)return;const box=el("input");box.type="checkbox";box.checked=!draft.skip.has(key);box.addEventListener("change",()=>{if(box.checked)draft.skip.delete(key);else draft.skip.add(key);});row.append(field("넣기",box,"keep-"+key.replace(/[^a-z0-9]/gi,"")));};
+      for(const [key,value] of Object.entries(draft.fields||{})){if(!Object.prototype.hasOwnProperty.call(FIELDS,key))continue;const row=el("article","delta");row.append(el("strong",null,FIELDS[key]),compare(view.profile.fields[key],value));keep(key,row);drafts.append(row);}
+      (draft.careers||[]).forEach((c,i)=>{const row=el("article","delta");row.append(el("strong",null,"경력 추가"),compare("없음 · 새 경력",c));keep("career:"+i,row);drafts.append(row);});
       drafts.append(actions(button("이대로 저장",saveDraft,"save-draft"),button("저장하지 않음",()=>{draft=null;reply="변경안을 저장하지 않았어요.";paint();},"cancel-draft",true)));
     }
     async function saveDraft() {
       if(!draft||conflict||busy||uncertain)return;
       if(draft.base_version!==view.profile.version){draft=null;showError(new Error("변경안을 만든 뒤 프로필이 바뀌었어요. 바꿀 내용을 다시 말씀해 주세요."));paint();return;}
       if(editor){showError(new Error("직접 편집 중인 항목을 먼저 저장하거나 취소해 주세요. 변경안은 유지됩니다."));return;}
-      const payload={fields:{...draft.fields}};
-      if(draft.careers?.length)payload.careers=[...view.profile.careers.map(cleanCareer),...draft.careers.map(cleanCareer)];
+      const skip=draft.skip||new Set(),fields=Object.fromEntries(Object.entries(draft.fields||{}).filter(([k])=>!skip.has(k))),careers=(draft.careers||[]).filter((_,i)=>!skip.has("career:"+i));
+      if(!Object.keys(fields).length&&!careers.length){draft=null;reply="넣을 변경을 고르지 않아 저장하지 않았어요.";paint();return;}
+      const payload={fields};
+      if(careers.length)payload.careers=[...view.profile.careers.map(cleanCareer),...careers.map(cleanCareer)];
       const request=newRequest("save",payload);request.draft=true;await perform(request);
     }
     function selectedValue(p,s) {return s.value===undefined?p.after:s.value;}
@@ -287,7 +288,7 @@
       try{
         for(let index=0;index<count;index++){
           if(e!==generation||!opened)throw new Error("프로필 창이 닫혀 자료 전송을 멈췄어요.");
-          readingProgress=`자료를 보내고 있어요 (${index+1}/${count})`;controls();
+          readingProgress=`자료를 보내고 있어요 (${Math.round(index/count*100)}%)`;controls();
           const bytes=new Uint8Array(raw,index*size,Math.min(size,raw.byteLength-index*size));let text="";
           for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
           const got=await api("/api/attachments/chunk",{upload_id:id,index,data:btoa(text)});
@@ -306,26 +307,24 @@
       if(!uploadId||e!==generation||!opened)return;
       const request=newRequest("upload",{upload_id:uploadId});
       request.after=async data=>{const operation=data.profile_view?.operation||data.operation;const id=operation?.source_id;
-        if(id){const source=view.sources.find(s=>s.id===id);if(operation.duplicate&&source?.reading?.source_version===source?.version)await mutation("suggest",{source_ids:[id]});else await readDocument(id);}else{reply="자료를 보관했습니다. 아래 자료에서 ‘AI로 변경안 만들기 · 이어 읽기’를 눌러 주세요.";paint();}};
+        if(id)await digestDocument(id);else{reply="자료를 보관했습니다. 아래 자료에서 ‘AiU 제안 보기’를 눌러 주세요.";paint();}};
       await perform(request);
     }
-    // Read extracted text in parts with the selected AI, then merge into reviewable proposals.
-    async function readDocument(id) {
-      const modelId=getModelId()||"";
-      if(view?.limits?.extraction!=="model_reading"||!modelId||["rules","guide"].includes(modelId)){showError(new Error("자료는 보관했지만 AI로 읽지는 않았어요. 대화창에서 AI 모델을 선택한 뒤 아래 자료의 ‘AI로 변경안 만들기 · 이어 읽기’를 눌러 주세요."));return false;}
-      const e=generation;busy=true;activeMutation=true;error=null;errorRequest=null;paintError();let total=1;
-      try{
-        for(let part=1;part<=total;part++){
-          readingProgress=total>1?`선택한 AI가 추출문을 읽고 있어요 (${part}/${total})`:"선택한 AI가 추출문을 읽고 있어요";controls();
-          const result=await api("/api/self-profile/read-part",{source_id:id,part,model_id:modelId});
-          if(e!==generation||!opened)return true;
-          total=result.total;
-        }
-      }catch(err){showError(new Error((err.message||"자료를 끝까지 읽지 못했어요.")+" 아래 자료의 ‘AI로 변경안 만들기 · 이어 읽기’를 누르면 같은 모델로 읽은 부분부터 이어서 읽어요."));return true;}
+    // The company AI reads the whole document once and proposes what the card gains; the proposal
+    // shows as As is -> To be below and is saved only when the user confirms.
+    async function digestDocument(id) {
+      const e=generation;busy=true;activeMutation=true;error=null;errorRequest=null;paintError();
+      readingProgress="사내 AI가 자료를 읽고 카드에 맞게 정리하고 있어요 (보통 10~40초)";controls();let result=null;
+      try{result=await api("/api/self-profile/digest",{source_id:id});}
+      catch(err){showError(err);return false;}
       finally{busy=false;activeMutation=false;readingProgress="";controls();}
-      readingProgress="선택한 AI가 읽은 내용을 합쳐 변경안을 만들고 있어요";
-      try{await mutation("suggest",{source_ids:[id],model_id:modelId});}finally{readingProgress="";controls();}
-      return true;
+      if(e!==generation||!opened)return true;
+      const p=result.proposal||{},fields={};
+      if(p.bio_addition)fields.bio=[String(view.profile.fields.bio||"").trim(),p.bio_addition].filter(Boolean).join(" ");
+      for(const key of ["skills","interests"]){const now=listItems(view.profile.fields[key]),known=new Set(now.map(v=>v.toLowerCase())),added=(p[key]||[]).filter(v=>!known.has(v.toLowerCase()));if(added.length)fields[key]=listJoin([...now,...added],view.profile.fields[key]);}
+      if(!Object.keys(fields).length&&!(p.careers||[]).length){draft=null;reply=`「${result.name}」에서 카드에 더할 새 내용을 찾지 못했어요.`;paint();return true;}
+      draft={fields,careers:p.careers||[],base_version:result.base_version,source:result.name,summary:p.summary||"",skip:new Set()};
+      reply=`「${result.name}」을 읽고 카드에 더할 내용을 정리했어요. 넣을 것만 남기고 저장해 주세요.`;paint();return true;
     }
     function buildConflict() {
       if(!conflict?.latest)return;const rows=[],base=conflict.base,latest=conflict.latest;
@@ -405,20 +404,16 @@
       receipts.append(card);
     }
     async function showReceipt(version) {focusReceipt=Number(version);if(!Number.isSafeInteger(focusReceipt)||focusReceipt<0){focusReceipt=null;return;}await open();}
-    async function previewSource(source,opener) {
-      const ticket=++sourceTicket;sourceOpener=opener;sourceHeading.textContent=source.name+" · 읽은 자료";sourceInfo.textContent="추출문을 읽고 있어요.";sourceText.textContent="";if(!sourceDialog.open)sourceDialog.showModal();
-      try{const data=await api("/api/self-profile/source?id="+encodeURIComponent(source.id));if(ticket!==sourceTicket||!sourceDialog.open||!opened)return;sourceInfo.textContent=`원본 미보관 · ${data.source?.truncated?"일부 읽음":"저장된 추출문"} · OCR 미지원`;sourceText.textContent=data.text||"읽힌 텍스트가 없습니다.";}catch(err){if(ticket===sourceTicket&&sourceDialog.open)sourceInfo.textContent=err.message;}
-    }
     function paintAll() {
       allBody.replaceChildren();for(const [k,label] of Object.entries(FIELDS)){allBody.append(el("h4",null,label),el("p","value",view.profile.fields[k]||"미입력"),note(provenanceLabel(k)));}
       allBody.append(el("h3",null,`경력 · ${view.profile.careers.length}행`));for(const c of view.profile.careers){const row=el("article","career");row.append(el("h4",null,c.title||"제목 미입력"),note([c.organization,c.period,c.role].filter(Boolean).join(" · ")),el("p","value",c.description||""),note(provenanceLabel("career:"+c.id)));allBody.append(row);}
-      allBody.append(el("h3",null,"읽은 자료"),note(`텍스트·PDF·DOCX · 파일당 최대 ${Math.round(view.limits.file_bytes/1048576)} MiB · 원본 미보관 · OCR 미지원. 자료를 읽는 것과 프로필에 적용하는 것은 별개입니다.`));
+      allBody.append(el("h3",null,"자료로 카드 채우기"),note(`PDF·DOCX·텍스트 · 파일당 최대 ${Math.round(view.limits.file_bytes/1048576)} MB · 이미지·스캔 문서 제외. 사내 AI가 읽고 카드에 맞게 정리해 제안하며, 저장하기 전에는 반영되지 않아요.`));
       const file=el("input");file.type="file";file.accept=(view.limits.formats||[]).map(x=>"."+x).join(",");file.dataset.profileLock="";file.addEventListener("change",()=>{if(file.files?.[0])upload(file.files[0]);});allBody.append(field("내 프로필에 사용할 새 자료",file,"file"));
-      for(const source of view.sources||[]){const row=el("article","source");row.dataset.sourceId=source.id;row.append(el("h4",null,source.name),note(({active:"검토 가능",unlinked:"연결 해제됨",replaced:"새 자료로 교체됨",deleting:"삭제 마무리 필요",deleted:"삭제됨"}[source.status]||"자료 상태 확인 필요")+` · ${source.truncated?"일부 읽음":"저장된 추출문 기준"} · 원본 미보관`));
-        if(source.reading)row.append(note(`AI 검토 ${source.reading.read_parts}개 구간 · 생성한 변경안 ${source.reading.created}개. 같은 파일은 기존 검토를 이어갑니다.`));
-        if(!["deleted","deleting"].includes(source.status)){const preview=button("읽은 내용 보기",()=>previewSource(source,preview),"preview-source");row.append(actions(preview,...(source.status==="active"?[button("AI로 변경안 만들기 · 이어 읽기",()=>readDocument(source.id),"read-source"),button(source.reading?"변경안 다시 보기":"문단 직접 비교",()=>mutation("suggest",{source_ids:[source.id]}),"suggest-source")]:[]),button("읽은 자료 삭제",()=>{deleteSource=source;paintAll();controls();},"delete-source")));}
+      for(const source of view.sources||[]){if(source.status==="deleted")continue;const row=el("article","source");row.dataset.sourceId=source.id;row.append(el("h4",null,source.name));
+        if(source.status==="deleting")row.append(note("삭제를 마치지 못했어요."));
+        else row.append(actions(...(source.status==="active"?[button("AiU 제안 보기",()=>digestDocument(source.id),"read-source")]:[]),button("자료 삭제",()=>{deleteSource=source;paintAll();controls();},"delete-source")));
         if(source.status==="deleting")row.append(button("삭제 마무리 다시 시도",()=>mutation("source-action",{id:source.id,action:"delete"}),"finish-delete"));
-        if(deleteSource?.id===source.id&&source.status!=="deleted"){const impact=source.impact||{};row.append(note(`이 자료에서 나온 항목 ${(impact.profile_items||[]).length}개, 후보 ${impact.suggestions||0}개와 변경 기록 ${impact.history_entries||0}개도 삭제·가림 처리됩니다. 직접 쓴 독립 항목은 유지됩니다.`),actions(button("영향 확인 · 자료 삭제",()=>mutation("source-action",{id:source.id,action:"delete"}),"confirm-delete"),button("자료 삭제 취소",()=>{deleteSource=null;paintAll();controls();},"cancel-delete",true)));}
+        if(deleteSource?.id===source.id&&source.status!=="deleted"){const impact=source.impact||{};row.append(note(`읽은 내용과 이 자료로 만든 제안을 지웁니다. 저장한 카드 내용은 그대로예요.${(impact.profile_items||[]).length?` 예전에 이 자료와 연결해 채택한 항목 ${(impact.profile_items||[]).length}개는 함께 지워져요.`:""}`),actions(button("자료 삭제",()=>mutation("source-action",{id:source.id,action:"delete"}),"confirm-delete"),button("자료 삭제 취소",()=>{deleteSource=null;paintAll();controls();},"cancel-delete",true)));}
         allBody.append(row);
       }
       const history=el("details","history");history.dataset.profileOpen="history";history.append(el("summary",null,`변경 이력 ${(view.history||[]).length}건 펼치기`));
@@ -432,8 +427,7 @@
     window.addEventListener("rndplz:account-navigation",event=>{
       accountNavigationPending=event.detail?.phase!=="cancel";
       if(event.detail?.phase==="invalidate"){
-        accountInvalidated=true;generation++;readTicket++;sourceTicket++;opened=false;host.hidden=true;
-        if(sourceDialog.open)sourceDialog.close();
+        accountInvalidated=true;generation++;readTicket++;opened=false;host.hidden=true;
       }
       controls();
     });

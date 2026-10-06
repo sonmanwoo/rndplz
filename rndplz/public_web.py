@@ -496,7 +496,7 @@ class PublicApp:
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
-        # Gemma reads private profile documents in parts with the chat's models (profile_reading).
+        # The company AI reads private profile documents; the chat's model reads profile sentences (profile_reading).
         from .profile_reading import ProfileReader
         self.profile_reader = ProfileReader(self.models)
         self.observation = (OperationalDiagnostics(self.diagnostics, provider=self.models.runtime.config.provider,
@@ -1117,7 +1117,6 @@ class PublicApp:
                     return send(200, profile.store.mole_summary())
                 if path == '/api/account/requests': return send(200, self._account_requests(context, environ))
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
-                if path == '/api/self-profile/source': return send(200, profile.source(identifier))
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, 'mail_delivery': service.mail.status(), **account_view})
                 if path == '/api/chat/models': return send(200, {**self.models.catalog(), 'public': True})
                 if path == '/api/chat/session':
@@ -1335,12 +1334,12 @@ class PublicApp:
                     return send(400,{'error':'등록 경력 의뢰 검토 요청을 확인해 주세요.'})
                 return send(200,service.registered_expert_draft(payload['session_id'],
                     payload['candidate_id'],payload['snapshot_id'],payload['revision']))
-            if path == '/api/self-profile/read-part':
-                # One Gemma call per part, admitted like a chat turn so reading cannot starve replies.
+            if path == '/api/self-profile/digest':
+                # One company AI call per document, admitted like a chat turn so reading cannot starve replies.
                 if not self.request_slots.acquire(blocking=False):
-                    return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 이어서 읽어 주세요.', 'code': 'busy'})
+                    return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 읽어 주세요.', 'code': 'busy'})
                 try:
-                    return send(200, profile.read_part(payload))
+                    return send(200, profile.digest(payload))
                 finally:
                     self.request_slots.release()
             routes = {
