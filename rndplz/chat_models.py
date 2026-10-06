@@ -16,7 +16,7 @@ from .diagnostics import event as diagnostic_event
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
 GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
                              'dialogue_plan.v2','dialogue_response.v1','request_intent.v1',
-                             'profile_reading.v1','profile_merge.v1','profile_request.v1',
+                             'profile_digest.v1','profile_request.v1',
                              'dialogue_plan.v2+think')
 # The "+think" variant of a contract is the same prompt and schema with the model's reasoning on;
 # it is sent only for a plan repair attempt after the first plan failed validation.
@@ -35,12 +35,10 @@ def base_contract(name):
 # The assessment keeps thinking: without it one in nine failed its quote and coverage checks
 # twice, and a thinking repair did not save the long ones (catalyst: 54-61 s, still rejected).
 # keep_alive spares a ~5 s model reload.
-# Profile reading: quotes are checked against the text, so a 9k-character part runs without
-# thinking (5-11 s per part on e4b) and deterministically; the merge only cites candidate ids.
-OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1','request_intent.v1','profile_reading.v1','profile_merge.v1','profile_request.v1',
+OLLAMA_NO_THINK_CONTRACTS = frozenset(('dialogue_answer.v1','request_intent.v1','profile_request.v1',
                                        'dialogue_plan.v2','dialogue_refine.v1'))
-# A routing label or a document reading must not change between identical requests.
-OLLAMA_DETERMINISTIC_CONTRACTS = frozenset(('request_intent.v1','profile_reading.v1','profile_merge.v1','profile_request.v1'))
+# A routing label must not change between identical requests.
+OLLAMA_DETERMINISTIC_CONTRACTS = frozenset(('request_intent.v1','profile_request.v1'))
 OLLAMA_KEEP_ALIVE = '24h'
 # 32k tokens holds the 60k-char input budget plus output; on gemma4:e4b it cost 0.3 GB VRAM over 16k.
 OLLAMA_NUM_CTX = 32768
@@ -64,6 +62,12 @@ AIU_PERMANENT_CODES = {'credit_exceeded','invalid_param','app_unavailable','unau
 AIU_PERMANENT_STATUSES = {400,401,402,403,404}
 AIU_MESSAGES = {'credit_exceeded':'사내 AI의 사용량(크레딧)이 소진되어 지금은 사용할 수 없습니다.',
                 'unauthorized':'사내 AI 연결 키가 유효하지 않습니다.'}
+# The app that reads profile documents (its own key, RNDPLZ_AIU_PROFILE_API_KEY): not a chat choice.
+AIU_PROFILE_APP = 'aiu-profile'
+
+
+class AiuRejected(ValueError):
+    """The platform refused the run (key, credit, an unpublished app): another attempt cannot fix it."""
 
 
 class AiuRunFailed(Exception):
@@ -115,7 +119,7 @@ def aiu_run(config, payload, remaining, budget):
                 if event=='error':
                     code=str(data.get('code') or detail.get('code') or '')
                     if code in AIU_PERMANENT_CODES or data.get('status') in AIU_PERMANENT_STATUSES:
-                        raise ValueError(AIU_MESSAGES.get(code,'사내 AI가 요청을 거절했습니다'+(' ('+code+')' if code else '')+'.'))
+                        raise AiuRejected(AIU_MESSAGES.get(code,'사내 AI가 요청을 거절했습니다'+(' ('+code+')' if code else '')+'.'))
                     raise AiuRunFailed(shown)
                 if event=='text_chunk':
                     piece=detail.get('text') or ''
@@ -128,7 +132,7 @@ def aiu_run(config, payload, remaining, budget):
                     break
     except urllib.error.HTTPError as error:
         if error.code in AIU_PERMANENT_STATUSES:
-            raise ValueError(AIU_MESSAGES.get('credit_exceeded' if error.code==402 else 'unauthorized' if error.code in (401,403) else '',
+            raise AiuRejected(AIU_MESSAGES.get('credit_exceeded' if error.code==402 else 'unauthorized' if error.code in (401,403) else '',
                                               '사내 AI가 요청을 거절했습니다 (HTTP '+str(error.code)+').')) from None
         raise AiuRunFailed(shown) from None
     except (AiuRunFailed,ValueError):raise
@@ -257,6 +261,8 @@ class ChatModels:
                 if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,29}',slug):continue
                 key=self.env.get('RNDPLZ_AIU_API_KEY_'+slug.upper().replace('-','_'),'')
                 if key:self.configs['aiu:'+slug]={'key':key,'url':aiu_url,'model':label.strip() or slug}
+            profile_key=self.env.get('RNDPLZ_AIU_PROFILE_API_KEY','')
+            if profile_key:self.configs[AIU_PROFILE_APP]={'key':profile_key,'url':aiu_url,'model':'역량 게시용 앱'}
 
     def gemini_option(self):
         config=self.configs.get('gemini')
@@ -298,6 +304,8 @@ class ChatModels:
         return self.catalog()
 
     def get(self,identifier):
+        if identifier==AIU_PROFILE_APP and identifier in self.configs:
+            return {'id':identifier,'provider':'aiu','model':self.configs[identifier]['model'],'enabled':True,'local':False,'vision':False}
         option=next((m for m in self.catalog()['models'] if m['id']==identifier),None)
         if not option or not option['enabled']:raise ValueError('사용할 모델을 연결하거나 다른 모델을 선택해 주세요.')
         return option

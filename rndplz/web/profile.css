@@ -32,3 +32,36 @@ body:not(.card-mode) [data-card-nav]{display:none}
 .card-empty{color:var(--muted);font-style:italic}
 html[data-theme="dark"] .card-asis summary{color:#2a230c}
 @media(max-width:700px){.card-view{padding:16px 16px 20px;border-radius:12px}.card-block{margin:2px -8px;padding:8px}.card-asis{margin-right:70px}.card-edit{min-height:26px;padding:2px 10px}}
+/* The block editor closes with × at its top right. */
+.card-editor-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.card-editor-head .close-button{flex:none;margin:-12px -10px 0 0}
+/* A document the company AI read: the card as it is beside its proposal. */
+.digest-view{margin-top:22px;padding:22px 24px;border:1px solid var(--green);border-radius:12px;background:var(--sheet);box-shadow:0 8px 26px #13272214}
+.digest-view:focus{outline:none}
+.digest-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.digest-head h3{margin:0;font-size:15px;font-weight:500;color:var(--green);overflow-wrap:anywhere}
+.digest-head .close-button{flex:none;margin:-12px -10px 0 0}
+.digest-summary{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.8}
+.digest-view[aria-busy="true"] .digest-summary:after{content:"";display:inline-block;width:10px;height:10px;margin-left:8px;border:2px solid var(--green);border-right-color:transparent;border-radius:50%;animation:digest-spin .8s linear infinite;vertical-align:-1px}
+@keyframes digest-spin{to{transform:rotate(360deg)}}
+.digest-row{margin-top:18px}
+.digest-label{margin:0 0 8px;font-size:12px;font-weight:600}
+.digest-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.digest-col{min-width:0;padding:12px;border-radius:8px;background:color-mix(in srgb,var(--muted) 9%,transparent)}
+.digest-col.is-next{background:color-mix(in srgb,var(--green) 8%,transparent)}
+.digest-side{display:block;margin-bottom:8px;font:10px/1.6 Consolas,monospace;letter-spacing:1px;color:var(--muted)}
+.profile-page .digest-text{margin:0;font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
+.digest-chips{display:flex;flex-wrap:wrap;gap:6px}
+.profile-page .digest-chip{display:inline-block;padding:3px 10px;border:1px solid var(--line);border-radius:20px;background:var(--sheet);font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.profile-page .digest-career{display:block;margin:0 0 6px;font-size:11px;line-height:1.7;overflow-wrap:anywhere;text-align:left}
+.digest-career small{display:block;color:var(--muted)}
+.digest-career span{display:block;margin-top:2px}
+.digest-none{margin:8px 0 0;font-size:11px;color:var(--muted);font-style:italic}
+.profile-page .digest-add{color:inherit;cursor:pointer}
+.profile-page button.digest-text,.profile-page button.digest-career{display:block;width:100%;padding:8px 10px;border-radius:6px}
+.profile-page .digest-add[aria-pressed="true"]{border:1px solid var(--green);background:color-mix(in srgb,var(--green) 14%,var(--sheet))}
+.profile-page .digest-chip.digest-add[aria-pressed="true"]{color:var(--green)}
+.profile-page .digest-chip.digest-add[aria-pressed="true"]:before{content:"+ "}
+.profile-page .digest-add[aria-pressed="false"]{border:1px dashed var(--line);background:transparent;opacity:.55;text-decoration:line-through}
+.digest-view .button-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+@media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{gap:6px}.digest-col{padding:9px}}

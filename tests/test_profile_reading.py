@@ -1,9 +1,10 @@
-"""Gemma reads a whole private profile document in parts and proposes typed items.
+"""The company AI reads a whole private profile document once and proposes card changes.
 
-Model quality is compared with a Claude reading on local Ollama outside the suite; these tests
-cover the mechanics with a scripted model: parts, quote checks, merge ids, the per-instance text
-limit, typed saves (skills append, careers keep title/period/role), the web route and a
-document sent in chunks.
+2026-10-06: the 9,000-character part reading with quotes and a merge was built for the
+operator-PC Gemma; the company AI (AiU) reads a 70-page note in one call. These tests cover the
+mechanics with a scripted model: one call within the input budget, what the server keeps (new
+items, numbers and wording the document states), the profile app falling back to the chat's app,
+the cache beside the draft, deletion, the web route and a document sent in chunks.
 """
 import base64
 import hashlib
@@ -16,9 +17,9 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 
 from rndplz.attachments import Attachments, MAX_TEXT
-from rndplz.profile_reading import (MAP_CONTRACT, MERGE_CONTRACT, PART_CHARS, ProfileReader, finalize,
-                                    locate, split_parts, verify_part)
-from rndplz.profiles import Profiles
+from rndplz.chat_models import AIU_PROFILE_APP, AiuRejected, ChatModels
+from rndplz.profile_reading import DIGEST_CONTRACT, DOCUMENT_CHARS, ProfileReader, ReadingError, finish_digest
+from rndplz.profiles import ProfileError, Profiles
 
 
 def document(lines=900):
@@ -28,98 +29,95 @@ def document(lines=900):
     return '\n'.join(rows) + '\n'
 
 
-class ScriptedModels:
-    """Quotes the first line of each part (with a line break inside) and merges by id."""
+PROPOSAL = {'summary': '촉매 반응기 운전 기록', 'bio_addition': '촉매 반응기 운전 데이터를 분석해 베이지안 최적화로 조건을 찾았습니다.',
+            'skills': ['베이지안 최적화', '운전 데이터 분석'], 'interests': ['반응기 최적화'],
+            'careers': [{'title': '촉매 반응기 최적화', 'organization': '기술연구소', 'period': '2024-2025', 'role': '최적화 담당',
+                         'description': '운전 데이터로 반응 조건을 찾았습니다.'}]}
 
-    def __init__(self):
-        self.calls = []
+
+class DigestModels:
+    """A scripted company AI: the profile app and the chat's app answer the digest contract."""
+
+    def __init__(self, reject=()):
+        self.calls, self.reject = [], set(reject)
 
     def get(self, identifier):
-        return {'id': identifier, 'provider': 'bridge', 'enabled': True}
+        if identifier not in ('aiu', AIU_PROFILE_APP):
+            raise ValueError('not configured')
+        return {'id': identifier, 'provider': 'aiu', 'enabled': True}
 
     def stream(self, identifier, messages, *, contract=None):
-        payload = json.loads(messages[0]['content'])
-        self.calls.append(contract)
-        if contract == MAP_CONTRACT:
-            first = payload['text'].split('\n', 1)[0]
-            quote = first[:20] + '\n' + first[20:60]  # whitespace differs from the text
-            yield json.dumps({'careers': [{'title': '촉매 반응기 최적화', 'organization': '기술연구소', 'period': '2024-2025',
-                                           'role': '분석 담당', 'description': '운전 데이터로 조건을 찾았습니다.', 'quote': quote,
-                                           'performer': 'user'}],
-                              'skills': [{'value': '베이지안 최적화', 'quote': quote, 'performer': 'user'},
-                                         {'value': '지어낸 기술', 'quote': '원문에 없는 문장입니다 아주 길게', 'performer': 'user'},
-                                         {'value': '에이전트가 한 분석', 'quote': quote, 'performer': 'system'}],
-                              'interests': []}, ensure_ascii=False)
-        elif contract == MERGE_CONTRACT:
-            ids = [row['id'] for row in payload['candidates']]
-            careers = [i for i in ids if i.startswith('c')]
-            skills = [i for i in ids if i.startswith('s')]
-            yield json.dumps({'careers': [{'title': '촉매 반응기 최적화', 'organization': '기술연구소', 'period': '2024-2025',
-                                           'role': '분석 담당', 'description': '운전 데이터로 조건을 찾았습니다.', 'from': careers[:3]}],
-                              'skills': [{'value': '베이지안 최적화', 'from': skills[:2]}, {'value': '출처 없는 기술', 'from': ['s999']}],
-                              'interests': []}, ensure_ascii=False)
-        else:
+        if contract != DIGEST_CONTRACT:
             raise AssertionError(contract)
+        self.calls.append((identifier, json.loads(messages[0]['content'])))
+        if identifier in self.reject:
+            raise AiuRejected('사내 AI가 요청을 거절했습니다 (HTTP 400).')
+        yield json.dumps(PROPOSAL, ensure_ascii=False)
 
 
-class MechanicsTests(unittest.TestCase):
-    def test_parts_cover_the_text_and_cut_at_lines(self):
+CARD = {'name': '홍길동', 'organization': '', 'role': '', 'bio': '', 'skills': [], 'interests': [], 'careers': []}
+
+
+class DigestTests(unittest.TestCase):
+    def test_one_call_reads_the_document_within_the_input_budget(self):
+        models = DigestModels()
         text = document()
-        parts = split_parts(text)
-        self.assertEqual(''.join(chunk for _, chunk in parts), text)
-        self.assertTrue(all(len(chunk) <= PART_CHARS for _, chunk in parts))
-        self.assertTrue(all(chunk.endswith('\n') for _, chunk in parts[:-1]))
-        self.assertEqual(split_parts(text), parts)
+        model_id, proposal = ProfileReader(models).digest('cv.txt', text, CARD)
+        self.assertEqual((model_id, len(models.calls)), (AIU_PROFILE_APP, 1))
+        self.assertEqual(models.calls[0][1]['document'], text)
+        self.assertEqual([c['title'] for c in proposal['careers']], ['촉매 반응기 최적화'])
+        longer = text * 3
+        ProfileReader(models).digest('cv.txt', longer, CARD)
+        sent = models.calls[1][1]
+        self.assertTrue(longer.startswith(sent['document']))
+        self.assertLessEqual(len(json.dumps(sent['document'], ensure_ascii=False)), DOCUMENT_CHARS + 2)  # escaped line breaks count
+        self.assertIn('읽지 않았습니다', sent['omitted'])
 
-    def test_quotes_are_located_ignoring_line_breaks(self):
-        text = '가나다 라마바\n사아자 차카타 파하'
-        self.assertEqual(text[slice(*locate('라마바 사아자 차카타', text))], '라마바\n사아자 차카타')
-        self.assertIsNone(locate('없는 문장입니다 정말로', text))
-        self.assertIsNone(locate('가나', text))  # too short to be evidence
+    def test_only_new_items_with_stated_numbers_and_wording_are_kept(self):
+        text = '작성: 홍길동 책임. 2023년부터 반응기 수율을 12.5% 높였다. 기술연구소 공정팀에서 분석 담당으로 일했다.'
+        card = {**CARD, 'skills': ['DOE'], 'careers': [{'title': '기존 과제', 'period': ''}]}
+        career = {'organization': '', 'period': '', 'role': '', 'description': '반응기를 다뤘다.'}
+        value = {'summary': ' 수율 개선 기록 ', 'bio_addition': '수율을 40% 높였습니다.',
+                 'skills': ['doe', 'PatchCore', 'patchcore', ''], 'interests': ['반응기'],
+                 'careers': [{'title': '반응기 수율 개선', 'organization': '기술연구소 공정팀', 'period': '2021-2022', 'role': '분석 담당',
+                              'description': '수율을 12.5% 높였다.'},
+                             {**career, 'title': '없는 성과', 'description': '수율을 40% 높였다.'},
+                             {**career, 'title': '기존 과제'},
+                             {**career, 'title': '역할 추측', 'period': '2023', 'role': '개발 총괄'},
+                             {**career, 'title': '저자 표기', 'role': '홍길동 책임'}]}
+        result = finish_digest(value, text, card)
+        self.assertEqual((result['summary'], result['bio_addition']), ('수율 개선 기록', ''))  # an invented metric drops the sentence
+        self.assertEqual((result['skills'], result['interests']), (['PatchCore'], ['반응기']))
+        listed = {**card, 'skills': ['Taichi Lang 기반 GPU 수치 해석'], 'interests': ['베이지안 다목적 최적화']}
+        repeated = finish_digest({'skills': ['Taichi Lang 수치 해석', '베이지안 다목적 최적화', 'Taichi Lang 메시 생성']}, text, listed)
+        self.assertEqual(repeated['skills'], ['Taichi Lang 메시 생성'])  # every word already in one entry: not new
+        self.assertEqual([c['title'] for c in result['careers']], ['반응기 수율 개선', '역할 추측', '저자 표기'])
+        first, guessed, byline = result['careers']
+        self.assertEqual((first['organization'], first['period'], first['role']), ('기술연구소 공정팀', '', '분석 담당'))
+        self.assertEqual((guessed['period'], guessed['role']), ('2023', ''))  # "총괄" is not in the document
+        self.assertEqual(byline['role'], '')  # the author line names the card owner, not a role
+        numbered = finish_digest({'careers': [{**career, 'title': '사번 표기', 'role': '책임 (C18408)'}]}, text + ' C18408', card)
+        self.assertEqual(numbered['careers'][0]['role'], '')  # nor is an employee number
+        self.assertEqual(finish_digest({'bio_addition': '수율을 12.5% 높였습니다.'}, text, card)['bio_addition'], '수율을 12.5% 높였습니다.')
+        said = {**card, 'bio': '반응기 수율을 12.5% 높였습니다.'}
+        self.assertEqual(finish_digest({'bio_addition': '수율을 12.5% 높였습니다.'}, text, said)['bio_addition'], '')  # already in the biography
 
-    def test_unquoted_items_are_dropped(self):
-        value = {'careers': [{'title': 'A', 'organization': '', 'period': '', 'role': '', 'description': 'B', 'quote': '라마바 사아자 차카타', 'performer': 'user'},
-                             {'title': '', 'organization': '', 'period': '', 'role': '', 'description': 'B', 'quote': '라마바 사아자 차카타', 'performer': 'user'}],
-                 'skills': [{'value': '분석', 'quote': '지어낸 근거 문장입니다 길게', 'performer': 'user'}], 'interests': []}
-        kept, dropped = verify_part(value, '가나다 라마바\n사아자 차카타 파하', 100)
-        self.assertEqual((len(kept), dropped), (1, 2))
-        self.assertEqual((kept[0]['start'], kept[0]['quote']), (104, '라마바\n사아자 차카타'))
+    def test_an_unpublished_profile_app_falls_back_to_the_chat_app(self):
+        models = DigestModels(reject={AIU_PROFILE_APP})
+        model_id, _ = ProfileReader(models).digest('cv.txt', document(5), CARD)
+        self.assertEqual((model_id, [c[0] for c in models.calls]), ('aiu', [AIU_PROFILE_APP, 'aiu']))
+        with self.assertRaises(ReadingError):
+            ProfileReader(DigestModels(reject={AIU_PROFILE_APP, 'aiu'})).digest('cv.txt', document(5), CARD)
 
-    def test_work_done_by_a_system_is_not_the_users_skill(self):
-        text = '가나다 라마바\n사아자 차카타 파하'
-        quote = '라마바 사아자 차카타'
-        value = {'careers': [{'title': 'A', 'organization': '', 'period': '', 'role': 'user', 'description': 'B', 'quote': quote, 'performer': 'unclear'}],
-                 'skills': [{'value': '설계', 'quote': quote, 'performer': 'user'}, {'value': '검정', 'quote': quote, 'performer': 'system'},
-                            {'value': '분석', 'quote': quote, 'performer': 'team'}],
-                 'interests': [{'value': '관심', 'quote': quote}]}
-        kept, dropped = verify_part(value, text, 0)
-        self.assertEqual(([row.get('value', row.get('title')) for row in kept], dropped), (['A', '설계', '관심'], 2))
-        self.assertEqual(kept[0]['role'], '')  # a performer label in a field is cleared
-
-    def test_reading_prefers_26b_when_offered(self):
-        class Catalog(ScriptedModels):
-            def catalog(self, refresh=False):
-                row = {'provider': 'bridge', 'enabled': True}
-                return {'models': [{**row, 'id': 'bridge', 'model': 'gemma4:e4b'}, {**row, 'id': 'bridge:gemma4:26b', 'model': 'gemma4:26b'}]}
-        self.assertEqual(ProfileReader(Catalog())._model('bridge'), 'bridge:gemma4:26b')
-        self.assertEqual(ProfileReader(ScriptedModels())._model('bridge'), 'bridge')
-
-    def test_finalize_cites_candidates_and_skips_present_items(self):
-        candidates = [{'id': 's1', 'kind': 'skills', 'value': 'DOE', 'quote': 'q1', 'start': 0, 'end': 2},
-                      {'id': 's2', 'kind': 'skills', 'value': 'PatchCore', 'quote': 'q2', 'start': 5, 'end': 7}]
-        value = {'careers': [], 'skills': [{'value': 'DOE', 'from': ['s1']}, {'value': 'PatchCore', 'from': ['s2']},
-                                           {'value': 'Made up', 'from': ['s9']}], 'interests': []}
-        proposals = finalize(value, candidates, {'skills': ['doe'], 'interests': [], 'career_titles': []})
-        self.assertEqual([(p['field'], p['after'], p['quote']) for p in proposals], [('skills', 'PatchCore', 'q2')])
-
-    def test_numbers_must_exist_in_the_document(self):
-        candidates = [{'id': 'c1', 'kind': 'careers', 'quote': 'q', 'start': 0, 'end': 1}]
-        row = {'title': '반응기 최적화', 'organization': '', 'role': '', 'from': ['c1']}
-        text = '2023년부터 반응기 수율을 12.5% 높였다.'
-        value = {'careers': [{**row, 'period': '2021-2022', 'description': '수율을 12.5% 높였다.'}], 'skills': [], 'interests': []}
-        self.assertEqual(finalize(value, candidates, {}, text)[0]['career']['period'], '')  # invented period is cleared
-        value = {'careers': [{**row, 'period': '2023', 'description': '수율을 40% 높였다.'}], 'skills': [], 'interests': []}
-        self.assertEqual(finalize(value, candidates, {}, text), [])  # an invented metric drops the proposal
+    def test_the_profile_app_is_not_a_chat_choice(self):
+        models = ChatModels({'RNDPLZ_AIU_API_KEY': 'fixture-a', 'RNDPLZ_AIU_URL': 'https://api.aiu.gscaltex.com/ext/v1/workflows/run',
+                             'RNDPLZ_AIU_PROFILE_API_KEY': 'fixture-b', 'RNDPLZ_OLLAMA_URL': 'http://127.0.0.1:9'})
+        self.assertNotIn(AIU_PROFILE_APP, [m['id'] for m in models.catalog()['models']])
+        self.assertEqual(models.get(AIU_PROFILE_APP)['provider'], 'aiu')
+        self.assertEqual(ProfileReader(models).digest_models(), [AIU_PROFILE_APP, 'aiu'])
+        without = ChatModels({'RNDPLZ_OLLAMA_URL': 'http://127.0.0.1:9'})
+        with self.assertRaises(ReadingError):
+            ProfileReader(without).digest('cv.txt', 'text', CARD)
 
 
 class ProfileFlowTests(unittest.TestCase):
@@ -141,50 +139,48 @@ class ProfileFlowTests(unittest.TestCase):
                 return result
 
         self.store = Store(self.tmp.name)
-        self.models = ScriptedModels()
+        self.models = DigestModels()
         self.profiles = Profiles(self.store, public=True, reader=ProfileReader(self.models))
 
     def request(self, **payload):
         return {**payload, 'base_version': self.profiles.read()['profile']['version'], 'request_id': 'req-' + uuid.uuid4().hex}
 
-    def test_whole_document_to_typed_saves(self):
-        text = document()
-        self.assertGreater(len(text), MAX_TEXT)
-        view = self.profiles.upload(self.request(name='cv.txt', data=base64.b64encode(text.encode()).decode()))
-        source = view['sources'][0]
-        self.assertFalse(source['truncated'])
-        total = len(split_parts(text))
-        for part in range(1, total + 1):
-            result = self.profiles.read_part({'source_id': source['id'], 'part': part, 'model_id': 'bridge'})
-            self.assertEqual((result['total'], result['kept'], result['dropped']), (total, 2, 2))
-        self.assertTrue(result['done'])
-        again = self.profiles.read_part({'source_id': source['id'], 'part': 1, 'model_id': 'bridge'})
-        self.assertEqual(self.models.calls.count(MAP_CONTRACT), total)  # a read part is cached
-        self.assertTrue(again['done'])
-        version = self.profiles.read()['profile']['version']
-        view = self.profiles.suggest(self.request(source_ids=[source['id']], model_id='bridge'))
-        self.assertEqual(view['profile']['version'], version + 1)
-        typed = [p for p in view['suggestions'] if p['method'] == 'model_reading']
-        self.assertEqual(sorted(p['field'] for p in typed), ['career', 'skills'])
-        career = next(p for p in typed if p['field'] == 'career')
-        self.assertEqual(career['career']['period'], '2024-2025')
-        self.assertIn(career['quote'].replace('\n', ''), text.replace('\n', ''))
-        self.profiles.save(self.request(fields={'skills': 'Python'}))
-        view = self.profiles.suggest(self.request(source_ids=[source['id']]))  # refresh re-bases, adds no paragraphs
-        self.assertFalse(any(p['method'] == 'paragraph_rules' for p in view['suggestions']))
-        decisions = [{'id': p['id'], 'decision': 'accept', 'field': p['field']} for p in typed]
-        view = self.profiles.save(self.request(fields={}, decisions=decisions))
-        self.assertEqual(view['profile']['fields']['skills'], 'Python, 베이지안 최적화')
-        saved = view['profile']['careers'][0]
-        self.assertEqual((saved['title'], saved['period'], saved['role']), ('촉매 반응기 최적화', '2024-2025', '분석 담당'))
+    def upload(self, text=None):
+        view = self.profiles.upload(self.request(name='cv.txt', data=base64.b64encode((text or document()).encode()).decode()))
+        return view['operation']['source_id']
 
-    def test_merge_needs_every_part(self):
-        view = self.profiles.upload(self.request(name='cv.txt', data=base64.b64encode(document().encode()).decode()))
-        source = view['sources'][0]
-        self.profiles.read_part({'source_id': source['id'], 'part': 1, 'model_id': 'bridge'})
-        with self.assertRaises(Exception) as caught:
-            self.profiles.suggest(self.request(source_ids=[source['id']], model_id='bridge'))
-        self.assertEqual(getattr(caught.exception, 'code', None), 'reading_incomplete')
+    def test_a_proposal_is_cached_and_changes_nothing_until_saved(self):
+        identifier = self.upload()
+        before = self.profiles.read()['profile']
+        result = self.profiles.digest({'source_id': identifier})
+        self.assertEqual((result['cached'], result['base_version'], result['name']), (False, before['version'], 'cv.txt'))
+        self.assertEqual(result['proposal']['skills'], ['베이지안 최적화', '운전 데이터 분석'])
+        self.assertEqual(self.profiles.read()['profile'], before)
+        self.assertTrue(self.profiles.digest({'source_id': identifier})['cached'])
+        self.assertEqual(len(self.models.calls), 1)
+        self.profiles.save(self.request(fields={'skills': '베이지안 최적화'}))  # the card changed: read again
+        again = self.profiles.digest({'source_id': identifier})
+        self.assertEqual((again['cached'], again['proposal']['skills']), (False, ['운전 데이터 분석']))
+        self.assertEqual(self.models.calls[-1][1]['current_card']['skills'], ['베이지안 최적화'])
+
+    def test_deleting_a_document_removes_its_proposal(self):
+        identifier = self.upload()
+        self.profiles.digest({'source_id': identifier})
+        cached = Path(self.tmp.name) / 'self-profile' / 'digests' / (identifier + '.json')
+        self.assertTrue(cached.exists())
+        self.profiles.source_action(self.request(id=identifier, action='delete'))
+        self.assertFalse(cached.exists())
+        with self.assertRaises(ProfileError):
+            self.profiles.digest({'source_id': identifier})
+
+    def test_without_a_reader_there_is_no_reading(self):
+        profiles = Profiles(self.store, public=True)
+        identifier = self.upload()
+        with self.assertRaises(ProfileError) as caught:
+            profiles.digest({'source_id': identifier})
+        self.assertEqual(caught.exception.code, 'model_unavailable')
+        self.assertEqual(profiles.read()['limits']['extraction'], 'paragraph_rules')
+        self.assertEqual(self.profiles.read()['limits']['extraction'], 'ai_digest')
 
     def test_chat_attachments_keep_their_limit(self):
         chat = Attachments(Path(self.tmp.name) / 'chat')
@@ -227,25 +223,24 @@ class WebTests(unittest.TestCase):
                     self.cookies[name] = morsel.value
         return captured['status'], json.loads(payload) if payload[:1] == b'{' else None
 
-    def test_large_document_reads_through_the_route(self):
-        from rndplz.profile_reading import ProfileReader
+    def test_a_document_is_read_through_the_route(self):
         self.cookies, self.token = {}, ''
         self.token = self.call('GET', '/api/chat/bootstrap')[1]['token']
         context = list(self.app.contexts.values())[-1]  # this visitor (the newest context)
-        context['profile'].reader = ProfileReader(ScriptedModels())
-        big = (document() * 3).encode()  # ~0.6 MB of text, 1.6 MB with padding below
-        big += b'\n' + ('여백 ' * 330000).encode()
-        self.assertGreater(len(big), 1024 * 1024)
+        context['profile'].reader = ProfileReader(DigestModels())
         body = {'action': 'upload', 'turn_id': 'turn-upload-000000001',
-                'payload': {'name': 'cv.txt', 'data': base64.b64encode(big).decode(), 'base_version': 0, 'request_id': 'upload-0000001'}}
+                'payload': {'name': 'cv.txt', 'data': base64.b64encode(document(40).encode()).decode(), 'base_version': 0,
+                            'request_id': 'upload-0000001'}}
         status, view = self.call('POST', '/api/self-profile/chat', body)
         self.assertEqual(status, 200, view)
         source = view['profile_view']['sources'][0]
-        self.assertEqual(view['profile_view']['limits']['extraction'], 'model_reading')
-        status, result = self.call('POST', '/api/self-profile/read-part', {'source_id': source['id'], 'part': 1, 'model_id': 'bridge'})
-        self.assertEqual((status, result['part'], result['kept'], result['dropped']), (200, 1, 2, 2))
-        status, result = self.call('POST', '/api/self-profile/read-part', {'source_id': source['id'], 'part': 0, 'model_id': 'bridge'})
-        self.assertEqual(status, 400)
+        self.assertEqual(view['profile_view']['limits']['extraction'], 'ai_digest')
+        status, result = self.call('POST', '/api/self-profile/digest', {'source_id': source['id']})
+        self.assertEqual((status, result['proposal']['careers'][0]['title']), (200, '촉매 반응기 최적화'))
+        status, _ = self.call('POST', '/api/self-profile/digest', {'source_id': 'a' * 32})
+        self.assertEqual(status, 404)
+        status, _ = self.call('POST', '/api/self-profile/read-part', {'source_id': source['id'], 'part': 1, 'model_id': 'bridge'})
+        self.assertEqual(status, 404)  # the part reading is gone
 
     def test_a_document_sent_in_chunks_is_claimed_by_the_profile(self):
         # One 8 MB request failed from a phone; chat attachments already went in 512 KB chunks.
