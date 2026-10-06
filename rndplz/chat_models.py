@@ -132,6 +132,12 @@ def aiu_run(config, payload, remaining, budget, first_text=AIU_FIRST_TEXT_SECOND
                         yield piece
                 elif event=='workflow_finished':
                     if detail.get('status')!='succeeded':raise AiuRunFailed(shown)
+                    # A branched app (a condition node choosing the model) may hand its answer only as
+                    # the end node's output instead of streamed pieces.
+                    output=(detail.get('outputs') or {}).get('text')
+                    if not shown and isinstance(output,str) and output:
+                        shown=True
+                        yield output
                     finished=True
                     break
     except urllib.error.HTTPError as error:
@@ -267,18 +273,22 @@ class ChatModels:
             if key and model:self.configs[provider]={'key':key,'model':model}
         # The company AI platform is an explicit server opt-in: an app key and its run URL. Each
         # published workflow app runs one model, so further apps (RNDPLZ_AIU_APPS "slug=label;...",
-        # keys in RNDPLZ_AIU_API_KEY_<SLUG>) are listed as their own options "aiu:<slug>".
+        # keys in RNDPLZ_AIU_API_KEY_<SLUG>) are listed as their own options "aiu:<slug>". An app whose
+        # condition node picks the model by a `model` input (agent #4: normal|deep) gets that input from
+        # RNDPLZ_AIU_MODE (default app) or RNDPLZ_AIU_MODE_<SLUG>, so two options may share one app.
         aiu_key=self.env.get('RNDPLZ_AIU_API_KEY','');aiu_url=self.env.get('RNDPLZ_AIU_URL','')
         if aiu_key and aiu_url:
             target=urlparse(aiu_url)
             if target.scheme!='https' or not target.hostname or target.username or target.password:
                 raise ValueError('사내 AI 주소는 인증정보 없는 https 주소여야 합니다.')
-            self.configs['aiu']={'key':aiu_key,'url':aiu_url,'model':self.env.get('RNDPLZ_AIU_MODEL','사내 모델')}
+            self.configs['aiu']={'key':aiu_key,'url':aiu_url,'model':self.env.get('RNDPLZ_AIU_MODEL','사내 모델'),
+                                 'mode':self.env.get('RNDPLZ_AIU_MODE','')}
             for entry in self.env.get('RNDPLZ_AIU_APPS','').split(';'):
                 slug,_,label=entry.strip().partition('=')
                 if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,29}',slug):continue
                 key=self.env.get('RNDPLZ_AIU_API_KEY_'+slug.upper().replace('-','_'),'')
-                if key:self.configs['aiu:'+slug]={'key':key,'url':aiu_url,'model':label.strip() or slug}
+                if key:self.configs['aiu:'+slug]={'key':key,'url':aiu_url,'model':label.strip() or slug,
+                                                  'mode':self.env.get('RNDPLZ_AIU_MODE_'+slug.upper().replace('-','_'),'')}
             profile_key=self.env.get('RNDPLZ_AIU_PROFILE_API_KEY','')
             if profile_key:self.configs[AIU_PROFILE_APP]={'key':profile_key,'url':aiu_url,'model':'역량 게시용 앱'}
 
@@ -379,7 +389,7 @@ class ChatModels:
         if provider=='aiu':
             text=aiu_text(system,messages,structured=schema is not None)
             if len(text)>AIU_INPUT_LIMIT:raise ValueError('대화와 생성 계약이 모델 입력 범위를 넘었습니다. 사용할 자료 범위를 줄여 주세요.')
-            payload={'inputs':{'text':text},'mode':'streaming','user':'susomun'}
+            payload={'inputs':{'text':text,**({'model':config['mode']} if config.get('mode') else {})},'mode':'streaming','user':'susomun'}
             observer=getattr(self,'diagnostic_observer',None)
             if callable(observer):
                 try:observer(provider,copy.deepcopy(payload))
