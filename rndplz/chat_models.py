@@ -159,6 +159,20 @@ def strip_json_fence(text):
     return match.group(1) if match else text.strip()
 
 
+def json_object_text(text):
+    """The JSON object a model returned (the whole reply, a ```json block, or the {...} a sentence
+    surrounds), or None when there is none."""
+    text = strip_json_fence(text)
+    candidates = [text] + ([text[text.find('{'):text.rfind('}') + 1]] if 0 <= text.find('{') < text.rfind('}') else [])
+    for candidate in candidates:
+        try:
+            if isinstance(json.loads(candidate), dict):
+                return candidate
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
 def generation_spec(name):
     """Resolve only a server-owned registry entry; never accept caller prompts/schema."""
     if not isinstance(name,str) or name not in GENERATION_CONTRACT_NAMES:
@@ -379,6 +393,10 @@ class ChatModels:
                         collected+=piece
                         if len(collected)>24000:raise ValueError('모델의 답변이 허용 크기를 넘었습니다.')
                         if schema is None:yield piece
+                    # A run that finished with no text, or structured output with no JSON object, is tried
+                    # again like a stalled one (Claude Fable 5 returned empty runs on 2026-10-06).
+                    if not collected.strip() or (schema is not None and json_object_text(collected) is None):
+                        raise AiuRunFailed(False)
                     break
                 except AiuRunFailed as failure:
                     # Structured output is not shown until it is complete, so it may start over once,
@@ -390,12 +408,7 @@ class ChatModels:
                     self._aiu_release()
             if schema is not None:
                 # Structured output is checked whole, then handed over once (the caller validates the schema).
-                collected=strip_json_fence(collected)
-                try:
-                    if not isinstance(json.loads(collected),dict):raise ValueError('Expected JSON object')
-                except (ValueError,TypeError):
-                    raise ValueError('모델이 유효한 대화 계획 JSON을 반환하지 않았습니다.') from None
-                yield collected
+                yield json_object_text(collected)
             return
         if provider=='gemini':
             from .gemini_native import GeminiError,make_payload,generate
