@@ -676,8 +676,8 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 /* A card without a portrait should lead with its research, not a blank image. */
 #detailDialog.docked .researcher-detail-hero:has(.portrait-unavailable){max-width:none;margin:12px 0}
 #detailDialog.docked .researcher-detail-hero .portrait-unavailable{aspect-ratio:auto;min-height:0;padding:12px 14px;gap:4px;align-items:flex-start;text-align:left}
-/* Live graph (people-map-live.js): cards settle by force and can be dragged; graph tools sit at the
-   top left of the map because the person card docks over the right of the window. */
+/* Live graph (people-map-live.js): cards settle by force and can be dragged. The view switch sits at the
+   top left of the map, the settings button at the top right, and the settings panel beside the map. */
 #peopleMapHost .mp-graph-stage{user-select:none;-webkit-user-select:none}
 #peopleMapHost .mp-graph-stage img{-webkit-user-drag:none}
 #peopleMapHost .mp-graph-stage.moving-card,#peopleMapHost .mp-graph-stage.moving-card .mp-spatial-node{cursor:grabbing}
@@ -696,10 +696,14 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 #peopleMapHost .mp-live-depth{display:flex;white-space:nowrap;align-items:center;gap:5px;padding:0 6px;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb;font-size:12px;color:var(--mp-muted)}
 #peopleMapHost .mp-live-depth[hidden]{display:none}
 #peopleMapHost .mp-live-depth select{min-height:34px;padding:4px 2px;border:0;background:transparent;font:inherit;color:var(--mp-ink)}
-#peopleMapHost .mp-live-gear{display:flex;align-items:center;justify-content:center;width:42px;height:42px;min-height:42px;padding:0;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb;color:var(--mp-graph-accent);font-size:18px;line-height:1;cursor:pointer}
+#peopleMapHost .mp-live-gear{position:absolute;top:10px;right:10px;z-index:4;display:flex;align-items:center;justify-content:center;width:42px;height:42px;min-height:42px;padding:0;border:1px solid var(--mp-line);border-radius:9px;background:#fffefbeb;color:var(--mp-graph-accent);font-size:18px;line-height:1;cursor:pointer}
 #peopleMapHost .mp-live-gear[aria-expanded="true"]{background:#e5eddd;border-color:var(--mp-graph-accent)}
-#peopleMapHost .mp-live-panel{position:absolute;top:62px;left:10px;z-index:4;width:300px;max-width:calc(100% - 20px);max-height:calc(100% - 72px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;user-select:text;-webkit-user-select:text;cursor:auto;padding:0 14px 12px;border:1px solid var(--mp-line);border-radius:10px;background:#fffefb;box-shadow:0 10px 30px #2a3a2c24;color:var(--mp-ink);font-size:12px;line-height:1.5}
+#peopleMapHost .mp-layout{position:relative}
+#peopleMapHost .mp-layout.mp-live-column{grid-template-columns:232px minmax(0,1fr) 288px}
+#peopleMapHost .mp-live-panel{box-sizing:border-box;margin:12px 0 0;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;user-select:text;-webkit-user-select:text;cursor:auto;padding:0 14px 12px;border:1px solid var(--mp-line);border-radius:10px;background:#fffefb;box-shadow:0 10px 30px #2a3a2c24;color:var(--mp-ink);font-size:12px;line-height:1.5}
 #peopleMapHost .mp-live-panel[hidden]{display:none}
+#peopleMapHost .mp-live-side .mp-live-panel{position:absolute;left:calc(100% + 16px);z-index:4;margin:0}
+#peopleMapHost .mp-live-column .mp-live-panel{align-self:start;margin-left:16px;margin-bottom:0}
 #peopleMapHost .mp-live-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:2px;padding:8px 0 6px;background:inherit}
 #peopleMapHost .mp-live-head strong{flex:1;font-size:13px}
 #peopleMapHost .mp-live-head button,#peopleMapHost .mp-live-group button{width:34px;height:34px;min-height:34px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--mp-muted);font-size:16px;cursor:pointer}
@@ -728,7 +732,7 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 #peopleMapHost .mp-live-note{margin:6px 0 0;color:var(--mp-muted);font-size:11px;line-height:1.6}
 #peopleMapHost .mp-live-status{flex:1 1 100%;margin:0;color:var(--mp-muted);font-size:11px;font-variant-numeric:tabular-nums}
 @media(max-width:760px){
-  #peopleMapHost .mp-live-bar{top:8px;left:8px;right:8px}
+  #peopleMapHost .mp-live-bar{top:8px;left:8px;right:60px}
+  #peopleMapHost .mp-live-gear{top:8px;right:8px}
   #peopleMapHost .mp-live-modes button{padding:5px 9px}
-  #peopleMapHost .mp-live-panel{top:58px;left:8px;right:8px;width:auto;max-width:none;max-height:calc(100% - 66px)}
 }

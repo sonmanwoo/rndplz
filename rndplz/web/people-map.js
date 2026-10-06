@@ -162,7 +162,7 @@
    return '<button type="button" class="mp-spatial-node mp-spatial-field" style="--field-color:'+fieldColor(n.key)+'" data-map-node="'+esc(n.key)+'" data-map-filter="'+esc(filter.type)+'" data-map-filter-value="'+esc(filter.value)+'" aria-controls="people-map" aria-pressed="'+(filter.type==='TOPIC'?s.topic===filter.value:s.capability===filter.value)+'"><span>'+esc(n.label)+'</span><small>'+(n.kind==='project'?'프로젝트 참여':filter.type==='TOPIC'?'자료 주제':'역량 연결')+'</small></button>';
   }).join('');
   const edges=graph.edges.map(e=>'<path class="mp-spatial-edge" style="--field-color:'+fieldColor(e.from)+'" data-from="'+esc(e.from)+'" data-to="'+esc(e.to)+'" data-record-ids="'+esc(e.recordIds.join(','))+'"></path>').join('');
-  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">카드를 끌어 옮기면 주변 카드가 다시 자리를 잡아요 · 빈 곳을 끌면 지도 이동 · 휠·+/− 확대 · Home 화면 맞춤 · 왼쪽 위 그래프 설정(톱니)에서 필터·색·장력 조절</p></div></div>';
+  return '<div class="mp-graph-shell mobile-show-map"><div class="mp-selection-tools"><span id="mp-selection-label">'+(selected?esc(title(selected))+' 선택':'인물을 선택하면 연결 근거가 열립니다.')+'</span><button type="button" data-map-action="show-detail"'+(!selected?' hidden':'')+'>근거 패널로 이동 ↓</button><button type="button" data-map-action="clear-selection"'+(!selected?' hidden':'')+'>선택 해제</button><button type="button" class="mp-mobile-toggle" data-map-action="mobile-view" aria-controls="mp-mobile-people mp-graph-stage">리스트 보기</button></div><div id="mp-mobile-people" class="mp-mobile-people">'+(graph.visible.length?graph.visible.map(p=>personCard(p,s)).join(''):'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>')+'</div><div id="mp-graph-stage" class="mp-graph-stage'+(graph.visible.length<=2?' compact':'')+'" tabindex="0" role="group" aria-label="분야와 사람의 연결 지도" aria-describedby="mp-graph-help"><svg class="mp-spatial-edges" aria-hidden="true" focusable="false">'+edges+'</svg><div class="mp-spatial-nodes">'+nodes+'</div>'+(!graph.visible.length?'<p class="mp-empty">현재 조건에 연결된 인물이 없습니다. <button type="button" data-map-action="clear-all">조건 모두 해제</button></p>':'')+'</div><div class="mp-graph-controls"><button type="button" data-map-camera="out" aria-label="지도 축소">−</button><output id="mp-zoom-level" aria-label="확대 비율">100%</output><button type="button" data-map-camera="in" aria-label="지도 확대">+</button><button type="button" data-map-camera="fit">화면 맞춤</button><p id="mp-graph-help" class="mp-graph-help">카드를 끌어 옮기면 주변 카드가 다시 자리를 잡아요 · 빈 곳을 끌면 지도 이동 · 휠·+/− 확대 · Home 화면 맞춤 · 오른쪽 위 톱니(그래프 설정)에서 필터·색·장력 조절</p></div></div>';
  }
  // Graph settings (people-map-live.js): filter, colour groups, display and forces, kept in this browser.
  const LIVE_SLIDERS=[
@@ -188,7 +188,7 @@
   const observer=win.ResizeObserver?new win.ResizeObserver(()=>schedule()):null;
   // Cards keep their positions across filters, settle by force and can be dragged; the fixed layout only seeds them.
   const live=new Map(),statics=new Map(),infos=new Map(),peopleById=new Map(C.people.map(p=>[p.id,p]));
-  let prefs=loadPrefs(),shown=null,lastTest=()=>true,mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[];
+  let prefs=loadPrefs(),shown=null,lastTest=()=>true,mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[],rings=new Map();
   let autoFit=true,fitted=false,lastSize='',loop=0,lastFrame=0,counts='',phase='',flash='',flashTimer=0,selectedBefore=null,lastTap=null;
   const sim=new Live.Simulation(prefs),ui=liveControls();
   const quiet=()=>doc.body.classList.contains('no-motion')||win.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -250,7 +250,7 @@
    const kinds={person:0,capability:0,topic:0,project:0};for(const key of shown.keys)kinds[statics.get(key).kind]++;
    counts=['인물 '+kinds.person,'역량 '+kinds.capability,kinds.topic?'주제 '+kinds.topic:'',kinds.project?'프로젝트 '+kinds.project:'','연결 '+shown.links.length].filter(Boolean).join(' · ');
    $('graph-empty-note')?.remove();
-   if(stage&&!shown.keys.size&&graph.nodes.length)stage.insertAdjacentHTML('beforeend','<p id="graph-empty-note" class="mp-empty mp-live-empty">그래프 설정의 조건에 맞는 카드가 없어요. 왼쪽 위 그래프 설정에서 필터를 바꿔 보세요.</p>');
+   if(stage&&!shown.keys.size&&graph.nodes.length)stage.insertAdjacentHTML('beforeend','<p id="graph-empty-note" class="mp-empty mp-live-empty">그래프 설정의 조건에 맞는 카드가 없어요. 오른쪽 위 톱니(그래프 설정)에서 필터를 바꿔 보세요.</p>');
    autoFit=true;start();
   }
   function settle(){for(let i=0;i<500&&sim.alpha>.003;i++)sim.tick();}
@@ -283,6 +283,22 @@
     path.setAttribute('class',button.dataset.person===state.selectedId?'mp-line-active':'mp-line');svg.append(path);
    });
   }
+  // Outer radius of a portrait with its paper ring, team double ring or laureate ring (people-map.css).
+  function ringRadius(el){const team=el.classList.contains('mp-person-team'),nobel=el.classList.contains('mp-person-nobel');return team&&nobel?40:team?36:nobel?35:30;}
+  // Beside the map: in the page margin to the right when it is wide enough, otherwise as a third
+  // column that narrows the map; on phones (one column) below the map.
+  function placePanel(){
+   const layout=host.querySelector('.mp-layout'),stage=$('mp-graph-stage'),panel=ui.panel;
+   layout.classList.remove('mp-live-side','mp-live-column');panel.style.width=panel.style.top=panel.style.marginTop=panel.style.height='';
+   if(panel.hidden||!stage||win.matchMedia('(max-width:760px)').matches)return;
+   const room=doc.documentElement.clientWidth-layout.getBoundingClientRect().right,side=room>=244;
+   layout.classList.add(side?'mp-live-side':'mp-live-column');
+   // Measured after the column is added, which can rewrap the map heading: the panel lines up with the map.
+   const box=layout.getBoundingClientRect(),area=stage.getBoundingClientRect();
+   panel.style.height=area.height+'px';
+   if(side){panel.style.width=Math.min(300,room-24)+'px';panel.style.top=(area.top-box.top)+'px';}
+   else panel.style.marginTop=(area.top-box.top)+'px';
+  }
   function cameraApply(){
    const stage=$('mp-graph-stage');if(!stage||!shown)return;
    const size=prefs.nodeSize;
@@ -291,9 +307,14 @@
     el.style.width=n.w/size+'px';el.style.height=n.h/size+'px';
     el.style.transform='translate('+(camera.x+n.x*camera.scale)+'px,'+(camera.y+n.y*camera.scale)+'px) translate(-50%,-50%) scale('+camera.scale*size+')';
    }
+   // A line meets a person at the centre of the portrait and stops at its outer ring, so it never
+   // crosses the face; a pill draws over the end of its own lines.
+   const end=key=>{const n=live.get(key),ring=rings.get(key)||0,k=camera.scale;return {x:camera.x+n.x*k,y:camera.y+(n.y+(ring&&prefs.labels?24*size-n.h/2:0))*k,r:ring*size*k};};
    for(const [el,from,to] of edgeEls){
-    const a=live.get(from),b=live.get(to);if(!a||!b||!shown.keys.has(from)||!shown.keys.has(to))continue;
-    el.setAttribute('d','M'+(camera.x+a.x*camera.scale)+','+(camera.y+a.y*camera.scale)+' L'+(camera.x+b.x*camera.scale)+','+(camera.y+b.y*camera.scale));
+    if(!live.has(from)||!live.has(to)||!shown.keys.has(from)||!shown.keys.has(to))continue;
+    const a=end(from),b=end(to),dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+    if(d<=a.r+b.r+1){el.setAttribute('d','');continue;}
+    el.setAttribute('d','M'+(a.x+dx/d*a.r)+','+(a.y+dy/d*a.r)+' L'+(b.x-dx/d*b.r)+','+(b.y-dy/d*b.r));
    }
    stage.classList.toggle('mp-names-faded',Boolean(prefs.textZoom)&&camera.scale<prefs.textZoom);
    $('mp-zoom-level').textContent=Math.round(camera.scale*100)+'%';
@@ -303,20 +324,21 @@
    const stage=$('mp-graph-stage');if(!stage||!stage.clientWidth||!stage.clientHeight||!shown)return null;
    const nodes=[...shown.keys].map(key=>live.get(key)),area=stage.getBoundingClientRect(),top=56;
    // Leave out what the open settings panel (left) and a person card docked beside the map (right) cover.
-   const card=doc.querySelector('#detailDialog.docked[open]:not(.sheet)')?.getBoundingClientRect(),panel=ui.isOpen()&&stage.clientWidth>560?ui.panel.getBoundingClientRect():null;
-   const inLeft=panel?clamp(panel.right-area.left+8,0,stage.clientWidth/2):0,inRight=card&&card.left>area.left+200?clamp(area.right-card.left+8,0,stage.clientWidth/2):0;
-   const width=stage.clientWidth-inLeft-inRight,height=stage.clientHeight;
-   if(!nodes.length)return {x:inLeft+width/2,y:height/2,scale:1};
+   // Leave out what a person card docked beside the map covers.
+   const card=doc.querySelector('#detailDialog.docked[open]:not(.sheet)')?.getBoundingClientRect();
+   const inRight=card&&card.left>area.left+200?clamp(area.right-card.left+8,0,stage.clientWidth/2):0;
+   const width=stage.clientWidth-inRight,height=stage.clientHeight;
+   if(!nodes.length)return {x:width/2,y:height/2,scale:1};
    const left=Math.min(...nodes.map(n=>n.x-n.w/2)),right=Math.max(...nodes.map(n=>n.x+n.w/2)),upper=Math.min(...nodes.map(n=>n.y-n.h/2)),lower=Math.max(...nodes.map(n=>n.y+n.h/2));
    const scale=clamp(Math.min((width-44)/Math.max(right-left,180),(height-top-22)/Math.max(lower-upper,140)),.15,1.1);
-   return {scale,x:inLeft+width/2-(left+right)/2*scale,y:top+(height-top-22)/2-(upper+lower)/2*scale};
+   return {scale,x:width/2-(left+right)/2*scale,y:top+(height-top-22)/2-(upper+lower)/2*scale};
   }
   function fit(){if(state.view==='organization'){legacyLines();return;}autoFit=true;start();}
   function schedule(){if(!frame)frame=win.requestAnimationFrame(()=>{
    frame=0;if(state.view==='organization'){legacyLines();return;}
    const stage=$('mp-graph-stage'),size=stage?stage.clientWidth+'x'+stage.clientHeight:'';
    if(size!==lastSize){lastSize=size;if(autoFit)fitted=false;}
-   start();
+   placePanel();start();
   });}
   function zoom(factor,at){
    const stage=$('mp-graph-stage');if(!stage)return;
@@ -357,7 +379,8 @@
    const stage=$('mp-graph-stage');
    nodeEls=stage?[...stage.querySelectorAll('[data-map-node]')].map(el=>[el,el.dataset.mapNode]):[];
    edgeEls=stage?[...stage.querySelectorAll('.mp-spatial-edge')].map(el=>[el,el.dataset.from,el.dataset.to]):[];
-   if(stage){stage.append(ui.bar,ui.panel);host.querySelector('.mp-graph-controls')?.append(ui.status);look();colorize();relayout(false);}
+   if(stage){stage.append(ui.bar,ui.gear);host.querySelector('.mp-graph-controls')?.append(ui.status);rings=new Map(nodeEls.filter(([el])=>el.classList.contains('mp-spatial-person')).map(([el,key])=>[key,ringRadius(el)]));look();colorize();relayout(false);}
+   else ui.open(false);
    $('people-map-content').dataset.mpCount=String(people.length);
    $('map-title').textContent=capability?.label||'연구 경험의 연결';
    $('map-explanation').textContent=(capability?.description||'이름·기술·이력으로 검색하거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
@@ -397,9 +420,11 @@
    ui.bar.querySelector('.mp-live-depth').hidden=mode!=='local';
   }
   function liveControls(){
-   const bar=doc.createElement('div'),panel=doc.createElement('section'),status=doc.createElement('p');
+   const bar=doc.createElement('div'),gear=doc.createElement('button'),panel=doc.createElement('section'),status=doc.createElement('p');
    bar.className='mp-live-bar';status.className='mp-live-status';
-   bar.innerHTML='<div class="mp-live-modes" role="group" aria-label="그래프 범위"><button type="button" data-live-mode="global" aria-pressed="true">전체 그래프</button><button type="button" data-live-mode="local" aria-pressed="false" title="선택한 인물과 이어진 카드만 · 인물을 빠르게 두 번 눌러도 돼요">주변 그래프</button></div><label class="mp-live-depth" hidden>깊이 <select data-live-depth aria-label="주변 그래프 연결 깊이"><option value="1">1단계</option><option value="2" selected>2단계</option><option value="3">3단계</option></select></label><button type="button" class="mp-live-gear" data-live-toggle aria-expanded="false" aria-controls="mp-live-panel" aria-label="그래프 설정" title="그래프 설정"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>';
+   bar.innerHTML='<div class="mp-live-modes" role="group" aria-label="그래프 범위"><button type="button" data-live-mode="global" aria-pressed="true">전체 그래프</button><button type="button" data-live-mode="local" aria-pressed="false" title="선택한 인물과 이어진 카드만 · 인물을 빠르게 두 번 눌러도 돼요">주변 그래프</button></div><label class="mp-live-depth" hidden>깊이 <select data-live-depth aria-label="주변 그래프 연결 깊이"><option value="1">1단계</option><option value="2" selected>2단계</option><option value="3">3단계</option></select></label>';
+   gear.type='button';gear.className='mp-live-gear';gear.dataset.liveToggle='';gear.setAttribute('aria-expanded','false');gear.setAttribute('aria-controls','mp-live-panel');gear.setAttribute('aria-label','그래프 설정');gear.title='그래프 설정';
+   gear.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
    const toggle=t=>'<label class="mp-live-toggle"><span>'+esc(t.label)+'</span><input type="checkbox" role="switch" data-live-pref="'+t.key+'"></label>';
    const slider=s=>'<div class="mp-live-slider"><label for="mp-live-'+s.key+'">'+esc(s.label)+'</label><output for="mp-live-'+s.key+'" data-live-out="'+s.key+'"></output><input id="mp-live-'+s.key+'" type="range" min="'+s.min+'" max="'+s.max+'" step="'+s.step+'" data-live-pref="'+s.key+'"></div>';
    const part=section=>LIVE_TOGGLES.filter(t=>t.section===section).map(toggle).join('')+LIVE_SLIDERS.filter(s=>s.section===section).map(slider).join('');
@@ -410,7 +435,7 @@
     '<details open><summary>표시</summary>'+part('look')+'</details>'+
     '<details open><summary>장력</summary>'+part('force')+'<button type="button" class="mp-live-wide" data-live-reheat>다시 정렬</button></details>'+
     '<p class="mp-live-note">설정은 이 브라우저에만 저장돼요. 카드의 위치와 거리는 숙련도나 순위를 뜻하지 않습니다.</p>';
-   const filterInput=panel.querySelector('[data-live-pref="filter"]'),errorLine=panel.querySelector('.mp-live-error'),gear=bar.querySelector('.mp-live-gear');
+   const filterInput=panel.querySelector('[data-live-pref="filter"]'),errorLine=panel.querySelector('.mp-live-error');
    function output(s){panel.querySelector('[data-live-out="'+s.key+'"]').textContent=s.format(prefs[s.key]);}
    function groups(){
     panel.querySelector('[data-live-groups]').innerHTML=prefs.groups.map((g,i)=>'<div class="mp-live-group"><input type="text" value="'+esc(g.query)+'" data-live-group="'+i+'" maxlength="200" placeholder="예: org:GS칼텍스" aria-label="그룹 '+(i+1)+' 조건" spellcheck="false" autocomplete="off"><input type="color" value="'+esc(g.color)+'" data-live-group-color="'+i+'" aria-label="그룹 '+(i+1)+' 색"><button type="button" data-live-group-remove="'+i+'" aria-label="그룹 '+(i+1)+' 지우기">×</button></div>').join('');
@@ -421,7 +446,7 @@
     for(const s of LIVE_SLIDERS){panel.querySelector('[data-live-pref="'+s.key+'"]').value=String(prefs[s.key]);output(s);}
     groups();compileGroups();
    }
-   function open(show){const was=!panel.hidden;panel.hidden=!show;gear.setAttribute('aria-expanded',String(show));if(was!==show&&autoFit)start();}
+   function open(show){panel.hidden=!show;gear.setAttribute('aria-expanded',String(show));placePanel();}
    function groupsChanged(){compileGroups();colorize();savePrefs();}
    panel.addEventListener('input',e=>{
     const t=e.target,key=t.dataset.livePref,s=LIVE_SLIDERS.find(x=>x.key===key);
@@ -458,10 +483,12 @@
     }
     else if(b.dataset.liveGroupRemove!=null){prefs.groups.splice(Number(b.dataset.liveGroupRemove),1);groups();groupsChanged();}
    }
-   bar.addEventListener('click',click);panel.addEventListener('click',click);
+   bar.addEventListener('click',click);gear.addEventListener('click',click);panel.addEventListener('click',click);
+   // The panel sits beside the map (in the page margin when there is room), never over it.
+   host.querySelector('.mp-layout').append(panel);
    bar.addEventListener('change',e=>{if(e.target.matches('[data-live-depth]')){depth=Number(e.target.value);relayout(false);}});
    sync();
-   return {bar,panel,status,open,isOpen:()=>!panel.hidden,focusGear:()=>gear.focus({preventScroll:true}),
+   return {bar,gear,panel,status,open,isOpen:()=>!panel.hidden,focusGear:()=>gear.focus({preventScroll:true}),
     error(message){errorLine.hidden=!message;errorLine.textContent=message;if(message)filterInput.setAttribute('aria-invalid','true');else filterInput.removeAttribute('aria-invalid');}};
   }
   function letGo(){if(drag?.pinned)sim.release(drag.node);drag=null;}
@@ -477,7 +504,7 @@
   host.addEventListener('input',event=>{const t=event.target;if(t.id==='name-search'){dispatch({type:'QUERY',value:t.value});return;}const types={problem:'PROBLEM',draft:'DRAFT',aiText:'AI_TEXT'};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
   host.addEventListener('change',event=>{const t=event.target;if(t.id==='topic-controls')dispatch({type:'TOPIC',value:t.value});else if(t.id==='view-control')dispatch({type:'VIEW',value:t.value});else if(t.dataset.evidence){const id=t.id;dispatch({type:'EVIDENCE',id:t.dataset.evidence,checked:t.checked});$(id)?.focus({preventScroll:true});}else if(t.id==='include-ai'){dispatch({type:'INCLUDE_AI',value:t.checked});$('include-ai')?.focus({preventScroll:true});}});
   host.addEventListener('click',event=>{
-   const button=event.target.closest('button');if(!button||!host.contains(button)||button.closest('.mp-live-bar,.mp-live-panel'))return;
+   const button=event.target.closest('button');if(!button||!host.contains(button)||button.closest('.mp-live-bar,.mp-live-gear,.mp-live-panel'))return;
    if(dragged&&button.closest('#mp-graph-stage')){event.preventDefault();event.stopPropagation();return;}
    if(button.dataset.mapCamera){if(button.dataset.mapCamera==='fit')fit();else zoom(button.dataset.mapCamera==='in'?1.2:1/1.2);return;}
    if(button.dataset.mapFilter){const type=button.dataset.mapFilter,value=button.dataset.mapFilterValue,field=type==='TOPIC'?'topic':'capability';dispatch({type,value:state[field]===value?'':value});const target=[...host.querySelectorAll('[data-map-filter]')].find(b=>b.dataset.mapFilter===type&&b.dataset.mapFilterValue===value);(target||$('mp-graph-stage'))?.focus({preventScroll:true});}
@@ -497,7 +524,7 @@
   host.addEventListener('focusin',e=>{const node=e.target.closest('[data-map-node]');if(node)emphasis(node.dataset.mapNode);});
   host.addEventListener('focusout',e=>{if(e.target.closest('[data-map-node]'))emphasis();});
   host.addEventListener('keydown',e=>{
-   if(e.key==='Escape'&&ui.isOpen()&&e.target.closest?.('.mp-live-panel,.mp-live-bar')){e.preventDefault();e.stopPropagation();ui.open(false);ui.focusGear();return;}
+   if(e.key==='Escape'&&ui.isOpen()&&e.target.closest?.('.mp-live-panel,.mp-live-bar,.mp-live-gear')){e.preventDefault();e.stopPropagation();ui.open(false);ui.focusGear();return;}
    if(e.target.matches('input,textarea,select'))return;
    if(e.key==='Escape'&&state.selectedId){e.preventDefault();clearSelection(true);return;}
    if(e.target.id!=='mp-graph-stage')return;
@@ -505,10 +532,10 @@
    if(moves[e.key]){e.preventDefault();autoFit=false;camera.x+=moves[e.key][0];camera.y+=moves[e.key][1];cameraApply();}
    else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')fit();else zoom(e.key==='-'?1/1.2:1.2);}
   });
-  host.addEventListener('wheel',e=>{const stage=e.target.closest('#mp-graph-stage');if(!stage||e.target.closest('.mp-live-panel,.mp-live-bar'))return;e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?1.08:1/1.08,{x:e.clientX-r.left,y:e.clientY-r.top});},{passive:false});
+  host.addEventListener('wheel',e=>{const stage=e.target.closest('#mp-graph-stage');if(!stage||e.target.closest('.mp-live-bar,.mp-live-gear'))return;e.preventDefault();const r=stage.getBoundingClientRect();zoom(e.deltaY<0?1.08:1/1.08,{x:e.clientX-r.left,y:e.clientY-r.top});},{passive:false});
   // A press on a card drags that card (the rest of the map gives way); a press on empty paper pans.
   host.addEventListener('pointerdown',e=>{
-   const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0||e.target.closest('.mp-live-panel,.mp-live-bar'))return;
+   const stage=e.target.closest('#mp-graph-stage');if(!stage||e.button>0||e.target.closest('.mp-live-bar,.mp-live-gear'))return;
    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});dragged=false;
    if(pointers.size===2){const[a,b]=[...pointers.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);letGo();stage.setPointerCapture(e.pointerId);}
    else{
