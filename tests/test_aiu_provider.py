@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from rndplz import chat_models
-from rndplz.chat_models import ChatModels, aiu_text, strip_json_fence
+from rndplz.chat_models import ChatModels, aiu_text, json_object_text, strip_json_fence
 
 ENV = {'RNDPLZ_AIU_API_KEY': 'app-test', 'RNDPLZ_AIU_URL': 'https://aiu.example/ext/v1/workflows/run',
        'RNDPLZ_AIU_MODEL': 'GPT luna'}
@@ -265,6 +265,22 @@ class AiuProviderTests(unittest.TestCase):
         self.assertEqual(text, '[지침]\n지침\n[지침 끝]\n\n[대화]\n<user>\n질문\n</user>\n\n<assistant>\n답\n</assistant>\n[대화 끝]\n\n'
                                '위 지침에 따라 마지막 user 메시지에 답하세요.')
         self.assertEqual(strip_json_fence(' {"a": 1} '), '{"a": 1}')
+        self.assertEqual(json_object_text('계획입니다.\n{"a": {"b": 1}}\n이상입니다.'), '{"a": {"b": 1}}')
+        self.assertIsNone(json_object_text('계획을 세우지 못했습니다.'))
+        self.assertIsNone(json_object_text('[1, 2]'))
+
+    def test_a_finished_run_without_text_or_json_is_tried_again(self):
+        # The platform finished Claude Fable 5 runs "succeeded" with nothing in them (2026-10-06).
+        done = {'event': 'workflow_finished', 'data': {'status': 'succeeded'}}
+        empty = frames(done)
+        prose = frames({'event': 'text_chunk', 'data': {'text': '계획을 세우겠습니다.'}}, done)
+        plan = frames({'event': 'text_chunk', 'data': {'text': '좋아요. {"a": 1}'}}, done)
+        pieces, _ = self.run_stream([empty, plan], contract='request_intent.v1')
+        self.assertEqual(pieces, ['{"a": 1}'])
+        pieces, _ = self.run_stream([empty, frames({'event': 'text_chunk', 'data': {'text': '답'}}, done)])
+        self.assertEqual(pieces, ['답'])
+        with self.assertRaises(ValueError):
+            self.run_stream([prose, prose], contract='request_intent.v1')
 
 
 if __name__ == '__main__':
