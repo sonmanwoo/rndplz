@@ -1325,7 +1325,7 @@ function detailRequestAction(candidate){
  const allowed=canPropose(candidate),reason=typeof candidate.proposal_unavailable_reason==='string'&&candidate.proposal_unavailable_reason.trim()?candidate.proposal_unavailable_reason:'현재 요청의 근거와 제안 가능 여부를 먼저 확인해 주세요.';
  const name=candidate.profile?.display_name||candidate.name||'선택한 인물';
  return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
-  (allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="small subtle">'+(mailDelivery?'먼저 의뢰 초안을 확인해요. 보내기를 누르면 등록된 메일 주소로 발송하고 제안함에도 기록합니다.':'먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.')+'</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="small subtle">'+esc(reason)+'</p>')+'</section>';
+  (allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 초안 보기</button><p class="small subtle">'+(mailDelivery?'초안을 확인한 뒤 보내기를 누르면 등록된 메일 주소로 발송하고 제안함에도 기록합니다.':'초안을 확인한 뒤 보내도 실제 발송 없이 시연 제안함에만 기록합니다.')+'</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="small subtle">'+esc(reason)+'</p>')+'</section>';
 }
 // Someone picked on the map outside the recommendation may get the same request; the server re-checks.
 function pickAvailable(id){
@@ -1340,7 +1340,7 @@ const historicalPickNote='역사적 연구 자료의 인물이라 의뢰를 보�
 function pickRequestAction(id,name,profile){
  if(!pickAvailable(id))return '';
  if(historicalProfile(profile))return '<section class="detail-record" aria-label="나의 의뢰"><p class="small subtle">'+historicalPickNote+'</p></section>';
- return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p><button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button><p class="small subtle">'+pickNote+'</p></section>';
+ return '<section class="detail-record" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p><button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 보낼 의뢰 초안 보기</button><p class="small subtle">'+pickNote+'</p></section>';
 }
 function currentDetailCandidate(id){
  const scout=session?.scout;
@@ -1436,7 +1436,7 @@ async function renderInspect(id){
   '</div><div class="pi-info"><div class="pi-body">'+
    (browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
    (evidence.length?'<section><h3>'+(own?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,profile)).join('')+'</section>':'')+
-  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
+  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">의뢰 초안 보기</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 보낼 의뢰 초안 보기</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
  const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");
  const quiet=RndCraft.quiet();sheet.classList.toggle("pi-quiet",quiet);

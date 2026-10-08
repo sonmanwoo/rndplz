@@ -22,7 +22,7 @@ body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle,.c
 
 /* Drop-down cards: the "more" menu and the account menu share one look. */
 .site-menu-control{position:relative;flex:none}
-body.crafted :is(.site-menu,.account-menu){position:absolute;z-index:90;left:auto;right:0;top:48px;padding:8px;border:1px solid #00000014;border-radius:20px;background:var(--sheet);box-shadow:0 16px 40px #00000014,0 2px 6px #0000000a;text-align:left}
+body.crafted :is(.site-menu,.account-menu){position:absolute;z-index:90;left:auto;right:0;top:48px;max-height:calc(100dvh - 64px);overflow-y:auto;padding:8px;border:1px solid #00000014;border-radius:20px;background:var(--sheet);box-shadow:0 16px 40px #00000014,0 2px 6px #0000000a;text-align:left}
 body.crafted .site-menu{width:300px;max-width:calc(100vw - 24px)}
 body.crafted .account-menu{width:260px}
 .site-menu[hidden]{display:none!important}
@@ -160,6 +160,9 @@ body.profile-page .save-bar strong{font-size:13px}
 body.profile-page .card-edit{position:relative;top:auto;right:auto;float:right;margin:0 0 6px 12px;min-height:32px;padding:3px 12px;border:1px solid #0000001f;border-radius:999px;background:var(--sheet);color:var(--ink);font-size:12px}
 body.profile-page .card-block.is-editable:hover,body.profile-page .card-block.is-editable:focus-within{border-color:#0000001f;background:#f7f5f3}
 body.profile-page .card-block::after{content:"";display:block;clear:both}
+/* ✎ is always there to find (no hovering first); it darkens when its block is pointed at. */
+body.profile-page .card-edit{opacity:1;color:var(--muted)}
+body.profile-page .card-block.is-editable:is(:hover,:focus-within) .card-edit{color:var(--ink)}
 /* A focused field scrolls clear of the sticky save bar. */
 html:has(body.profile-page){scroll-padding-bottom:110px}
 @media (max-width:700px){
@@ -169,4 +172,10 @@ html:has(body.profile-page){scroll-padding-bottom:110px}
   body.profile-page .intro-copy{font-size:14px}
   body.profile-page .scope-note{padding:14px 16px;font-size:12px}
   body.profile-page .save-bar{padding:10px 12px}
+}
+/* Touch: small round controls keep their look; an invisible ring brings what a finger can press to 44px. */
+@media (pointer:coarse),(max-width:700px){
+ body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle),body.chat-page .attach-button{position:relative}
+ body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle)::after,body.chat-page .attach-button::after{content:"";position:absolute;inset:-4px;border-radius:50%}
+ .site-menu-model select{min-height:44px}
 }
