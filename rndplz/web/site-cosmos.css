@@ -156,6 +156,10 @@ body.profile-page .secondary-button{border-color:#0000001f;background:var(--shee
 body.profile-page .secondary-button:hover:enabled{background:#f2f1f0}
 body.profile-page .save-bar{border:1px solid #0000001f;border-bottom:0;border-radius:20px 20px 0 0;background:#f7f5f3eb}
 body.profile-page .save-bar strong{font-size:13px}
+/* Card blocks: the edit button floats at the block's top right so the words flow around it instead of under it. */
+body.profile-page .card-edit{position:relative;top:auto;right:auto;float:right;margin:0 0 6px 12px;min-height:32px;padding:3px 12px;border:1px solid #0000001f;border-radius:999px;background:var(--sheet);color:var(--ink);font-size:12px}
+body.profile-page .card-block.is-editable:hover,body.profile-page .card-block.is-editable:focus-within{border-color:#0000001f;background:#f7f5f3}
+body.profile-page .card-block::after{content:"";display:block;clear:both}
 /* A focused field scrolls clear of the sticky save bar. */
 html:has(body.profile-page){scroll-padding-bottom:110px}
 @media (max-width:700px){
