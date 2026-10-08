@@ -123,7 +123,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 static["/draw.js"]=("draw.js","text/javascript; charset=utf-8")
                 static["/draw.css"]=("draw.css","text/css; charset=utf-8")
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
-                static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map-layout.js","people-map-graph.js","people-map-live.js","people-map.js","people-map-focus.js","recommendation-map.js","recommendation-map.css")})
+                static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map-layout.js","people-map-graph.js","people-map-live.js","people-map.js","people-map-focus.js","people-map-mobile.js","recommendation-map.js","recommendation-map.css")})
                 static.update({"/theme.js":("theme.js","text/javascript; charset=utf-8"),"/theme.css":("theme.css","text/css; charset=utf-8")})
                 static.update({"/home-cosmos.js":("home-cosmos.js","text/javascript; charset=utf-8"),"/home-cosmos.css":("home-cosmos.css","text/css; charset=utf-8")})
                 static.update({"/site-menu.js":("site-menu.js","text/javascript; charset=utf-8"),"/site-cosmos.css":("site-cosmos.css","text/css; charset=utf-8")})
