@@ -22,7 +22,9 @@ body.home-welcome .welcome-heading{margin:0 0 18px}
 .home-flip{display:grid;perspective:800px;height:88px;width:fit-content;margin:0 auto;align-items:center}
 .home-flip-item{grid-area:1/1;display:flex;align-items:center;justify-content:center;gap:20px;white-space:nowrap;backface-visibility:hidden;transform-style:preserve-3d;will-change:transform,opacity,filter}
 .home-thumbs{display:flex;align-items:center;flex-shrink:0}
-.home-thumb{display:block;width:64px;height:64px;border-radius:16px;border:1.5px solid var(--desk);overflow:hidden;transform:rotate(-6deg);background:#e9e6e1}
+.home-thumb{display:block;position:relative;width:64px;height:64px;padding:0;border-radius:16px;border:1.5px solid var(--desk);overflow:hidden;transform:rotate(-6deg);background:#e9e6e1;cursor:pointer;transition:translate .2s ease-out,box-shadow .2s}
+.home-thumb:hover{translate:0 -3px;box-shadow:0 6px 16px #00000024;z-index:1}
+.home-thumb:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .home-thumb+.home-thumb{transform:rotate(6deg);margin-left:-24px}
 .home-thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
 /* re·search: shown once per browser before the first heading (home-cosmos.js). */

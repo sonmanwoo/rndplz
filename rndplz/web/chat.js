@@ -1399,12 +1399,14 @@ async function renderInspect(id){
  const reason=typeof candidate?.reason==="string"?plainScience(candidate.reason.trim()):"";
  const missing=typeof candidate?.purpose_missing==="string"?candidate.purpose_missing.trim():"";
  const outside=!candidate&&pickAvailable(id),closed=outside&&historicalProfile(person?.profile);
- const evidence=(Array.isArray(outside?person?.evidence:candidate?.evidence)?(outside?person.evidence:candidate.evidence):[]).filter(e=>e&&typeof e==="object").slice(0,4);
+ // Opened from the home heading (no conversation yet): a plain researcher card, not a candidate of a request.
+ const browse=!session&&!candidate,own=outside||browse;
+ const evidence=(Array.isArray(own?person?.evidence:candidate?.evidence)?(own?person.evidence:candidate.evidence):[]).filter(e=>e&&typeof e==="object").slice(0,4);
  const request=currentDetailCandidate(id),allowed=canPropose(request);
  const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
  const index=ids.indexOf(id),count=ids.length;
  $("personCardHost").innerHTML='<div class="pi-sheet"'+(relation?' data-relation="'+relation+'"':'')+'>'+
-  '<div class="pi-top">'+(index<0?'<span class="pi-count">추천 밖 인물</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
+  '<div class="pi-top">'+(index<0?'<span class="pi-count">'+(browse?'연구자 카드':'추천 밖 인물')+'</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
   '<div class="pi-main"><div class="pi-hero">'+
    '<button type="button" class="pi-card" aria-label="'+esc(name)+' 카드 다시 뒤집기"><span class="pi-turn">'+
     '<span class="pi-face pi-front"><span class="pi-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pi-portrait-empty">초상 미제공</span>')+'</span><span class="pi-card-name">'+esc(name)+'</span><span class="pi-foil" aria-hidden="true"></span></span>'+
@@ -1412,8 +1414,8 @@ async function renderInspect(id){
    '</span></button>'+
    '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+'<h2 class="pi-name" id="piName">'+esc(name)+'</h2>'+(org?'<p class="pi-org">'+esc(org)+'</p>':'')+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
   '</div><div class="pi-info"><div class="pi-body">'+
-   '<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>'+
-   (evidence.length?'<section><h3>'+(outside?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
+   (browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
+   (evidence.length?'<section><h3>'+(own?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
   '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
  const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");

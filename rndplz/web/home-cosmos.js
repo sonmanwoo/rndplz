@@ -71,12 +71,18 @@
     };
   }
   const clamp = q => Math.max(0, Math.min(1, q));
+  flipBox?.addEventListener('click', event => {
+    const face = event.target.closest('.home-thumb[data-person-id]');
+    if (face && typeof window.openPersonCard === 'function') window.openPersonCard(face.dataset.personId, face).catch?.(() => {});
+  });
   function flipNode(scene) {
     const node = document.createElement('span'); node.className = 'home-flip-item';
     const words = document.createElement('span'); words.textContent = scene.phrase;
-    const thumbs = document.createElement('span'); thumbs.className = 'home-thumbs'; thumbs.setAttribute('aria-hidden', 'true');
+    const thumbs = document.createElement('span'); thumbs.className = 'home-thumbs';
+    // Like Cosmos's item thumbnails: pressing a face opens that researcher's card (chat.js openPersonCard).
     for (const person of scene.thumbs) {
-      const frame = document.createElement('span'); frame.className = 'home-thumb';
+      const frame = document.createElement('button'); frame.type = 'button'; frame.className = 'home-thumb';
+      frame.dataset.personId = person.id; frame.setAttribute('aria-label', (person.name || '연구자') + ' 카드 보기'); frame.title = person.name || '';
       const img = new Image(); img.src = person.image; img.alt = ''; img.decoding = 'async';
       frame.append(img); thumbs.append(frame);
     }
@@ -256,7 +262,7 @@
   const thumb = path => typeof path === 'string' && /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path) ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null;
   fetch('/api/people-map', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(data => {
     if (!data || !Array.isArray(data.people)) return;
-    const everyone = data.people.map(p => ({ id:p.id, image:thumb(p.profile?.portrait?.path) })).filter(p => p.image);
+    const everyone = data.people.map(p => ({ id:p.id, name:p.profile?.display_name || p.name, image:thumb(p.profile?.portrait?.path) })).filter(p => p.image);
     const byId = new Map(everyone.map(p => [p.id, p]));
     const scenes = SCENES.map(scene => {
       const capability = (data.capabilities || []).find(c => c.id === scene.id);
@@ -288,7 +294,7 @@
             if (head.done && face.done) { transition.old.remove(); shown.removeAttribute('style'); shown.querySelectorAll('img').forEach(i => i.removeAttribute('style')); transition = null; }
           }
         }
-        elapsed += dt * 1000;
+        if (!document.querySelector('dialog[open]')) elapsed += dt * 1000; // the heading waits while a card is open
         if (elapsed >= 4000 && !transition) {
           const next = (index + 1) % scenes.length;
           if (scenes[next].ready || elapsed >= 10000) {
