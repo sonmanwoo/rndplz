@@ -1381,10 +1381,30 @@ async function inspectPerson(id,candidate){
  }
  return inspectPeople.get(key)||null;
 }
-function inspectEvidenceHtml(e){
- const title=esc(e.title||e.id||"연결 근거"),scope=e.scope_label||e.scope;
- const body=(e.excerpt?'<p>'+esc(plainScience(e.excerpt))+'</p>':'')+(e.boundary?'<p class="pi-boundary">'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':'');
- return body?'<details><summary><strong>'+title+'</strong>'+(scope?'<span>'+esc(scope)+'</span>':'')+'</summary>'+body+'</details>':'<div class="pi-evidence-plain"><strong>'+title+'</strong>'+(scope?'<span>'+esc(scope)+'</span>':'')+'</div>';
+// What a record is about: a paper's excerpt, or the profile's own words for a career (timeline, same dates)
+// or a project (same id). The source label already says where it comes from, so the boundary notice is not
+// repeated per record; a record with nothing more to say does not open.
+function evidenceDescription(e,profile){
+ if(typeof e.excerpt==="string"&&e.excerpt.trim())return e.excerpt;
+ if(e.kind==="project_record")return (Array.isArray(profile?.projects)?profile.projects:[]).find(p=>p&&p.id===e.id)?.text||"";
+ if(e.kind==="career_record")return (Array.isArray(profile?.timeline)?profile.timeline:[]).find(t=>t&&t.date&&t.date===e.date)?.text||"";
+ return "";
+}
+function inspectEvidenceHtml(e,profile){
+ const title=esc(e.title||e.id||"연결 근거"),meta=[e.scope_label||e.scope,e.date].filter(Boolean).map(esc).join(" · "),text=evidenceDescription(e,profile);
+ const body=(text?'<p>'+esc(plainScience(text))+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':'');
+ return body?'<details><summary><strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'')+'</summary>'+body+'</details>':'<div class="pi-evidence-plain"><strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'')+'</div>';
+}
+// 전체 약력 opens in the same card (the same button brings the summary back) instead of another window.
+function inspectFullHtml(person,profile){
+ const p=profile||{},rows=v=>Array.isArray(v)?v.filter(x=>x&&typeof x==="object"):[];
+ const links=rows(p.links).filter(l=>safeUrl(l.url)).map(l=>'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">'+esc(l.label||"소개 페이지")+' ↗</a>');
+ const evidence=rows(person?.evidence);
+ return (p.biography?'<section><h3>소개</h3><p>'+esc(p.biography)+'</p>'+(links.length?'<p class="pi-links">'+links.join(" · ")+'</p>':'')+'</section>':'')+
+  ((p.skills||[]).length?'<section><h3>기술</h3><p class="pi-skills">'+p.skills.map(s=>'<span>'+esc(s)+'</span>').join("")+'</p></section>':'')+
+  (rows(p.timeline).length?'<section><h3>경력</h3>'+rows(p.timeline).map(t=>'<div class="pi-row"><span>'+esc(t.date||"")+'</span><p>'+esc(t.text||"")+'</p></div>').join("")+'</section>':'')+
+  (rows(p.projects).length?'<section><h3>프로젝트</h3>'+rows(p.projects).map(t=>'<div class="pi-row"><span>'+esc([t.title,t.date].filter(Boolean).join(" · "))+'</span><p>'+esc(t.text||"")+'</p></div>').join("")+'</section>':'')+
+  (evidence.length?'<section><h3>등록 이력 전체 <small>설명이 있는 항목은 눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,p)).join("")+'</section>':'');
 }
 async function renderInspect(id){
  const dialog=$("personCardDialog"),ticket=++inspectTicket,ids=dialog.inspectIds||[];
@@ -1403,7 +1423,7 @@ async function renderInspect(id){
  const browse=!session&&!candidate,own=outside||browse;
  const evidence=(Array.isArray(own?person?.evidence:candidate?.evidence)?(own?person.evidence:candidate.evidence):[]).filter(e=>e&&typeof e==="object").slice(0,4);
  const request=currentDetailCandidate(id),allowed=canPropose(request);
- const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:"전체 약력에서 근거를 확인해 주세요.";
+ const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:(browse?"등록 이력은 본인 제공·공개 기록이에요. 지금의 역량이나 협업 가능 여부를 확인한 것은 아니에요.":"전체 약력에서 근거를 확인해 주세요.");
  const index=ids.indexOf(id),count=ids.length;
  $("personCardHost").innerHTML='<div class="pi-sheet"'+(relation?' data-relation="'+relation+'"':'')+'>'+
   '<div class="pi-top">'+(index<0?'<span class="pi-count">'+(browse?'연구자 카드':'추천 밖 인물')+'</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
@@ -1415,7 +1435,7 @@ async function renderInspect(id){
    '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+'<h2 class="pi-name" id="piName">'+esc(name)+'</h2>'+(org?'<p class="pi-org">'+esc(org)+'</p>':'')+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
   '</div><div class="pi-info"><div class="pi-body">'+
    (browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
-   (evidence.length?'<section><h3>'+(own?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(inspectEvidenceHtml).join('')+'</section>':'')+
+   (evidence.length?'<section><h3>'+(own?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,profile)).join('')+'</section>':'')+
   '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">나의 의뢰 보내기 ↗</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 이 의뢰 보내기 ↗</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
  const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");
@@ -1423,7 +1443,13 @@ async function renderInspect(id){
  const reveal=()=>{if(quiet)return;card.classList.remove("pi-reveal");void card.offsetWidth;card.classList.add("pi-reveal");};
  reveal();card.addEventListener("click",reveal);
  sheet.querySelectorAll(".pi-nav").forEach(b=>b.addEventListener("click",()=>stepInspect(Number(b.dataset.step))));
- sheet.querySelector(".pi-full").addEventListener("click",()=>showPerson(id,dialog.inspectOpener).catch(exc=>error(exc.message)));
+ const full=sheet.querySelector(".pi-full"),inspectBody=sheet.querySelector(".pi-body");let summaryHtml=null;
+ full.addEventListener("click",()=>{
+  if(!person){showPerson(id,dialog.inspectOpener).catch(exc=>error(exc.message));return;} // a past answer's frozen record
+  if(summaryHtml===null){summaryHtml=inspectBody.innerHTML;inspectBody.innerHTML=inspectFullHtml(person,profile);full.textContent="요약으로";}
+  else{inspectBody.innerHTML=summaryHtml;summaryHtml=null;full.textContent="전체 약력 보기";}
+  inspectBody.scrollTop=0;
+ });
  if(!quiet){
   const rest=()=>{card.style.setProperty("--rx","0deg");card.style.setProperty("--ry","0deg");card.classList.remove("is-lit");};
   card.addEventListener("pointermove",e=>{if(e.pointerType==="touch")return;const r=card.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
