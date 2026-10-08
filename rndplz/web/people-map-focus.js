@@ -59,7 +59,7 @@
       wheel.append(hint); stage.append(wheel); placeCard();
     }
 
-    // Phones: the preview card sits below the map, so the map keeps its whole area.
+    // Phones: the preview card is a sheet over the lower screen; fit() keeps the circle above it.
     function placeCard() {
       if (!stage || !card) return;
       const narrow = innerWidth < 760;
@@ -146,8 +146,9 @@
       clearTimeout(fitTimer);
       if (!debug.center || live3d.isActive() || !host.isConnected) return;
       // Phones never shrink below 40%: a wider circle is panned to, centred on the person.
+      const covered = () => { const s = stage.getBoundingClientRect(), c = card && !card.hidden && card.getClientRects().length ? card.getBoundingClientRect() : null; return c ? Math.max(0, s.bottom - c.top) : 0; };
       controller?.fitNodes([...ranges[steps.indexOf(debug.step)]], innerWidth < 760
-        ? { bottom:wheel.offsetHeight + 36, minScale:.4, anchor:'person:' + debug.center }
+        ? { top:wheel.offsetHeight + 24, bottom:covered() + 24, minScale:.4, anchor:'person:' + debug.center }
         : { right:380 });
     }
     function center(id) {

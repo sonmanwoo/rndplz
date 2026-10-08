@@ -336,6 +336,14 @@
    return {scale,x:width/2-(left+right)/2*scale,y:top+(height-top-22)/2-(upper+lower)/2*scale};
   }
   function fit(){if(state.view==='organization'){legacyLines();return;}autoFit=true;start();}
+  // A drag may not push the map past its fitted extent: on an axis where the whole map already fits, it stays
+  // put; where it is larger (zoomed in) its edges stop at the stage edge. What the map cannot take scrolls the page.
+  function bounded(at,stage){
+   const nodes=shown?[...shown.keys].map(key=>live.get(key)).filter(Boolean):[];if(!nodes.length)return at;
+   const k=camera.scale,m=40,lo=f=>Math.min(...nodes.map(f))*k,hi=f=>Math.max(...nodes.map(f))*k;
+   const axis=(v,now,a,b,size)=>b-a+2*m<=size?now:clamp(v,size-m-b,m-a);
+   return {x:axis(at.x,camera.x,lo(n=>n.x-n.w/2),hi(n=>n.x+n.w/2),stage.clientWidth),y:axis(at.y,camera.y,lo(n=>n.y-n.h/2),hi(n=>n.y+n.h/2),stage.clientHeight)};
+  }
   function schedule(){if(!frame)frame=win.requestAnimationFrame(()=>{
    frame=0;if(state.view==='organization'){legacyLines();return;}
    const stage=$('mp-graph-stage'),size=stage?stage.clientWidth+'x'+stage.clientHeight:'';
@@ -558,7 +566,9 @@
     if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>4)dragged=true;
     if(dragged&&!drag.captured){drag.captured=true;try{stage.setPointerCapture(e.pointerId);}catch{}}
     if(dragged&&drag.node){const at=world(e,stage);sim.pin(drag.node,at.x+drag.dx,at.y+drag.dy);drag.pinned=true;autoFit=false;stage.classList.add('moving-card');start();}
-    else if(dragged){autoFit=false;camera.x+=e.clientX-drag.x;camera.y+=e.clientY-drag.y;cameraApply();stage.classList.add('dragging');}
+    else if(dragged){const want={x:camera.x+e.clientX-drag.x,y:camera.y+e.clientY-drag.y},got=bounded(want,stage);
+     if(got.x!==camera.x||got.y!==camera.y){autoFit=false;camera.x=got.x;camera.y=got.y;cameraApply();}
+     const spill=want.y-got.y;if(Math.abs(spill)>.5)win.scrollBy(0,-spill);stage.classList.add('dragging');}
     drag.x=e.clientX;drag.y=e.clientY;
    }
   });
