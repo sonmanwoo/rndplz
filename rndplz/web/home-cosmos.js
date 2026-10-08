@@ -36,18 +36,10 @@
   syncHistory(); syncHome();
 
   // ---- composer example (overlay on the textarea, home only) -------------
-  const message = document.getElementById('message');
-  const hintWords = [];
-  if (message) {
-    const wrap = document.createElement('div');
-    wrap.className = 'home-input';
-    message.before(wrap); wrap.append(message);
-    const hint = document.createElement('span');
-    hint.className = 'home-hint'; hint.setAttribute('aria-hidden', 'true');
-    hint.innerHTML = '<span class="home-hint-text"><span>예:&nbsp;</span><span class="home-hint-words"></span></span>'
-      + '<span class="home-hint-text home-hint-shine"><span>예:&nbsp;</span><span class="home-hint-words"></span></span>';
-    wrap.append(hint);
-    hintWords.push(...hint.querySelectorAll('.home-hint-words'));
+  // index.html already holds the overlay with the first example, so the field looks right before this runs.
+  const message = document.getElementById('message'), wrap = message?.closest('.home-input');
+  const hintWords = wrap ? [...wrap.querySelectorAll('.home-hint-words')] : [];
+  if (message && wrap) {
     const filled = () => wrap.classList.toggle('has-value', !!message.value);
     message.addEventListener('input', filled); filled();
     new MutationObserver(filled).observe(message, { attributes:true });
@@ -201,7 +193,45 @@
     if (!running && raf) { cancelAnimationFrame(raf); raf = 0; }
   }
 
-  // ---- data, loop and intro ------------------------------------------------
+  // ---- re·search intro: once per browser, from the first frame, without waiting for data ----------------
+  // It counts as seen once the dot has shown; a tap before that skips it but it plays again next time. /?intro replays it.
+  let introDone = true;
+  try { introDone = localStorage.getItem('rndplz.intro.v1') === '1'; } catch {}
+  if (new URLSearchParams(location.search).has('intro')) introDone = false;
+  let motionOff = false;
+  try { motionOff = sessionStorage.getItem('rndplz-motion') === 'off'; } catch {} // craft.js applies the same switch later
+  if (!intro || reduced.matches || motionOff || !isHome()) introDone = true;
+  let introAt = null, introLast = null, introFlip = null;
+  const splitSpring = spring(1.5, 120, 18);
+  function finishIntro() {
+    if (introDone) return;
+    introDone = true; stage.classList.remove('home-intro-on'); intro.remove();
+    heading.style.removeProperty('opacity'); heading.style.removeProperty('transform'); heading.style.removeProperty('filter');
+    if (introAt !== null && performance.now() - introAt >= 1200) try { localStorage.setItem('rndplz.intro.v1', '1'); } catch {}
+  }
+  function introTick(now) {
+    if (introDone) return;
+    if (!isHome()) { finishIntro(); return; }
+    if (introAt === null) introAt = now;
+    const dt = introLast === null ? 0 : Math.min((now - introLast) / 1000, .1), age = now - introAt; introLast = now;
+    if (age >= 600 && !introFlip) { intro.style.setProperty('--split', clamp(splitSpring(dt).x)); intro.classList.add('split'); }
+    if (age >= 2400 && !introFlip) introFlip = spring(1.5, 120, 18);
+    if (introFlip) {
+      const { x:q, done } = introFlip(dt);
+      setPose(heading, q, true); setPose(intro, q, false);
+      if (done) finishIntro();
+    }
+    requestAnimationFrame(introTick);
+  }
+  if (introDone) intro?.remove();
+  else {
+    stage.classList.add('home-intro-on');
+    for (const type of ['pointerdown', 'keydown']) addEventListener(type, finishIntro, { once:true, capture:true, passive:true });
+    message?.addEventListener('focus', finishIntro, { once:true });
+    requestAnimationFrame(introTick);
+  }
+
+  // ---- data and loop ------------------------------------------------------
   const thumb = path => typeof path === 'string' && /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path) ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null;
   fetch('/api/people-map', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(data => {
     if (!data || !Array.isArray(data.people)) return;
@@ -223,42 +253,11 @@
     let index = 0, shown = flipNode(scenes[0]), transition = null, elapsed = 0, lastTick = null, timer = 0;
     flipBox.replaceChildren(shown); showHint(scenes[0].hint, false);
     const prepared = i => Promise.all(scenes[i].people.map(p => assets.get(p.id)?.promise));
-    // The intro plays once per browser, only on the home screen and only with motion on.
-    let introDone = true;
-    try { introDone = localStorage.getItem('rndplz.intro.v1') === '1'; } catch {}
-    if (!intro || still() || !isHome()) introDone = true;
-    let introAt = null, introFlip = null, splitSpring = spring(1.5, 120, 18), splitDone = 0;
-    const finishIntro = () => {
-      if (introDone) return;
-      introDone = true; stage.classList.remove('home-intro-on'); intro?.remove();
-      heading.style.removeProperty('opacity'); heading.style.removeProperty('transform'); heading.style.removeProperty('filter');
-      try { localStorage.setItem('rndplz.intro.v1', '1'); } catch {}
-      elapsed = 0;
-    };
-    const skip = () => finishIntro();
-    if (!introDone) {
-      stage.classList.add('home-intro-on');
-      for (const type of ['pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(type, skip, { once:true, capture:true, passive:true });
-      message?.addEventListener('focus', skip, { once:true });
-    } else intro?.remove();
     function tick(now) {
       timer = 0;
       if (!isHome() || document.hidden) { lastTick = null; return; }
       const dt = lastTick === null ? 0 : (now - lastTick) / 1000; lastTick = now;
-      if (!introDone) {
-        if (introAt === null) introAt = now;
-        const age = now - introAt;
-        if (age >= 600 && !introFlip) {
-          const q = splitSpring((age - 600) / 1000 - splitDone).x; splitDone = (age - 600) / 1000;
-          intro.style.setProperty('--split', clamp(q)); intro.classList.add('split');
-        }
-        if (age >= 2400 && !introFlip) introFlip = { s:spring(1.5, 120, 18) };
-        if (introFlip) {
-          const { x:q, done } = introFlip.s(dt);
-          setPose(heading, q, true); setPose(intro, q, false);
-          if (done) finishIntro();
-        }
-      } else {
+      if (introDone) { // the heading starts turning only after the intro
         if (transition) {
           const head = transition.head(dt), face = transition.face(dt);
           if (still()) { shown.style.opacity = '1'; transition.old.remove(); transition = null; }
