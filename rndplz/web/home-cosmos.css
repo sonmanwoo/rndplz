@@ -1,0 +1,89 @@
+/* Home before the first message (home-cosmos.js sets body.home-welcome): portrait spiral, turning heading,
+   composer as a soft pill. Every rule is scoped to that state; the conversation view keeps chat.css. */
+.home-whirl{display:none}
+.home-intro,.home-hint{display:none}
+body.home-welcome .home-whirl{display:block;position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:0;opacity:0;transition:opacity 1.25s ease-out;-webkit-mask-image:radial-gradient(45% 45% at 50% 50%,transparent 0 50.5%,#000 90%);mask-image:radial-gradient(45% 45% at 50% 50%,transparent 0 50.5%,#000 90%)}
+body.home-welcome .home-whirl.ready{opacity:1}
+/* Header and footer fade into the paper so their small text stays readable over passing portraits. */
+body.home-welcome .craft-header{background:linear-gradient(var(--desk) 45%,#f7f5f300) no-repeat;border-bottom-color:transparent;z-index:3}
+/* Header, home and footer fill exactly one screen; the conversation view keeps its own page height. */
+body.home-welcome{display:flex;flex-direction:column;min-height:100dvh}
+body.home-welcome .craft-header,body.home-welcome .craft-footer{flex-shrink:0}
+body.home-welcome .chat-shell{flex:1;display:flex;flex-direction:column;position:relative;z-index:1}
+body.home-welcome .chat-shell>main.welcome{flex:1;min-height:0}
+body.home-welcome .craft-footer{position:relative;z-index:1;background:linear-gradient(#f7f5f300,var(--desk) 55%) no-repeat;border-top-color:transparent}
+/* Earlier conversations: a card over the spiral when there are any and the list is open. */
+body.home-welcome:not(.home-has-history) .history-rail,body.home-welcome:not(.home-has-history) #historyButton{display:none}
+body.home-welcome.home-has-history:not(.rail-closed) .history-rail{position:fixed;left:16px;top:100px;width:272px;max-height:calc(100dvh - 200px);z-index:20;border:1px solid #0000001f;border-radius:16px;background:var(--sheet);box-shadow:0 10px 30px #00000014;overflow:auto}
+
+/* Heading: the first line stays, the second turns over like a drum. */
+body.home-welcome .welcome-heading{margin:0 0 18px}
+.welcome-heading .home-title{margin:0;text-align:center;font-size:72px;font-weight:700;line-height:1;letter-spacing:-.04em;word-break:keep-all}
+.home-line{display:block;white-space:nowrap}
+.home-flip{display:grid;perspective:800px;height:88px;width:fit-content;margin:0 auto;align-items:center}
+.home-flip-item{grid-area:1/1;display:flex;align-items:center;justify-content:center;gap:20px;white-space:nowrap;backface-visibility:hidden;transform-style:preserve-3d;will-change:transform,opacity,filter}
+.home-thumbs{display:flex;align-items:center;flex-shrink:0}
+.home-thumb{display:block;width:64px;height:64px;border-radius:16px;border:1.5px solid var(--desk);overflow:hidden;transform:rotate(-6deg);background:#e9e6e1}
+.home-thumb+.home-thumb{transform:rotate(6deg);margin-left:-24px}
+.home-thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+/* re·search: shown once per browser before the first heading (home-cosmos.js). */
+body.home-welcome .home-intro-on .home-intro{display:flex}
+.home-intro-on .home-title{opacity:0}
+.home-intro{position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;backface-visibility:hidden;--split:0}
+.home-intro-word{display:flex;align-items:center;font-size:72px;font-weight:700;line-height:1;letter-spacing:-.04em;color:var(--ink)}
+.home-intro-gap{position:relative;align-self:stretch;width:calc(var(--split) * .28em)}
+.home-intro-dot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--red);letter-spacing:0;opacity:var(--split);transform:scale(var(--split))}
+.home-intro-caption{margin:12px 0 0;font-size:20px;color:var(--muted);opacity:var(--split)}
+
+/* Composer as a soft pill; chat.js keeps every control and id. */
+body.home-welcome .composer-dock{max-width:640px;width:100%;margin:0 auto}
+body.home-welcome #homeExample{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+body.home-welcome .composer{padding:8px;border:1px solid #0000001f;border-radius:32px;background:#f2f1f0e6;box-shadow:inset 0 1px 1.5px #ffffffb3,inset 0 -1px 1.5px #00000008;translate:none}
+body.home-welcome .composer:after{display:none}
+body.home-welcome .composer:focus-within{border-color:#0000003d;box-shadow:inset 0 1px 1.5px #ffffffb3,inset 0 -1px 1.5px #00000008;translate:none}
+body.home-welcome .attachment-actions .subtle{display:none}
+body.home-welcome .attachment-actions:not(:has(button:not([hidden]))){display:none}
+body.home-welcome .attachment-list{margin:4px 8px 8px}
+body.home-welcome .input-row{min-height:64px;padding:0 8px;gap:4px;flex-wrap:nowrap;background:var(--sheet);border:1px solid #0000001f;border-radius:999px}
+body.home-welcome .attach-button{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;font-size:24px;color:var(--muted);rotate:none}
+body.home-welcome .attach-button:hover{background:#f2f1f0;color:var(--ink);rotate:none}
+.home-input{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+/* min-height covers a height chat.js measured in the conversation view (smaller text) before returning home. */
+body.home-welcome .composer textarea{font-size:18px;line-height:26px;padding:10px 4px;min-height:46px;min-width:0}
+body.home-welcome .composer textarea::placeholder{color:transparent}
+/* While empty the field is one line tall: chat.js sizes it from scrollHeight, which counts the hidden placeholder
+   (it wraps on a phone). Typing hides the placeholder and chat.js's height applies again. */
+body.home-welcome .composer textarea:placeholder-shown{height:46px!important;overflow:hidden}
+body.home-welcome .home-hint{display:flex;position:absolute;inset:0 4px;align-items:center;pointer-events:none;font-size:18px;color:#9a9796;white-space:nowrap;overflow:hidden}
+body.home-welcome .home-input.has-value .home-hint{display:none}
+.home-hint-text{position:absolute;left:0;display:flex;align-items:center}
+.home-hint-words{display:grid}
+.home-hint-words>span{grid-area:1/1;transition:opacity .2s ease-out}
+.home-hint-shine{color:var(--ink);-webkit-mask-image:linear-gradient(90deg,transparent calc(50% - 32px),#000,transparent calc(50% + 32px));mask-image:linear-gradient(90deg,transparent calc(50% - 32px),#000,transparent calc(50% + 32px));-webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;animation:home-shine 1.6s linear infinite}
+@keyframes home-shine{from{-webkit-mask-position:100% 0;mask-position:100% 0}to{-webkit-mask-position:0 0;mask-position:0 0}}
+body.home-welcome .composer-controls{gap:6px;flex-shrink:0;width:auto;margin:0}
+body.home-welcome .composer select{max-width:190px;padding:8px 26px 8px 12px;border:0;border-radius:999px;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%236f6c6a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;-webkit-appearance:none;appearance:none;font:500 13px var(--font-sans);color:var(--muted);text-overflow:ellipsis;cursor:pointer}
+body.home-welcome .composer select:hover{background-color:#f2f1f0;color:var(--ink)}
+body.home-welcome .send-button,body.home-welcome .stop-button{width:48px;height:48px;border-radius:50%;flex-shrink:0;box-shadow:none;transform:none}
+body.home-welcome .send-button{background:var(--ink);color:#fff;font-size:20px}
+body.home-welcome .send-button:hover:not(:disabled){transform:none;box-shadow:none;background:#000}
+body.home-welcome .send-button:disabled{background:#e9e6e1;color:#9a9796}
+body.home-welcome .composer-caption{padding:12px 16px 0;font-size:12px;color:var(--muted)}
+body.no-motion .home-hint-shine{animation:none;display:none}
+@media (prefers-reduced-motion:reduce){.home-hint-shine{animation:none;display:none}body.home-welcome .home-whirl{transition:none}}
+@media (max-width:640px){
+  .welcome-heading .home-title,.home-intro-word{font-size:32px}
+  .home-flip{height:44px}
+  .home-flip-item{gap:8px}
+  .home-thumb{width:36px;height:36px;border-radius:12px}
+  .home-thumb+.home-thumb{margin-left:-18px}
+  .home-intro-caption{font-size:16px}
+  body.home-welcome .composer{padding:6px;border-radius:28px}
+  body.home-welcome .input-row{min-height:52px;padding:0 6px}
+  body.home-welcome .attach-button{width:36px;height:36px}
+  body.home-welcome .composer textarea{line-height:24px;min-height:44px}
+  body.home-welcome .composer textarea:placeholder-shown{height:44px!important}
+  body.home-welcome .composer textarea,body.home-welcome .home-hint{font-size:16px}
+  body.home-welcome .composer select{max-width:112px;padding-right:22px;font-size:12px}
+  body.home-welcome .send-button,body.home-welcome .stop-button{width:40px;height:40px;font-size:18px}
+}

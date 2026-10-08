@@ -125,6 +125,7 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 static.update({"/profile":("profile.html","text/html; charset=utf-8"),"/profile.js":("profile.js","text/javascript; charset=utf-8"),"/profile.css":("profile.css","text/css; charset=utf-8")})
                 static.update({"/"+name:(name,"text/css; charset=utf-8" if name.endswith(".css") else "text/javascript; charset=utf-8") for name in ("people-map.css","people-map-model.js","people-map-layout.js","people-map-graph.js","people-map-live.js","people-map.js","people-map-focus.js","recommendation-map.js","recommendation-map.css")})
                 static.update({"/theme.js":("theme.js","text/javascript; charset=utf-8"),"/theme.css":("theme.css","text/css; charset=utf-8")})
+                static.update({"/home-cosmos.js":("home-cosmos.js","text/javascript; charset=utf-8"),"/home-cosmos.css":("home-cosmos.css","text/css; charset=utf-8")})
                 static.update({"/ui-previews/CI-FONTS/r4/"+suffix:("ui-previews/CI-FONTS/r4/"+name,mime) for suffix,(name,mime) in CI_THEME_PREVIEW_FILES.items()})
                 static.update(portraits)
                 static["/fonts/pretendard/pretendardvariable-dynamic-subset.css"]=("fonts/pretendard/pretendardvariable-dynamic-subset.css","text/css; charset=utf-8")
