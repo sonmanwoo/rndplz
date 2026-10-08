@@ -769,6 +769,11 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 body:has(#detailDialog.docked[open]) #peopleMapHost .mp-focus-card{display:none}
 /* The card beside the map (wide screens) takes the map's right edge, so the step wheel moves to its left. */
 body:has(#detailDialog.docked[open]:not(.sheet)) #peopleMapHost .mp-focus-wheel{right:calc(1.2vw + min(500px,36vw) + 12px)}
+/* Up to 900px the card is a bottom sheet: the step wheel goes to the map's top left, as on phones, where the sheet never reaches. */
+body:has(#detailDialog.docked.sheet[open]) #peopleMapHost .mp-focus-wheel{flex-direction:row;top:12px;bottom:auto;left:12px;right:auto;transform:none;width:auto;height:44px}
+body:has(#detailDialog.docked.sheet[open]) #peopleMapHost .mp-focus-wheel::before{left:22px;right:22px;top:50%;bottom:auto;width:auto;height:1px;transform:translateY(-50%)}
+body:has(#detailDialog.docked.sheet[open]) #peopleMapHost .mp-focus-hint{right:auto;left:var(--hint-x,50%);top:calc(100% + 10px);bottom:auto;transform:translateX(-50%)}
+body:has(#detailDialog.docked.sheet[open]) #peopleMapHost .mp-focus-hint::after{right:auto;left:50%;top:-5px;bottom:auto;transform:translateX(-50%) rotate(135deg)}
 /* Step wheel: one track, four stops; the bubble points at the step it describes. */
 #peopleMapHost .mp-focus-wheel{position:absolute;z-index:5;right:12px;bottom:16px;width:44px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;border:1px solid #0000001f;border-radius:999px;background:#fff;box-shadow:0 4px 14px #00000012;touch-action:none}
 #peopleMapHost .mp-focus-wheel::before{content:"";position:absolute;left:50%;top:22px;bottom:22px;width:1px;background:#0000001f;transform:translateX(-50%)}
@@ -843,4 +848,6 @@ html.mp-sheet-open{overflow:hidden}
  .sheet-nav button::after{content:"";position:absolute;inset:-7px;border-radius:50%}
  .sheet-chips .sheet-chip-more{position:relative}
  .sheet-chips .sheet-chip-more::after{content:"";position:absolute;inset:-8px -4px}
+ /* A ringed button does not nudge down when pressed, so a press near the ring's edge still lands on release. */
+ #peopleMapHost .mp-focus-wheel button:active,body.crafted :is(.sheet-nav button,.sheet-chips .sheet-chip-more):active:not(:disabled){transform:none}
 }
