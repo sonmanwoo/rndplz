@@ -328,6 +328,9 @@ PREVIEW_ROUTES = {
     for suffix, (name, mime) in files.items()
 }
 PROMO_VIDEO_FILES = {'/video/susomun-reel-15s.mp4': 'video/mp4', '/video/susomun-reel-poster.webp': 'image/webp'}
+# Self-hosted Pretendard (OFL, fonts/pretendard/LICENSE.txt): its subset stylesheet and the 92 woff2 slices it names.
+FONT_FILES = {'/fonts/pretendard/pretendardvariable-dynamic-subset.css': 'text/css; charset=utf-8',
+              **{f'/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.{i}.woff2': 'font/woff2' for i in range(92)}}
 
 
 INTENT_SECONDS = 12
@@ -991,6 +994,14 @@ class PublicApp:
             # Portraits are static; caching spares phones re-downloading them on every view.
             headers[0] = ('Cache-Control', 'public, max-age=86400')
             return send(200, raw, 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg')
+        if path.startswith('/fonts/'):
+            if method != 'GET': return send(405, {'error': '읽기 전용 글꼴입니다.'})
+            mime = FONT_FILES.get(path)
+            if mime is None: return send(404, {'error': '글꼴을 찾을 수 없습니다.'})
+            try: raw = (WEB / path.lstrip('/')).read_bytes()
+            except FileNotFoundError: return send(404, {'error': '글꼴을 찾을 수 없습니다.'})
+            headers[0] = ('Cache-Control', 'public, max-age=86400')
+            return send(200, raw, mime)
         if path.startswith('/video/'):
             if method != 'GET': return send(405, {'error': '읽기 전용 영상입니다.'})
             mime = PROMO_VIDEO_FILES.get(path)
@@ -1141,7 +1152,7 @@ class PublicApp:
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
                          '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]

@@ -1,6 +1,6 @@
 /* Feedback styles are scoped; the existing service palette remains authoritative. */
 .craft-footer .feedback-entry {
-  min-height:44px;padding:8px 12px;font:13px/1.4 "Malgun Gothic",system-ui,sans-serif;
+  min-height:44px;padding:8px 12px;font:13px/1.4 var(--font-sans);
   letter-spacing:0;color:var(--ink);white-space:nowrap;border:1px solid var(--line);border-radius:6px;
   background:var(--sheet);cursor:pointer;
 }
