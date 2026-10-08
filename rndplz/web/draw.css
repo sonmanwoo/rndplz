@@ -188,7 +188,8 @@
 /* Candidate inspect view: card, reasons and actions on one sheet (bottom sheet on phones,
    two columns on wider screens). Own implementation; no third-party card CSS or artwork. */
 #personCardDialog {
-  --pc-paper: #fffdf5; --pc-ink: #233e32; --pc-muted: #526655; --pc-line: #dde2d3; --pc-edge: #cbd4c3; --pc-green: #315846;
+  /* Palette B (paper and ink; teal for headings and links), as on the rest of the service. */
+  --pc-paper: #fbfaf8; --pc-ink: #141414; --pc-muted: #6f6c6a; --pc-line: #e3e0dc; --pc-edge: #0000001f; --pc-green: #2f7f86;
   position: fixed; inset: auto 0 0 0; width: 100%; max-width: none; height: auto; max-height: 82dvh; margin: 0; padding: 0;
   overflow: hidden; border: 0; border-radius: 18px 18px 0 0; background: var(--pc-paper); color: var(--pc-ink);
   box-shadow: 0 -14px 40px #0a120d40; animation: pi-sheet-in .32s cubic-bezier(.2, .8, .2, 1);
@@ -271,8 +272,10 @@
   .pi-sheet { max-height: 86dvh; padding: 14px 26px 20px; }
   .pi-top::before { display: none; }
   .pi-main { flex-direction: row; gap: 26px; }
-  .pi-hero { flex: 0 0 260px; flex-direction: column; align-items: stretch; gap: 14px; }
-  .pi-card { width: 260px; }
+  /* The card shrinks with a short screen so its name and organisation below stay in view; the column can
+     still scroll on a very short one. */
+  .pi-hero { flex: 0 0 auto; width: min(260px, calc((86dvh - 250px) * 5 / 7)); min-height: 0; overflow-y: auto; flex-direction: column; align-items: stretch; gap: 14px; }
+  .pi-card { width: 100%; }
   .pi-face { border-radius: 16px; box-shadow: 0 16px 36px #0a120d40; }
   .pi-front { padding: 10px 10px 8px; gap: 8px; }
   .pi-card-name { font-size: 20px; }
@@ -288,3 +291,11 @@ html[data-theme="dark"] .pi-back { border-color: #20283d; background-color: #1e6
 html[data-theme="dark"] .pi-badge { background: #1e6975; color: #e8f6f3; }
 html[data-theme="dark"] .pi-sheet[data-relation="adjacent"] .pi-badge { background: #5a4630; color: #f6ecdc; }
 html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
+/* 전체 약력 inside the card (chat.js inspectFullHtml). */
+.pi-row { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--pc-line); }
+.pi-row:first-of-type { border-top: 0; }
+.pi-row span { color: var(--pc-muted); font-size: 12px; }
+.pi-row p { margin: 0; }
+.pi-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pi-skills span { padding: 3px 10px; border: 1px solid var(--pc-line); border-radius: 999px; font-size: 12.5px; }
+.pi-links a { color: var(--pc-green); }
