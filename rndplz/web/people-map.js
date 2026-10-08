@@ -612,7 +612,9 @@
   function focus(id,bottom){
    const stage=$('mp-graph-stage'),n=shown?.keys.has('person:'+id)?live.get('person:'+id):null;if(!stage||!n)return;
    autoFit=false;
-   const top=stage.getBoundingClientRect().top;if(Math.abs(top-8)>4)win.scrollBy(0,top-8);
+   // On a phone the map sits under a sticky bar (people-map-mobile.js); stop the scroll just below it.
+   const bar=host.querySelector('.mp-mobile-bar'),pad=(bar&&bar.getClientRects().length?bar.offsetHeight:0)+8;
+   const top=stage.getBoundingClientRect().top;if(Math.abs(top-pad)>4)win.scrollBy(0,top-pad);
    const area=stage.getBoundingClientRect(),visible=Math.max(area.top+80,Math.min(area.bottom,win.innerHeight-bottom-8));
    const scale=clamp(Math.max(camera.scale,.7),.15,1),to={x:area.width/2-n.x*scale,y:(Math.max(area.top,0)+visible)/2-area.top-n.y*scale,scale};
    const from={...camera},start=win.performance.now(),still=win.matchMedia('(prefers-reduced-motion: reduce)').matches;
