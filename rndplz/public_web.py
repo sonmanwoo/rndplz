@@ -1141,7 +1141,7 @@ class PublicApp:
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
                 files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
                          '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js'):
+                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js'):
                     files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
                 if path in files:
                     name, mime = files[path]

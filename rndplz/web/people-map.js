@@ -145,9 +145,10 @@
   html+='<div class="mp-evidence-list">'+records.map((r,i)=>'<details class="mp-record"'+(!i?' open':'')+'><summary class="mp-record-summary"><span class="mp-record-meta">'+esc(recordType(r))+' · '+esc(recordDate(r))+'</span><strong class="mp-record-title">'+esc(r.title||"제목 미기재")+'</strong><span class="mp-record-toggle">근거 읽기</span></summary><div class="mp-record-body">'+recordCard(r,s,i)+'</div></details>').join("")+'</div>';
   return html+renderQuestion(s,p)+renderAssetSources(p)+renderProfile(p);
  }
+ // Colour says what kind of hub it is (palette B, hydrogen Balmer lines): capability Hβ, topic Hγ, project Hδ.
  function fieldColor(key){
-  const colors=['#56783c','#84743b','#396f69','#55749a','#48808a','#9a6741','#87634b','#866688','#687942'];
-  let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;const index=hash%colors.length;return 'var(--map-color-'+index+','+colors[index]+')';
+  const kind=key.startsWith('topic:')?'topic':key.startsWith('capability:project:')?'project':'capability';
+  return 'var(--mp-kind-'+kind+','+({capability:'#2f7f86',topic:'#4a5ba8',project:'#7a5aa6'})[kind]+')';
  }
  function renderMap(s){
   if(s.view==='organization')return renderLegacyMap(s);
@@ -192,7 +193,7 @@
   // Cards keep their positions across filters, settle by force and can be dragged; the fixed layout only seeds them.
   const live=new Map(),statics=new Map(),infos=new Map(),peopleById=new Map(C.people.map(p=>[p.id,p]));
   let prefs=loadPrefs(),shown=null,lastTest=()=>true,mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[],rings=new Map();
-  let autoFit=true,fitted=false,lastSize='',loop=0,lastFrame=0,counts='',phase='',flash='',flashTimer=0,selectedBefore=null,lastTap=null;
+  let autoFit=true,fitted=false,lastSize='',loop=0,lastFrame=0,counts='',phase='',flash='',flashTimer=0,selectedBefore=null;
   const sim=new Live.Simulation(prefs),ui=liveControls();
   const quiet=()=>doc.body.classList.contains('no-motion')||win.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function loadPrefs(){
@@ -380,7 +381,7 @@
    const stage=$('mp-graph-stage');
    nodeEls=stage?[...stage.querySelectorAll('[data-map-node]')].map(el=>[el,el.dataset.mapNode]):[];
    edgeEls=stage?[...stage.querySelectorAll('.mp-spatial-edge')].map(el=>[el,el.dataset.from,el.dataset.to]):[];
-   if(stage){stage.append(ui.bar,ui.gear);host.querySelector('.mp-graph-controls')?.append(ui.status);rings=new Map(nodeEls.filter(([el])=>el.classList.contains('mp-spatial-person')).map(([el,key])=>[key,ringRadius(el)]));look();colorize();relayout(false);}
+   if(stage){stage.append(ui.gear);host.querySelector('.mp-graph-controls')?.append(ui.status);rings=new Map(nodeEls.filter(([el])=>el.classList.contains('mp-spatial-person')).map(([el,key])=>[key,ringRadius(el)]));look();colorize();relayout(false);}
    else ui.open(false);
    $('people-map-content').dataset.mpCount=String(people.length);
    $('map-title').textContent=capability?.label||'연구 경험의 연결';
@@ -566,9 +567,6 @@
    if(drag?.id===e.pointerId){
     const {pinned,card}=drag;letGo();
     if(pinned){if(quiet())settle();start();}
-    // Two quick presses on a person show only the cards around them (Obsidian's local graph). The
-    // person button is disabled while its card loads, so the browser's dblclick cannot be relied on.
-    else if(!dragged&&card&&card.startsWith('person:')){const now=win.performance.now();if(lastTap&&lastTap.node===card&&now-lastTap.at<450){lastTap=null;setMode('local',card);}else lastTap={node:card,at:now};}
    }
    pinch=null;$('mp-graph-stage')?.classList.remove('dragging','moving-card');win.setTimeout(()=>{dragged=false;},0);
   }
@@ -617,7 +615,35 @@
    return people.length&&index>=0?people[(index+step+people.length)%people.length].id:null;
   }
   function select(id){lastPerson=id;dispatch({type:'SELECT',id});}
-  return {getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal,focus,neighbor,select};
+  // Ease the camera onto the given cards (null: every shown card; []: cancel a pending move). With
+  // insets.minScale the camera never goes below it and centres insets.anchor instead of the whole set.
+  function fitNodes(keys,insets={}){
+   win.cancelAnimationFrame(fitNodes.frame);fitNodes.frame=0;
+   if(keys&&keys.length===0)return;
+   const stage=$('mp-graph-stage');if(!stage||!shown)return;
+   const nodes=[...(keys||shown.keys)].filter(key=>shown.keys.has(key)).map(key=>live.get(key)).filter(Boolean);
+   if(!nodes.length)return;
+   const left=insets.left||22,top=insets.top||56;
+   const width=Math.max(1,stage.clientWidth-left-(insets.right||22)),height=Math.max(1,stage.clientHeight-top-(insets.bottom||22));
+   const x0=Math.min(...nodes.map(n=>n.x-n.w/2)),x1=Math.max(...nodes.map(n=>n.x+n.w/2));
+   const y0=Math.min(...nodes.map(n=>n.y-n.h/2)),y1=Math.max(...nodes.map(n=>n.y+n.h/2));
+   let scale=Math.min(width/Math.max(x1-x0,180),height/Math.max(y1-y0,140),1.1),cx=(x0+x1)/2,cy=(y0+y1)/2;
+   if(insets.minScale&&scale<insets.minScale){const anchor=live.get(insets.anchor);scale=insets.minScale;if(anchor){cx=anchor.x;cy=anchor.y;}}
+   const to={scale,x:left+width/2-cx*scale,y:top+height/2-cy*scale};
+   const from={...camera},started=win.performance.now();autoFit=false;
+   const move=now=>{
+    if(stage!==$('mp-graph-stage'))return;
+    const t=quiet()?1:Math.min(1,(now-started)/240),e=1-(1-t)**3;
+    for(const key of ['x','y','scale'])camera[key]=from[key]+(to[key]-from[key])*e;
+    cameraApply();fitNodes.frame=t<1?win.requestAnimationFrame(move):0;
+   };
+   move(started);
+  }
+  const controller={getState:()=>({...state,evidenceIds:[...state.evidenceIds]}),found,reveal,focus,neighbor,select,fitNodes,
+   clearSelection:()=>{if(state.selectedId)dispatch({type:'CLOSE_DETAIL'});},isSettled:()=>!sim.active&&!fitNodes.frame};
+  // Focus (one press), step wheel and 3D view live in people-map-focus.js when the page loads it.
+  if(win.RndPeopleMapFocus)win.RndPeopleMapFocus.attach(host,controller,C);
+  return controller;
  }
 
  return {esc,renderMap,renderDetail,renderQuestion,renderCapabilities,selectedPerson,mount,ringRadius};
