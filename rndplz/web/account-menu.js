@@ -241,11 +241,12 @@
     if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
     if(value.authenticated)show(pendingNote,false);
     accountIcon(value.authenticated?account:null);
+    logout.textContent=value.authenticated?'로그아웃':'방문자 세션 끝내기';
     if(value.authenticated){
       identity.textContent=(typeof account.display_name==='string'&&account.display_name.trim())||'Google 계정';
       note.textContent=account.person_id?'연구맵 공개 카드와 연결된 계정이에요. 내 프로필에서 저장한 내용이 카드에 바로 반영돼요.':'본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
     }else{
-      note.textContent='임시 방문자 세션입니다. 로그인해도 기존 방문자 기록이 계정으로 자동 이동하지 않습니다.';
+      note.textContent='임시 방문자 세션입니다. 세션을 끝내면 지금까지의 방문자 기록에 다시 접근할 수 없고, 로그인해도 계정으로 자동 이동하지 않습니다.';
       if(value.enabled&&value.login_url==='/auth/google/start'){show(login,true);show(signupNote,value.signup_requests===true);}
       else{show(unavailable,true);unavailable.textContent='팀원 로그인 준비 중';if(typeof value.disabled_reason==='string'&&value.disabled_reason.trim())unavailable.textContent+=' · '+value.disabled_reason;}
       // After a sign-up request, open the menu once so the visitor sees what happens next.
@@ -260,8 +261,8 @@
     if(principal!==null&&principal!=='visitor:'+nextToken){replaceAccountContext();return;}
     setMoleAccount(null,'로그인 연결을 확인한 뒤 이용할 수 있어요.');
     token=nextToken;principal='visitor:'+token;supported=value.logout_supported===true&&!!token;logout.disabled=ending||!supported;
-    show(identity,false);show(login,false);show(unavailable,false);
-    note.textContent=supported?'임시 방문자 세션입니다. 로그아웃하면 이 화면에서 저장 기록에 다시 접근할 수 없어요.':'로컬 단일 사용자 모드 · 별도 로그인 세션이 없습니다.';
+    show(identity,false);show(login,false);show(unavailable,false);logout.textContent='방문자 세션 끝내기';
+    note.textContent=supported?'임시 방문자 세션입니다. 세션을 끝내면 이 화면에서 저장 기록에 다시 접근할 수 없어요.':'로컬 단일 사용자 모드 · 별도 로그인 세션이 없습니다.';
   }
   async function refreshSession(verifyLogout=false){
     if((checking&&!verifyLogout)||(ending&&!verifyLogout)||invalidated)return;
@@ -285,7 +286,15 @@
   }
   toggle.addEventListener('click',()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){if(moleAccount)loadMole();else{moleLoadAfterSession=true;refreshSession();}Array.from(menu.querySelectorAll('button:not(:disabled),a')).find(node=>!node.hidden&&node.style.display!=='none')?.focus();}});
   document.addEventListener('click',event=>{if(!event.target.closest('.account-control'))close();else if(event.target.closest('#accountMenu a,#accountMenu button:not(#logoutButton)')&&!event.defaultPrevented)close();});
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden){event.preventDefault();close(true);}});
+  // Escape closes; up and down move through the items, as in the ⋯ menu.
+  document.addEventListener('keydown',event=>{
+    if(menu.hidden)return;
+    if(event.key==='Escape'){event.preventDefault();close(true);return;}
+    if((event.key!=='ArrowDown'&&event.key!=='ArrowUp')||(!menu.contains(document.activeElement)&&document.activeElement!==toggle))return;
+    const items=Array.from(menu.querySelectorAll('a,button')).filter(node=>!node.disabled&&node.getClientRects().length),at=items.indexOf(document.activeElement);
+    if(!items.length)return;
+    event.preventDefault();items[(at+(event.key==='ArrowDown'?1:-1)+items.length)%items.length].focus();
+  });
   login?.addEventListener('click',event=>{event.preventDefault();if(login.hidden||ending||invalidated||!permitNavigation('login'))return;beginNavigation('login');location.assign('/auth/google/start');});
   logout.addEventListener('click',async()=>{
     if(!supported||ending||invalidated||!permitNavigation('logout'))return;
@@ -294,7 +303,7 @@
       const response=await fetch('/api/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-RnDplz-Token':token},body:'{}'});
       const value=await response.json();if(!response.ok)throw new Error(typeof value.error==='string'?value.error:'세션을 끝내지 못했어요.');
       broadcast();replaceAccountContext();
-    }catch(exc){if(invalidated)return;logoutUncertain=true;show(verifySession,true);error.textContent='로그아웃 결과를 확인하지 못했어요. 입력을 보존하고 계정 상태를 확인할 때까지 편집을 잠급니다.';await refreshSession(true);}
+    }catch(exc){if(invalidated)return;logoutUncertain=true;show(verifySession,true);error.textContent='세션 종료 결과를 확인하지 못했어요. 입력을 보존하고 계정 상태를 확인할 때까지 편집을 잠급니다.';await refreshSession(true);}
   });
   verifySession?.addEventListener('click',()=>{if(logoutUncertain&&!checking)refreshSession(true);});
   window.addEventListener('storage',event=>{if(event.key==='rndplz:account-changed'||event.key==='rndplz:visitor-ended')replaceAccountContext();});

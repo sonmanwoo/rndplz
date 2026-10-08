@@ -154,7 +154,7 @@ function detailRequestAction(candidate){
  const allowed=canPropose(candidate),reason=typeof candidate.proposal_unavailable_reason==='string'&&candidate.proposal_unavailable_reason.trim()?candidate.proposal_unavailable_reason:'현재 요청의 근거와 제안 가능 여부를 먼저 확인해 주세요.';
  const name=candidate.profile?.display_name||candidate.name||'선택한 인물';
  return '<section class="detail-block" aria-label="나의 의뢰"><p><strong>'+esc(name)+'</strong>님에게</p>'+
-  (allowed?'<button type="button" class="primary full" data-action="letter" data-id="'+esc(candidate.id)+'">나의 의뢰 보내기 ↗</button><p class="muted">먼저 의뢰 초안을 확인해요. 실제 발송 없이 시연 제안함에만 기록합니다.</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="muted">'+esc(reason)+'</p>')+'</section>';
+  (allowed?'<button type="button" class="primary full" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 초안 보기</button><p class="muted">초안을 확인한 뒤 보내도 실제 발송 없이 시연 제안함에만 기록합니다.</p>':'<p><strong>지금은 의뢰를 보낼 수 없어요.</strong></p><p class="muted">'+esc(reason)+'</p>')+'</section>';
 }
 // How the person was found on the map (RndPeopleMap found()): the records behind the chosen capability or
 // topic come first with a label, and the searched words are marked where the card shows them.
@@ -226,7 +226,7 @@ function sheetHtml(p,found,labels,evidence,card,candidate){
  const topics=skills.length?skills:(p.profile_topics||[]),chips=list=>list.map(s=>'<span>'+esc(s)+'</span>').join("");
  const historical=pr.display_type==="historical_researcher"||pr.current_status?.category==="deceased"||pr.affiliation_status==="deceased";
  const tags=[found?.team?"우리 팀":"",RndCraft.isLaureate(pr)?[pr.award.year,pr.award.label_ko||"노벨상"].filter(Boolean).join(" "):"",historical?"역사적 연구 자료":""].filter(Boolean);
- const letter=candidate&&canPropose(candidate)?'<button type="button" class="sheet-primary" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 보내기 ↗</button>':"";
+ const letter=candidate&&canPropose(candidate)?'<button type="button" class="sheet-primary" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 초안 보기</button>':"";
  const linked=found?.capability?" · 「"+found.capability.label+"」 연결 "+found.capability.recordIds.length+"건":found?.topic?" · 「"+found.topic.label+"」 기록 "+found.topic.recordIds.length+"건":"";
  const rows=evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+esc(labels.get(e.id))+'</span>':'')+'<strong>'+esc(e.title)+'</strong><small>'+esc([e.date,e.evidence_label].filter(Boolean).join(" · "))+' ›</small></button>').join("");
  const timeline=(Array.isArray(pr.timeline)?pr.timeline:[]).filter(t=>t&&typeof t.text==="string").map(t=>'<div class="sheet-row"><span class="sheet-clamp">'+esc(t.text)+'</span><small>'+esc(t.date||"")+'</small></div>').join("");
@@ -350,7 +350,7 @@ document.addEventListener("click",event=>{
   else if(action==="candidate")showPerson(displayResult(session)?.candidates.find(c=>c.id===id),true);
   else if(action==="person"){
    const map=mapButton?await RndPeopleMap.ensure($("peopleMapHost"),api):null;
-   if(map)await openMapPerson(id,map);
+   if(map)await openMapPerson(id,map,mapButton.dataset.sheet||null);
    else showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,null,detailDocked());
   }
   else if(action==="record"){const r=await api("/api/record?id="+encodeURIComponent(id)),inSheet=Boolean(sheetMode());if(inSheet)setSheetMode("full");$("detailContent").innerHTML=(inSheet?'<button type="button" class="sheet-back" data-sheet-back>‹ 인물로 돌아가기</button>':'')+'<h2>'+esc(r.title)+'</h2>'+evidenceHtml(r)+'<h3>기록에 담긴 내용</h3><div class="record-text">'+esc(r.text||"초록이 없습니다. 제목과 메타데이터를 근거로 연결했습니다.")+'</div>';showDialog("detailDialog");}
@@ -443,7 +443,11 @@ $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail()
   },step);
  });}
 // The docked card has no dimmed area: Escape, or a plain click on an empty place outside it, closes it.
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&detailDocked()){e.preventDefault();closeDetail();}});
+// Escape goes to the topmost thing only: an open menu or map sheet first, then this card, then the map's focus.
+document.addEventListener("keydown",e=>{
+ if(e.key!=="Escape"||!detailDocked()||document.documentElement.classList.contains("mp-sheet-open")||document.querySelector(".site-menu:not([hidden]),.account-menu:not([hidden])"))return;
+ e.preventDefault();e.stopImmediatePropagation();closeDetail();
+},true);
 {let down=null;
  document.addEventListener("pointerdown",e=>{down={x:e.clientX,y:e.clientY};},true);
  document.addEventListener("click",e=>{

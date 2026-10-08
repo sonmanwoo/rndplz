@@ -16,12 +16,16 @@
         ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null];
     }));
     // The page's own handler (app.js) opens the person card for a [data-map-open="person"] button in the host.
+    // Asked for (double click, 전체 카드 보기) it opens whole; following a new focus keeps the card's current step.
     let cardShown = null;
     document.getElementById('detailDialog')?.addEventListener('close', () => { cardShown = null; });
-    function openCard(id) {
+    const layerAbove = () => document.documentElement.classList.contains('mp-sheet-open')
+      || !!document.querySelector('dialog[open],.site-menu:not([hidden]),.account-menu:not([hidden])');
+    function openCard(id, whole = true) {
       cardShown = id;
       const button = document.createElement('button');
       button.type = 'button'; button.hidden = true; button.dataset.mapOpen = 'person'; button.dataset.id = id;
+      if (whole) button.dataset.sheet = 'full';
       host.append(button); button.click(); button.remove();
     }
     const focusMap = createFocusMap();
@@ -161,7 +165,7 @@
       debug.center = id;
       controller.select(id); calculate(); renderCard(); paint();
       // A person card already open beside or under the map follows the newly focused person.
-      if (cardShown && cardShown !== id && document.getElementById('detailDialog')?.open) openCard(id);
+      if (cardShown && cardShown !== id && document.getElementById('detailDialog')?.open) openCard(id, false);
       // Only camera motion waits for the double-click window; preview/selection
       // is immediate and no delayed navigation is scheduled.
       clearTimeout(fitTimer); fitTimer = setTimeout(fit, 350);
@@ -253,7 +257,8 @@
       else if (e.target === stage) controller?.fitNodes([]);
     }, true);
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !!host.isConnected && (debug.center || live3d.isActive())) { block(e); revision++; live3d.leave(() => clear()); }
+      // Escape closes the topmost thing first: an open card, menu or sheet handles it before the focus clears.
+      if (e.key === 'Escape' && !!host.isConnected && (debug.center || live3d.isActive()) && !layerAbove()) { block(e); revision++; live3d.leave(() => clear()); }
     }, true);
     host.addEventListener('pointerover', e => {
       const b = e.target.closest('[data-focus-step]');

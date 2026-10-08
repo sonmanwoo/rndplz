@@ -58,9 +58,10 @@ body.no-motion .home-hint-shine{animation:none;display:none}
 @media (max-width:640px){
   .welcome-heading .home-title,.home-intro-word{font-size:32px}
   .home-flip{height:44px}
-  .home-flip-item{gap:8px}
-  .home-thumb{width:36px;height:36px;border-radius:12px}
-  .home-thumb+.home-thumb{margin-left:-18px}
+  .home-flip-item{gap:6px}
+  /* 44px to press, and the second face covers less than half of the first, so each face's middle is its own. */
+  .home-thumb{width:44px;height:44px;border-radius:13px}
+  .home-thumb+.home-thumb{margin-left:-16px}
   .home-intro-caption{font-size:16px}
   body.home-welcome .composer textarea{line-height:24px;min-height:44px}
   body.home-welcome .composer textarea:placeholder-shown{height:44px!important}

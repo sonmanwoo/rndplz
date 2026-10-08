@@ -336,7 +336,9 @@
   function laureateAttributes(profile){return isLaureate(profile)?' data-laureate-card data-laureate-effect="'+effectiveLaureateEffect()+'"':'';}
   function nameBlock(person,heading='h3',className='laureate-name'){
     const p=person.profile||{};
-    return '<div class="'+html(className)+'"><'+heading+'>'+html(person.name)+'</'+heading+'>'+(p.display_name&&p.display_name!==person.name?'<span class="researcher-korean">'+html(p.display_name)+'</span>':'')+'<p class="candidate-org">'+html(person.org)+'</p>'+(p.current_role?'<p class="laureate-role">'+html(p.current_role)+(p.affiliation_as_of?' · 공개 프로필 확인 '+html(p.affiliation_as_of):'')+'</p>':'')+'</div>';
+    // The Korean display name leads everywhere a person appears; the record's own spelling follows when it differs.
+    const name=p.display_name||person.name;
+    return '<div class="'+html(className)+'"><'+heading+'>'+html(name)+'</'+heading+'>'+(person.name&&person.name!==name?'<span class="researcher-korean">'+html(person.name)+'</span>':'')+'<p class="candidate-org">'+html(person.org)+'</p>'+(p.current_role?'<p class="laureate-role">'+html(p.current_role)+(p.affiliation_as_of?' · 공개 프로필 확인 '+html(p.affiliation_as_of):'')+'</p>':'')+'</div>';
   }
   function personalPortraitNote(profile,detailed=false){
     if(!isPersonalIllustration(profile))return '';

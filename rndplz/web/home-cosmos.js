@@ -71,6 +71,11 @@
     };
   }
   const clamp = q => Math.max(0, Math.min(1, q));
+  // While a pointer rests on (or presses) the faces, or the keyboard is on one, the heading holds that scene,
+  // so the face being aimed at is still the one clicked.
+  let aiming = false;
+  flipBox?.addEventListener('pointerenter', () => { aiming = true; });
+  flipBox?.addEventListener('pointerleave', () => { aiming = false; });
   flipBox?.addEventListener('click', event => {
     const face = event.target.closest('.home-thumb[data-person-id]');
     if (face && typeof window.openPersonCard === 'function') window.openPersonCard(face.dataset.personId, face).catch?.(() => {});
@@ -290,7 +295,7 @@
             if (head.done && face.done) { transition.old.remove(); shown.removeAttribute('style'); shown.querySelectorAll('img').forEach(i => i.removeAttribute('style')); transition = null; }
           }
         }
-        if (!document.querySelector('dialog[open]')) elapsed += dt * 1000; // the heading waits while a card is open
+        if (!document.querySelector('dialog[open]') && !aiming && !flipBox.querySelector(':focus-visible')) elapsed += dt * 1000; // the heading waits while a card is open or a face is aimed at
         if (elapsed >= 4000 && !transition) {
           const next = (index + 1) % scenes.length;
           if (scenes[next].ready || elapsed >= 10000) {

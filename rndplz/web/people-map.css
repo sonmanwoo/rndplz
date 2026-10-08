@@ -767,6 +767,8 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 #peopleMapHost .mp-focus-ui .mp-focus-open{display:block;width:100%;margin-top:12px;padding:9px 12px;border:0;border-radius:999px;background:#141414;color:#fff;font-size:13px;font-weight:600}
 #peopleMapHost .mp-focus-ui .mp-focus-open:hover{background:#000}
 body:has(#detailDialog.docked[open]) #peopleMapHost .mp-focus-card{display:none}
+/* The card beside the map (wide screens) takes the map's right edge, so the step wheel moves to its left. */
+body:has(#detailDialog.docked[open]:not(.sheet)) #peopleMapHost .mp-focus-wheel{right:calc(1.2vw + min(500px,36vw) + 12px)}
 /* Step wheel: one track, four stops; the bubble points at the step it describes. */
 #peopleMapHost .mp-focus-wheel{position:absolute;z-index:5;right:12px;bottom:16px;width:44px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px;border:1px solid #0000001f;border-radius:999px;background:#fff;box-shadow:0 4px 14px #00000012;touch-action:none}
 #peopleMapHost .mp-focus-wheel::before{content:"";position:absolute;left:50%;top:22px;bottom:22px;width:1px;background:#0000001f;transform:translateX(-50%)}
@@ -832,3 +834,13 @@ body:has(#detailDialog.docked[open]) #peopleMapHost .mp-focus-card{display:none}
   #peopleMapHost .mp-focus-hint::after{top:-5px;bottom:auto}
 }
 html.mp-sheet-open{overflow:hidden}
+/* Touch: the step wheel, the sheet's ‹ › and "+N" keep their look; an invisible ring makes each 44px to press. */
+@media (pointer:coarse),(max-width:700px){
+ #peopleMapHost .mp-focus-wheel{gap:12px}
+ #peopleMapHost .mp-focus-wheel button::after{content:"";position:absolute;inset:-6px;border-radius:50%}
+ .sheet-nav{gap:14px}
+ .sheet-nav button{position:relative}
+ .sheet-nav button::after{content:"";position:absolute;inset:-7px;border-radius:50%}
+ .sheet-chips .sheet-chip-more{position:relative}
+ .sheet-chips .sheet-chip-more::after{content:"";position:absolute;inset:-8px -4px}
+}

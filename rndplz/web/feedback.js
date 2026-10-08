@@ -81,7 +81,9 @@
     // A queued close from the previous opening must not disturb a new one.
     if (dialog.open) return;
     resetTransient();
-    if (!blocked && !invalidated && entry.isConnected && !document.documentElement.inert && !document.querySelector('dialog[open]')) entry.focus({preventScroll: true});
+    // The entry sits in the closed ⋯ menu by now; focus goes back to the button that opens that menu.
+    const back = entry.getClientRects().length ? entry : document.getElementById('siteMenuToggle') || entry;
+    if (!blocked && !invalidated && entry.isConnected && !document.documentElement.inert && !document.querySelector('dialog[open]')) back.focus({preventScroll: true});
   });
   mail.addEventListener('click', event => {
     if (blocked || invalidated || !dialog.open || !mail.getAttribute('href')) { event.preventDefault(); return; }
