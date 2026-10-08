@@ -233,7 +233,7 @@ function sheetHtml(p,found,labels,evidence,card,candidate){
  return '<div class="sheet-handle" aria-hidden="true"></div>'+
   '<div class="sheet-head"><span class="sheet-face">'+(thumb?'<img src="'+esc(thumb)+'" alt="" decoding="async">':esc(Array.from(name)[0]||""))+'</span><div class="sheet-id"><strong>'+esc(name)+'</strong><span>'+esc(p.org||"")+'</span>'+(pr.tagline?'<em>'+esc(pr.tagline)+'</em>':'')+(tags.length?'<span class="sheet-tags">'+tags.map(t=>'<b>'+esc(t)+'</b>').join("")+'</span>':'')+'</div>'+
   '<div class="sheet-nav"><button type="button" data-sheet-step="-1" aria-label="이전 인물">‹</button><button type="button" data-sheet-step="1" aria-label="다음 인물">›</button></div></div>'+
-  (topics.length?'<div class="sheet-chips">'+chips(topics.slice(0,4))+(topics.length>4?'<span>+'+(topics.length-4)+'</span>':'')+'</div>':'')+
+  (topics.length?'<div class="sheet-chips">'+chips(topics.slice(0,4))+(topics.length>4?'<span class="sheet-chips-rest" hidden>'+chips(topics.slice(4))+'</span><button type="button" class="sheet-chip-more" data-chips-more aria-label="나머지 '+(topics.length-4)+'개 더 보기">+'+(topics.length-4)+'</button>':'')+'</div>':'')+
   '<p class="sheet-stats">근거 '+evidence.length+'건'+esc(linked)+'</p>'+
   '<div class="sheet-actions sheet-peek-only"><button type="button" data-sheet-mode="full">자세히 보기 ↑</button>'+letter+'</div>'+
   '<div class="sheet-full-only">'+
@@ -432,8 +432,10 @@ $("detailDialog").addEventListener("cancel",e=>{e.preventDefault();closeDetail()
   else setSheetMode(from,false);
  });
  content.addEventListener("click",e=>{
-  const mode=e.target.closest("[data-sheet-mode]"),step=e.target.closest("[data-sheet-step]"),back=e.target.closest("[data-sheet-back]");
-  if(mode)setSheetMode(mode.dataset.sheetMode);
+  const mode=e.target.closest("[data-sheet-mode]"),step=e.target.closest("[data-sheet-step]"),back=e.target.closest("[data-sheet-back]"),more=e.target.closest("[data-chips-more]");
+  // "+N" opens the rest of the chips in place.
+  if(more){more.previousElementSibling.hidden=false;more.remove();}
+  else if(mode)setSheetMode(mode.dataset.sheetMode);
   else if(back&&sheetPersonId)task(async()=>{const map=await RndPeopleMap.ensure($("peopleMapHost"),api);if(map)await openMapPerson(sheetPersonId,map,"full");},back);
   else if(step&&sheetPersonId)task(async()=>{
    const map=await RndPeopleMap.ensure($("peopleMapHost"),api),next=map?.neighbor(sheetPersonId,Number(step.dataset.sheetStep));

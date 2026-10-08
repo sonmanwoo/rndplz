@@ -16,7 +16,10 @@
         ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null];
     }));
     // The page's own handler (app.js) opens the person card for a [data-map-open="person"] button in the host.
+    let cardShown = null;
+    document.getElementById('detailDialog')?.addEventListener('close', () => { cardShown = null; });
     function openCard(id) {
+      cardShown = id;
       const button = document.createElement('button');
       button.type = 'button'; button.hidden = true; button.dataset.mapOpen = 'person'; button.dataset.id = id;
       host.append(button); button.click(); button.remove();
@@ -157,6 +160,8 @@
       if (debug.center && debug.center !== id) history = [debug.center, ...history.filter(p => p !== debug.center && p !== id)].slice(0,3);
       debug.center = id;
       controller.select(id); calculate(); renderCard(); paint();
+      // A person card already open beside or under the map follows the newly focused person.
+      if (cardShown && cardShown !== id && document.getElementById('detailDialog')?.open) openCard(id);
       // Only camera motion waits for the double-click window; preview/selection
       // is immediate and no delayed navigation is scheduled.
       clearTimeout(fitTimer); fitTimer = setTimeout(fit, 350);
