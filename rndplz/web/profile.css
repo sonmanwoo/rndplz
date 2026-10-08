@@ -75,3 +75,5 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 .digest-editor-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .profile-page .digest-editor-actions button{min-height:34px;padding:6px 12px;font-size:12px}
 @media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{gap:6px}.digest-col{padding:9px}}
+/* A short screen (a phone on its side): the section list scrolls with the page, so the save bar never sits on top of it. */
+@media(max-height:600px){.profile-sidebar{position:static}}
