@@ -65,7 +65,7 @@ html[data-theme="dark"] :is(.outline,.secondary,.profile-page .secondary-button,
 html[data-theme="dark"] :is(.outline,.icon-button,.history-item,.orbit-controls button):hover { background:var(--theme-hover); color:var(--ink); }
 
 /* Conversation and current brief. No selector changes input values or disclosure. */
-html[data-theme="dark"] :is(.welcome-heading .micro,.welcome-heading p,.hero-marginal,.composer-caption,.response-note,.typing,.history-item small) { color:var(--muted); }
+html[data-theme="dark"] :is(.welcome-heading .micro,.welcome-heading p,.hero-marginal,.response-note,.typing,.history-item small) { color:var(--muted); }
 html[data-theme="dark"] .hero-marginal svg { stroke:var(--muted); }
 html[data-theme="dark"] .mini-sheet { border-color:#95afda; }
 html[data-theme="dark"] .mini-sheet:nth-child(1) { background:#1e6975; color:#f4f5fe; }
@@ -75,7 +75,7 @@ html[data-theme="dark"] .composer { border-color:var(--theme-control-edge); back
 html[data-theme="dark"] .composer:before { content:none; }
 html[data-theme="dark"] .composer:focus-within { border-color:var(--green); }
 html[data-theme="dark"] .composer textarea { background:transparent; color:var(--ink); }
-html[data-theme="dark"] :is(.composer select,.attach-button,.file-chip .remove) { color:var(--muted); }
+html[data-theme="dark"] :is(.attach-button,.file-chip .remove) { color:var(--muted); }
 html[data-theme="dark"] .send-button:disabled { background:var(--theme-hover); color:var(--muted); }
 html[data-theme="dark"] :is(.file-chip,.message.user,.message.assistant,.brief,.conversation textarea,.continue-actions .primary,.empty-result,.empty-state,.route-bar) { background:var(--theme-hover); color:var(--ink); border-color:var(--line); }
 html[data-theme="dark"] .chat-page .message.assistant { background:transparent; }

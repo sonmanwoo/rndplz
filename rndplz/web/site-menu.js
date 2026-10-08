@@ -4,7 +4,7 @@
   'use strict';
   const toggle = document.getElementById('siteMenuToggle'), menu = document.getElementById('siteMenu');
   if (!toggle || !menu) return;
-  const usable = () => [...menu.querySelectorAll('a,button')].filter(node => !node.disabled && node.getClientRects().length);
+  const usable = () => [...menu.querySelectorAll('a,button,select')].filter(node => !node.disabled && node.getClientRects().length);
   const close = focus => {
     if (menu.hidden) return;
     menu.hidden = true; toggle.setAttribute('aria-expanded', 'false');
@@ -25,6 +25,7 @@
     if (event.key === 'Escape') { event.preventDefault(); close(true); return; }
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
     if (!menu.contains(document.activeElement) && document.activeElement !== toggle) return;
+    if (document.activeElement?.tagName === 'SELECT') return;
     const items = usable(), at = items.indexOf(document.activeElement);
     if (!items.length) return;
     event.preventDefault();

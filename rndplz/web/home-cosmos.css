@@ -10,7 +10,7 @@ body.home-welcome .craft-header{background:linear-gradient(var(--desk) 45%,#f7f5
 body.home-welcome{display:flex;flex-direction:column;min-height:100dvh}
 body.home-welcome .craft-header{flex-shrink:0}
 body.home-welcome .chat-shell{flex:1;display:flex;flex-direction:column;position:relative;z-index:1}
-body.home-welcome .chat-shell>main.welcome{flex:1;min-height:0}
+body.home-welcome .chat-shell>main.welcome{flex:1;min-height:0;width:100%}
 /* Earlier conversations: a card over the spiral when there are any and the list is open. */
 body.home-welcome:not(.home-has-history) .history-rail,body.home-welcome:not(.home-has-history) #historyButton{display:none}
 body.home-welcome.home-has-history:not(.rail-closed) .history-rail{position:fixed;left:16px;top:100px;width:272px;max-height:calc(100dvh - 200px);z-index:20;border:1px solid #0000001f;border-radius:16px;background:var(--sheet);box-shadow:0 10px 30px #00000014;overflow:auto}
@@ -51,7 +51,6 @@ body.home-welcome .home-input.has-value .home-hint{display:none}
 .home-hint-words>span{grid-area:1/1;transition:opacity .2s ease-out}
 .home-hint-shine{color:var(--ink);-webkit-mask-image:linear-gradient(90deg,transparent calc(50% - 32px),#000,transparent calc(50% + 32px));mask-image:linear-gradient(90deg,transparent calc(50% - 32px),#000,transparent calc(50% + 32px));-webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;animation:home-shine 1.6s linear infinite}
 @keyframes home-shine{from{-webkit-mask-position:100% 0;mask-position:100% 0}to{-webkit-mask-position:0 0;mask-position:0 0}}
-body.home-welcome .composer-caption{padding:12px 16px 0;font-size:12px;color:var(--muted)}
 body.no-motion .home-hint-shine{animation:none;display:none}
 @media (prefers-reduced-motion:reduce){.home-hint-shine{animation:none;display:none}body.home-welcome .home-whirl{transition:none}}
 @media (max-width:640px){

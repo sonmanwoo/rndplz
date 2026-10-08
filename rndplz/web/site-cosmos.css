@@ -39,6 +39,14 @@ body.crafted .site-menu .site-menu-item:focus-visible{outline:2px solid var(--in
 .site-menu-item .motion-dot{flex:none;display:grid;place-items:center;width:20px;height:20px;margin-top:1px;border:0;background:none;box-shadow:none}
 .site-menu-item .motion-dot:before{content:"";width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px #2f7f861f}
 .no-motion .site-menu-item .motion-dot:before{background:none;border:1.5px solid var(--muted);box-shadow:none}
+/* Model choice: a row whose select and notice chat.js still drives by id. */
+body.crafted .site-menu .site-menu-model{cursor:default}
+body.crafted .site-menu .site-menu-model:hover{background:none}
+.site-menu-model label{cursor:pointer}
+.site-menu-model select{align-self:flex-start;max-width:100%;margin:6px 0 4px;padding:7px 30px 7px 12px;border:1px solid #0000001f;border-radius:999px;background:var(--sheet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%236f6c6a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;-webkit-appearance:none;appearance:none;font:500 13px var(--font-sans);color:var(--ink);text-overflow:ellipsis;cursor:pointer}
+.site-menu-model select:hover{background-color:#f2f1f0}
+.site-menu-model select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.site-menu-model select:disabled{opacity:.45;cursor:default}
 /* chat.js shows the new-chat button as a bare "＋" on phones and hides it beside the open list; in the menu it is a row. */
 body.crafted .site-menu #newButton{display:flex;width:100%;height:auto;padding:10px 12px;font-size:inherit}
 body.crafted .site-menu #newButton:before{content:none}
@@ -71,10 +79,7 @@ body.chat-page .attach-button:hover{background:#f2f1f0;color:var(--ink);rotate:n
 body.chat-page .composer textarea{min-width:0}
 /* An empty field shows its hint on one line; a narrow phone ends it with an ellipsis instead of wrapping. */
 body.chat-page .composer textarea:placeholder-shown{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.chat-page .composer-controls{align-self:flex-end;height:64px;gap:16px;flex-shrink:0;width:auto;margin:0}
-body.chat-page .composer select{max-width:190px;padding:8px 26px 8px 12px;border:0;border-radius:999px;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%236f6c6a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;-webkit-appearance:none;appearance:none;font:500 13px var(--font-sans);color:var(--muted);text-overflow:ellipsis;cursor:pointer}
-body.chat-page .composer select:is(:hover,:focus-visible){background-color:#f2f1f0;color:var(--ink)}
-body.chat-page .composer select:focus-visible{outline:none;box-shadow:inset 0 0 0 1px #00000029}
+body.chat-page .composer-controls{align-self:flex-end;height:64px;gap:0;flex-shrink:0;width:auto;margin:0 0 0 20px}
 body.chat-page :is(.send-button,.stop-button){display:grid;place-items:center;width:64px;height:64px;border:1px solid #0000001f;border-radius:50%;background:var(--sheet);color:var(--ink);font-size:22px;line-height:1;flex-shrink:0;box-shadow:none;transform:none}
 body.chat-page :is(.send-button,.stop-button)[hidden]{display:none}
 body.chat-page .send-button:hover:not(:disabled),body.chat-page .stop-button:hover{background:#f2f1f0;transform:none;box-shadow:none}
@@ -104,8 +109,7 @@ body.chat-page .file-chip .remove:hover{background:#f2f1f0;color:var(--ink)}
   body.chat-page .input-row{min-height:48px;padding-left:4px}
   body.chat-page .input-row:before{inset:0 54px 0 0;border-radius:24px}
   body.chat-page .attach-button{width:36px;height:36px;margin-bottom:6px}
-  body.chat-page .composer-controls{height:48px;gap:12px}
-  body.chat-page .composer select{max-width:112px;padding-right:22px;font-size:12px}
+  body.chat-page .composer-controls{height:48px;margin-left:16px}
   body.chat-page :is(.send-button,.stop-button){width:48px;height:48px;font-size:18px}
 }
 /* Narrow phones keep the H mark and drop the word beside it when the row would overflow. */
