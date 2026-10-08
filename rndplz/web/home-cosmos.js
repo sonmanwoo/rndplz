@@ -215,8 +215,9 @@
 
   // ---- re·search intro: once per browser, from the first frame, without waiting for data ----------------
   // It counts as seen once the dot has shown; a tap before that skips it but it plays again next time. /?intro replays it.
+  // v2: browsers marked 'seen' by the first version (a touch counted as seen) get it once more.
   let introDone = true;
-  try { introDone = localStorage.getItem('rndplz.intro.v1') === '1'; } catch {}
+  try { introDone = localStorage.getItem('rndplz.intro.v2') === '1'; } catch {}
   if (new URLSearchParams(location.search).has('intro')) introDone = false;
   let motionOff = false;
   try { motionOff = sessionStorage.getItem('rndplz-motion') === 'off'; } catch {} // craft.js applies the same switch later
@@ -227,7 +228,7 @@
     if (introDone) return;
     introDone = true; stage.classList.remove('home-intro-on'); intro.remove();
     heading.style.removeProperty('opacity'); heading.style.removeProperty('transform'); heading.style.removeProperty('filter');
-    if (introAt !== null && performance.now() - introAt >= 1200) try { localStorage.setItem('rndplz.intro.v1', '1'); } catch {}
+    if (introAt !== null && performance.now() - introAt >= 1200) try { localStorage.setItem('rndplz.intro.v2', '1'); } catch {}
   }
   function introTick(now) {
     if (introDone) return;

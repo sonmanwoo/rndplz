@@ -810,7 +810,9 @@ body:has(#detailDialog.docked[open]) #peopleMapHost .mp-focus-card{display:none}
   #peopleMapHost .mp-map[data-mp-sheet] .mp-sheet-head{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1;margin:0 -16px;padding:16px 16px 10px;background:var(--sheet,#fff);font-size:16px}
   #peopleMapHost .mp-map .mp-sheet-close{min-height:40px;padding:0 16px;border:1px solid #0000001f;border-radius:999px;background:var(--ink,#141414);color:#fff;font:600 14px var(--font-sans)}
   #peopleMapHost .mp-map[data-mp-sheet] .mp-sheet-backdrop{display:block;position:fixed;inset:0;z-index:95;background:#1414143d}
-  #peopleMapHost .mp-map[data-mp-sheet="capabilities"] .mp-capability-list{display:flex;flex-direction:column;gap:6px;max-height:none}
+  /* In the sheet the list is not its own scroll box (desktop gives it overflow:auto and overscroll-behavior:contain,
+     which stopped a scroll that started on an item from reaching the sheet). */
+  #peopleMapHost .mp-map[data-mp-sheet="capabilities"] .mp-capability-list{display:flex;flex-direction:column;gap:6px;max-height:none;overflow:visible;overscroll-behavior:auto}
   #peopleMapHost .mp-map[data-mp-sheet="capabilities"] .mp-capability{min-height:48px;border:1px solid #0000001f;border-radius:12px;background:var(--sheet,#fff)}
   #peopleMapHost .mp-map[data-mp-sheet="capabilities"] .mp-capability[aria-pressed="true"]{border-color:var(--ink,#141414);box-shadow:inset 0 0 0 1px var(--ink,#141414)}
   /* The map fills the screen below the bar and the selection line; the old 460px phone height and the shorter
