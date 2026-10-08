@@ -4,13 +4,8 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f7f5f3"><title>내 프로필 — 수소문</title>
   <script src="/theme.js"></script><link rel="stylesheet" href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"><link rel="stylesheet" href="/craft.css"><link rel="stylesheet" href="/profile.css">
-  <style>
-    @media (max-width:700px) {
-      .profile-page .account-menu { left:0; right:auto; }
-    }
-  </style>
   <script src="/craft.js" defer></script><script src="/profile.js" defer></script>
-<script src="/account-menu.js" defer></script><link rel="stylesheet" href="/theme.css"></head>
+<script src="/account-menu.js" defer></script><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/site-cosmos.css"></head>
 <body class="crafted profile-page">
 <a class="skip-link" href="#profileForm">프로필 편집으로 이동</a>
 <header class="craft-header">
@@ -56,7 +51,6 @@
   </div>
   <div class="save-bar"><div><strong id="changeCount">변경 없음</strong><span id="saveScope">이 방문자의 초안에 저장 · 외부 비공유</span></div><button id="saveProfile" type="submit" form="profileForm" class="primary-button" disabled>변경 저장 <span aria-hidden="true">↗</span></button></div>
 </main>
-<footer class="craft-footer"><span><b class="service-name">수소문</b> — EXPERIENCE, IN YOUR OWN WORDS.</span><span>자료의 주장과 나의 기록을 함께 살펴봅니다.</span></footer>
 <dialog id="actionDialog" aria-labelledby="actionTitle"><div class="dialog-heading"><h2 id="actionTitle">자료 삭제</h2><button type="button" class="close-button" data-close="actionDialog" aria-label="자료 삭제 닫기">×</button></div><p id="actionDescription"></p><div id="actionImpact" class="impact-note"></div><p id="actionError" role="alert" class="profile-error" hidden></p><div class="button-row"><button type="button" id="cancelAction" class="secondary-button" data-close="actionDialog">돌아가기</button><button type="button" id="confirmAction" class="primary-button" data-lock>확인</button></div></dialog>
 </body>
 </html>

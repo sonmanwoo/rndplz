@@ -15,7 +15,9 @@
       b.setAttribute('aria-pressed', String(quiet));
       b.disabled=preference.matches;
       b.title=preference.matches?'기기의 움직임 줄이기 설정을 따릅니다.':'화면 움직임 켜기 또는 끄기';
-      b.innerHTML = '<span class="motion-dot"></span> 움직임 ' + (quiet ? '꺼짐' : '켜짐');
+      const label = b.querySelector('[data-motion-label]');
+      if (label) label.textContent = '움직임 ' + (quiet ? '꺼짐' : '켜짐');
+      else b.innerHTML = '<span class="motion-dot"></span> 움직임 ' + (quiet ? '꺼짐' : '켜짐');
     });
     subscribers.forEach(fn => fn());
     syncLaureateEffects();
