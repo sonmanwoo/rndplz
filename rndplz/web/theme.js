@@ -4,11 +4,13 @@
   const key = 'susomun.theme';
   const root = document.documentElement;
   const normalize = value => value === 'dark' ? 'dark' : 'light';
+  // 2026-10-08: light only while palette B is introduced; the dark theme and the stored choice are kept for later.
+  const LOCKED = 'light';
   let mode = 'light';
   let readyDone = false;
   const meta = document.querySelector('meta[name="theme-color"]');
-  const lightMeta = meta?.content || '#f4f2eb';
-  try { mode = normalize(localStorage.getItem(key)); } catch {}
+  const lightMeta = meta?.content || '#f7f5f3';
+  if (!LOCKED) { try { mode = normalize(localStorage.getItem(key)); } catch {} }
 
   function paint(next) {
     const value = normalize(next);
@@ -33,7 +35,7 @@
     if (readyDone) return;
     paint(mode);
     readyDone = true;
-    document.querySelectorAll('[data-theme-controls]').forEach(group => { group.hidden = false; });
+    if (!LOCKED) document.querySelectorAll('[data-theme-controls]').forEach(group => { group.hidden = false; });
     document.querySelectorAll('[data-theme-set]').forEach(button => {
       button.addEventListener('click', () => {
         if (!['light', 'dark'].includes(button.dataset.themeSet)) return;
@@ -46,7 +48,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, {once: true});
   else ready();
   window.addEventListener('storage', event => {
-    if (event.key !== key && event.key !== null) return;
+    if (LOCKED || (event.key !== key && event.key !== null)) return;
     try { if (event.storageArea !== localStorage) return; } catch { return; }
     paint(event.key === null ? 'light' : event.newValue);
   });

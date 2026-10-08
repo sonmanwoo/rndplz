@@ -127,6 +127,8 @@ def make_server(host="127.0.0.1",port=8877,state_dir=None):
                 static.update({"/theme.js":("theme.js","text/javascript; charset=utf-8"),"/theme.css":("theme.css","text/css; charset=utf-8")})
                 static.update({"/ui-previews/CI-FONTS/r4/"+suffix:("ui-previews/CI-FONTS/r4/"+name,mime) for suffix,(name,mime) in CI_THEME_PREVIEW_FILES.items()})
                 static.update(portraits)
+                static["/fonts/pretendard/pretendardvariable-dynamic-subset.css"]=("fonts/pretendard/pretendardvariable-dynamic-subset.css","text/css; charset=utf-8")
+                static.update({f"/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.{i}.woff2":(f"fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.{i}.woff2","font/woff2") for i in range(92)})
                 if parsed.path in static:
                     name,mime=static[parsed.path]
                     return self.send(200,(WEB/name).read_bytes(),mime)

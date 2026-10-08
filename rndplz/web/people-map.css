@@ -1,7 +1,7 @@
 /* PEOPLE-MAP r2 adopted into the existing research map. All rules are host-scoped. */
-#peopleMapHost{--paper:#f4f2eb;--sheet:#fffdf7;--ink:#242b28;--muted:#62685f;--line:#dcded3;--green:#315e50;--soft:#e5ebe0;--rust:#9b573f;--blue:#566a80;--gold:#866937}
+#peopleMapHost{--paper:#f7f5f3;--sheet:#ffffff;--ink:#141414;--muted:#62685f;--line:#e3e0dc;--green:#2f7f86;--soft:#e5ebe0;--rust:#9b573f;--blue:#566a80;--gold:#866937}
 #peopleMapHost *{box-sizing:border-box}
-#peopleMapHost{margin:0;background:var(--paper);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;line-height:1.6}
+#peopleMapHost{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);line-height:1.6}
 #peopleMapHost button,#peopleMapHost input,#peopleMapHost textarea{font:inherit;color:inherit}
 #peopleMapHost button,#peopleMapHost a,#peopleMapHost input,#peopleMapHost textarea,#peopleMapHost summary{-webkit-tap-highlight-color:transparent}
 #peopleMapHost button{cursor:pointer}
@@ -93,7 +93,7 @@
 #peopleMapHost .gold .relation span{background:#f5f0e4;color:var(--gold)}
 #peopleMapHost .neutral .relation span{background:#f3f3ec}
 #peopleMapHost .map-person{background:var(--sheet);border:1px solid #d7dccd;padding:14px 12px;display:block;width:100%;text-align:left;box-shadow:0 4px 12px #35442e05;min-height:122px}
-#peopleMapHost .map-person[aria-pressed="true"]{border:2px solid var(--green);padding:13px 11px;box-shadow:0 4px 12px #315e5012}
+#peopleMapHost .map-person[aria-pressed="true"]{border:2px solid var(--green);padding:13px 11px;box-shadow:0 4px 12px #2f7f8612}
 #peopleMapHost .map-person:hover{border-color:#789271}
 #peopleMapHost .map-person-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
 #peopleMapHost .map-person strong{font-size:17px;letter-spacing:-.3px}
@@ -265,8 +265,8 @@
 #peopleMapHost .cluster-person{display:flex;gap:8px;width:100%;padding:9px 6px;align-items:center;background:transparent;text-align:left;font-size:11px;min-height:51px}
 #peopleMapHost .cluster-person .avatar{width:29px;height:33px;font-size:11px}
 #peopleMapHost .cluster-person>span:nth-child(2){flex:1}
-#peopleMapHost .cluster-person[aria-pressed="true"]{background:#fffdf7;border:1px solid var(--green)}
-#peopleMapHost .cluster-person:hover,#peopleMapHost .cluster-heading:hover{background:#fffdf759}
+#peopleMapHost .cluster-person[aria-pressed="true"]{background:#ffffff;border:1px solid var(--green)}
+#peopleMapHost .cluster-person:hover,#peopleMapHost .cluster-heading:hover{background:#ffffff59}
 #peopleMapHost .cluster-note{font-size:10px;color:var(--muted);padding:0 22px 19px}
 #peopleMapHost .group-more{margin:0 18px 10px}
 #peopleMapHost .detail-name h2{font-size:24px;overflow-wrap:anywhere}
@@ -353,7 +353,7 @@
   --mp-line: var(--line, #d8ddd3);
   --mp-accent: var(--accent, #ae4d36);
   color: var(--mp-ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.65;
   padding: 0 0 18px;
@@ -396,7 +396,7 @@
 #peopleMapHost .mp-people { position: relative; z-index: 1; display: grid; gap: 15px; min-width: 0; }
 #peopleMapHost .mp-person { display: grid; grid-template-columns: 48px minmax(0, 1fr) 13px; gap: 11px; align-items: center; width: 100%; min-height: 115px; padding: 14px 12px; background: #fcfaf3; border: 1px solid var(--mp-line); border-radius: 4px; box-shadow: 0 3px 0 #e1e3d866; }
 #peopleMapHost .mp-person:hover { border-color: #8f9f8e; }
-#peopleMapHost .mp-person[aria-pressed="true"] { border-color: var(--mp-accent); box-shadow: 0 0 0 1px var(--mp-accent), 0 4px 0 #e6ddd0; background: #fffdf7; }
+#peopleMapHost .mp-person[aria-pressed="true"] { border-color: var(--mp-accent); box-shadow: 0 0 0 1px var(--mp-accent), 0 4px 0 #e6ddd0; background: #ffffff; }
 #peopleMapHost .mp-portrait { position: relative; display: block; aspect-ratio: 3 / 4; width: 48px; overflow: hidden; background: #e6eadc; border-radius: 2px; }
 #peopleMapHost .mp-portrait img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 #peopleMapHost .mp-initial { display: grid; height: 100%; place-items: center; font-family: Georgia, serif; font-size: 23px; color: #76816e; }
@@ -599,9 +599,9 @@
 #peopleMapHost .mp-team-marker{position:absolute;left:50%;top:-30px;transform:translateX(-50%);white-space:nowrap;color:var(--mp-team,#2f7f86);background:#fbfaf8ef;border-radius:2px;padding:1px 3px;font-size:10px;line-height:1.3;font-weight:600;pointer-events:none;z-index:2}
 #peopleMapHost .mp-person-nobel .mp-portrait{outline:2px solid #b28a2e;outline-offset:2px}
 #peopleMapHost .mp-person-team .mp-portrait{outline:4px double #287c78;outline-offset:2px}
-#peopleMapHost .mp-person-nobel.mp-person-team .mp-portrait{outline:4px double #287c78;outline-offset:5px;box-shadow:0 0 0 2px #fffdf7,0 0 0 4px #b28a2e}
+#peopleMapHost .mp-person-nobel.mp-person-team .mp-portrait{outline:4px double #287c78;outline-offset:5px;box-shadow:0 0 0 2px #ffffff,0 0 0 4px #b28a2e}
 #peopleMapHost .mp-list-team-marker{color:#236965;font-weight:600}
-#peopleMapHost .mp-project-participants{margin-top:12px;padding-top:10px;border-top:1px solid var(--mp-line,#dcded3);font-size:12px;line-height:1.8}
+#peopleMapHost .mp-project-participants{margin-top:12px;padding-top:10px;border-top:1px solid var(--mp-line,#e3e0dc);font-size:12px;line-height:1.8}
 #peopleMapHost .mp-project-participants p{font-size:11px;color:var(--mp-muted,#62685f);margin:0 0 5px}
 #peopleMapHost .mp-project-participants .text-button{min-height:36px;padding:6px 7px;text-decoration:underline;text-underline-offset:3px;font-size:12px}
 #peopleMapHost .mp-person-nobel.mp-person-team .mp-team-marker{top:-34px}
