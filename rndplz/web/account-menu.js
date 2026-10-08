@@ -236,7 +236,9 @@
     setMoleAccount(value.authenticated?account.id:null,value.enabled?'로그인 후 확인할 수 있어요.':'팀원 로그인 준비 중');
     if(moleLoadAfterSession){moleLoadAfterSession=false;if(value.authenticated&&!menu.hidden)loadMole();}
     if(announceLogin){announceLogin=false;if(value.authenticated)broadcast();}
-    show(identity,value.authenticated);show(login,false);show(unavailable,false);show(signupNote,false);
+    // The login link's visibility is decided once, so a refresh while the menu is open never blinks it (and drops focus on it).
+    const loginShown=!value.authenticated&&value.enabled&&value.login_url==='/auth/google/start';
+    show(identity,value.authenticated);show(login,loginShown);show(unavailable,false);show(signupNote,false);
     const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);
     if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
     if(value.authenticated)show(pendingNote,false);
@@ -247,7 +249,7 @@
       note.textContent=account.person_id?'연구맵 공개 카드와 연결된 계정이에요. 내 프로필에서 저장한 내용이 카드에 바로 반영돼요.':'본인 계정의 비공개 프로필입니다. 공개 인물 카드와 자동으로 연결되지 않습니다.';
     }else{
       note.textContent='임시 방문자 세션입니다. 세션을 끝내면 지금까지의 방문자 기록에 다시 접근할 수 없고, 로그인해도 계정으로 자동 이동하지 않습니다.';
-      if(value.enabled&&value.login_url==='/auth/google/start'){show(login,true);show(signupNote,value.signup_requests===true);}
+      if(loginShown)show(signupNote,value.signup_requests===true);
       else{show(unavailable,true);unavailable.textContent='팀원 로그인 준비 중';if(typeof value.disabled_reason==='string'&&value.disabled_reason.trim())unavailable.textContent+=' · '+value.disabled_reason;}
       // After a sign-up request, open the menu once so the visitor sees what happens next.
       if(pendingNotice){pendingNotice=false;menu.hidden=false;toggle.setAttribute('aria-expanded','true');}
