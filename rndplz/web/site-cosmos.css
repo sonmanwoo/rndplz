@@ -117,3 +117,52 @@ body.chat-page .file-chip .remove:hover{background:#f2f1f0;color:var(--ink)}
   body.chat-page:not(.home-welcome) .craft-wordmark,body.home-welcome.home-has-history .craft-wordmark{display:none}
 }
 @media (max-width:370px){body.crafted .craft-wordmark{display:none}}
+
+/* Home: the research-map button under the composer (scrolling down does the same, home-cosmos.js). */
+.home-cta{display:none}
+body.home-welcome .home-cta{display:inline-flex;align-items:center;justify-content:center;align-self:center;height:56px;margin:40px auto 0;padding:0 24px;border-radius:999px;background:var(--ink);color:#fff;font-size:16px;font-weight:700;text-decoration:none;transition:background .2s}
+body.home-welcome .home-cta:hover{background:#000}
+body.home-welcome .home-cta:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+body.home-leaving :is(#main,.home-whirl){opacity:0;translate:0 -16px;transition:opacity .2s ease-in,translate .2s ease-in}
+@media (max-width:640px){body.home-welcome .home-cta{height:48px;margin-top:28px;font-size:15px}}
+
+/* Profile page: the same paper and ink; facts as plain text instead of a stamp and a folded note. */
+body.profile-page .profile-shell{padding-top:40px}
+body.profile-page .profile-intro{flex-direction:column;align-items:flex-start;gap:14px;padding-bottom:24px}
+body.profile-page .profile-intro h1{font-size:40px;font-weight:700;letter-spacing:-.04em;line-height:1.25;margin:0 0 12px}
+body.profile-page .profile-intro h1 em{font-style:normal;font-weight:700;color:var(--ink)}
+body.profile-page .intro-copy{font-size:15px;line-height:1.6}
+body.profile-page .draft-stamp{width:auto;height:auto;margin:0;padding:0;border:0;border-radius:0;rotate:none;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:0;color:var(--muted)}
+body.profile-page .draft-stamp:before{display:none}
+body.profile-page .draft-stamp>*{margin:0;font-size:13px;font-weight:400;letter-spacing:0;color:var(--muted)}
+body.profile-page .draft-stamp>strong{font-weight:600;color:var(--ink)}
+body.profile-page .draft-stamp>:not(:last-child):after{content:"·";margin:0 6px;color:var(--muted);font-weight:400}
+body.profile-page .scope-note{padding:16px 20px;border:1px solid #0000001f;border-radius:16px;background:var(--sheet);font-size:13px;color:var(--muted)}
+body.profile-page .scope-note strong{color:var(--ink)}
+body.profile-page .profile-status{color:var(--muted);font-size:13px}
+body.profile-page .identity-note{rotate:none;border:1px solid #0000001f;border-radius:16px;box-shadow:none;padding:24px}
+body.profile-page .identity-note:after,body.profile-page .identity-mark{display:none}
+body.profile-page :is(.section-number,.section-nav span){font:600 15px/1.5 var(--font-sans);font-style:normal;color:var(--muted)}
+body.profile-page .section-nav a{border-bottom-color:var(--line)}
+body.profile-page .section-nav a:hover{color:var(--ink)}
+body.profile-page .profile-section{border:1px solid #0000001f;border-radius:20px;box-shadow:none}
+body.profile-page :is(input:not([type=file]),textarea,select){border:1px solid #0000001f;border-radius:12px;background:var(--sheet)}
+body.profile-page :is(input,textarea,select):focus{border-color:var(--ink);background:var(--sheet)}
+body.profile-page :is(.primary-button,.secondary-button){border-radius:999px;font-size:14px;font-weight:600}
+body.profile-page .primary-button{border-color:var(--ink);background:var(--ink);color:#fff}
+body.profile-page .primary-button:hover:enabled{background:#000}
+body.profile-page .primary-button:disabled{border-color:#e9e6e1;background:#e9e6e1;color:#9a9796}
+body.profile-page .secondary-button{border-color:#0000001f;background:var(--sheet);color:var(--ink)}
+body.profile-page .secondary-button:hover:enabled{background:#f2f1f0}
+body.profile-page .save-bar{border:1px solid #0000001f;border-bottom:0;border-radius:20px 20px 0 0;background:#f7f5f3eb}
+body.profile-page .save-bar strong{font-size:13px}
+/* A focused field scrolls clear of the sticky save bar. */
+html:has(body.profile-page){scroll-padding-bottom:110px}
+@media (max-width:700px){
+  body.profile-page .profile-shell{padding-top:24px}
+  body.profile-page .profile-intro{gap:10px;padding-bottom:16px}
+  body.profile-page .profile-intro h1{font-size:28px;margin-bottom:8px}
+  body.profile-page .intro-copy{font-size:14px}
+  body.profile-page .scope-note{padding:14px 16px;font-size:12px}
+  body.profile-page .save-bar{padding:10px 12px}
+}

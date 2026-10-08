@@ -193,6 +193,26 @@
     if (!running && raf) { cancelAnimationFrame(raf); raf = 0; }
   }
 
+  // ---- to the research map: the button under the composer, or scrolling / swiping down on the home screen ----
+  // Fields, menus, the conversation list and open dialogs keep their own scrolling.
+  const toMap = () => {
+    if (body.classList.contains('home-leaving')) return;
+    body.classList.add('home-leaving');
+    setTimeout(() => location.assign('/explore#map'), still() ? 0 : 200);
+  };
+  const ownScroll = target => !isHome() || document.querySelector('dialog[open]')
+    || target?.closest?.('textarea,input,select,.history-rail,.site-menu,.account-menu');
+  const atBottom = () => innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+  let wheelSum = 0, wheelTimer = 0, touchY = null;
+  addEventListener('wheel', event => {
+    if (event.deltaY <= 0 || ownScroll(event.target) || !atBottom()) return;
+    wheelSum += event.deltaY; clearTimeout(wheelTimer); wheelTimer = setTimeout(() => { wheelSum = 0; }, 300);
+    if (wheelSum > 60) toMap();
+  }, { passive:true });
+  addEventListener('touchstart', event => { touchY = event.touches.length === 1 && !ownScroll(event.target) ? event.touches[0].clientY : null; }, { passive:true });
+  addEventListener('touchend', event => { if (touchY !== null && atBottom() && touchY - event.changedTouches[0].clientY > 70) toMap(); touchY = null; }, { passive:true });
+  addEventListener('pageshow', () => body.classList.remove('home-leaving')); // back from the map
+
   // ---- re·search intro: once per browser, from the first frame, without waiting for data ----------------
   // It counts as seen once the dot has shown; a tap before that skips it but it plays again next time. /?intro replays it.
   let introDone = true;
