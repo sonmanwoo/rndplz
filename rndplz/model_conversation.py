@@ -16,7 +16,7 @@ from .discovery import DiscoveryError
 from .evidence_search import PublicEvidenceSearch, _contains, _normalized, _query_hit
 from .model_dialogue import PlanValidationError, parse_plan, parse_request_spec, parse_request_effect, plan_repair_feedback, plan_repair_decision, parse_response, AssessmentValidationError, ResponseValidationError, _validate_internal_plan
 from .service import now
-from .model_dialogue import parse_attachment_actions, parse_refinement, split_choice_block
+from .model_dialogue import parse_attachment_actions, parse_refinement, split_choice_block, plain_reply
 from .attachment_reader import attachment_catalog, run_attachment_tools
 from .attachment_context import reader_items, source_previews
 
@@ -1239,7 +1239,7 @@ class ModelConversation:
                              content={'model_consultation_attempts':state['attempts']})
             raise
         attempt['validation'] = 'accepted'
-        return attempt['raw']
+        return plain_reply(attempt['raw'])  # internal field names never reach the reader
 
     def _model_answer_messages(self, session, option, plan, result, *, basis, allow_next_lookup, previous_attempts, execution_observation):
         # Candidate assessment needs the request and evidence more than a whole attached paper.
@@ -1437,6 +1437,12 @@ class ModelConversation:
                              error_kind=exc.reason, content={'model_response_attempts':history})
             raise
         self._check_model_basis(session['id'], pending, basis, deadline)
+        # Internal field names never reach the reader: the reply and each person's text read in everyday words.
+        parsed['reply'] = plain_reply(parsed['reply'])
+        for row in parsed.get('assessments', []):
+            for key in ('text', 'missing'):
+                if isinstance(row.get(key), str):
+                    row[key] = plain_reply(row[key])
         state.update(parsed=parsed, status='accepted')
         attempt.update(parsed=copy.deepcopy(parsed), status='accepted', validation='accepted',
                        next_plan=copy.deepcopy(next_plan))
