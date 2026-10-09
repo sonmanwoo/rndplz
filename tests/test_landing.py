@@ -48,10 +48,24 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     assert response['status'] == 200
     body = response['body'].decode()
     assert 'data-landing="' + variant + '"' in body
-    people_section = re.search(r'<section\b[^>]*id="landingPeople"[^>]*>', body)[0]
+    assert 'landingPeople' not in body
     map_section = re.search(r'<section\b[^>]*id="landingMap"[^>]*>', body)[0]
-    assert (' hidden' in people_section) is (variant == 'map')
-    assert (' hidden' in map_section) is (variant == 'people')
+    assert ' hidden' not in map_section
+    assert '<h2 id="landingMapTitle">' in body
+    assert '전체 연구 맵 열기' in body
+    assert '<h2 id="landingSourcesTitle">어떤 자료로 찾나요</h2>' in body
+    assert 'id="landingCounts"' in body
+    assert body.index('id="landingMap"') < body.index('id="landingSources"') < body.index('class="landing-closing"')
+    principles = re.search(r'<ul class="landing-principles">(.*?)</ul>', body, re.S)[1]
+    assert re.findall(r'<li>(.*?)</li>', principles) == [
+        '공개 논문·제공 경력·프로젝트 기록을 근거로 찾아요.',
+        '연락 가능성·협업 의사는 확인하지 않아요 — 의뢰는 초안·제안함 시연까지.',
+        '대화는 사내 AI(AiU) 또는 운영자 PC의 로컬 모델이 처리해요.',
+    ]
+    closing = body[body.index('class="landing-closing-actions"'):body.index('<nav class="landing-links"')]
+    assert 'data-landing-ask>질문하기</button>' in closing
+    assert 'data-landing-login>로그인</button>' in closing
+    assert re.search(r'<a\b[^>]*href="/profile"[^>]*>내 이력 올리기</a>', closing)
     assert 'id="landingDown"' in body and 'href="#landingFeatures"' in body
     assert body.index('id="landingDown"') < body.index('</main></div>') < body.index('id="landingFeatures"')
     assert re.search(r'<script[^>]+src="/landing-boot\.js\?v=[a-f0-9]{10}"[^>]*defer', body)
@@ -74,6 +88,12 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     compressed = request(app, '/' + query, encoding='gzip')
     assert gzip.decompress(compressed['body']) == response['body']
     assert response['headers']['Cache-Control'] == 'no-store'
+
+
+def test_landing_map_alias_has_the_same_document(app):
+    default = request(app, '/?landing')['body']
+    alias = request(app, '/?landing=map')['body']
+    assert default.replace(b'data-landing="people"', b'data-landing="map"', 1) == alias
 
 
 def test_derived_home_script_keeps_original_and_hashes_transmitted_bytes(app):
@@ -126,46 +146,57 @@ def test_capability_adapter_is_only_registered_for_addressed_explore(app):
     assert injected['body'] == response['body']
 
 
-def test_landing_projection_filters_private_profiles_and_detailed_fields(monkeypatch):
-    def person(identifier, **profile):
-        return Person(id=identifier, name=identifier, profile={
-            'curated': True, 'display_name': '공개 연구자',
-            'portrait': {'path': '/portraits/public.png', 'background': '/private.png'},
-            'biography': 'not in the lightweight projection', 'csrf_token': 'private',
-            **profile,
-        })
+def test_landing_projection_counts_scoped_data_without_people_or_details(monkeypatch):
+    # Already-public provided profiles count too; neither portraits nor curated
+    # status determine whether a researcher is part of the published corpus.
     people = [
-        person('public-a', field_label='공정 제어'),
-        person('public-b', field_label=['invalid'], research_field='unsupported fallback'),
-        person('LOCAL-private'), person('resume', source_type='provided_resume'),
-        person('self', source_type='self_reported'), person('uncurated', curated=False),
-        person('bad-path', portrait={'path': 'https://example.test/private.png'}),
-        person('no-portrait', portrait={}), person('virtual'),
+        Person(id='public-a', name='public-a', profile={'curated': True, 'portrait': {'path': '/portraits/a.png'}}),
+        Person(id='public-b', name='public-b'),
+        Person(id='LOCAL-approved', name='LOCAL-approved', profile={'source_type': 'provided_resume'}),
+        Person(id='virtual', name='virtual', virtual=True),
     ]
-    people[-1].virtual = True
-    corpus = SimpleNamespace(people={person.id: person for person in people})
+    shared = SimpleNamespace(id='shared-paper', virtual=False)
+    provided = SimpleNamespace(id='approved-career', virtual=False)
+    virtual = SimpleNamespace(id='virtual-record', virtual=True)
+    corpus = SimpleNamespace(
+        people={person.id: person for person in people},
+        records={record.id: record for record in (shared, provided, virtual)},
+        by_person={'public-a': [shared], 'public-b': [shared], 'LOCAL-approved': [provided], 'virtual': [virtual]},
+    )
     categories = [
-        {'id': 'second', 'label': '두 번째 역량', 'description': 'omit',
-         'people': [{'id': 'public-b', 'recordIds': ['hidden']}, {'id': 'LOCAL-private'}]},
-        {'id': 'first', 'label': '첫 번째 역량', 'description': 'omit',
-         'people': [{'id': 'public-a'}, {'id': 'self'}]},
+        {'id': 'second', 'label': '두 번째 분야', 'description': 'omit',
+         'people': [{'id': 'public-b', 'recordIds': ['shared-paper']}, {'id': 'LOCAL-approved'}]},
+        {'id': 'first', 'label': '첫 번째 분야', 'description': 'omit', 'people': [{'id': 'public-a'}]},
     ]
     monkeypatch.setattr('rndplz.landing.build_capabilities', lambda current: categories)
     result = build_landing_people_map(SimpleNamespace(corpus=corpus))
-    assert result['schema_version'] == 'people-map-landing-v1'
-    assert [person['id'] for person in result['people']] == ['public-a', 'public-b']
-    assert [person['field_label'] for person in result['people']] == ['공정 제어', '두 번째 역량']
-    assert result['people'][0] == {
-        'id': 'public-a', 'name': 'public-a', 'field_label': '공정 제어',
-        'profile': {'display_name': '공개 연구자', 'portrait': {'path': '/portraits/public.png'}},
+    assert result == {
+        'schema_version': 'people-map-landing-v1',
+        'counts': {'people': 3, 'capabilities': 2, 'records': 2},
+        'capabilities': [{'id': 'second', 'label': '두 번째 분야'}, {'id': 'first', 'label': '첫 번째 분야'}],
     }
-    assert result['capabilities'] == [
-        {'id': 'second', 'label': '두 번째 역량', 'people': [{'id': 'public-b'}]},
-        {'id': 'first', 'label': '첫 번째 역량', 'people': [{'id': 'public-a'}]},
-    ]
+    # A shared paper counts once, and totals follow the current scoped data.
+    corpus.people.pop('public-b')
+    corpus.records.pop('approved-career')
+    categories.pop()
+    assert build_landing_people_map(SimpleNamespace(corpus=corpus))['counts'] == {
+        'people': 2, 'capabilities': 1, 'records': 1,
+    }
 
 
-def test_home_api_contract_is_unchanged_and_landing_reuses_category_order(app):
+def test_landing_projection_has_zero_counts_for_an_empty_corpus(monkeypatch):
+    monkeypatch.setattr('rndplz.landing.build_capabilities', lambda current: [])
+    data = build_landing_people_map(SimpleNamespace(corpus=SimpleNamespace(people={}, records={})))
+    assert data['counts'] == {'people': 0, 'capabilities': 0, 'records': 0}
+    assert data['capabilities'] == []
+    assert 'people' not in data
+
+
+def test_home_api_contract_is_unchanged_and_landing_reuses_category_order(app, monkeypatch):
+    def no_details(*args, **kwargs):
+        pytest.fail('The lightweight endpoint must not materialize record details')
+
+    monkeypatch.setattr(app.engine, 'explain_record', no_details)
     home = request(app, '/api/people-map?view=home')
     expected = build_home_people_map(app.engine)
     assert json.loads(home['body']) == expected
@@ -175,8 +206,14 @@ def test_home_api_contract_is_unchanged_and_landing_reuses_category_order(app):
     assert data == build_landing_people_map(app.engine)
     assert [category['id'] for category in data['capabilities']] == [category['id'] for category in expected['capabilities']]
     assert [category['label'] for category in data['capabilities']] == [category['label'] for category in build_capabilities(app.engine.corpus)]
-    assert data['people']
-    assert not any(person['id'].startswith('LOCAL-') for person in data['people'])
+    assert 'people' not in data
+    assert all(set(category) == {'id', 'label'} for category in data['capabilities'])
+    assert data['counts'] == {
+        'people': sum(not person.virtual for person in app.engine.corpus.people.values()),
+        'capabilities': len(expected['capabilities']),
+        'records': sum(not record.virtual for record in app.engine.corpus.records.values()),
+    }
+    assert len(landing['body']) < len(home['body'])
     assert request(app, '/api/people-map?view=home')['body'] == home['body']
     assert request(app, '/api/people-map?view=home&landing=no')['body'] == home['body']
     compressed = request(app, '/api/people-map?view=home&landing=1', encoding='gzip')

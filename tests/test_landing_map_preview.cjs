@@ -59,7 +59,12 @@ async function testLazyMount() {
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../rndplz/web/landing-map-preview.js'), 'utf8'), win);
   assert.equal(loaded.length, 0, 'loading the adapter does not load graph code or data');
   assert.equal(requests.length, 0);
-  await Promise.all([win.LandingMapPreview.mount(host), win.LandingMapPreview.mount(host)]);
+  const pending = [win.LandingMapPreview.mount(host), win.LandingMapPreview.mount(host)];
+  assert.equal(host.dataset.mapState, 'loading');
+  assert.equal(attributes.get('aria-busy'), 'true');
+  assert(host.textContent.length > 0, 'the visible preview announces loading before code and data resolve');
+  assert.equal(host.innerHTML, '');
+  await Promise.all(pending);
   assert.deepEqual(loaded, ['/people-map-model.js', '/people-map-layout.js', '/people-map-graph.js']);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, '/api/people-map');

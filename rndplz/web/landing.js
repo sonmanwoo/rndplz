@@ -1,4 +1,4 @@
-/* LANDING r1: below-fold content, loaded only when the introduction enters the viewport. */
+/* Below-fold content, loaded only when the introduction enters the viewport. */
 (function (root, factory) {
   'use strict';
   const api = factory();
@@ -7,20 +7,15 @@
 }(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
   const capabilityURL = id => '/explore?capability=' + encodeURIComponent(id) + '#map';
-  const safePortrait = path => typeof path === 'string' && /^\/portraits\/[a-z0-9][a-z0-9_-]*\.(?:webp|png|jpe?g)$/i.test(path)
-    ? path.replace(/\.(?:png|jpe?g)$/i, '-thumb.webp') : '';
+  const validCount = value => Number.isSafeInteger(value) && value >= 0;
   function project(data) {
-    const people = (Array.isArray(data?.people) ? data.people : []).filter(person => person &&
-      typeof person.id === 'string' && person.id.startsWith('PUB-') && safePortrait(person.profile?.portrait?.path))
-      .map(person => ({id:person.id, name:person.profile?.display_name || person.name || '연구자',
-        portrait:safePortrait(person.profile.portrait.path), field:typeof person.field_label === 'string' ? person.field_label : ''}));
-    const byId = new Map(people.map(person => [person.id, person]));
     const fields = (Array.isArray(data?.capabilities) ? data.capabilities : []).filter(field => field &&
       typeof field.id === 'string' && typeof field.label === 'string' && field.label.trim())
-      .map(field => ({id:field.id, label:field.label, people:(Array.isArray(field.people) ? field.people : []).map(link => byId.get(link?.id)).filter(Boolean)}));
-    // Preserve the API's order, including fields without a public portrait.
-    for (const person of people) if (!person.field) person.field = fields.find(field => field.people.some(item => item.id === person.id))?.label || '연구 기록';
-    return {people, fields};
+      .map(field => ({id:field.id, label:field.label}));
+    const counts = [['people', '공개 연구자', '명'], ['capabilities', '연구 분야', '개'], ['records', '근거 기록', '건']]
+      .filter(([key]) => validCount(data?.counts?.[key]))
+      .map(([key, label, unit]) => ({label, value:data.counts[key], unit}));
+    return {fields, counts};
   }
   function init(win) {
     const doc = win.document, body = doc.body, landing = win.Landing;
@@ -35,10 +30,6 @@
       const observer = new win.IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting && entry.intersectionRatio > 0)) { observer.disconnect(); callback(); }
       }, {threshold:0.01}); observer.observe(element);
-    };
-    const image = (src, className) => {
-      const img = node('img', className); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
-      img.dataset.src = src; return img;
     };
     function lazyImages(host) {
       for (const img of host.querySelectorAll('img[data-src]')) whenVisible(img, () => { img.src = img.dataset.src; delete img.dataset.src; });
@@ -110,52 +101,44 @@
     reduced.addEventListener('change', syncTimer); narrow.addEventListener('change', () => { if (fields.length) paintFields(); syncTimer(); }); doc.addEventListener('visibilitychange', syncTimer);
     new win.MutationObserver(syncTimer).observe(body, {attributes:true, attributeFilter:['class']});
     win.addEventListener('pagehide', () => win.clearInterval(timer)); win.addEventListener('pageshow', syncTimer);
+    const sourcesHost = $('landingSources');
     function render(data) {
-      const projected = project(data), people = projected.people; fields = projected.fields;
+      const projected = project(data); fields = projected.fields;
       start = (fields.length - FOCUS) % Math.max(fields.length, 1); // the first field opens on the highlighted row
       paintFields(); syncTimer();
       const all = $('landingFieldsAll'); all.hidden = !fields.length; all.textContent = '연구 맵에서 분야 ' + fields.length + '개 모두 보기';
-      const rail = $('landingPeopleRail'); rail.replaceChildren();
-      if (body.dataset.landing === 'people') for (const person of people) {
-        const item = node('li', 'landing-person'), collage = node('div', 'landing-collage'); collage.setAttribute('aria-hidden', 'true');
-        const related = fields.find(field => field.people.some(peer => peer.id === person.id))?.people || [person];
-        const peers = related.filter(peer => peer.id !== person.id).slice(0, 3);
-        while (peers.length < 3) peers.push(person);
-        peers.forEach(peer => collage.append(image(peer.portrait, '')));
-        const avatar = image(person.portrait, 'landing-avatar'); avatar.width = 68; avatar.height = 68;
-        const button = node('button', 'landing-pill landing-primary', '카드 보기'); button.type = 'button';
-        button.setAttribute('aria-label', person.name + ' 카드 보기');
-        button.addEventListener('click', async () => {
-          const error = $('landingPersonError'); error.hidden = true; button.setAttribute('aria-busy','true');
-          try { await landing.openPersonCard(person.id, button); }
-          catch (_) { error.textContent = '인물 카드를 불러오지 못했어요. 다시 눌러 주세요.'; error.hidden = false; }
-          finally { button.removeAttribute('aria-busy'); }
-        });
-        item.append(collage, avatar, node('h3', '', person.name), node('p', '', person.field), button); rail.append(item);
+      const counts = $('landingCounts'); counts.replaceChildren();
+      for (const count of projected.counts) {
+        const item = node('li');
+        item.append(node('span', '', count.label + ' '), node('strong', '', count.value.toLocaleString('ko-KR') + count.unit));
+        counts.append(item);
       }
-      lazyImages(rail);
+      counts.hidden = false;
       const fieldStatus = fieldsHost.querySelector('[data-landing-data-status]');
       fieldStatus.hidden = fields.length > 0; fieldStatus.textContent = '지금 표시할 분야가 없어요. 연구 맵에서 확인해 주세요.';
-      const peopleStatus = $('landingPeople').querySelector('[data-landing-data-status]');
-      peopleStatus.hidden = people.length > 0; peopleStatus.textContent = '지금 표시할 공개 인물이 없어요. 연구 맵에서 확인해 주세요.';
+      sourcesHost.querySelector('[data-landing-data-status]').hidden = true;
     }
     let dataWork = null;
     function loadData() {
       if (dataWork) return dataWork;
-      const retry = doc.querySelector('[data-landing-retry]'); retry.hidden = true;
+      for (const retry of doc.querySelectorAll('[data-landing-retry]')) retry.hidden = true;
       dataWork = win.fetch('/api/people-map?view=home&landing=1', {credentials:'same-origin'})
         .then(response => { if (!response.ok) throw new Error('map'); return response.json(); })
-        .then(data => { if (!Array.isArray(data?.people) || !Array.isArray(data?.capabilities)) throw new Error('map'); render(data); })
+        .then(data => {
+          if (!Array.isArray(data?.capabilities) || !validCount(data?.counts?.people) || !validCount(data?.counts?.capabilities)) throw new Error('map');
+          render(data);
+        })
         .catch(() => {
-          dataWork = null; retry.hidden = false;
+          dataWork = null;
+          for (const retry of doc.querySelectorAll('[data-landing-retry]')) retry.hidden = false;
           for (const status of doc.querySelectorAll('[data-landing-data-status]')) { status.hidden = false; status.textContent = '자료를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'; }
         });
       return dataWork;
     }
-    doc.querySelector('[data-landing-retry]').addEventListener('click', loadData);
+    for (const retry of doc.querySelectorAll('[data-landing-retry]')) retry.addEventListener('click', loadData);
     whenVisible(fieldsHost, loadData);
-    if (body.dataset.landing === 'people') whenVisible($('landingPeople'), loadData);
-    else whenVisible($('landingMap'), async () => {
+    whenVisible(sourcesHost, loadData);
+    whenVisible($('landingMap'), async () => {
       const host = $('landingMapCanvas');
       const startMap = async () => {
         try {
@@ -187,5 +170,5 @@
       if (dialog?.open) dialog.addEventListener('close', () => feedback.focus({preventScroll:true}), {once:true});
     });
   }
-  return {capabilityURL, safePortrait, project, init};
+  return {capabilityURL, project, init};
 }));

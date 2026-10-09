@@ -22,20 +22,15 @@
     })().catch(error => { mapDependencies = null; throw error; });
     return mapDependencies;
   }
-  const openPersonCard = (...args) => window.openPersonCard(...args);
   const loadRecommendation = async () => {
     await loadMapDependencies();
     return import(urls['/recommendation-map.js'] || '/recommendation-map.js');
   };
-  window.Landing = {loadScript, quiet, openPersonCard, loadRecommendation};
+  window.Landing = {loadScript, quiet, loadRecommendation};
   const down = document.getElementById('landingDown'), first = document.getElementById('landingFeatures');
   down?.addEventListener('click', event => {
     event.preventDefault(); first.focus({preventScroll:true}); first.scrollIntoView({behavior:quiet() ? 'instant' : 'smooth', block:'start'});
   });
-  if (body.dataset.landing === 'map') {
-    document.getElementById('landingPeople').hidden = true;
-    document.getElementById('landingMap').hidden = false;
-  }
   const start = () => loadScript('/landing.js').catch(() => {
     first.querySelector('h2').textContent = '수소문으로 할 수 있는 일';
     // A visible, keyboard reachable retry also covers a transient script request failure.

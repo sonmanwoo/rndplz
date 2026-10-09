@@ -81,9 +81,6 @@ def landing_document(asset, variant, web, static_assets):
     down = ('<a id="landingDown" class="landing-down" href="#landingFeatures" aria-label="소개 보기">'
             '<span aria-hidden="true">⌄</span></a>')
     fragment = (web / 'landing.html').read_bytes().decode('utf-8')
-    if variant == 'map':
-        fragment = fragment.replace('id="landingPeople"', 'id="landingPeople" hidden', 1)
-        fragment = fragment.replace('aria-labelledby="landingMapTitle" hidden', 'aria-labelledby="landingMapTitle"', 1)
     # HTML remains in source order: welcome, introduction, and existing dialogs.
     source = source.replace('</main></div>', down + newline + '</main></div>' + newline + fragment, 1)
     return _asset('/?landing=' + variant, source.encode('utf-8'), asset.mime)
@@ -97,32 +94,23 @@ def capability_document(asset, static_assets):
 
 
 def build_landing_people_map(engine):
-    """Small public-person projection, requested only after the introduction enters view."""
+    """Field labels and totals from the same already published, scoped map corpus.
+
+    The public app applies personal-publication and current-demo filters first.
+    Approved provided profiles and records remain included; virtual demo entries
+    do not count as public researchers or evidence. Portraits are not required.
+    """
     corpus = engine.corpus
     categories = build_capabilities(corpus)
-    people = []
-    for person in corpus.people.values():
-        profile = person.profile
-        portrait = profile.get('portrait') or {}
-        if (person.id.startswith('LOCAL-') or person.virtual or not profile.get('curated')
-                or profile.get('source_type') in ('self_reported', 'provided_resume')
-                or not isinstance(portrait.get('path'), str)
-                or not re.fullmatch(r'/portraits/[A-Za-z0-9_-]+\.(?:png|jpe?g|webp)', portrait['path'])):
-            continue
-        public_profile = {key: profile[key] for key in ('display_name',) if key in profile}
-        public_profile['portrait'] = {'path': portrait['path']}
-        field = profile.get('field_label') or profile.get('research_field')
-        if not isinstance(field, str) or not field.strip():
-            field = next((category['label'] for category in categories
-                          if any(link['id'] == person.id for link in category['people'])), '')
-        people.append({'id': person.id, 'name': person.name, 'profile': public_profile, 'field_label': field})
-    public_ids = {person['id'] for person in people}
     return {
         'schema_version': 'people-map-landing-v1',
-        'people': people,
+        'counts': {
+            'people': sum(not person.virtual for person in corpus.people.values()),
+            'capabilities': len(categories),
+            'records': sum(not record.virtual for record in corpus.records.values()),
+        },
         'capabilities': [
-            {'id': category['id'], 'label': category['label'],
-             'people': [{'id': link['id']} for link in category['people'] if link['id'] in public_ids]}
+            {'id': category['id'], 'label': category['label']}
             for category in categories
         ],
     }
