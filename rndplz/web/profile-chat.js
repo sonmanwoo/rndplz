@@ -1,15 +1,15 @@
 /* Profile editing in the conversation. A bound account's saves show on its map card (server person_cards). */
 (() => {
   "use strict";
-  const FIELDS = {name:"표시 이름",organization:"소속·부서",role:"현재 역할",bio:"짧은 소개",skills:"전문분야",interests:"관심 분야"};
+  const FIELDS = {name:"표시 이름",organization:"소속",department:"부서",role:"현재 직위·역할",aliases:"영문 이름·별칭",tagline:"한 줄 소개",bio:"짧은 소개",skills:"전문분야",interests:"관심 분야"};
   const CAREER = {title:"경력·프로젝트명",organization:"소속·조직",period:"기간",role:"맡은 역할",description:"한 일과 적용 조건"};
-  const text = value => value == null ? "" : typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  const text = value => value == null ? "" : typeof value === "string" ? value : Array.isArray(value) ? value.join("\n") : JSON.stringify(value, null, 2);
   const copy = value => JSON.parse(JSON.stringify(value));
   const uid = () => crypto.randomUUID().replaceAll("-", "");
-  const cleanCareer = value => ({...(value.id ? {id:value.id} : {}),...Object.fromEntries(Object.keys(CAREER).map(k => [k,value[k] || ""]))});
+  const cleanCareer = value => ({...(value.id ? {id:value.id} : {}),...Object.fromEntries(Object.keys(CAREER).map(k => [k,value[k] || ""])),...(value.source_ids?.length?{source_ids:[...value.source_ids],edited:!!value.edited||(value._sourceValue!==undefined&&value._sourceValue!==JSON.stringify(Object.fromEntries(Object.keys(CAREER).map(k=>[k,value[k]||""]))))}:{})});
   const eligible = row => ["pending","deferred","excluded"].includes(row.decision);
   // The server's list_items/list_join: one entry per line when the value has lines (a seeded card).
-  const listItems = value => String(value||"").split(String(value||"").includes("\n")?"\n":/[,;]+/).map(v=>v.trim()).filter(Boolean);
+  const listItems = value => (Array.isArray(value)?value:String(value||"").split(String(value||"").includes("\n")?"\n":/[,;]+/)).map(v=>v.trim()).filter(Boolean);
   const listJoin = (entries,like) => entries.join(String(like||"").includes("\n")||entries.some(e=>e.includes(","))?"\n":", ");
   const shortList = value => {const items=listItems(value);return items.slice(0,6).join(", ")+(items.length>6?` 외 ${items.length-6}개`:"");};
   const careerText = c => [[c.title,c.organization,c.period,c.role].filter(Boolean).join(" · "),c.description].filter(Boolean).join("\n");
@@ -70,6 +70,7 @@
       const valid=new Map((next.suggestions||[]).map(p=>[p.id,p]));
       for(const [id] of selected){const p=valid.get(id);if(!p||!eligible(p)||gone.has(p.source_id))selected.delete(id);}
       if(deleteSource&&!available.has(deleteSource.id))deleteSource=null;
+      if(draft?.source_id&&gone.has(draft.source_id))draft=null;
     }
     function adopt(next) {
       if(view&&next.profile.version<view.profile.version)return false;
@@ -155,7 +156,7 @@
       const modelId=getModelId()||"",model=modelId&&!["rules","guide"].includes(modelId)?{model_id:modelId}:{};
       await mutation("text",{}, routed?{text:String(value),routed:true,...model}:{text:String(value)});return true;
     }
-    function compare(before,after,a="As is · 지금",b="To be · 바뀔 값") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,(value&&typeof value==="object"?careerText(value):text(value))||"미입력"));n.append(col);}return n;}
+    function compare(before,after,a="As is · 지금",b="To be · 바뀔 값") {const n=el("div","comparison");for(const [label,value] of [[a,before],[b,after]]){const col=el("div");col.append(el("strong",null,label),el("pre",null,(value&&typeof value==="object"&&!Array.isArray(value)?careerText(value):text(value))||"미입력"));n.append(col);}return n;}
     function profileScopeSummary(scope={}) {
       const card=scope.kind==="person_card"&&scope.identity_status==="google_authenticated";
       const account=card||(scope.kind==="account_private"&&scope.identity_status==="google_authenticated"&&scope.shared===false);
@@ -179,7 +180,7 @@
       if(!editor){editorBody.append(note("기본 항목 하나 또는 경력 한 행만 골라 수정할 수 있어요."));return;}
       if(editor.key.startsWith("career:")){
         for(const [k,label] of Object.entries(CAREER)){const input=el(k==="description"?"textarea":"input");input.value=editor.value?.[k]||"";input.maxLength=view.limits.career_fields[k];input.dataset.profileLock="";if(k==="description")input.rows=4;input.addEventListener("input",()=>{editor.value[k]=input.value;editorRevision++;});editorBody.append(field(label,input,"career-"+k));}
-      }else{const input=el("textarea");input.rows=editor.key==="bio"?4:2;input.value=editor.value;input.maxLength=view.limits.fields[editor.key];input.dataset.profileLock="";input.addEventListener("input",()=>{editor.value=input.value;editorRevision++;});editorBody.append(field(FIELDS[editor.key],input,"editor-value"));}
+      }else{const input=el("textarea");input.rows=editor.key==="bio"?4:2;input.value=text(editor.value);input.maxLength=editor.key==="aliases"?20*(view.limits.fields.aliases+1):view.limits.fields[editor.key];input.dataset.profileLock="";input.addEventListener("input",()=>{editor.value=editor.key==="aliases"?listItems(input.value):input.value;editorRevision++;});editorBody.append(field(FIELDS[editor.key],input,"editor-value"));}
       editorBody.append(actions(button("변경 저장",saveEditor,"save-editor"),button("적용 전 취소",()=>{editor=null;editorRevision++;paintEditor();controls();},"cancel-editor",true)));
     }
     async function saveEditor() {
@@ -197,20 +198,27 @@
       drafts.replaceChildren();drafts.hidden=!draft;if(!draft)return;
       drafts.append(el("h3",null,draft.source?`「${draft.source}」에서 찾은 변경 · As is → To be`:"요청한 변경 · As is → To be"));
       if(draft.summary)drafts.append(note(draft.summary));
+      for(const warning of draft.warnings||[])drafts.append(note(warning.message||"일부 숫자는 원문 확인이 필요해요."));
       drafts.append(note(view.scope?.kind==="person_card"?"아직 저장하지 않았어요. 저장하면 연구맵 카드에 바로 반영돼요.":"아직 저장하지 않았어요. 맞으면 저장을 눌러 주세요."));
       // A document's proposal: each item can be left out before saving.
       const keep=(key,row)=>{if(!draft.skip)return;const box=el("input");box.type="checkbox";box.checked=!draft.skip.has(key);box.addEventListener("change",()=>{if(box.checked)draft.skip.delete(key);else draft.skip.add(key);});row.append(field("넣기",box,"keep-"+key.replace(/[^a-z0-9]/gi,"")));};
-      for(const [key,value] of Object.entries(draft.fields||{})){if(!Object.prototype.hasOwnProperty.call(FIELDS,key))continue;const row=el("article","delta");row.append(el("strong",null,FIELDS[key]),compare(view.profile.fields[key],value));keep(key,row);drafts.append(row);}
-      (draft.careers||[]).forEach((c,i)=>{const row=el("article","delta");row.append(el("strong",null,"경력 추가"),compare("없음 · 새 경력",c));keep("career:"+i,row);drafts.append(row);});
+      const sourceNote=(key,row)=>{if(draft.source_id)row.append(note(`${draft.edited?.has(key)?"자료 기반 + 사용자 수정":"자료 기반"} · ${draft.source}`));};
+      const edit=(key,value,row,career=false)=>{if(!draft.source_id)return;const pen=button("✎",()=>{draft.editing=key;paintDraft();controls();},"edit-draft-"+key);pen.title="고치기";pen.setAttribute("aria-label","이 제안 고치기");row.append(pen);if(draft.editing!==key)return;
+        const box=el("div","editor-body"),inputs={};for(const [k,label] of career?Object.entries(CAREER):[[key,FIELDS[key]]]){const input=el(career&&k!=="description"?"input":"textarea");input.value=text(career?value[k]:value);input.maxLength=career?view.limits.career_fields[k]:k==="aliases"?20*(view.limits.fields.aliases+1):view.limits.fields[k];inputs[k]=input;box.append(field(label,input,"draft-"+k));}
+        box.append(actions(button("고치기 완료",()=>{const before=JSON.stringify(career?Object.fromEntries(Object.keys(CAREER).map(k=>[k,value[k]||""])):value);if(career){for(const [k,input] of Object.entries(inputs))value[k]=input.value.trim();}else draft.fields[key]=key==="aliases"?listItems(inputs[key].value):inputs[key].value.trim();const after=JSON.stringify(career?Object.fromEntries(Object.keys(CAREER).map(k=>[k,value[k]||""])):draft.fields[key]);if(before!==after){(draft.edited??=new Set()).add(key);if(career)value.edited=true;}draft.skip.delete(key);draft.editing=null;paintDraft();controls();},"done-draft-"+key),button("취소",()=>{draft.editing=null;paintDraft();controls();},"cancel-draft-edit",true)));row.append(box);};
+      for(const [key,value] of Object.entries(draft.fields||{})){if(!Object.prototype.hasOwnProperty.call(FIELDS,key))continue;const row=el("article","delta");row.append(el("strong",null,FIELDS[key]),compare(view.profile.fields[key],value,draft.source_id?"지금 카드":"As is · 지금",draft.source_id?"AiU 제안":"To be · 바뀔 값"));keep(key,row);edit(key,value,row);sourceNote(key,row);drafts.append(row);}
+      (draft.careers||[]).forEach((c,i)=>{const key="career:"+i,row=el("article","delta");row.append(el("strong",null,"경력 추가"),compare("없음 · 새 경력",c,draft.source_id?"지금 카드":"As is · 지금",draft.source_id?"AiU 제안":"To be · 바뀔 값"));keep(key,row);edit(key,c,row,true);sourceNote(key,row);drafts.append(row);});
       drafts.append(actions(button("이대로 저장",saveDraft,"save-draft"),button("저장하지 않음",()=>{draft=null;reply="변경안을 저장하지 않았어요.";paint();},"cancel-draft",true)));
     }
     async function saveDraft() {
       if(!draft||conflict||busy||uncertain)return;
       if(draft.base_version!==view.profile.version){draft=null;showError(new Error("변경안을 만든 뒤 프로필이 바뀌었어요. 바꿀 내용을 다시 말씀해 주세요."));paint();return;}
       if(editor){showError(new Error("직접 편집 중인 항목을 먼저 저장하거나 취소해 주세요. 변경안은 유지됩니다."));return;}
+      if(draft.editing){showError(new Error("제안의 고치기를 완료하거나 취소한 뒤 저장해 주세요. 작성 중인 내용은 유지됩니다."));return;}
       const skip=draft.skip||new Set(),fields=Object.fromEntries(Object.entries(draft.fields||{}).filter(([k])=>!skip.has(k))),careers=(draft.careers||[]).filter((_,i)=>!skip.has("career:"+i));
       if(!Object.keys(fields).length&&!careers.length){draft=null;reply="넣을 변경을 고르지 않아 저장하지 않았어요.";paint();return;}
       const payload={fields};
+      if(draft.source_id)payload.field_sources=Object.fromEntries(Object.keys(fields).map(key=>[key,{source_ids:[...new Set([...(draft.field_sources?.[key]?.source_ids||[]),draft.source_id])],edited:!!draft.edited?.has(key)}]));
       if(careers.length)payload.careers=[...view.profile.careers.map(cleanCareer),...careers.map(cleanCareer)];
       const request=newRequest("save",payload);request.draft=true;await perform(request);
     }
@@ -329,10 +337,12 @@
       finally{clearInterval(tick);busy=false;activeMutation=false;readingProgress="";controls();}
       if(e!==generation||!opened)return true;
       const p=result.proposal||{},fields={};
+      for(const key of ["name","organization","department","role","tagline"])if(p[key])fields[key]=p[key];
       if(p.bio_addition)fields.bio=[String(view.profile.fields.bio||"").trim(),p.bio_addition].filter(Boolean).join(" ");
-      for(const key of ["skills","interests"]){const now=listItems(view.profile.fields[key]),known=new Set(now.map(v=>v.toLowerCase())),added=(p[key]||[]).filter(v=>!known.has(v.toLowerCase()));if(added.length)fields[key]=listJoin([...now,...added],view.profile.fields[key]);}
-      if(!Object.keys(fields).length&&!(p.careers||[]).length){draft=null;reply=`「${result.name}」에서 카드에 더할 새 내용을 찾지 못했어요.`;paint();return true;}
-      draft={fields,careers:p.careers||[],base_version:result.base_version,source:result.name,summary:p.summary||"",skip:new Set()};
+      for(const key of ["aliases","skills","interests"]){const now=listItems(view.profile.fields[key]),known=new Set(now.map(v=>v.toLowerCase())),added=(p[key]||[]).filter(v=>!known.has(v.toLowerCase()));if(added.length)fields[key]=key==="aliases"?[...now,...added]:listJoin([...now,...added],view.profile.fields[key]);}
+      if(!Object.keys(fields).length&&!(p.careers||[]).length){draft=null;reply=[`「${result.name}」에서 카드에 더할 새 내용을 찾지 못했어요.`,...(p.warnings||[]).map(w=>w.message).filter(Boolean)].join(" ");paint();return true;}
+      const sourceId=result.source_id||id;
+      draft={fields,field_sources:Object.fromEntries(["bio","aliases","skills","interests"].filter(key=>key in fields).map(key=>[key,{source_ids:(view.profile.provenance?.[key]?.source_ids||[]).filter(id=>!view.sources||view.sources.some(s=>s.id===id&&s.status==="active"))}])),careers:(p.careers||[]).map(c=>({...c,source_ids:[sourceId],edited:false})),base_version:result.base_version,source:result.name,source_id:sourceId,summary:p.summary||"",warnings:p.warnings||[],edited:new Set(),skip:new Set()};
       reply=`「${result.name}」을 읽고 카드에 더할 내용을 정리했어요. 넣을 것만 남기고 저장해 주세요.`;paint();return true;
     }
     function buildConflict() {
@@ -342,16 +352,17 @@
         if(command){
           const current=targetValue(latest,command.field);let proposed=command.value;
           if(command.action!=="set"){
-            let entries=current.split(/[,\n;]+/u).map(value=>value.trim()).filter(Boolean);const value=command.value.trim();
+            let entries=listItems(current);const value=command.value.trim();
             if(command.action==="add"&&!entries.includes(value))entries.push(value);
             if(command.action==="remove")entries=entries.filter(entry=>entry!==value);
-            proposed=entries.join(", ");
+            proposed=command.field==="aliases"?entries:entries.join(", ");
           }
           rows.push({id:"command:"+command.field,key:command.field,before:current,after:proposed,kind:"command"});
         }
         conflict.rows=rows;return;
       }
       if(editor){const key=editor.key;if(!same(targetValue(base,key),targetValue(latest,key)))rows.push({id:"edit:"+key,key,before:targetValue(latest,key),after:editor.value,kind:"editor"});}
+      if(draft)for(const [key,value] of Object.entries(draft.fields||{})){if(draft.skip?.has(key))continue;if(!same(targetValue(base,key),targetValue(latest,key)))rows.push({id:"draft:"+key,key,before:targetValue(latest,key),after:value,kind:"draft"});}
       for(const [id,s] of selected){if(!s.checked||!s.field)continue;const key=selectedTarget(s,id);if(key.startsWith("new:"))continue;
         if(!same(targetValue(base,key),targetValue(latest,key)))rows.push({id:"source:"+id,key,before:targetValue(latest,key),after:selectedValue(base.suggestions.find(p=>p.id===id)||{},s),kind:"source",suggestionId:id});}
       conflict.rows=rows;
@@ -385,15 +396,16 @@
         reply=mine?"선택한 값을 편집창에 두었습니다. ‘변경 저장’을 눌러야 반영됩니다.":row?"최신 저장값을 유지했습니다. 원래 요청은 다시 적용하지 않았습니다.":"수정 대상을 확인하지 못해 원래 요청을 다시 적용하지 않았습니다. 직접 수정할 항목을 선택해 주세요.";
         paint();return;
       }
-      for(const row of conflict.rows){if(conflict.choices.get(row.id)==="latest"){if(row.kind==="editor")editor=null;else{const s=selected.get(row.suggestionId);if(s)s.checked=false;}}}
+      for(const row of conflict.rows){if(conflict.choices.get(row.id)==="latest"){if(row.kind==="editor")editor=null;else if(row.kind==="draft"){(draft.skip??=new Set()).add(row.key);}else{const s=selected.get(row.suggestionId);if(s)s.checked=false;}}}
       if(editor){editor.before=copy(targetValue(view,editor.key));editor.baseVersion=view.profile.version;}
+      if(draft)draft.base_version=view.profile.version;
       conflict=null;error=null;errorRequest=null;reply="비교 결과를 반영했습니다. 아직 저장하지 않았습니다.";paint();
       if(prior&&!["save","text"].includes(prior.body.action)){const retry=newRequest(prior.body.action,prior.body.payload,prior.body.text===undefined?{}:{text:prior.body.text});retry.after=prior.after;await perform(retry);return;}
       if([...selected.values()].some(s=>s.checked))await refreshSuggestions();
     }
     function provenanceLabel(key) {
       const p=view.profile.provenance?.[key];if(!p)return "근거 미제공 · 본인·경력 확인과 별개";
-      const origin={user_input:"직접 입력",public_card:"연구맵 카드에서 가져옴",source_claim:"자료에서 채택",user_edited_source:"자료를 바탕으로 수정"}[p.origin]||"출처 확인 필요";
+      const origin={user_input:"직접 입력",public_card:"연구맵 카드에서 가져옴",source_claim:"자료 기반",user_edited_source:"자료 기반 + 사용자 수정"}[p.origin]||"출처 확인 필요";
       const names=(p.source_ids||[]).map(id=>view.sources.find(s=>s.id===id)).filter(s=>s&&!["deleted","deleting"].includes(s.status)).map(s=>s.name);
       return [origin,...names,p.evidence_status==="requires_review"?"근거 재확인 필요":"본인·경력 확인과 별개"].join(" · ");
     }

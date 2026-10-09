@@ -206,7 +206,8 @@
         }
       ],
       "topic_ids": [
-        "EXP02-IMMERSION"
+        "EXP02-IMMERSION",
+        "EXP02-LIQUID-COOLING"
       ]
     },
     {
@@ -280,7 +281,9 @@
           ]
         }
       ],
-      "topic_ids": []
+      "topic_ids": [
+        "EXP02-ROBOTICS"
+      ]
     },
     {
       "id": "lubricants",

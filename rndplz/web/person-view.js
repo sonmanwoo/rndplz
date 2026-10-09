@@ -8,6 +8,11 @@
   const isPersonalIllustration=profile=>['LOCAL-MANWOO','LOCAL-JINHO'].includes(profile?.id)&&['self_reported','provided_resume'].includes(profile?.source_type)&&profile?.portrait?.kind==='personal_illustration'&&profile.portrait.generated===true;
   const safeUrl=value=>{try{return typeof value==='string'&&['http:','https:'].includes(new URL(value).protocol);}catch{return false;}};
   const sourceLink=(url,label)=>safeUrl(url)?'<a href="'+html(url)+'" target="_blank" rel="noopener noreferrer">'+html(label)+' ↗</a>':label==='출처'?'':'<span>'+html(label)+'</span>';
+  function sourceEvidence(value){
+    const sources=rows(value?.sources),review=typeof value?.source_review==='string'?value.source_review:'';
+    if(!sources.length&&!review)return '';
+    return '<p class="detail-note person-source">'+html(review||'자료 기반')+(sources.length?' · '+sources.map(s=>sourceLink(s.url,s.title||s.name||'첨부 자료')).join(' · '):'')+'</p>';
+  }
   const artPath=value=>typeof value==='string'&&/^\/portraits\/[a-zA-Z0-9_.-]+\.(?:png|jpe?g|webp)$/.test(value)?value:'';
   const displayPath=value=>artPath(value).replace(/\.(?:png|jpe?g)$/i,'-detail.webp');
   function effectiveLaureateEffect(){return 'off';}
@@ -56,14 +61,16 @@
     const headingClass=options.headingClass||(className==='pi-facts'?'pi-name':'');
     const headingAttrs=(options.headingId?' id="'+html(options.headingId)+'"':'')+(headingClass?' class="'+html(headingClass)+'"':'');
     const original=typeof person?.name==='string'?person.name.trim():'';
-    const org=typeof person?.org==='string'?person.org:p.org||'';
+    const aliases=[...new Set([...strings(person?.aliases),...strings(p.aliases),...(!options.compact&&original&&original!==name?[original]:[])])].filter(value=>value!==name);
+    const baseOrg=typeof person?.org==='string'?person.org:p.org||'',org=[baseOrg,p.department].filter(Boolean).join(' · ');
     const orgTag=sheet?'span':'p',orgClass=sheet?'':options.orgClass||(className==='pi-facts'?'pi-org':'candidate-org');
-    if(options.variant==='inspect')return '<'+tag+headingAttrs+'>'+html(name)+'</'+tag+'>'+(org?'<p class="'+html(orgClass)+'">'+html(org)+'</p>':'');
+    if(options.variant==='inspect')return '<'+tag+headingAttrs+'>'+html(name)+'</'+tag+'>'+(baseOrg?'<p class="'+html(orgClass)+'">'+html(baseOrg)+'</p>':'');
     return '<div class="'+html(className)+'"><'+tag+headingAttrs+'>'+html(name)+'</'+tag+'>'+
-      (!options.compact&&original&&original!==name?'<span class="researcher-korean">'+html(original)+'</span>':'')+
+      (aliases.length?'<span class="researcher-korean">'+aliases.map(html).join(' · ')+'</span>':'')+
       (org?'<'+orgTag+(orgClass?' class="'+html(orgClass)+'"':'')+'>'+html(org)+'</'+orgTag+'>':'')+
-      (!options.compact&&p.current_role?'<p class="laureate-role">'+html(p.current_role)+(p.affiliation_as_of?' · 공개 프로필 확인 '+html(p.affiliation_as_of):'')+'</p>':'')+
-      (sheet&&(options.compact?p.tagline:capability(person))?'<em>'+html(options.compact?p.tagline:capability(person))+'</em>':'')+
+      (p.current_role?'<p class="laureate-role">'+html(p.current_role)+(p.affiliation_as_of?' · 공개 프로필 확인 '+html(p.affiliation_as_of):'')+'</p>':'')+
+      (!sheet&&p.tagline?'<p class="candidate-org">'+html(p.tagline)+'</p>':'')+
+      (sheet&&(p.tagline||(!options.compact&&capability(person)))?'<em>'+html(p.tagline||capability(person))+'</em>':'')+
       (sheet&&strings(options.tags).length?'<span class="sheet-tags">'+strings(options.tags).map(t=>'<b>'+html(t)+'</b>').join('')+'</span>':'')+'</div>';
   }
   function portrait(profile,name,options={}){
@@ -116,21 +123,21 @@
   function evidenceRow(e,profile,options={}){
     const title=html(e.title||e.id||'연결 근거'),meta=[evidenceKind(e),e.date].filter(Boolean).map(html).join(' · ');
     if(options.variant==='inspect'){
-      const text=evidenceDescription(e,profile),body=(text?'<p>'+html(plainScience(text))+'</p>':'')+(safeUrl(e.url)?sourceLink(e.url,'원문 출처'):'');
+      const text=evidenceDescription(e,profile),body=(text?'<p>'+html(plainScience(text))+'</p>':'')+(safeUrl(e.url)?sourceLink(e.url,'원문 출처'):'')+sourceEvidence(e);
       const heading='<strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'');
       return body?'<details><summary>'+heading+'</summary>'+body+'</details>':'<div class="pi-evidence-plain">'+heading+'</div>';
     }
     const fullText=evidenceDescription(e,profile),text=options.described?.get(e.id)?.has(compact(fullText))?'':fullText;
     const label=options.label?'<span class="found-label">'+html(options.label)+'</span>':'';
     const heading=label+'<strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'');
-    const source=(safeUrl(e.url)?sourceLink(e.url,'원문 출처'):'')+rows(e.metadata_sources).filter(s=>safeUrl(s.url)).map(s=>'<p>'+sourceLink(s.url,s.title||s.label||(/correction/i.test(s.basis||s.type||'')?'정정 출처':'추가 확인 출처'))+'</p>').join('');
+    const source=(safeUrl(e.url)?sourceLink(e.url,'원문 출처'):'')+sourceEvidence(e)+rows(e.metadata_sources).filter(s=>safeUrl(s.url)).map(s=>'<p>'+sourceLink(s.url,s.title||s.label||(/correction/i.test(s.basis||s.type||'')?'정정 출처':'추가 확인 출처'))+'</p>').join('');
     const boundary=options.showBoundary!==false&&e.boundary&&e.boundary!==profile?.profile_note?'<p class="detail-note">'+html(e.boundary)+'</p>':'';
     const action=recordLink(e,options),cls='person-evidence'+(options.label?' found-record':'');
     return text?'<details class="'+cls+'"><summary>'+heading+'</summary><p>'+html(plainScience(text))+'</p>'+boundary+source+action+'</details>':
       '<div class="pi-evidence-plain '+cls+'">'+heading+source+action+'</div>';
   }
 function extraRecordSources(e){
- return (Array.isArray(e.metadata_sources)?e.metadata_sources:[]).filter(x=>safeUrl(x.url)).map(x=>'<p><a href="'+html(x.url)+'" target="_blank" rel="noopener noreferrer">'+html(x.title||x.label||(/correction/i.test(x.basis||x.type||'')?'정정 출처':'추가 확인 출처'))+' ↗</a></p>').join('');
+ return sourceEvidence(e)+(Array.isArray(e.metadata_sources)?e.metadata_sources:[]).filter(x=>safeUrl(x.url)).map(x=>'<p><a href="'+html(x.url)+'" target="_blank" rel="noopener noreferrer">'+html(x.title||x.label||(/correction/i.test(x.basis||x.type||'')?'정정 출처':'추가 확인 출처'))+' ↗</a></p>').join('');
 }
 
 function projectParticipantsHtml(e,currentPersonId=null,options={}){
@@ -185,6 +192,8 @@ function detailEvidence(e,options={}){
     const links=rows(profile?.links).filter(l=>typeof l.url==='string'&&/^https:\/\//i.test(l.url)&&safeUrl(l.url));
     return links.length?'<p class="researcher-intro-links"><span>본인이 소개하는 자료</span> '+links.map(l=>'<a class="researcher-intro-link" href="'+html(l.url)+'" target="_blank" rel="noopener noreferrer">'+html(l.label||'소개 페이지')+' ↗</a>').join(' · ')+'</p>':'';
   }
+  // A saved project, paper or patent name heads its line; curated lines without a title stay as they were.
+  function timelineTitle(t,text){const title=typeof t?.title==='string'?t.title.trim():'';return title&&!String(text).includes(title)?'<b class="timeline-title">'+html(title)+'</b> ':'';}
   function careerRecord(row,evidence,timeline){
     if(row.record_id)return evidence.find(e=>e.id===row.record_id)||null;
     const dated=timeline.filter(t=>row.date&&t.date===row.date),records=evidence.filter(e=>e.kind==='career_record'&&row.date&&e.date===row.date);
@@ -204,7 +213,7 @@ function detailEvidence(e,options={}){
     if(!personal)add('portraitNote','<p class="scope-note">'+html(p.portrait_note||(p.portrait?.generated?'AI 생성 초상 일러스트':p.portrait?.path?'출처에 표시된 프로필 사진':'사진 미제공 · 공개 프로필과 논문 기록을 확인해 주세요.'))+'</p>');
     add('careers',timeline.length?'<h3>이력의 발자취</h3><ol class="researcher-timeline">'+timeline.map(t=>{
       const e=careerRecord(t,evidence,timeline),text=t.text||(e?evidenceDescription(e,p):'');
-      return '<li><span>'+html(t.date)+'</span><div>'+html(text)+' '+sourceLink(t.url,'출처')+'</div></li>';
+      return '<li><span>'+html(t.date)+'</span><div>'+timelineTitle(t,text)+html(text)+' '+sourceLink(t.url,'출처')+sourceEvidence(t)+'</div></li>';
     }).join('')+'</ol>':editable?'<h3>이력의 발자취</h3><p class="card-empty">＋ 이력 추가</p>':'');
     for(const [key,title] of [['projects','프로젝트 이력'],['education','교육 이력']]){
       const entries=rows(p[key]);add(key,p[key]?'<h3>'+title+'</h3><ol class="researcher-timeline">'+entries.map(x=>{
@@ -214,7 +223,8 @@ function detailEvidence(e,options={}){
     }
     add('skillGroups',p.skill_groups?'<h3>다룰 수 있는 일</h3>'+rows(p.skill_groups).map(g=>'<h4>'+html(g.name)+'</h4><p>'+strings(g.items).map(html).join(' · ')+'</p>').join(''):'');
     add('interests',p.interests?'<h3>관심 분야</h3><ul>'+strings(p.interests).map(x=>'<li>'+html(x)+'</li>').join('')+'</ul>':editable?'<h3>관심 분야</h3><p class="card-empty">＋ 관심 분야 추가</p>':'');
-    add('sources','<div class="researcher-sources">'+rows(p.sources).map(x=>sourceLink(x.url,x.title)).join(' · ')+'</div>');
+    const provenanceLabels={name:'표시 이름',organization:'소속',department:'부서',role:'현재 직위·역할',aliases:'영문 이름·별칭',tagline:'한 줄 소개',bio:'약력',skills:'대표 기술',interests:'관심 분야'};
+    add('sources','<div class="researcher-sources">'+rows(p.sources).map(x=>sourceLink(x.url,x.title)).join(' · ')+Object.entries(p.provenance||{}).filter(([key])=>provenanceLabels[key]).map(([key,value])=>'<div><span>'+provenanceLabels[key]+'</span>'+sourceEvidence(value)+'</div>').join('')+'</div>');
     if(options.includeNotice!==false)add('notice',notice(person,{...options,variant:'detail'}));
     if(options.includeEvidence===true)add('evidence',evidenceContext(person,options)+evidence.map(e=>detailEvidence(e,{...options,personId:person.id,label:options.labels?.get(e.id)||''})).join(''));
     return result;
@@ -231,7 +241,7 @@ function detailEvidence(e,options={}){
     add('evidence','<section class="sheet-sec"><h3>'+countLabel(evidence.length,options.partial||options.historical)+'</h3>'+evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+html(e.id)+'"'+(options.recordAction===false||e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+html(labels.get(e.id))+'</span>':'')+'<strong>'+html(e.title)+'</strong><small>'+html([e.date,e.evidence_label||evidenceKind(e)].filter(Boolean).join(' · '))+' ›</small></button>').join('')+'</section>');
     add('careers',timeline.length?'<section class="sheet-sec"><h3>이력</h3>'+timeline.map(t=>{
       const record=careerRecord(t,evidence,timeline),text=t.text||(record?evidenceDescription(record,p):'');
-      return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><span class="sheet-clamp">'+html(text)+'</span><small>'+html(t.date||'')+'</small></div>';
+      return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><span class="sheet-clamp">'+timelineTitle(t,text)+html(text)+'</span><small>'+html(t.date||'')+'</small>'+sourceEvidence(t)+'</div>';
     }).join('')+'</section>':editable?'<section class="sheet-sec"><h3>이력</h3><p class="card-empty">＋ 이력 추가</p></section>':'');
     // The folded area keeps unique provenance and record metadata, without repeating the profile card.
     const children=sections(person,{...options,evidence,includeIdentity:false,includePortrait:false,portraitMetadata:true,includeSkills:false,includeEvidence:false})

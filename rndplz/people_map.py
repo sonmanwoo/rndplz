@@ -11,7 +11,7 @@ from .public_read import SOURCE_NOTE, AVAILABILITY_NOTE
 
 PROFILE_KEYS = {
     'id', 'slug', 'name', 'display_name', 'aliases', 'org', 'org_type', 'curated',
-    'source_type', 'tagline', 'biography', 'skills', 'skill_groups', 'interests',
+    'source_type', 'tagline', 'department', 'provenance', 'biography', 'skills', 'skill_groups', 'interests',
     'timeline', 'projects', 'education', 'sources', 'links', 'portrait', 'portrait_note',
     'profile_note', 'featured_work', 'topics', 'award', 'affiliation',
     'affiliation_as_of', 'current_role', 'role', 'field_label', 'research_field',

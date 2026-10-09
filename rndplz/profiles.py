@@ -18,12 +18,14 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .attachments import Attachments, MAX_BYTES, MAX_FILE_BYTES
 from .profile_reading import MAX_PROFILE_TEXT, ReadingError
 
 
-FIELDS = {'name': 120, 'organization': 180, 'role': 180, 'bio': 2000,
+FIELDS = {'name': 120, 'organization': 180, 'department': 180, 'role': 180, 'aliases': 120,
+          'tagline': 300, 'bio': 2000,
           'skills': 4000, 'interests': 2000}
 CAREER_FIELDS = {'title': 240, 'organization': 180, 'period': 120,
                  'role': 180, 'description': 4000}
@@ -43,6 +45,30 @@ def _text(value, limit, label):
     if not isinstance(value, str) or len(value) > limit or '\x00' in value:
         raise ProfileError(f'{label}의 형식과 길이를 확인해 주세요.')
     return value.strip()
+
+
+def _field_value(field, value):
+    if field == 'aliases':
+        if not isinstance(value, list) or len(value) > 20:
+            raise ProfileError('별칭은 20개 이하의 이름 목록으로 작성해 주세요.')
+        return list(dict.fromkeys(name for entry in value if (name := _text(entry, FIELDS[field], '별칭'))))
+    return _text(value, FIELDS[field], field)
+
+
+def _empty_field(field):
+    return [] if field == 'aliases' else ''
+
+
+def _source_summary(source):
+    """Only document identity is shared; private attachment endpoints never become public links."""
+    url = source.get('url', '') if source.get('access') == 'public' else ''
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password:
+            url = ''
+    except (ValueError, TypeError):
+        url = ''
+    return {'id': source['id'], 'title': source.get('name', ''), 'url': url, 'status': source['status']}
 
 
 def _keys(payload, allowed):
@@ -137,7 +163,7 @@ class Profiles:
 
     @staticmethod
     def _empty():
-        return {'schema': 1, 'profile': {'id': None, 'version': 0, 'fields': {k: '' for k in FIELDS},
+        return {'schema': 1, 'profile': {'id': None, 'version': 0, 'fields': {k: _empty_field(k) for k in FIELDS},
                 'careers': [], 'provenance': {}, 'updated_at': None, 'mode': 'unverified'},
                 'sources': [], 'suggestions': [], 'history': [], 'requests': {}}
 
@@ -147,6 +173,8 @@ class Profiles:
             return self._empty()
         if not isinstance(data, dict) or data.get('schema') != 1:
             raise ProfileError('내 프로필 저장 형식을 확인할 수 없습니다.', code='storage')
+        for key in FIELDS:
+            data['profile']['fields'].setdefault(key, _empty_field(key))
         return data
 
     def _view(self, data):
@@ -454,7 +482,7 @@ class Profiles:
     @staticmethod
     def _card(data):
         fields = data['profile']['fields']
-        return {**{key: fields[key] for key in ('name', 'organization', 'role', 'bio')},
+        return {**{key: fields[key] for key in ('name', 'organization', 'department', 'role', 'aliases', 'tagline', 'bio')},
                 'skills': list_items(fields['skills']), 'interests': list_items(fields['interests']),
                 'careers': [{'title': c['title'], 'period': c['period']} for c in data['profile']['careers'] if c.get('title')]}
 
@@ -466,7 +494,7 @@ class Profiles:
         source = self._find_source(data, payload.get('source_id'))
         self._path(source['attachment_id'])
         card = self._card(data)
-        key = _digest({'text': source.get('text_sha256'), 'card': card, 'revision': 2})  # 2: biography additions
+        key = _digest({'text': source.get('text_sha256'), 'card': card, 'revision': 3})  # 3: basic identity proposals
         path = self._digest_path(source['id'])
         try:
             record = json.loads(path.read_text(encoding='utf-8'))
@@ -573,12 +601,28 @@ class Profiles:
 
         return self._mutate(payload, 'suggest', make)
 
-    def _provenance(self, source_ids=(), *, edited=False):
-        return {'origin': ('user_edited_source' if edited else 'source_claim') if source_ids else 'user_input',
+    def _provenance(self, source_ids=(), *, edited=False, data=None):
+        result = {'origin': ('user_edited_source' if edited else 'source_claim') if source_ids else 'user_input',
                 'source_ids': list(source_ids), 'review': 'edited_accepted' if edited else 'accepted',
                 'reviewer': self._actor(),
                 'reviewed_at': self._now(), 'identity_verified': False,
                 'evidence_status': 'linked_claim' if source_ids else 'not_provided'}
+        if data is not None and source_ids:
+            result['sources'] = [_source_summary(source) for source in data['sources'] if source['id'] in source_ids]
+            if any(source['status'] != 'active' for source in result['sources']):
+                result.update(evidence_status='requires_review', review='needs_review')
+        return result
+
+    def _save_sources(self, data, metadata):
+        _keys(metadata, ('source_ids', 'edited'))
+        identifiers = metadata.get('source_ids', [])
+        if not isinstance(identifiers, list) or len(identifiers) > MAX_SOURCES:
+            raise ProfileError('항목의 자료 연결을 확인해 주세요.')
+        identifiers = list(dict.fromkeys(self._find_source(data, identifier)['id'] for identifier in identifiers))
+        edited = metadata.get('edited', False)
+        if type(edited) is not bool:
+            raise ProfileError('항목의 수정 상태를 확인해 주세요.')
+        return identifiers, edited
 
     def _record(self, data, key, before, after, sources, action):
         data['history'].append({'id': uuid.uuid4().hex, 'version': data['profile']['version'] + 1,
@@ -588,34 +632,42 @@ class Profiles:
 
     def _set_field(self, data, field, value, sources=(), *, edited=False):
         profile = data['profile']
-        value = _text(value, FIELDS[field], field)
+        value = _field_value(field, value)
         before = profile['fields'][field]
         previous = profile['provenance'].get(field, {})
         if before == value and not sources:
             return
         # A typed edit of a derived value keeps its lineage; relabeling does not erase it.
         lineage = list(sources or previous.get('source_ids', []))
+        if sources and field in ('bio', 'skills', 'interests', 'aliases'):
+            # Digest additions retain older material too. An inactive old source is not a new
+            # adoption: keep its lineage and review warning while validating only the new IDs.
+            lineage = list(dict.fromkeys(previous.get('source_ids', []) + lineage))
+            edited = edited or previous.get('origin') == 'user_edited_source'
         self._record(data, field, before, value, lineage + previous.get('source_ids', []), 'edit')
         profile['fields'][field] = value
-        profile['provenance'][field] = self._provenance(lineage, edited=edited or (bool(lineage) and not sources))
+        profile['provenance'][field] = self._provenance(lineage, edited=edited or (bool(lineage) and not sources), data=data)
 
     def save(self, payload):
-        _keys(payload, ('fields', 'careers', 'decisions', 'base_version', 'request_id'))
+        _keys(payload, ('fields', 'field_sources', 'careers', 'decisions', 'base_version', 'request_id'))
         return self._mutate(payload, 'save', lambda data: self._save_into(data, payload))
 
     def _save_into(self, data, payload):
         """Apply a save payload (edits and review decisions) to the draft `data`."""
         fields = payload.get('fields', {})
         _keys(fields, FIELDS)
+        field_sources = payload.get('field_sources', {})
+        _keys(field_sources, fields)
         decisions = payload.get('decisions', [])
         if not isinstance(decisions, list) or len(decisions) > MAX_SUGGESTIONS:
             raise ProfileError('검토할 변경 후보를 확인해 주세요.')
         profile = data['profile']
         targets = set()
         for field, value in fields.items():
+            sources, edited = self._save_sources(data, field_sources.get(field, {}))
             if value != profile['fields'][field]:
                 targets.add(field)
-            self._set_field(data, field, value)
+            self._set_field(data, field, value, sources, edited=edited)
         if 'careers' in payload:
             rows = payload['careers']
             if not isinstance(rows, list) or len(rows) > MAX_CAREERS:
@@ -624,7 +676,8 @@ class Profiles:
             new = []
             seen = set()
             for row in rows:
-                _keys(row, ('id', *CAREER_FIELDS))
+                _keys(row, ('id', *CAREER_FIELDS, 'source_ids', 'edited'))
+                sources, edited = self._save_sources(data, {k: row[k] for k in ('source_ids', 'edited') if k in row})
                 identifier = row.get('id') or uuid.uuid4().hex
                 _id(identifier)
                 if row.get('id') and identifier not in old:
@@ -634,11 +687,13 @@ class Profiles:
                 seen.add(identifier)
                 clean = {'id': identifier, **{k: _text(row.get(k, ''), n, k) for k, n in CAREER_FIELDS.items()}}
                 key = 'career:' + identifier
-                if old.get(identifier) != clean:
+                if old.get(identifier) != clean or sources:
                     targets.add(key)
-                    sources = profile['provenance'].get(key, {}).get('source_ids', [])
-                    self._record(data, key, old.get(identifier), clean, sources, 'edit')
-                    profile['provenance'][key] = self._provenance(sources, edited=bool(sources))
+                    previous = profile['provenance'].get(key, {}).get('source_ids', [])
+                    lineage = list(dict.fromkeys(previous + sources))
+                    self._record(data, key, old.get(identifier), clean, lineage, 'edit')
+                    profile['provenance'][key] = self._provenance(lineage,
+                        edited=edited or (bool(previous) and not sources), data=data)
                 new.append(clean)
             for identifier, row in old.items():
                 if identifier not in seen:
@@ -708,7 +763,7 @@ class Profiles:
                     profile['careers'].append(clean)
                 lineage = profile['provenance'].get(target, {}).get('source_ids', [])
                 self._record(data, target, before, clean, lineage + [source['id']], 'adopt')
-                profile['provenance'][target] = self._provenance(list(dict.fromkeys(lineage + [source['id']])), edited=choice == 'edit')
+                profile['provenance'][target] = self._provenance(list(dict.fromkeys(lineage + [source['id']])), edited=choice == 'edit', data=data)
             else:
                 before = profile['fields'][field]
                 lineage = profile['provenance'].get(field, {}).get('source_ids', [])
@@ -725,7 +780,7 @@ class Profiles:
 
     def card_preview(self, payload):
         """The map card as it would look after saving these edits and choices. Nothing is stored."""
-        _keys(payload, ('fields', 'careers', 'decisions'))
+        _keys(payload, ('fields', 'field_sources', 'careers', 'decisions'))
         data = self._state(self.store.read())
         if not self._linked(data):
             raise ProfileError('연구맵 카드와 연결된 계정에서만 카드를 미리 볼 수 있어요.', code='not_linked', status=409)
@@ -741,11 +796,17 @@ class Profiles:
                 continue
             impacted.append(key)
             provenance.update(evidence_status='source_deleted' if delete else 'requires_review', review='needs_review')
+            for source in provenance.get('sources', []):
+                if source['id'] == source_id:
+                    status = next((row['status'] for row in data['sources'] if row['id'] == source_id), 'unlinked')
+                    source.update(status='deleted' if delete else status, url='')
+                    if delete:
+                        source['title'] = '삭제한 자료'
             if delete:
                 if key.startswith('career:'):
                     profile['careers'] = [r for r in profile['careers'] if 'career:' + r['id'] != key]
                 else:
-                    profile['fields'][key] = ''
+                    profile['fields'][key] = _empty_field(key)
         for proposal in data['suggestions']:
             if proposal['source_id'] == source_id or (delete and source_id in proposal.get('lineage_source_ids', [])):
                 proposal['decision'] = 'redacted' if delete else 'withdrawn'

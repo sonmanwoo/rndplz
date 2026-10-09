@@ -90,7 +90,7 @@
       id: person.id, name: name, originalName: original(person.name), aliases: aliases,
       initial: Array.from(name)[0] || '',
       // Search only visible profile/evidence text and the names of its linked topics.
-      searchKey: key([name].concat(aliases, [person.org, profile.tagline, profile.biography], profile.skills,
+      searchKey: key([name].concat(aliases, [person.org, profile.department, profile.current_role || profile.role, profile.tagline, profile.biography], profile.skills,
         (Array.isArray(profile.skill_groups) ? profile.skill_groups : []).map(function (group) { return group && group.items; }),
         profile.interests, (Array.isArray(person.evidence) ? person.evidence : []).map(function (record) {
         return [record.title, record.summary].concat(recordTopics(record).map(function (id) {

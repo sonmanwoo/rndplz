@@ -10,7 +10,10 @@ from __future__ import annotations
 import copy
 import dataclasses
 import hashlib
+import json
 import threading
+from pathlib import Path
+from urllib.parse import urlsplit
 
 from .data import matches
 from .domain import Contribution, Record
@@ -69,6 +72,8 @@ def card_values(person, careers):
     organization, role, _ = _affiliation(profile)
     skills = [*profile.get('skills', []), *(item for group in profile.get('skill_groups', []) for item in group.get('items', []))]
     return {'fields': {'name': profile.get('display_name') or person.name, 'organization': organization, 'role': role,
+                       'department': profile.get('department') or '', 'aliases': list(profile.get('aliases') or []),
+                       'tagline': profile.get('tagline') or '',
                        'bio': profile.get('biography') or '', 'skills': '\n'.join(dict.fromkeys(skills)),
                        'interests': '\n'.join(profile.get('interests') or [])},
             'careers': [{'id': career_id(record.id), 'title': record.title, 'organization': lines.get(record.id, ('', '', ''))[0],
@@ -81,6 +86,40 @@ def _career_text(row):
     return prefix + '. ' + row['description'].strip() if prefix else row['description'].strip()
 
 
+def _source_projection(provenance):
+    """Public lineage excludes account IDs, attachment paths and private document content."""
+    identifiers = list(provenance.get('source_ids') or [])
+    if not identifiers:
+        return {}
+    sources = []
+    for source in provenance.get('sources', []):
+        if source.get('id') not in identifiers:
+            continue
+        url = source.get('url') or ''
+        try:
+            parsed = urlsplit(url)
+            if parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password:
+                url = ''
+        except (ValueError, TypeError):
+            url = ''
+        sources.append({'id': source['id'], 'title': source.get('title') or '첨부 자료',
+                        'url': url if source.get('status') == 'active' else '', 'status': source.get('status', 'unknown')})
+    review = '자료 기반 + 사용자 수정' if provenance.get('origin') == 'user_edited_source' else '자료 기반'
+    if (provenance.get('evidence_status') != 'linked_claim'
+            or set(identifiers) != {source['id'] for source in sources}
+            or any(s['status'] != 'active' for s in sources)):
+        review += ' · 출처 확인 필요'
+    return {'source_ids': identifiers, 'sources': sources, 'source_review': review}
+
+
+def _capability_topics():
+    """Topics a research-map capability links by tag: a saved career may carry one even while no public record does."""
+    here = Path(__file__).parent
+    catalog = {topic['id']: topic for topic in json.loads((here / 'topics.json').read_text(encoding='utf-8'))}
+    linked = json.loads((here / 'map_capabilities.json').read_text(encoding='utf-8'))['definitions']
+    return [catalog[tag] for tag in dict.fromkeys(tag for item in linked for tag in item.get('topic_ids', [])) if tag in catalog]
+
+
 class PersonCards:
     """Curated cards of the loaded corpus, kept so every apply starts from the curated card."""
 
@@ -88,6 +127,11 @@ class PersonCards:
         self.corpus = corpus
         self.lock = threading.Lock()
         self.base = {}
+        self.linked_topics = _capability_topics()
+
+    def _taggable(self):
+        known = {topic['id'] for topic in self.corpus.topics}
+        return self.corpus.topics + [topic for topic in self.linked_topics if topic['id'] not in known]
 
     def available(self, person_id):
         person = self.corpus.people.get(person_id) if isinstance(person_id, str) else None
@@ -146,6 +190,10 @@ class PersonCards:
                                     if record.id not in old] + list(records)
             people = dict(self.corpus.people)
             people[person_id] = card
+            used = {tag for record in records for tag in record.tags} - set(self.corpus.topic_by_id)
+            if used:
+                topics = self.corpus.topics + [topic for topic in self.linked_topics if topic['id'] in used]
+                self.corpus.topics, self.corpus.topic_by_id = topics, {topic['id']: topic for topic in topics}
             self.corpus.people, self.corpus.records, self.corpus.by_person = people, new_records, by_person
             return changed
 
@@ -153,12 +201,26 @@ class PersonCards:
         """The card and career records of a draft, and the changed items. Called under the lock."""
         person, careers = self._base(person_id)
         seed = card_values(person, careers)
-        fields = draft['fields']
+        fields = dict(draft['fields'])
+        provenance = draft.get('provenance') or {}
+        # Older drafts lack these slots. Their empty compatibility defaults must not erase a curated card.
+        for key in ('department', 'aliases', 'tagline'):
+            if not fields.get(key) and key not in provenance:
+                fields[key] = seed['fields'][key]
         changed = [key for key in seed['fields'] if fields.get(key, '') != seed['fields'][key]]
         rows = [{key: row.get(key, '') for key in ('id', *CAREER_FIELDS)} for row in draft.get('careers', [])]
         # A draft seeded earlier from the record text has not changed the careers either.
         careers_changed = rows != seed['careers'] and rows != legacy_career_rows(careers)
         profile, org = copy.deepcopy(person.profile), person.org
+        source_fields = {key: projection for key, value in provenance.items()
+                         if (projection := _source_projection(value))}
+        if source_fields:
+            profile['provenance'] = source_fields
+        if 'aliases' in changed:
+            profile['aliases'] = list(fields.get('aliases') or [])
+        for key in ('department', 'tagline'):
+            if key in changed:
+                profile[key] = fields[key].strip()
         name = fields.get('name', '').strip()
         if 'name' in changed and name:
             profile['display_name'] = name
@@ -177,6 +239,8 @@ class PersonCards:
                 else:
                     profile.pop('current_role', None)
             profile['org'] = org
+            if 'organization' in changed:
+                profile['org_name'] = organization or UNSTATED_ORG
         if 'bio' in changed:
             profile['biography'] = fields['bio'].strip()
         if 'skills' in changed:
@@ -189,7 +253,8 @@ class PersonCards:
         if 'interests' in changed:
             profile['interests'] = list_items(fields['interests'])
         records = careers
-        if careers_changed:
+        career_sources = any('career:' + row['id'] in source_fields for row in rows)
+        if careers_changed or career_sources:
             records, known = [], {career_id(record.id): record for record in careers}
             area = careers[0].field if careers else 'process_engineering'
             for row in rows:
@@ -201,7 +266,7 @@ class PersonCards:
                     if row != original:
                         record = dataclasses.replace(record, title=title, text=text, date=row['period'].strip())
                 else:
-                    tags = [topic['id'] for topic in self.corpus.topics
+                    tags = [topic['id'] for topic in self._taggable()
                             if any(matches(title + ' ' + text, term) for term in topic['keywords'])]
                     record = Record('CAREER-CARD-' + row['id'][:12].upper(), 'career_record', title, text,
                                     row['period'].strip(), [Contribution(person.id, person.name, 'recorded_role')],
@@ -209,11 +274,31 @@ class PersonCards:
                                     self.corpus.checked_at, 'career_experience', ['본인 계정에서 추가한 경력'],
                                     'local_self_reported', False, {'text_kind': 'self_reported', 'abstract_available': False})
                 records.append(record)
-            profile['timeline'] = [{'record_id': record.id, 'date': row['period'].strip(), 'text': _career_text(row), 'url': ''}
-                                   for row, record in zip(rows, records)]
-        if changed or careers_changed:
+                projection = source_fields.get('career:' + row['id'])
+                if projection:
+                    url = next((source['url'] for source in projection['sources'] if source['url']), '')
+                    records[-1] = dataclasses.replace(record, source_url=url or record.source_url,
+                        details={**record.details, **projection})
+            if careers_changed:
+                # The row's own title (a project, paper or patent name) heads its line on the card.
+                profile['timeline'] = [{'record_id': record.id, 'date': row['period'].strip(), 'text': _career_text(row),
+                                        **({'title': row['title'].strip()} if row['title'].strip() else {}),
+                                        'url': record.source_url if 'career:' + row['id'] in source_fields else '',
+                                        **source_fields.get('career:' + row['id'], {})}
+                                       for row, record in zip(rows, records)]
+            else:
+                by_record = {record.id: source_fields.get('career:' + row['id'], {}) for row, record in zip(rows, records)}
+                profile['timeline'] = [{**entry, **by_record.get(entry.get('record_id'), {})}
+                                       for entry in profile.get('timeline', [])]
+        if changed or careers_changed or source_fields:
             profile['sources'] = [*profile.get('sources', []), {'title': '본인 계정의 내 프로필에서 수정', 'url': ''}]
-        card = dataclasses.replace(person, org=org, profile=profile) if (changed or careers_changed) else person
+            seen = {source.get('id') for source in profile['sources'] if source.get('id')}
+            for projection in source_fields.values():
+                for source in projection['sources']:
+                    if source['id'] not in seen:
+                        profile['sources'].append(copy.deepcopy(source))
+                        seen.add(source['id'])
+        card = dataclasses.replace(person, org=org, profile=profile) if (changed or careers_changed or source_fields) else person
         return card, records, changed + (['careers'] if careers_changed else [])
 
 
