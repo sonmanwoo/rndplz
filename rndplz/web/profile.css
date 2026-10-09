@@ -77,5 +77,8 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 .digest-editor-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .profile-page .digest-editor-actions button{min-height:34px;padding:6px 12px;font-size:12px}
 @media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{gap:6px}.digest-col{padding:9px}}
+/* Touch: proposed chips wrapped to two-line pills stacked only 6 px apart in the narrow column, so a finger aimed at
+   one's lower line toggled the next (2026-10-09). Each proposal takes the column's width, with a wider gap. */
+@media(pointer:coarse),(max-width:700px){.digest-col.is-next .digest-chips{gap:12px 8px}.digest-col.is-next .digest-chips>.digest-item{width:100%}.digest-col.is-next .digest-chips>.digest-item>.digest-add{flex:1;min-width:0}}
 /* A short screen (a phone on its side): the section list scrolls with the page, so the save bar never sits on top of it. */
 @media(max-height:600px){.profile-sidebar{position:static}}
