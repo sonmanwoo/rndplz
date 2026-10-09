@@ -301,6 +301,10 @@ html[data-theme="dark"] .chat-page .message-meta .avatar { --ci-surface:var(--de
 .letter-postmark { gap:12px; }
 .letter-postmark > span { min-width:0; overflow-wrap:anywhere; }
 .letter-postmark > .service-name { flex:0 0 auto; font-family:inherit; font-style:normal; }
+/* 의뢰서 머리: 붉은 점선 도장 대신 수소문 CI(원 H·붉은 점) + 워드마크 — 레터헤드 A안(사용자 선택 2026-10-09). */
+.letter-postmark > .letterhead { display:flex; align-items:center; gap:8px; border:0; padding:0 4px 0 0; rotate:none; color:var(--ink); font:700 14px/1.3 var(--font-sans); letter-spacing:-.7px; white-space:nowrap; }
+.letter-postmark > .letterhead .susomun-ci { --ci-size:28px; --ci-surface:#fffdf5; }
+html[data-theme="dark"] .letter-postmark > .letterhead .susomun-ci { --ci-surface:var(--sheet); }
 .envelope > .service-name { font-size:18px; letter-spacing:0; }
 
 /* Answer wait/stream only. The fixed ring and H keep their existing appearance.
