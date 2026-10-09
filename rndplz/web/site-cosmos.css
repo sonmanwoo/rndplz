@@ -189,3 +189,13 @@ body.crafted .craft-header:has(.site-menu:not([hidden]),.account-menu:not([hidde
 @media (pointer:coarse),(max-width:900px){
  .inbox-item details>summary{display:flex;align-items:center;min-height:44px}
 }
+
+/* Touch: the remaining small controls gain only an invisible 44px press area. */
+@media (pointer:coarse),(max-width:700px){
+ body.crafted .craft-nav :is(a,button),body.profile-page .field-meta .text-button,body.crafted #detailDialog .close-button{position:relative}
+ body.crafted .craft-nav :is(a,button)::after{content:"";position:absolute;inset:-2px;min-width:44px;min-height:44px;border-radius:inherit}
+ body.profile-page .field-meta .text-button::after{content:"";position:absolute;inset:-9px 0;min-height:44px}
+ body.crafted #personCardDialog>.close::after,body.crafted #detailDialog .close-button::after{content:"";position:absolute;inset:-5px;min-width:44px;min-height:44px;border-radius:50%}
+ body.crafted #detailDialog.sheet .close-button::after{inset:-7px}
+ body.crafted :is(.craft-nav button,#personCardDialog>.close,#detailDialog .close-button):active:not(:disabled),body.profile-page .field-meta .text-button:active:not(:disabled){transform:none}
+}
