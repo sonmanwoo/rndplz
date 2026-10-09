@@ -1,7 +1,7 @@
 /* Home before the first message (main.welcome without .is-chat): researcher portraits drift along a spiral
  * toward the centre, the second heading line turns over every 4 s to another research field (its people take
  * over the spiral), a "re·search" intro plays once per browser, and the composer shows a rotating example.
- * Portraits and fields come from /api/people-map; position on the spiral means nothing about a person.
+ * Portraits and fields come from /api/people-map?view=home; position on the spiral means nothing about a person.
  */
 (() => {
   'use strict';
@@ -261,7 +261,7 @@
 
   // ---- data and loop ------------------------------------------------------
   const thumb = path => typeof path === 'string' && /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path) ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null;
-  fetch('/api/people-map', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(data => {
+  fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(data => {
     if (!data || !Array.isArray(data.people)) return;
     const everyone = data.people.map(p => ({ id:p.id, name:p.profile?.display_name || p.name, image:thumb(p.profile?.portrait?.path) })).filter(p => p.image);
     const byId = new Map(everyone.map(p => [p.id, p]));

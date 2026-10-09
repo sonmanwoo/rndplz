@@ -38,7 +38,7 @@ class PromoReelTests(unittest.TestCase):
             status, _, body = self.request(page)
             self.assertEqual(status, 200)
             self.assertIn(b'data-promo-reel', body)
-            self.assertIn(b'<script src="/promo-reel.js" defer></script>', body)
+            self.assertRegex(body, rb'<script src="/promo-reel\.js\?v=[a-f0-9]{10}" defer></script>')
         status, headers, body = self.request('/promo-reel.js')
         self.assertEqual(status, 200)
         self.assertTrue(headers['Content-Type'].startswith('text/javascript'))
@@ -48,7 +48,7 @@ class PromoReelTests(unittest.TestCase):
         status, headers, body = self.request(VIDEO)
         self.assertEqual((status, headers['Content-Type'], headers['Accept-Ranges']), (200, 'video/mp4', 'bytes'))
         self.assertEqual(body, self.raw)
-        self.assertTrue(headers['Cache-Control'].startswith('public'))
+        self.assertEqual(headers['Cache-Control'], 'no-store')
         status, headers, _ = self.request('/video/susomun-reel-poster.webp')
         self.assertEqual((status, headers['Content-Type']), (200, 'image/webp'))
 

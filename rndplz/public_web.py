@@ -32,7 +32,8 @@ from .llm_runtime import RuntimeLegacyModel
 from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError, PickError
 from .storage import StateStore
-from .people_map import build_people_map
+from .people_map import build_people_map, build_home_people_map
+from .static_assets import StaticAssets
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .person_cards import PersonCards
@@ -337,6 +338,12 @@ FONT_FILES = {'/fonts/pretendard/pretendardvariable-dynamic-subset.css': 'text/c
               **{f'/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.{i}.woff2': 'font/woff2' for i in range(92)}}
 
 
+# One canonical allowlist for serving and HTML/CSS content-version references.
+STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
+                '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
+for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
+    STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
+
 INTENT_SECONDS = 12
 
 
@@ -531,6 +538,7 @@ class PublicApp:
             for person_id, draft in self.auth.storage.card_drafts():
                 if draft.get('card', {}).get('person_id') == person_id and self.cards.available(person_id):
                     self.cards.apply(person_id, draft['profile'])
+        self.static_assets = StaticAssets(self._static_file, origin=self.origin)
         self.contexts = {}
         self.lock = threading.RLock()
         self.request_slots = threading.BoundedSemaphore(4)
@@ -542,6 +550,19 @@ class PublicApp:
             if isinstance(asset, str) and re.fullmatch(r'/portraits/[A-Za-z0-9_.-]+\.(?:png|jpe?g|webp)', asset):
                 stem = asset.rsplit('.', 1)[0]
                 self.images.update(stem + '-' + size + '.webp' for size in ('thumb', 'detail'))
+
+    def _static_file(self, path):
+        """Resolve only public allowlists; never expose arbitrary WEB files."""
+        entry = STATIC_FILES.get(path) or PREVIEW_ROUTES.get(path)
+        if entry:
+            name, mime = entry
+            return WEB / name, mime if ';' in mime or not mime.startswith('text/') else mime + '; charset=utf-8'
+        mime = FONT_FILES.get(path) or PROMO_VIDEO_FILES.get(path)
+        if path in self.images:
+            mime = 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg'
+        if mime:
+            return WEB / path.lstrip('/'), mime
+        return None
 
     def _runtime_legacy_model(self, directory):
         if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public'):
@@ -941,7 +962,7 @@ class PublicApp:
         attachment_report_request_id=None
         https_observation=None;https_failure_stage='request';https_upstream_status=None
         browser_project=project_session
-        def send(status, value, mime='application/json; charset=utf-8'):
+        def send(status, value, mime='application/json; charset=utf-8', *, public=False, asset=None):
             if https_observation is not None:
                 metadata={**https_observation,'event_type':'attachment_https_finished',
                     'status':'error' if status>=400 else 'complete','http_status':status,
@@ -961,6 +982,17 @@ class PublicApp:
                     and not environ.get('PATH_INFO', '').startswith('/api/operator/diagnostics/')):
                 value = {**value, 'session': browser_project(value['session'])}
             raw = json.dumps(value, ensure_ascii=False).encode() if isinstance(value, (dict, list)) else value
+            # BREACH boundary: only public files/map projections explicitly opt in.
+            # Tokens, account/session, chat, profiles, errors and NDJSON never do.
+            if public and mime.split(';', 1)[0] in ('text/javascript', 'application/javascript', 'text/css',
+                                                   'text/html', 'image/svg+xml', 'application/json'):
+                headers.append(('Vary', 'Accept-Encoding'))
+                accepted = environ.get('HTTP_ACCEPT_ENCODING', '')
+                compressed = (self.static_assets.gzip_body(asset, accepted) if asset is not None else
+                              self.static_assets.gzip_bytes(raw, mime, accepted, cache_key=path + (':home' if query.get('view') == ['home'] else ':full')))
+                if compressed is not None:
+                    raw = compressed
+                    headers.append(('Content-Encoding', 'gzip'))
             start_response(f'{status} {HTTPStatus(status).phrase}', headers + [('Content-Type', mime), ('Content-Length', str(len(raw)))])
             return [raw]
         host = environ.get('HTTP_HOST', '').split(':')[0].lower()
@@ -982,50 +1014,41 @@ class PublicApp:
             return send(405, {'error': '방문자 세션 종료는 POST 요청으로만 처리합니다.'})
         if path.startswith('/api/operator/diagnostics/'):
             return self._operator(environ,path,method,send)
-        if path.startswith('/ui-previews/'):
-            if method != 'GET': return send(405, {'error': '읽기 전용 비교 페이지입니다.'})
-            entry = PREVIEW_ROUTES.get(path)
-            if entry is None: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
-            name, mime = entry
-            try: raw = (WEB / name).read_bytes()
-            except FileNotFoundError: return send(404, {'error': '비교 페이지를 찾을 수 없습니다.'})
-            return send(200, raw, mime)
-        if path.startswith('/portraits/'):
-            if method != 'GET': return send(405, {'error': '읽기 전용 이미지입니다.'})
-            if path not in self.images: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
-            try: raw = (WEB / path.lstrip('/')).read_bytes()
-            except FileNotFoundError: return send(404, {'error': '이미지를 찾을 수 없습니다.'})
-            # Portraits are static; caching spares phones re-downloading them on every view.
-            headers[0] = ('Cache-Control', 'public, max-age=86400')
-            return send(200, raw, 'image/webp' if path.endswith('.webp') else 'image/png' if path.endswith('.png') else 'image/jpeg')
-        if path.startswith('/fonts/'):
-            if method != 'GET': return send(405, {'error': '읽기 전용 글꼴입니다.'})
-            mime = FONT_FILES.get(path)
-            if mime is None: return send(404, {'error': '글꼴을 찾을 수 없습니다.'})
-            try: raw = (WEB / path.lstrip('/')).read_bytes()
-            except FileNotFoundError: return send(404, {'error': '글꼴을 찾을 수 없습니다.'})
-            headers[0] = ('Cache-Control', 'public, max-age=86400')
-            return send(200, raw, mime)
-        if path.startswith('/video/'):
-            if method != 'GET': return send(405, {'error': '읽기 전용 영상입니다.'})
-            mime = PROMO_VIDEO_FILES.get(path)
-            if mime is None: return send(404, {'error': '영상을 찾을 수 없습니다.'})
-            try: raw = (WEB / path.lstrip('/')).read_bytes()
-            except FileNotFoundError: return send(404, {'error': '영상을 찾을 수 없습니다.'})
-            headers[0] = ('Cache-Control', 'public, max-age=86400')
-            headers.append(('Accept-Ranges', 'bytes'))
-            # iOS Safari plays video only when the server answers byte-range requests.
-            ranged = re.fullmatch(r'bytes=(\d*)-(\d*)', environ.get('HTTP_RANGE', '').strip())
-            if ranged and (ranged[1] or ranged[2]):
-                size = len(raw)
-                if ranged[1]: start, end = int(ranged[1]), min(int(ranged[2]) if ranged[2] else size - 1, size - 1)
-                else: start, end = max(0, size - int(ranged[2])), size - 1
-                if start > end:
-                    headers.append(('Content-Range', f'bytes */{size}'))
-                    return send(416, b'', mime)
-                headers.append(('Content-Range', f'bytes {start}-{end}/{size}'))
-                return send(206, raw[start:end + 1], mime)
-            return send(200, raw, mime)
+        def serve_static():
+            if method != 'GET': return send(405, {'error': '읽기 전용 파일입니다.'})
+            try: asset = self.static_assets.read(path)
+            except FileNotFoundError: asset = None
+            if asset is None: return send(404, {'error': '파일을 찾을 수 없습니다.'})
+            raw, mime = asset.body, asset.mime
+            if not mime.startswith('text/html'):
+                versions = parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True).get('v')
+                if versions is not None:
+                    # Never serve new bytes under an old immutable URL after deployment.
+                    if versions != [asset.version]:
+                        return send(404, {'error': '파일 버전이 바뀌었습니다. 화면을 새로고침해 주세요.'})
+                    headers[0] = ('Cache-Control', 'public, max-age=31536000, immutable')
+            if mime.startswith('video/'):
+                headers.append(('Accept-Ranges', 'bytes'))
+                # Preserve iOS Safari's byte-range playback, without compression.
+                ranged = re.fullmatch(r'bytes=(\d*)-(\d*)', environ.get('HTTP_RANGE', '').strip())
+                if ranged and (ranged[1] or ranged[2]):
+                    size = len(raw)
+                    if ranged[1]: start, end = int(ranged[1]), min(int(ranged[2]) if ranged[2] else size - 1, size - 1)
+                    else: start, end = max(0, size - int(ranged[2])), size - 1
+                    if start > end:
+                        headers.append(('Content-Range', f'bytes */{size}'))
+                        return send(416, b'', mime)
+                    headers.append(('Content-Range', f'bytes {start}-{end}/{size}'))
+                    return send(206, raw[start:end + 1], mime)
+            return send(200, raw, mime, public=True, asset=asset)
+
+        # Assets precede visitor(), account cookies and inflight accounting (#113).
+        # Entry HTML documents retain the initial visitor cookie: parallel bootstrap API
+        # requests must share that cookie, or the chat token can belong to another visitor.
+        entry = self._static_file(path)
+        document = path in STATIC_FILES and STATIC_FILES[path][1].startswith('text/html')
+        if (entry is not None and not document) or path.startswith(('/ui-previews/', '/portraits/', '/fonts/', '/video/')):
+            return serve_static()
         if path in ('/api/worker/poll','/api/worker/result'):
             if self.env.get('APP_RUNTIME') == 'hosted_public' and not getattr(self.models, 'scoped_bridge', False):
                 return send(404, {'error': '이 연결 경로는 현재 사용할 수 없습니다.', 'code': 'runtime_worker_unavailable'})
@@ -1144,7 +1167,9 @@ class PublicApp:
                         'http_status':200,'elapsed_ms':round((time.monotonic()-received)*1000)})
                     return send(200,browser_project(session))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
-                if path == '/api/people-map': return send(200, build_people_map(service.engine))
+                if path == '/api/people-map':
+                    value = build_home_people_map(service.engine) if query.get('view') == ['home'] else build_people_map(service.engine)
+                    return send(200, value, public=True)
                 if path == '/api/admin': return send(200, service.admin())
                 if path == '/api/person': return send(200, service.person(identifier))
                 if path == '/api/proposals': return send(200, service.store.read()['proposals'])
@@ -1154,13 +1179,8 @@ class PublicApp:
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
-                files = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
-                         '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
-                for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
-                    files['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
-                if path in files:
-                    name, mime = files[path]
-                    return send(200, (WEB / name).read_bytes(), mime + '; charset=utf-8')
+                if path in STATIC_FILES:
+                    return serve_static()
                 return send(404, {'error': '페이지를 찾을 수 없습니다.'})
             if not hmac.compare_digest(environ.get('HTTP_X_RNDPLZ_TOKEN', ''), token):
                 return send(403, {'error': '화면을 새로고침한 뒤 다시 시도해 주세요.'})
