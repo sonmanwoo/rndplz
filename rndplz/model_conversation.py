@@ -1852,6 +1852,8 @@ class ModelConversation:
         except Exception as exc:
             status = 'error'
             error = str(exc) if isinstance(exc, ValueError) else '모델의 해석 또는 조회를 완료하지 못했습니다. 다시 시도해 주세요.'
+            if isinstance(exc, PlanValidationError) and consultation.get('attempts'):
+                error = '답변을 확인하는 중 문제가 생겨 보여 드리지 않았어요. 다시 시도해 주세요.'
             chat_retry=self._chat_retry_available(self.get(sid),turn_id,option)
             if isinstance(exc,(ModelChatBudgetExhausted,ModelProviderCapacity)):
                 error_code='model_generation_budget_exhausted';chat_retry=False

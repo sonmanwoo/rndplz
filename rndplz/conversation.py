@@ -1095,7 +1095,13 @@ class Conversation(ModelConversation):
                 if action and action.get('result') is not None:
                     # The deterministic guide is explicitly AI-free. Its legacy
                     # recommendation prose is not a button authorization.
-                    pieces=['현재 정보로 조회 범위를 정리했어요. 인물과 근거는 “이 정보로 수소문하기”를 누르면 확인할 수 있어요.']
+                    discovery=action.get('discovery') or {}
+                    brief=_guide_request_spec(session.get('request_context') or {},discovery,payload['turn_id'])
+                    # Finish uses this same brief compiler; a name-only lookup has
+                    # no current brief/discovery and therefore no scout button.
+                    button_available=bool(discovery.get('lookup_ready') and discovery.get('revision') and brief['has_content'])
+                    pieces=['현재 정보로 조회 범위를 정리했어요. 인물과 근거는 “이 정보로 수소문하기”를 누르면 확인할 수 있어요.' if button_available else
+                            '현재 정보로 조회 범위를 정리했어요. 찾고 싶은 분야나 필요한 도움을 더 적어 주시면 다음 조회 조건을 정리할게요.']
                 elif action:pieces=[action['reply']]
                 else:
                     messages=runtime_messages(messages,self.models)
