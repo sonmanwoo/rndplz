@@ -269,7 +269,7 @@
 .pi-full { padding: 8px 4px; border: 0; background: transparent; color: var(--pc-green); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
 @keyframes pi-sheet-in { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes pi-reveal { from { transform: rotateY(180deg); } to { transform: rotateY(0); } }
-@media (min-width: 701px) {
+@media (min-width: 901px) {
   #personCardDialog { inset: 0; width: min(860px, 92vw); max-height: 86dvh; margin: auto; border-radius: 18px; box-shadow: 0 30px 80px #0a120d59; animation-name: pi-pop-in; }
   #personCardDialog::backdrop { background: #16201a99; backdrop-filter: blur(2px); }
   .pi-sheet { max-height: 86dvh; padding: 14px 26px 20px; }
@@ -302,3 +302,10 @@ html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
 .pi-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pi-skills span { padding: 3px 10px; border: 1px solid var(--pc-line); border-radius: 999px; font-size: 12.5px; }
 .pi-links a { color: var(--pc-green); }
+/* Touch: ‹ › and 전체 약력 keep their look; an invisible ring makes each 44px to press, and they do not nudge when pressed. */
+@media (pointer: coarse), (max-width: 900px) {
+  #personCardDialog .pi-nav::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+  #personCardDialog .pi-full { position: relative; }
+  #personCardDialog .pi-full::after { content: ""; position: absolute; inset: -3px 0; }
+  body.crafted #personCardDialog :is(.pi-nav, .pi-full):active:not(:disabled) { transform: none; }
+}

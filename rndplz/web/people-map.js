@@ -627,7 +627,8 @@
   // The person before/after this one among the people the map currently shows.
   function neighbor(id,step){
    const people=C.visiblePeople(state).filter(p=>!shown||shown.keys.has('person:'+p.id)),index=people.findIndex(p=>p.id===id);
-   return people.length&&index>=0?people[(index+step+people.length)%people.length].id:null;
+   // No wrapping: at either end there is no neighbour (the conversation's cards stop there too).
+   return index>=0&&people[index+step]?people[index+step].id:null;
   }
   function select(id){lastPerson=id;dispatch({type:'SELECT',id});}
   // Ease the camera onto the given cards (null: every shown card; []: cancel a pending move). With

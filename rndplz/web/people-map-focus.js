@@ -69,7 +69,7 @@
     // Phones: the preview card is a sheet over the lower screen; fit() keeps the circle above it.
     function placeCard() {
       if (!stage || !card) return;
-      const narrow = innerWidth < 760;
+      const narrow = innerWidth <= 900;
       if (narrow && card.previousElementSibling !== stage) stage.after(card);
       else if (!narrow && card.parentElement !== stage) stage.append(card);
       card.classList.toggle('mp-focus-card-below', narrow);
@@ -126,7 +126,7 @@
       card.hidden = wheel.hidden = false;
       wheel.setAttribute('aria-valuenow', String(i + 1));
       wheel.setAttribute('aria-valuetext', describe(i));
-      wheel.setAttribute('aria-orientation', innerWidth < 760 ? 'horizontal' : 'vertical');
+      wheel.setAttribute('aria-orientation', innerWidth <= 900 ? 'horizontal' : 'vertical');
       [...wheel.querySelectorAll('button')].forEach((button, n) => {
         button.setAttribute('aria-pressed', String(n === i));
         button.setAttribute('aria-disabled', String(disabled[n]));
@@ -156,7 +156,7 @@
       if (!debug.center || live3d.isActive() || !host.isConnected) return;
       // Phones never shrink below 40%: a wider circle is panned to, centred on the person.
       const covered = () => { const s = stage.getBoundingClientRect(), c = card && !card.hidden && card.getClientRects().length ? card.getBoundingClientRect() : null; return c ? Math.max(0, s.bottom - c.top) : 0; };
-      controller?.fitNodes([...ranges[steps.indexOf(debug.step)]], innerWidth < 760
+      controller?.fitNodes([...ranges[steps.indexOf(debug.step)]], innerWidth <= 900
         ? { top:wheel.offsetHeight + 24, bottom:covered() + 24, minScale:.4, anchor:'person:' + debug.center }
         : { right:380 });
     }

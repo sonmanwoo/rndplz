@@ -163,7 +163,7 @@ def test_handle_tap_drag_cancel_desktop_and_reduced_motion():
     run_js(r"""
 install('chat',['bindInspectHandle']);
 global.window=element();let mobile=true,quiet=false;
-global.matchMedia=query=>({get matches(){return query.includes('700px')?mobile:quiet;}});
+global.matchMedia=query=>({get matches(){return query.includes('900px')?mobile:quiet;}});
 global.setTimeout=()=>1;global.clearTimeout=()=>{};
 const dialog=element(),handle=element();bindInspectHandle(dialog);
 function fire(type,y){dialog.emit(type,{pointerId:1,button:0,clientY:y,target:{closest:()=>handle},preventDefault(){}});}

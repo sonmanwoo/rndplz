@@ -47,7 +47,9 @@ function closeDetail(){
  $("detailDialog").close();
  if(back)showDialog(back);
  const replacement=personId?Array.from(document.querySelectorAll('[data-action="person"]')).find(b=>b.dataset.id===personId&&detailFocusAvailable(b)):null;
- const target=detailFocusAvailable(trigger)?trigger:replacement||[ $("people-list"),$("name-search") ].find(detailFocusAvailable);
+ // The map opens its card through a temporary button that is gone by now: return to the preview's 전체 카드 보기
+ // rather than the search box, which would jump the page to the top.
+ const target=detailFocusAvailable(trigger)?trigger:replacement||[ document.querySelector("#peopleMapHost .mp-focus-open"),$("people-list"),$("name-search") ].find(detailFocusAvailable);
  target?.focus();
 }
 function renderExamples(){
@@ -266,6 +268,8 @@ function showPerson(p,candidate=false,found=null,docked=false,sheet=null){
 async function openMapPerson(id,map,mode=null){
  const sheet=SHEET_MEDIA.matches?(mode||sheetMode()||"peek"):null;
  showPerson(await api("/api/person?id="+encodeURIComponent(id)),false,map.found(id),true,sheet);
+ // Previous and next stop at the ends of the people the map shows, as the conversation's cards do.
+ for(const b of $("detailContent").querySelectorAll("[data-sheet-step]"))b.disabled=!map.neighbor(id,Number(b.dataset.sheetStep));
  const r=$("detailDialog").getBoundingClientRect();
  if(sheet==="peek")map.focus(id,innerHeight-r.top);else if(!sheet)map.reveal(id,innerWidth-r.left,0);
 }
@@ -299,7 +303,7 @@ async function openLetter(ids){
 }
 function renderLetter(){
  const draft=letter.drafts[letter.index];
- $("letterHeader").innerHTML='<h2>'+esc(draft.candidate.name)+'님에게</h2><p class="muted">'+esc(modes[draft.request_kind])+' 제안 · '+(draft.candidate.virtual?"시연용 가상 현장 기록":"연구·경력 기록을 통해 찾은 연결")+'</p>'+(letter.ids.length>1?'<label>경로별 편지<select id="letterRecipient">'+letter.drafts.map((d,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':"")+'>'+esc(d.candidate.route_order+". "+d.candidate.name+" · "+d.candidate.route_role)+'</option>').join("")+'</select></label>':"");
+ $("letterHeader").innerHTML='<h2>'+esc(draft.candidate.profile?.display_name||draft.candidate.name)+'님에게</h2><p class="muted">'+esc(modes[draft.request_kind])+' 제안 · '+(draft.candidate.virtual?"시연용 가상 현장 기록":"연구·경력 기록을 통해 찾은 연결")+'</p>'+(letter.ids.length>1?'<label>경로별 편지<select id="letterRecipient">'+letter.drafts.map((d,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':"")+'>'+esc(d.candidate.route_order+". "+d.candidate.name+" · "+d.candidate.route_role)+'</option>').join("")+'</select></label>':"");
  $("letterBody").value=letter.bodies[draft.candidate.id];$("letterError").textContent="";
  $("aiDraftButton").hidden=!boot.model.enabled;
 }
