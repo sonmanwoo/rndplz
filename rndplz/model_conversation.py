@@ -955,9 +955,13 @@ class ModelConversation:
         for person in self.service.corpus.people.values():
             aliases = (person.profile or {}).get('aliases', [])
             names = [person.name, person.id, *(aliases if isinstance(aliases, list) else [])]
+            # A person already shown in this conversation may be named by any of their names (e.g. the Korean
+            # display name the cards lead with), not only the record name and id the disclosure kept.
+            disclosed = person.id in historical_names or person.name in historical_names
             for name in names:
                 if (isinstance(name, str) and len(name.strip()) >= 2 and not _contains(user_text, name)
-                        and (_contains(condition_text, name) or _contains(output, name) and name not in historical_names)):
+                        and (_contains(condition_text, name)
+                             or _contains(output, name) and name not in historical_names and not disclosed)):
                     raise PlanValidationError('consultation_identity_disclosure', field='$.reply')
 
     def _check_request_spec(self, spec, sources, historical_disclosures):
