@@ -41,6 +41,8 @@ from .profile_chat import ProfileChat
 from .scout_projection import project_session
 
 WEB = Path(__file__).with_name('web')
+# How long an attachment request waits for the same visitor's other requests (e.g. a session re-check) to finish.
+ATTACHMENT_BUSY_WAIT_SECONDS = 5
 CHUNK_UPLOAD_ROUTES = {
     '/api/attachments/begin': 'begin', '/api/attachments/chunk': 'chunk',
     '/api/attachments/complete': 'complete', '/api/attachments/cancel': 'cancel',
@@ -1320,13 +1322,20 @@ class PublicApp:
             if path in ('/api/attachments','/api/attachments/https') or path in CHUNK_UPLOAD_ROUTES:
                 if path in CHUNK_UPLOAD_ROUTES and environ.get('QUERY_STRING',''):
                     raise AttachmentError('corrupt')
-                # Serialize a visitor's attachment commits and retain logout's active/inflight guard.
-                with self.lock:
-                    if context['active'] or context['inflight'] != 1:
+                # Serialize a visitor's attachment commits and retain logout's active/inflight guard. A short request
+                # the page sends by itself must not turn the upload away (the account menu re-checks the session
+                # whenever the window regains focus, which is exactly when a file picker closes): wait briefly for it.
+                busy_until = time.monotonic() + ATTACHMENT_BUSY_WAIT_SECONDS
+                while True:
+                    with self.lock:
+                        if not context['active'] and context['inflight'] == 1:
+                            if path not in ('/api/attachments/complete','/api/attachments/cancel') and chat.attachments.count() >= 12:
+                                return send(429, {'error':'공개 시연의 첨부 개수 한도에 도달했습니다.'})
+                            context['active']+=1
+                            break
+                    if time.monotonic() >= busy_until:
                         return send(409, {'error':'진행 중인 요청이 끝난 뒤 자료를 추가해 주세요.', 'code':'attachment_context_busy'})
-                    if path not in ('/api/attachments/complete','/api/attachments/cancel') and chat.attachments.count() >= 12:
-                        return send(429, {'error':'공개 시연의 첨부 개수 한도에 도달했습니다.'})
-                    context['active']+=1
+                    time.sleep(0.05)
                 try:
                     if path in CHUNK_UPLOAD_ROUTES:
                         uploads = AttachmentUploads(service.store, chat.attachments)
