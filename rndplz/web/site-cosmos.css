@@ -23,7 +23,7 @@ body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle,.c
 /* Drop-down cards: the "more" menu and the account menu share one look. */
 .site-menu-control{position:relative;flex:none}
 body.crafted :is(.site-menu,.account-menu){position:absolute;z-index:90;left:auto;right:0;top:48px;max-height:calc(100dvh - 88px);overflow-y:auto;padding:8px;border:1px solid #00000014;border-radius:20px;background:var(--sheet);box-shadow:0 16px 40px #00000014,0 2px 6px #0000000a;text-align:left}
-body.crafted .site-menu{width:300px;max-width:calc(100vw - 24px)}
+body.crafted .site-menu{width:320px;max-width:calc(100vw - 24px)}
 body.crafted .account-menu{width:260px}
 .site-menu[hidden]{display:none!important}
 .site-menu-group+.site-menu-group{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
@@ -47,6 +47,22 @@ body.crafted .site-menu .site-menu-model:hover{background:none}
 .site-menu-model select:hover{background-color:#f2f1f0}
 .site-menu-model select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .site-menu-model select:disabled{opacity:.45;cursor:default}
+/* The visible pill is the chosen name chat.js paints (so its AiU and 로컬 marks keep their colours); the real select lies over it, unseen, and takes every press and key. */
+.model-select{position:relative;display:inline-flex;align-self:flex-start;max-width:100%;margin:6px 0 4px}
+.model-select-face{display:block;max-width:100%;padding:7px 30px 7px 12px;border:1px solid #0000001f;border-radius:999px;background:var(--sheet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='m1 1 4 4 4-4' stroke='%236f6c6a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;font:500 13px var(--font-sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.site-menu-model .model-select select{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0;opacity:0}
+.model-select:has(select:hover) .model-select-face{background-color:#f2f1f0}
+.model-select:has(select:focus-visible) .model-select-face{outline:2px solid var(--ink);outline-offset:2px}
+.model-select:has(select:disabled) .model-select-face{opacity:.45}
+html[data-theme="dark"] .model-select-face{color:var(--ink);border-color:var(--theme-control-edge);background-color:var(--sheet)}
+html[data-theme="dark"] .model-select:has(select:focus-visible) .model-select-face{outline-color:var(--red);outline-offset:3px}
+/* AiU in its own mark's teal; 로컬 in the 수소문 CI's red and electron. */
+.model-mark{font-weight:800;-webkit-background-clip:text;background-clip:text;color:transparent}
+.model-mark-aiu{background-image:linear-gradient(120deg,#39b4b4,#06bfbf)}
+.model-mark-local{background-image:linear-gradient(120deg,#cc503c,#ee8b75)}
+html[data-theme="dark"] .model-mark-aiu{background-image:linear-gradient(120deg,#94deee,#06bfbf)}
+html[data-theme="dark"] .model-mark-local{background-image:linear-gradient(120deg,#ee8b75,#f5b3a3)}
+@media (forced-colors:active){.model-mark{color:CanvasText;background:none}}
 /* chat.js shows the new-chat button as a bare "＋" on phones and hides it beside the open list; in the menu it is a row. */
 body.crafted .site-menu #newButton{display:flex;width:100%;height:auto;padding:10px 12px;font-size:inherit}
 body.crafted .site-menu #newButton:before{content:none}
@@ -178,6 +194,7 @@ html:has(body.profile-page){scroll-padding-bottom:110px}
  body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle),body.chat-page .attach-button{position:relative}
  body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle)::after,body.chat-page .attach-button::after{content:"";position:absolute;inset:-4px;border-radius:50%}
  .site-menu-model select{min-height:44px}
+ .model-select-face{line-height:28px}
 }
 /* An open header menu stays in front of anything pinned to the page (the profile's save bar). */
 body.crafted .craft-header:has(.site-menu:not([hidden]),.account-menu:not([hidden])){z-index:95}

@@ -22,6 +22,14 @@ from . import diagnostics as _diagnostics
 from .diagnostics import capture_scope, record_captured
 
 
+def gemma_display_name(model):
+    """'gemma4:e4b' -> 'Gemma 4 E4B': the English name with its version for the model menu (requests keep the id)."""
+    match = re.fullmatch(r'gemma(\d+(?:\.\d+)?)(?::([0-9a-z.]+))?', str(model or '').strip(), re.I)
+    if not match:
+        return str(model)
+    return 'Gemma ' + match.group(1) + (' ' + match.group(2).upper() if match.group(2) else '')
+
+
 def _validated_model_names(values):
     if not isinstance(values,list) or len(values)>32:
         raise ValueError('Gemma 모델 목록 형식을 확인해 주세요.')
