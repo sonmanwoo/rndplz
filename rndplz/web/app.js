@@ -26,8 +26,10 @@ async function task(fn,button){
 // The person card opened from the research map is a panel beside the map (docked, not modal):
 // the map stays usable and another person replaces the panel's content.
 function detailDocked(){const dialog=$("detailDialog");return dialog.open&&dialog.classList.contains("docked");}
-function showDialog(id,docked=false){
- const prior=document.querySelector("dialog[open]");
+const dialogTriggers=new WeakMap();
+function showDialog(id,docked=false,trigger=document.activeElement){
+ const prior=document.querySelector("dialog[open]"),dialog=$(id);
+ if(id!=="detailDialog"&&prior!==dialog&&trigger?.matches("button,a,[tabindex]")&&!dialog.contains(trigger))dialogTriggers.set(dialog,trigger);
  if(id==="detailDialog"){if(prior?.id!=="detailDialog")detailReturn=prior?.id||null;}
  else if(prior?.id==="detailDialog"){detailReturn=null;detailTrigger=null;detailPersonId=null;}
  if(id==="detailDialog"&&detailDocked())return;
@@ -45,7 +47,7 @@ function closeDetail(){
  const back=detailReturn, trigger=detailTrigger, personId=detailPersonId;
  detailReturn=null;detailTrigger=null;detailPersonId=null;detailPersonView=null;detailRecordReturn=null;
  $("detailDialog").close();
- if(back)showDialog(back);
+ if(back)showDialog(back,false,null);
  const replacement=personId?Array.from(document.querySelectorAll('[data-action="person"]')).find(b=>b.dataset.id===personId&&detailFocusAvailable(b)):null;
  // The map opens its card through a temporary button that is gone by now: return to the preview's 전체 카드 보기
  // rather than the search box, which would jump the page to the top.
@@ -303,7 +305,7 @@ async function openLetter(ids){
 }
 function renderLetter(){
  const draft=letter.drafts[letter.index];
- $("letterHeader").innerHTML='<h2>'+esc(draft.candidate.profile?.display_name||draft.candidate.name)+'님에게</h2><p class="muted">'+esc(modes[draft.request_kind])+' 제안 · '+(draft.candidate.virtual?"시연용 가상 현장 기록":"연구·경력 기록을 통해 찾은 연결")+'</p>'+(letter.ids.length>1?'<label>경로별 편지<select id="letterRecipient">'+letter.drafts.map((d,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':"")+'>'+esc(d.candidate.route_order+". "+d.candidate.name+" · "+d.candidate.route_role)+'</option>').join("")+'</select></label>':"");
+ $("letterHeader").innerHTML='<h2>'+esc(draft.candidate.profile?.display_name||draft.candidate.name)+'님에게</h2><p class="muted">'+esc(modes[draft.request_kind])+' 제안 · '+(draft.candidate.virtual?"시연용 가상 현장 기록":"연구·경력 기록을 통해 찾은 연결")+'</p>'+(letter.ids.length>1?'<label>경로별 편지<select id="letterRecipient">'+letter.drafts.map((d,i)=>'<option value="'+i+'"'+(i===letter.index?' selected':"")+'>'+esc(d.candidate.route_order+". "+(d.candidate.profile?.display_name||d.candidate.name)+" · "+d.candidate.route_role)+'</option>').join("")+'</select></label>':"");
  $("letterBody").value=letter.bodies[draft.candidate.id];$("letterError").textContent="";
  $("aiDraftButton").hidden=!boot.model.enabled;
 }
@@ -322,11 +324,11 @@ async function saveLetter(status){
  if(status==="sent"&&!sessionStorage.getItem("rndplz-envelope")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){sessionStorage.setItem("rndplz-envelope","seen");$("sentScene").showModal();$("sentScene").querySelector("button").focus();}
  else toast(saved.length+"건이 제안함에 저장됐어요. "+(status==="sent"?"시연 기록입니다.":"초안입니다."));
 }
-async function openInbox(){
+async function openInbox(trigger=document.activeElement){
  const proposals=await api("/api/proposals");$("inboxCount").textContent=proposals.length;
  const actions={draft:[["sent","보내기 · 시연"],["cancelled","취소"]],sent:[["accepted","수락 · 시연"],["declined","거절 · 시연"],["closed","종료"],["cancelled","취소"]],accepted:[["closed","종료"]],declined:[["closed","종료"]],closed:[],cancelled:[]};
  $("inboxContent").innerHTML=proposals.length?proposals.slice().reverse().map(p=>'<article class="inbox-item"><header><h3>'+esc(p.recipient_name)+'</h3><span class="tag">'+stateNames[p.state]+'</span></header><small>'+esc(modes[p.request_kind])+' · '+esc(p.direction)+' · '+new Date(p.created).toLocaleString("ko-KR")+(p.route_order?' · 경로 '+p.route_order+'/'+p.route_total:"")+'</small><details><summary>보관된 편지와 근거 보기</summary><pre>'+esc(p.body)+'</pre><p>근거 '+p.evidence.length+'건 · 제안자 사본 보관</p><p>시연 이력: '+p.history.map(h=>stateNames[h.state]).join(" → ")+'</p></details><div class="inbox-actions"><button class="outline" data-action="recipient" data-id="'+p.id+'">받는 사람 화면 · 시연</button>'+actions[p.state].map(([s,label])=>'<button class="outline" data-action="transition" data-id="'+p.id+'" data-value="'+s+'">'+label+'</button>').join("")+'</div></article>').join(""):'<div class="empty-state"><span class="symbol">✉</span><h3>첫 연결을 기다리고 있어요.</h3><p>후보 카드에서 제안문을 작성해보세요.</p></div>';
- showDialog("inboxDialog");
+ showDialog("inboxDialog",false,trigger);
 }
 
 function renderRecipient(opened=false){
@@ -389,7 +391,7 @@ document.addEventListener("click",event=>{
   else if(action==="route-letter")await openLetter((displayResult(session)?.candidates||[]).filter(canPropose).map(c=>c.id));
   else if(action==="draft-save")await saveLetter("draft");
   else if(action==="send")await saveLetter("sent");
-  else if(action==="inbox")await openInbox();
+  else if(action==="inbox")await openInbox(button);
   else if(action==="recipient"){received=(await api("/api/proposals")).find(p=>p.id===id);renderRecipient();showDialog("recipientDialog");}
   else if(action==="open-received"){$("recipientContent").querySelector(".received-envelope")?.classList.add("opening");await RndCraft.pause(560);renderRecipient(true);$("recipientContent").querySelector("h2").setAttribute("tabindex","-1");$("recipientContent").querySelector("h2").focus();}
   else if(action==="recipient-transition"){received=await api("/api/transition",{id:received.id,state:value});admin=null;renderRecipient(true);toast("제안자 사본에도 시연 상태를 반영했어요.");}
@@ -489,3 +491,18 @@ document.addEventListener("keydown",e=>{
 {const dialog=$("detailDialog"),outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};let pressed=false;
  dialog.addEventListener("pointerdown",e=>{pressed=outside(e);});
  dialog.addEventListener("click",e=>{if(pressed&&outside(e))closeDetail();pressed=false;});}
+
+// Shared modal dialogs return to their visible opener after any way of closing.
+for(const dialog of document.querySelectorAll("dialog:not(#detailDialog):not(#sentScene)")){
+ dialog.addEventListener("close",()=>{
+  if(dialog.open)return;
+  const trigger=dialogTriggers.get(dialog);
+  if(!document.documentElement.inert&&!document.querySelector("dialog[open]")&&detailFocusAvailable(trigger))trigger.focus({preventScroll:true});
+ });
+ // Escape already closes a modal dialog. Only the read-only views also close on a press outside: a draft being
+ // written (letterDialog) or settings must not vanish on a stray press.
+ if(dialog.id!=="inboxDialog"&&dialog.id!=="recipientDialog")continue;
+ const outside=e=>{const r=dialog.getBoundingClientRect();return e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);};let pressed=false;
+ dialog.addEventListener("pointerdown",e=>{pressed=outside(e);});
+ dialog.addEventListener("click",e=>{if(pressed&&outside(e))dialog.close();pressed=false;});
+}

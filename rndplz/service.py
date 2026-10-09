@@ -243,7 +243,8 @@ class Service:
                 if not isinstance(draft["body"], str) or len(draft["body"]) > 30000:
                     continue
                 item = {"session_id": projected["id"],
-                        "candidate": {"id": candidate["id"], "name": candidate["name"]},
+                        "candidate": {"id": candidate["id"], "name": candidate["name"],
+                                      "profile": {"display_name": draft["candidate"]["profile"]["display_name"]}},
                         "body": draft["body"], "request_kind": draft["request_kind"]}
             except (ValueError, KeyError, TypeError):
                 continue
@@ -297,13 +298,17 @@ class Service:
     def _render_draft(self, session, c):
         """Private text template; each caller must validate its own authority."""
         sid = session["id"]
+        person = self.corpus.people.get(c["id"])
+        display_name = (person.profile or {}).get("display_name") if person else None
+        name = display_name.strip() if isinstance(display_name, str) and display_name.strip() else person.name if person else c["name"]
+        c = {**c, "profile": {**(c.get("profile") or {}), "display_name": name}}
         slots=session["slots"]
         request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
         refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
         basis="[연결 근거]\n"+refs
         if c.get("selection")=="user_pick":
             basis="[직접 선택]\n추천 목록 밖에서 요청자가 직접 고른 분입니다. 이번 요청과의 관련성은 아직 확인되지 않았습니다.\n\n[등록 이력]\n"+refs
-        body=f'{c["name"]}님께,\n\n[막힌 현상]\n{session.get("proposal_context",session["original"])}\n\n[목표]\n{slots["goal"] or "추가 협의"}\n\n[검토 대상]\n{slots["target"] or "추가 협의"}\n\n[가진 자료·조건]\n{slots["resources"] or "추가 협의"} / {slots["conditions"] or "조건 확인 필요"}\n\n[요청 범위]\n{MODE[session["mode"]]} · {request_scope}\n\n{basis}\n\n[기한]\n{slots["deadline"] or "협의 가능"}\n\n감사합니다.\n— 시연 제안자'
+        body=f'{name}님께,\n\n[막힌 현상]\n{session.get("proposal_context",session["original"])}\n\n[목표]\n{slots["goal"] or "추가 협의"}\n\n[검토 대상]\n{slots["target"] or "추가 협의"}\n\n[가진 자료·조건]\n{slots["resources"] or "추가 협의"} / {slots["conditions"] or "조건 확인 필요"}\n\n[요청 범위]\n{MODE[session["mode"]]} · {request_scope}\n\n{basis}\n\n[기한]\n{slots["deadline"] or "협의 가능"}\n\n감사합니다.\n— 시연 제안자'
         if session["mode"]=="verify":
             claims="\n".join("> "+x for x in session["result"]["claims"])
             body=f'[검증 대상 · AI가 제안한 내용이며 사실로 확인되지 않음]\n{claims}\n\n[확인하고 싶은 점]\n{slots["target"] or "위 주장에 필요한 조건과 검증 방법"}\n\n'+body
@@ -355,7 +360,7 @@ class Service:
                 if c["virtual"] and "가상" not in body:
                     raise ValueError("현장 제안에는 '가상' 표시가 필요합니다.")
                 stamp=now()
-                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(c.get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
+                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(draft["candidate"].get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
                 created.append(p)
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}
