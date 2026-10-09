@@ -13,6 +13,8 @@ import hashlib
 import json
 import re
 import stat
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -98,6 +100,9 @@ class Profiles:
         self.reader = reader
         # Optional upload_id -> (name, bytes) for documents sent in chunks (the chat's staging).
         self.staged = staged
+        # source_id -> a reading running in the background (digest_wait), one per document at a time.
+        self._digest_jobs = {}
+        self._digest_lock = threading.Lock()
         self.store = store
         self.public = bool(public)
         self.clock = clock or (lambda: datetime.now(timezone.utc))
@@ -481,6 +486,41 @@ class Profiles:
             temporary.replace(path)
         return {'source_id': source['id'], 'name': source['name'], 'base_version': data['profile']['version'],
                 'proposal': record['proposal'], 'model_id': record['model_id'], 'cached': cached}
+
+    def digest_wait(self, payload, wait, *, admit=lambda: True, release=lambda: None):
+        """digest() in the background: the proposal if it is ready within `wait` seconds, otherwise None (still
+        reading; ask again). A long document takes the company AI well over a minute, longer than a phone keeps a
+        silent request open. `admit`/`release` hold a model slot for the reading itself, not for each ask."""
+        _keys(payload, ('source_id',))
+        source_id = payload.get('source_id')
+        with self._digest_lock:
+            job = self._digest_jobs.get(source_id)
+            if job is not None and job['done'].is_set() and time.monotonic() - job['finished'] > 600:
+                job = None  # an answer nobody collected is not reused much later
+            if job is None:
+                if not admit():
+                    raise ProfileError('응답 중인 방문자가 많습니다. 잠시 후 다시 읽어 주세요.', code='busy', status=429)
+                job = {'done': threading.Event(), 'result': None, 'error': None, 'finished': 0.0}
+                self._digest_jobs[source_id] = job
+
+                def read():
+                    try:
+                        job['result'] = self.digest({'source_id': source_id})
+                    except Exception as error:  # handed to the request that collects it
+                        job['error'] = error
+                    finally:
+                        release()
+                        job['finished'] = time.monotonic()
+                        job['done'].set()
+                threading.Thread(target=read, daemon=True).start()
+        if not job['done'].wait(wait):
+            return None
+        with self._digest_lock:
+            if self._digest_jobs.get(source_id) is job:
+                del self._digest_jobs[source_id]
+        if job['error'] is not None:
+            raise job['error']
+        return job['result']
 
     def suggest(self, payload):
         _keys(payload, ('source_ids', 'base_version', 'request_id'))
