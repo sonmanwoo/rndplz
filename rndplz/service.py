@@ -355,7 +355,7 @@ class Service:
                 if c["virtual"] and "가상" not in body:
                     raise ValueError("현장 제안에는 '가상' 표시가 필요합니다.")
                 stamp=now()
-                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
+                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(c.get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
                 created.append(p)
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}

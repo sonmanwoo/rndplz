@@ -851,3 +851,18 @@ html.mp-sheet-open{overflow:hidden}
  /* A ringed button does not nudge down when pressed, so a press near the ring's edge still lands on release. */
  #peopleMapHost .mp-focus-wheel button:active,body.crafted :is(.sheet-nav button,.sheet-chips .sheet-chip-more):active:not(:disabled){transform:none}
 }
+/* Every person view becomes a bottom sheet at the same width (900px): the preview card as on phones, with the step
+   wheel laid across the top of the map where no sheet reaches. */
+@media(max-width:900px){
+  #peopleMapHost .mp-focus-card.mp-focus-card-below{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:90;width:auto;max-width:none;max-height:44dvh;overflow:auto;overscroll-behavior:contain;margin:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0;box-shadow:0 -12px 40px #0000001f}
+  #peopleMapHost .mp-focus-card.mp-focus-card-below .mp-focus-open{position:sticky;bottom:0}
+  #peopleMapHost .mp-focus-wheel{flex-direction:row;top:12px;bottom:auto;left:12px;right:auto;transform:none;width:auto;height:44px}
+  #peopleMapHost .mp-focus-wheel::before{left:22px;right:22px;top:50%;bottom:auto;width:auto;height:1px;transform:translateY(-50%)}
+  #peopleMapHost .mp-focus-hint{right:auto;left:var(--hint-x,50%);top:calc(100% + 10px);bottom:auto;transform:translateX(-50%)}
+  #peopleMapHost .mp-focus-hint::after{right:auto;left:50%;top:-5px;bottom:auto;transform:translateX(-50%) rotate(135deg)}
+}
+/* 701-900 still show the capability list and filters beside or above the map (phones fold them into the bar), so
+   the sheet keeps to the map's column: it sits at the screen's bottom while the map is in view and covers nothing else. */
+@media(min-width:701px) and (max-width:900px){
+  #peopleMapHost .mp-focus-card.mp-focus-card-below{position:sticky;left:auto;right:auto}
+}

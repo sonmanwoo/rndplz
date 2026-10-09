@@ -200,7 +200,10 @@
 #personCardDialog *, #personCardDialog *::before, #personCardDialog *::after { box-sizing: border-box; }
 .pi-sheet { display: flex; flex-direction: column; gap: 10px; max-height: 82dvh; padding: 10px 18px 14px; touch-action: pan-y; }
 .pi-top { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 34px; padding: 0 44px; }
-.pi-top::before { content: ""; position: absolute; top: 6px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: #c9d0c2; }
+.pi-handle { position: absolute; top: 0; left: 44px; right: 44px; height: 26px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.pi-handle::before { content: ""; position: absolute; top: 6px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: #c9d0c2; }
+/* The handle lies under the top row: ‹ › and the count stay pressable above it. */
+.pi-top .pi-nav, .pi-top .pi-count { position: relative; z-index: 1; }
 .pi-nav { width: 34px; height: 34px; border: 1px solid var(--pc-edge); border-radius: 50%; background: transparent; color: var(--pc-green); font-size: 20px; line-height: 1; cursor: pointer; }
 .pi-nav:disabled { opacity: .3; cursor: default; }
 .pi-count { min-width: 64px; text-align: center; color: var(--pc-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -266,11 +269,11 @@
 .pi-full { padding: 8px 4px; border: 0; background: transparent; color: var(--pc-green); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
 @keyframes pi-sheet-in { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes pi-reveal { from { transform: rotateY(180deg); } to { transform: rotateY(0); } }
-@media (min-width: 701px) {
+@media (min-width: 901px) {
   #personCardDialog { inset: 0; width: min(860px, 92vw); max-height: 86dvh; margin: auto; border-radius: 18px; box-shadow: 0 30px 80px #0a120d59; animation-name: pi-pop-in; }
   #personCardDialog::backdrop { background: #16201a99; backdrop-filter: blur(2px); }
   .pi-sheet { max-height: 86dvh; padding: 14px 26px 20px; }
-  .pi-top::before { display: none; }
+  .pi-handle { display: none; }
   .pi-main { flex-direction: row; gap: 26px; }
   /* The card shrinks with a short screen so its name and organisation below stay in view; the column can
      still scroll on a very short one. */
@@ -299,3 +302,10 @@ html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
 .pi-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pi-skills span { padding: 3px 10px; border: 1px solid var(--pc-line); border-radius: 999px; font-size: 12.5px; }
 .pi-links a { color: var(--pc-green); }
+/* Touch: ‹ › and 전체 약력 keep their look; an invisible ring makes each 44px to press, and they do not nudge when pressed. */
+@media (pointer: coarse), (max-width: 900px) {
+  #personCardDialog .pi-nav::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+  #personCardDialog .pi-full { position: relative; }
+  #personCardDialog .pi-full::after { content: ""; position: absolute; inset: -3px 0; }
+  body.crafted #personCardDialog :is(.pi-nav, .pi-full):active:not(:disabled) { transform: none; }
+}

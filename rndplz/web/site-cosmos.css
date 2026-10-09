@@ -185,3 +185,7 @@ body.crafted .craft-header:has(.site-menu:not([hidden]),.account-menu:not([hidde
 @media (pointer:coarse),(max-width:700px){
  body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle,.attach-button):active:not(:disabled){transform:none}
 }
+/* Touch: a stored letter's "보관된 편지와 근거 보기" is a full 44px line to press. */
+@media (pointer:coarse),(max-width:900px){
+ .inbox-item details>summary{display:flex;align-items:center;min-height:44px}
+}

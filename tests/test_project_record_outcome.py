@@ -5,10 +5,12 @@ people. The user supplied the result (2nd place) and their own role (main
 developer) on 2026-09-23; other participants' roles stay unrecorded.
 """
 import os
+from dataclasses import replace
 import tempfile
 import unittest
 
 from rndplz.service import Service
+from rndplz.engine import Engine
 
 TEAM = ['LOCAL-MANWOO', 'LOCAL-JINHO', 'LOCAL-DASOL', 'LOCAL-HONG']
 
@@ -35,6 +37,32 @@ class ProjectRecordOutcomeTests(unittest.TestCase):
         roles = {c.person_id: c.role for c in record.people}
         self.assertEqual(roles['LOCAL-MANWOO'], 'recorded_role')
         self.assertEqual(roles['LOCAL-JINHO'], 'participant_unspecified')
+
+    def boundary(self, **details):
+        record = self.corpus.records['PROJECT-HACKATHON-2026']
+        return Engine(self.corpus).explain_record(replace(record, details=details))['boundary']
+
+    def test_disclosure_distinguishes_user_provided_from_independently_verified(self):
+        record = self.corpus.records['PROJECT-HACKATHON-2026']
+        boundary = self.boundary(**record.details)
+        self.assertIn('사용자 제공 자료에 기재된 내용이며 독립 검증하지 않았습니다', boundary)
+        self.assertIn('성과·수상·일정은 자료에 기재된 범위', boundary)
+        self.assertIn('역할은 일부 참여자만 기재', boundary)
+        self.assertIn('나머지 참여자의 역할은 미기재', boundary)
+        self.assertIn('주최는 미기재', boundary)
+        self.assertNotIn('성과·수상은 미기재', boundary)
+        self.assertNotIn('정확한 일정·주최는 미기재', boundary)
+        self.assertIn('특정 기술 전문성·현재 소속·협업 가능성·계정 소유를 입증하지 않습니다', boundary)
+
+    def test_only_missing_project_fields_are_unstated(self):
+        boundary = self.boundary(outcome=' ', roles={'unknown': '역할', TEAM[0]: ' '})
+        self.assertIn('성과·수상은 미기재', boundary)
+        self.assertIn('참여자의 역할은 미기재', boundary)
+        self.assertIn('주최는 미기재', boundary)
+        boundary = self.boundary(outcome='제공된 성과', roles={pid: '제공된 역할' for pid in TEAM}, organizer='제공된 주최')
+        self.assertNotIn('미기재', boundary)
+        self.assertNotIn('일부 참여자', boundary)
+        self.assertIn('주최는 사용자 제공 자료에 기재된 내용이며 독립 검증하지 않았습니다', boundary)
 
     def test_profiles_show_outcome_and_only_the_provided_role(self):
         def project(pid):
