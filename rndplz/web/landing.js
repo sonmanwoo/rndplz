@@ -60,16 +60,36 @@
       const sync = () => { next.disabled = rail.scrollWidth <= rail.clientWidth + rail.scrollLeft + 3; };
       rail.addEventListener('scroll', sync, {passive:true}); win.addEventListener('resize', sync); sync();
     }
-    let fieldLinks = [], current = 0, timer = 0, fieldsVisible = false, held = false;
+    let fieldLinks = [], fields = [], start = 0, current = 0, timer = 0, rolling = 0, fieldsVisible = false, held = false;
     const reduced = win.matchMedia('(prefers-reduced-motion: reduce)');
     function selectField(index) {
       current = index;
       fieldLinks.forEach((link, i) => link.classList.toggle('is-current', i === current));
     }
+    // A few fields at a time (6 on a phone, 8 wider): the highlight walks them, then the window rolls on to the next ones.
+    const narrow = win.matchMedia('(max-width:700px)');
+    const windowSize = () => quiet() ? fields.length : Math.min(narrow.matches ? 6 : 8, fields.length);
+    function paintFields() {
+      const list = $('landingFieldList'); list.replaceChildren(); fieldLinks = [];
+      for (let k = 0; k < windowSize(); k++) {
+        const field = fields[(start + k) % fields.length];
+        const item = node('li'), link = node('a', '', field.label); link.href = capabilityURL(field.id);
+        item.append(link); list.append(item); fieldLinks.push(link);
+      }
+      selectField(0);
+    }
+    function step() {
+      if (current < fieldLinks.length - 1) { selectField(current + 1); return; }
+      const list = $('landingFieldList'); start = (start + fieldLinks.length) % fields.length;
+      list.classList.toggle('is-rolling', true); win.clearTimeout(rolling);
+      rolling = win.setTimeout(() => { paintFields(); list.classList.toggle('is-rolling', false); }, 250);
+    }
     function syncTimer() {
       win.clearInterval(timer); timer = 0;
-      if (!quiet() && !doc.hidden && fieldsVisible && !held && body.classList.contains('home-welcome') && fieldLinks.length > 1)
-        timer = win.setInterval(() => selectField((current + 1) % fieldLinks.length), 2000);
+      if (fields.length && fieldLinks.length !== windowSize()) paintFields();
+      if (!quiet() && !doc.hidden && fieldsVisible && !held && body.classList.contains('home-welcome') && fieldLinks.length > 1) {
+        timer = win.setInterval(step, 1600);
+      }
     }
     const fieldsHost = $('landingFields');
     if ('IntersectionObserver' in win) new win.IntersectionObserver(entries => { fieldsVisible = entries.some(entry => entry.isIntersecting && entry.intersectionRatio > 0); syncTimer(); }, {threshold:0.01}).observe(fieldsHost);
@@ -77,17 +97,13 @@
     for (const event of ['pointerenter','focusin']) fieldsHost.addEventListener(event, () => { held = true; syncTimer(); });
     fieldsHost.addEventListener('pointerleave', () => { held = fieldsHost.contains(doc.activeElement); syncTimer(); });
     fieldsHost.addEventListener('focusout', event => { held = fieldsHost.contains(event.relatedTarget); syncTimer(); });
-    reduced.addEventListener('change', syncTimer); doc.addEventListener('visibilitychange', syncTimer);
+    reduced.addEventListener('change', syncTimer); narrow.addEventListener('change', () => { if (fields.length) paintFields(); syncTimer(); }); doc.addEventListener('visibilitychange', syncTimer);
     new win.MutationObserver(syncTimer).observe(body, {attributes:true, attributeFilter:['class']});
     win.addEventListener('pagehide', () => win.clearInterval(timer)); win.addEventListener('pageshow', syncTimer);
     function render(data) {
-      const {people, fields} = project(data), list = $('landingFieldList');
-      list.replaceChildren(); fieldLinks = [];
-      for (const field of fields) {
-        const item = node('li'), link = node('a', '', field.label); link.href = capabilityURL(field.id);
-        item.append(link); list.append(item); fieldLinks.push(link);
-      }
-      selectField(0); syncTimer();
+      const projected = project(data), people = projected.people; fields = projected.fields; start = 0;
+      paintFields(); syncTimer();
+      const all = $('landingFieldsAll'); all.hidden = !fields.length; all.textContent = '연구 맵에서 분야 ' + fields.length + '개 모두 보기';
       const rail = $('landingPeopleRail'); rail.replaceChildren();
       if (body.dataset.landing === 'people') for (const person of people) {
         const item = node('li', 'landing-person'), collage = node('div', 'landing-collage'); collage.setAttribute('aria-hidden', 'true');

@@ -1,144 +1,116 @@
 {
-  "coordinate_system": "original PNG pixels, left/top/right/bottom, right/bottom exclusive",
-  "encoding": "WebP, quality 82, method 6",
-  "assets": [
+ "coordinate_system": "phone CSS pixels of a 390x844 screen captured at device scale 2 (multiply by 2 for PNG pixels), left/top/right/bottom, right/bottom exclusive",
+ "encoding": "WebP, quality 82, method 6, at most 600px wide",
+ "captured": "2026-10-09 (main 086fc31: letterhead A, model names, person view #121)",
+ "assets": [
+  {
+   "asset": "chat.webp",
+   "source": "m_chat_answer.png",
+   "crop": [
+    12,
+    82,
+    378,
+    336
+   ],
+   "blurs": [],
+   "output_size": [
+    600,
+    416
+   ],
+   "bytes": 17576
+  },
+  {
+   "asset": "evidence.webp",
+   "source": "m_person_card.png",
+   "crop": [
+    16,
+    373,
+    373,
+    751
+   ],
+   "blurs": [],
+   "output_size": [
+    600,
+    635
+   ],
+   "bytes": 29502
+  },
+  {
+   "asset": "map.webp",
+   "source": "m_map_focus.png",
+   "crop": [
+    17,
+    238,
+    374,
+    606
+   ],
+   "blurs": [
     {
-      "asset": "chat.webp",
-      "source": "m_chat_answer.png",
-      "crop": [
-        12,
-        82,
-        378,
-        336
-      ],
-      "blurs": [],
-      "source_size": [
-        390,
-        844
-      ],
-      "output_size": [
-        366,
-        254
-      ],
-      "bytes": 9494
+     "box": [
+      240,
+      528,
+      310,
+      606
+     ],
+     "radius": 10
     },
     {
-      "asset": "evidence.webp",
-      "source": "m_person_card.png",
-      "crop": [
-        16,
-        373,
-        373,
-        751
-      ],
-      "blurs": [],
-      "source_size": [
-        390,
-        844
-      ],
-      "output_size": [
-        357,
-        378
-      ],
-      "bytes": 14094
-    },
-    {
-      "asset": "map.webp",
-      "source": "m_map_focus.png",
-      "crop": [
-        17,
-        104,
-        374,
-        590
-      ],
-      "blurs": [
-        {
-          "box": [
-            18,
-            159,
-            374,
-            590
-          ],
-          "radius": 2.5
-        },
-        {
-          "box": [
-            173,
-            343,
-            224,
-            392
-          ],
-          "radius": 12
-        },
-        {
-          "box": [
-            288,
-            266,
-            326,
-            310
-          ],
-          "radius": 12
-        }
-      ],
-      "source_size": [
-        390,
-        844
-      ],
-      "output_size": [
-        357,
-        486
-      ],
-      "bytes": 5700
-    },
-    {
-      "asset": "letter.webp",
-      "source": "m_letter.png",
-      "crop": [
-        17,
-        57,
-        372,
-        795
-      ],
-      "blurs": [],
-      "source_size": [
-        390,
-        844
-      ],
-      "output_size": [
-        355,
-        738
-      ],
-      "bytes": 12538
-    },
-    {
-      "asset": "profile.webp",
-      "source": "m_profile_digest.png",
-      "crop": [
-        43,
-        243,
-        345,
-        740
-      ],
-      "blurs": [
-        {
-          "box": [
-            203,
-            299,
-            307,
-            737
-          ],
-          "radius": 14
-        }
-      ],
-      "source_size": [
-        390,
-        844
-      ],
-      "output_size": [
-        302,
-        497
-      ],
-      "bytes": 2580
+     "box": [
+      182,
+      548,
+      252,
+      606
+     ],
+     "radius": 10
     }
-  ]
+   ],
+   "output_size": [
+    600,
+    618
+   ],
+   "bytes": 19254
+  },
+  {
+   "asset": "letter.webp",
+   "source": "m_letter.png",
+   "crop": [
+    17,
+    57,
+    372,
+    795
+   ],
+   "blurs": [],
+   "output_size": [
+    600,
+    1247
+   ],
+   "bytes": 23910
+  },
+  {
+   "asset": "profile.webp",
+   "source": "m_profile_digest.png",
+   "crop": [
+    43,
+    243,
+    345,
+    740
+   ],
+   "blurs": [
+    {
+     "box": [
+      203,
+      299,
+      307,
+      737
+     ],
+     "radius": 14
+    }
+   ],
+   "output_size": [
+    600,
+    987
+   ],
+   "bytes": 6222
+  }
+ ]
 }
