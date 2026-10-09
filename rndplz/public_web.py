@@ -1025,7 +1025,10 @@ class PublicApp:
             elif path == '/':
                 variant = landing_variant(environ.get('QUERY_STRING', ''))
                 if variant:
-                    asset = landing_document(asset, variant, WEB, self.static_assets)
+                    try:
+                        asset = landing_document(asset, variant, WEB, self.static_assets)
+                    except Exception:
+                        pass  # the bare home rather than an error page when the introduction cannot be composed
             elif path == '/explore' and 'capability' in parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True):
                 asset = capability_document(asset, self.static_assets)
             raw, mime = asset.body, asset.mime

@@ -19,7 +19,7 @@ from tests.test_public_performance import app, request
 
 
 @pytest.mark.parametrize('query, expected', [
-    ('', None), ('landing', 'people'), ('landing=', 'people'), ('landing=map', 'map'),
+    ('', 'people'), ('x=1', 'people'), ('landing=off', None), ('landing', 'people'), ('landing=', 'people'), ('landing=map', 'map'),
     ('x=1&landing', 'people'), ('landing=people', None), ('landing=1', None),
     ('landing=MAP', None), ('landing=map&landing=', None), ('landing=&landing=', None),
 ])
@@ -27,8 +27,8 @@ def test_exact_opt_in_variants(query, expected):
     assert landing_variant(query) == expected
 
 
-@pytest.mark.parametrize('query', ['', '?x=1', '?landing=1', '?landing=people', '?landing=map&landing='])
-def test_default_home_keeps_identical_served_bytes_and_assets(app, query):
+@pytest.mark.parametrize('query', ['?landing=off', '?landing=1', '?landing=people', '?landing=map&landing='])
+def test_bare_home_keeps_identical_served_bytes_and_assets(app, query):
     baseline = StaticAssets(lambda path: None if path in LANDING_ASSETS else app._static_file(path), origin=app.origin)
     original = baseline.read('/')
     response = request(app, '/' + query)
@@ -84,7 +84,8 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     for path, url in manifest.items():
         assert url == app.static_assets.versioned_url(path, '/')
     assert app.static_assets.read('/').body == original
-    assert request(app, '/')['body'] == original
+    assert request(app, '/?landing=off')['body'] == original
+    assert request(app, '/')['body'] == request(app, '/?landing')['body']  # the home opens with the introduction (2026-10-10)
     compressed = request(app, '/' + query, encoding='gzip')
     assert gzip.decompress(compressed['body']) == response['body']
     assert response['headers']['Cache-Control'] == 'no-store'
@@ -261,6 +262,6 @@ def test_landing_first_document_and_eager_assets_stay_within_home_byte_budget(ap
         return total
 
     for encoding in (None, 'gzip'):
-        baseline = size('/', encoding)
+        baseline = size('/?landing=off', encoding)
         assert size('/?landing', encoding) < baseline
         assert size('/?landing=map', encoding) < baseline
