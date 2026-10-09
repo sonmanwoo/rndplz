@@ -24,8 +24,11 @@ DEFERRED_ASSETS = ('landing.js', 'landing-map-preview.js', 'recommendation-map.j
 
 
 def landing_variant(query_string):
-    """Only the two explicitly requested query values enable the prototype."""
+    """The home opens with the scrolling introduction (2026-10-10 operator decision); ?landing=off
+    (or any other value) shows the bare home for comparison. ?landing and ?landing=map keep working."""
     values = parse_qs(query_string, keep_blank_values=True).get('landing')
+    if values is None:
+        return 'people'
     return 'people' if values == [''] else 'map' if values == ['map'] else None
 
 

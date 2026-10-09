@@ -35,6 +35,7 @@ from .storage import StateStore
 from .people_map import build_people_map, build_home_people_map
 from .static_assets import StaticAssets
 from .landing import LANDING_ASSETS, build_landing_people_map, capability_document, chat_script_variant, home_script_variant, landing_document, landing_variant
+from .agent_http import PREFIX as AGENT_PREFIX, AgentHTTP
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .person_cards import PersonCards
@@ -497,6 +498,8 @@ class PublicApp:
             self.allowed_hosts.add(self.env['RENDER_EXTERNAL_HOSTNAME'])
         self.allowed_hosts.update({'127.0.0.1', 'localhost'})
         self.origin = self.hosted_demo_policy.origin if self.hosted_demo_policy is not None else self.env.get('RNDPLZ_PUBLIC_ORIGIN', '').rstrip('/')
+        # Read-only tools for other agents (an AiU external tool), behind RNDPLZ_AGENT_API_KEY; off without a key.
+        self.agent_http = AgentHTTP(self.env, self.origin)
         if self.hosted_demo_policy is not None:
             self.allowed_hosts.add(self.hosted_demo_policy.authority.split(':')[0])
         self.engine = build_public_engine(self.env, include_personal, corpus=Corpus())
@@ -1011,6 +1014,8 @@ class PublicApp:
             return send(405, {'error': '지원하지 않는 요청입니다.'})
         if path == '/api/logout' and method != 'POST':
             return send(405, {'error': '방문자 세션 종료는 POST 요청으로만 처리합니다.'})
+        if path.startswith(AGENT_PREFIX):
+            return self.agent_http.handle(environ, path, method, send)
         if path.startswith('/api/operator/diagnostics/'):
             return self._operator(environ,path,method,send)
         def serve_static():
@@ -1025,7 +1030,10 @@ class PublicApp:
             elif path == '/':
                 variant = landing_variant(environ.get('QUERY_STRING', ''))
                 if variant:
-                    asset = landing_document(asset, variant, WEB, self.static_assets)
+                    try:
+                        asset = landing_document(asset, variant, WEB, self.static_assets)
+                    except Exception:
+                        pass  # the bare home rather than an error page when the introduction cannot be composed
             elif path == '/explore' and 'capability' in parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True):
                 asset = capability_document(asset, self.static_assets)
             raw, mime = asset.body, asset.mime
