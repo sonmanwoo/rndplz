@@ -10,7 +10,9 @@ from __future__ import annotations
 import copy
 import dataclasses
 import hashlib
+import json
 import threading
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from .data import matches
@@ -110,6 +112,14 @@ def _source_projection(provenance):
     return {'source_ids': identifiers, 'sources': sources, 'source_review': review}
 
 
+def _capability_topics():
+    """Topics a research-map capability links by tag: a saved career may carry one even while no public record does."""
+    here = Path(__file__).parent
+    catalog = {topic['id']: topic for topic in json.loads((here / 'topics.json').read_text(encoding='utf-8'))}
+    linked = json.loads((here / 'map_capabilities.json').read_text(encoding='utf-8'))['definitions']
+    return [catalog[tag] for tag in dict.fromkeys(tag for item in linked for tag in item.get('topic_ids', [])) if tag in catalog]
+
+
 class PersonCards:
     """Curated cards of the loaded corpus, kept so every apply starts from the curated card."""
 
@@ -117,6 +127,11 @@ class PersonCards:
         self.corpus = corpus
         self.lock = threading.Lock()
         self.base = {}
+        self.linked_topics = _capability_topics()
+
+    def _taggable(self):
+        known = {topic['id'] for topic in self.corpus.topics}
+        return self.corpus.topics + [topic for topic in self.linked_topics if topic['id'] not in known]
 
     def available(self, person_id):
         person = self.corpus.people.get(person_id) if isinstance(person_id, str) else None
@@ -175,6 +190,10 @@ class PersonCards:
                                     if record.id not in old] + list(records)
             people = dict(self.corpus.people)
             people[person_id] = card
+            used = {tag for record in records for tag in record.tags} - set(self.corpus.topic_by_id)
+            if used:
+                topics = self.corpus.topics + [topic for topic in self.linked_topics if topic['id'] in used]
+                self.corpus.topics, self.corpus.topic_by_id = topics, {topic['id']: topic for topic in topics}
             self.corpus.people, self.corpus.records, self.corpus.by_person = people, new_records, by_person
             return changed
 
@@ -247,7 +266,7 @@ class PersonCards:
                     if row != original:
                         record = dataclasses.replace(record, title=title, text=text, date=row['period'].strip())
                 else:
-                    tags = [topic['id'] for topic in self.corpus.topics
+                    tags = [topic['id'] for topic in self._taggable()
                             if any(matches(title + ' ' + text, term) for term in topic['keywords'])]
                     record = Record('CAREER-CARD-' + row['id'][:12].upper(), 'career_record', title, text,
                                     row['period'].strip(), [Contribution(person.id, person.name, 'recorded_role')],
@@ -261,7 +280,9 @@ class PersonCards:
                     records[-1] = dataclasses.replace(record, source_url=url or record.source_url,
                         details={**record.details, **projection})
             if careers_changed:
+                # The row's own title (a project, paper or patent name) heads its line on the card.
                 profile['timeline'] = [{'record_id': record.id, 'date': row['period'].strip(), 'text': _career_text(row),
+                                        **({'title': row['title'].strip()} if row['title'].strip() else {}),
                                         'url': record.source_url if 'career:' + row['id'] in source_fields else '',
                                         **source_fields.get('career:' + row['id'], {})}
                                        for row, record in zip(rows, records)]

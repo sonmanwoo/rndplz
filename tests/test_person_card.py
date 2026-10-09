@@ -101,7 +101,8 @@ class PersonCardTests(unittest.TestCase):
         added = [e for e in card['evidence'] if e['title'] == 'TCB 솔벤트 정제']
         self.assertEqual((len(added), len(card['evidence'])), (1, curated_evidence + 1))
         self.assertEqual(card['profile']['timeline'][-1], {'record_id': added[0]['id'], 'date': '2026',
-                                                        'text': 'GS칼텍스 · 공정 개발. 증류로 잔존 미세 물질 제거', 'url': ''})
+                                                        'text': 'GS칼텍스 · 공정 개발. 증류로 잔존 미세 물질 제거', 'url': '',
+                                                        'title': 'TCB 솔벤트 정제'})  # the row's title heads its line (P1)
         self.assertTrue(any(r.title == 'TCB 솔벤트 정제' for r in self.engine.corpus.by_person['LOCAL-MANWOO']))
 
         # A restart shows the same card from the stored draft.

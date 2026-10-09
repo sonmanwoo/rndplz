@@ -192,6 +192,8 @@ function detailEvidence(e,options={}){
     const links=rows(profile?.links).filter(l=>typeof l.url==='string'&&/^https:\/\//i.test(l.url)&&safeUrl(l.url));
     return links.length?'<p class="researcher-intro-links"><span>본인이 소개하는 자료</span> '+links.map(l=>'<a class="researcher-intro-link" href="'+html(l.url)+'" target="_blank" rel="noopener noreferrer">'+html(l.label||'소개 페이지')+' ↗</a>').join(' · ')+'</p>':'';
   }
+  // A saved project, paper or patent name heads its line; curated lines without a title stay as they were.
+  function timelineTitle(t,text){const title=typeof t?.title==='string'?t.title.trim():'';return title&&!String(text).includes(title)?'<b class="timeline-title">'+html(title)+'</b> ':'';}
   function careerRecord(row,evidence,timeline){
     if(row.record_id)return evidence.find(e=>e.id===row.record_id)||null;
     const dated=timeline.filter(t=>row.date&&t.date===row.date),records=evidence.filter(e=>e.kind==='career_record'&&row.date&&e.date===row.date);
@@ -211,7 +213,7 @@ function detailEvidence(e,options={}){
     if(!personal)add('portraitNote','<p class="scope-note">'+html(p.portrait_note||(p.portrait?.generated?'AI 생성 초상 일러스트':p.portrait?.path?'출처에 표시된 프로필 사진':'사진 미제공 · 공개 프로필과 논문 기록을 확인해 주세요.'))+'</p>');
     add('careers',timeline.length?'<h3>이력의 발자취</h3><ol class="researcher-timeline">'+timeline.map(t=>{
       const e=careerRecord(t,evidence,timeline),text=t.text||(e?evidenceDescription(e,p):'');
-      return '<li><span>'+html(t.date)+'</span><div>'+html(text)+' '+sourceLink(t.url,'출처')+sourceEvidence(t)+'</div></li>';
+      return '<li><span>'+html(t.date)+'</span><div>'+timelineTitle(t,text)+html(text)+' '+sourceLink(t.url,'출처')+sourceEvidence(t)+'</div></li>';
     }).join('')+'</ol>':editable?'<h3>이력의 발자취</h3><p class="card-empty">＋ 이력 추가</p>':'');
     for(const [key,title] of [['projects','프로젝트 이력'],['education','교육 이력']]){
       const entries=rows(p[key]);add(key,p[key]?'<h3>'+title+'</h3><ol class="researcher-timeline">'+entries.map(x=>{
@@ -239,7 +241,7 @@ function detailEvidence(e,options={}){
     add('evidence','<section class="sheet-sec"><h3>'+countLabel(evidence.length,options.partial||options.historical)+'</h3>'+evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+html(e.id)+'"'+(options.recordAction===false||e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+html(labels.get(e.id))+'</span>':'')+'<strong>'+html(e.title)+'</strong><small>'+html([e.date,e.evidence_label||evidenceKind(e)].filter(Boolean).join(' · '))+' ›</small></button>').join('')+'</section>');
     add('careers',timeline.length?'<section class="sheet-sec"><h3>이력</h3>'+timeline.map(t=>{
       const record=careerRecord(t,evidence,timeline),text=t.text||(record?evidenceDescription(record,p):'');
-      return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><span class="sheet-clamp">'+html(text)+'</span><small>'+html(t.date||'')+'</small>'+sourceEvidence(t)+'</div>';
+      return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><span class="sheet-clamp">'+timelineTitle(t,text)+html(text)+'</span><small>'+html(t.date||'')+'</small>'+sourceEvidence(t)+'</div>';
     }).join('')+'</section>':editable?'<section class="sheet-sec"><h3>이력</h3><p class="card-empty">＋ 이력 추가</p></section>':'');
     // The folded area keeps unique provenance and record metadata, without repeating the profile card.
     const children=sections(person,{...options,evidence,includeIdentity:false,includePortrait:false,portraitMetadata:true,includeSkills:false,includeEvidence:false})

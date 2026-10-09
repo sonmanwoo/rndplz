@@ -713,6 +713,32 @@
     "color": "#6e9788"
   },
   {
+    "id": "EXP02-LIQUID-COOLING",
+    "name": "직접 액체 냉각·전자장치 열관리",
+    "field": "immersion_cooling",
+    "keywords": [
+      "직접 액체 냉각",
+      "직접액체냉각",
+      "direct liquid cooling",
+      "콜드플레이트",
+      "cold plate",
+      "매니폴드 마이크로채널",
+      "manifold microchannel",
+      "전자장치 냉각",
+      "electronics cooling",
+      "칩 냉각",
+      "chip cooling",
+      "2상 냉각",
+      "two-phase cooling"
+    ],
+    "scope": "public_research_case",
+    "classification_basis": [
+      "전자장치·칩의 직접 액체 냉각(콜드플레이트·마이크로채널·2상 냉각) 근거"
+    ],
+    "boundary_note": "냉각 장치·유로 설계 근거이며 냉각유 물성·상용 수명·GS제품 적합성은 미검증.",
+    "color": "#6e9788"
+  },
+  {
     "id": "EXP02-SAF",
     "name": "SAF·지속가능항공유",
     "field": "sustainable_aviation_fuel",
@@ -795,7 +821,15 @@
       "장애물회피",
       "obstacle avoidance",
       "mobile robots",
-      "manipulators"
+      "manipulators",
+      "보행 로봇",
+      "사족 보행",
+      "legged robot",
+      "quadruped robot",
+      "점검 로봇",
+      "inspection robot",
+      "등반 로봇",
+      "climbing robot"
     ],
     "classification_basis": [
       "로봇 팔·이동 로봇의 실시간 장애물 회피 원논문"

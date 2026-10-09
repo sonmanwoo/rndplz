@@ -22,6 +22,8 @@ DOCUMENT_CHARS = 80000
 DIGEST_MODELS = (AIU_PROFILE_APP, 'aiu')
 CAREER_KEYS = ('title', 'organization', 'period', 'role', 'description')
 IDENTITY_FIELDS = {'name': 120, 'organization': 180, 'department': 180, 'role': 180, 'tagline': 240}
+# A full resume lists many jobs, projects, papers and patents: each keeps a row (titles whole, up to the stored 240).
+DIGEST_SKILLS, DIGEST_INTERESTS, DIGEST_CAREERS, CAREER_TITLE = 12, 8, 10, 240
 
 
 def _s(limit):
@@ -37,10 +39,10 @@ DIGEST_SCHEMA = _obj({
     **{field: _s(limit) for field, limit in IDENTITY_FIELDS.items()},
     'aliases': {'type': 'array', 'maxItems': 20, 'items': _s(120)},
     'bio_addition': _s(300),
-    'skills': {'type': 'array', 'maxItems': 8, 'items': _s(40)},
-    'interests': {'type': 'array', 'maxItems': 5, 'items': _s(40)},
-    'careers': {'type': 'array', 'maxItems': 3, 'items': _obj({
-        'title': _s(120), 'organization': _s(120), 'period': _s(60), 'role': _s(120), 'description': _s(400)})}})
+    'skills': {'type': 'array', 'maxItems': DIGEST_SKILLS, 'items': _s(40)},
+    'interests': {'type': 'array', 'maxItems': DIGEST_INTERESTS, 'items': _s(40)},
+    'careers': {'type': 'array', 'maxItems': DIGEST_CAREERS, 'items': _obj({
+        'title': _s(CAREER_TITLE), 'organization': _s(120), 'period': _s(60), 'role': _s(120), 'description': _s(400)})}})
 
 DIGEST_SYSTEM = (
     "당신은 연구맵 역량 카드 편집자입니다. 카드 주인이 자기 이력에 참고하라고 올린 자료(document)를 끝까지 읽고, "
@@ -53,11 +55,14 @@ DIGEST_SYSTEM = (
     "원문 그대로 목록으로 쓰세요(최대 20개). 현재 이름 및 기존 aliases와 같은 것은 빼고, 없으면 빈 배열입니다.\n"
     "bio_addition: 현재 약력(current_card.bio) 뒤에 그대로 덧붙일 1~2문장(200자 이내). 자료에서 드러난 핵심 역량 중 현재 약력에 없는 것만 쓰고, "
     "현재 약력을 고쳐 쓰거나 되풀이하지 마세요. 더할 것이 없으면 빈 문자열.\n"
-    "skills: 카드에 아직 없는 기술·방법론·도구·분석법 중 카드 주인이 직접 익혀 쓴 것. 짧은 한국어 명사구로 중요한 순서대로 최대 8개. "
+    "skills: 카드에 아직 없는 기술·방법론·도구·분석법 중 카드 주인이 직접 익혀 쓴 것. 짧은 한국어 명사구로 중요한 순서대로 최대 12개. "
     "시스템의 기능·구성요소 이름·제품명은 skill이 아닙니다. 자료가 카드 주인이 만든 시스템·에이전트를 설명하면, 그 시스템이 대신 수행하거나 "
     "제공한 계산법·예측식·측정법·분석 기법은 skill이 아니라 그 과제 description의 내용이고, skill은 그 시스템을 설계·구현·운영하며 직접 쓴 기술입니다.\n"
-    "interests: 카드에 아직 없는 연구 관심 분야·주제. 짧은 한국어 명사구로 최대 5개.\n"
-    "careers: 카드에 아직 없는 과제·프로젝트·직무. 한 자료가 하나의 큰 과제를 설명하면 하위 모듈·실험·실증은 그 과제 하나의 description에 묶으세요(대개 1개, 최대 3개). "
+    "interests: 카드에 아직 없는 연구 관심 분야·주제. 짧은 한국어 명사구로 최대 8개.\n"
+    "careers: 카드에 아직 없는 과제·프로젝트·직무·논문·특허·보고서. 한 자료가 하나의 큰 과제를 설명하면 하위 모듈·실험·실증은 그 과제 하나의 description에 묶으세요(대개 1개). "
+    "자료가 이력서·경력기술서처럼 여러 직무·과제·논문·특허·보고서를 나열하면 각각을 한 행으로 쓰세요(최근·중요 순, 최대 10개). "
+    "논문·특허·보고서 행의 title은 원래 제목 전체, period는 발표·등록 연도, role은 자료에 적힌 저자 역할(예: 제1저자), "
+    "description은 학술지·학회·특허번호·DOI 같은 서지와 핵심 내용입니다. "
     "title은 과제명, organization·period는 자료에 적힌 그대로, role은 자료에 카드 주인의 역할이 명시된 경우에만 그 표현 그대로 쓰고, "
     "없으면 빈 문자열로 두세요(추측 금지). 직급·사번은 role이 아닙니다. "
     "description은 자료에 적힌 사실만 1~3문장으로, 핵심 결과 수치는 단위와 함께 쓰세요.\n"
@@ -106,7 +111,7 @@ def _spec(system, schema, max_tokens):
 
 
 def digest_contract_spec():
-    return _spec(DIGEST_SYSTEM, DIGEST_SCHEMA, 4096)
+    return _spec(DIGEST_SYSTEM, DIGEST_SCHEMA, 6144)
 
 
 def request_contract_spec():
@@ -290,7 +295,7 @@ def finish_digest(value, text, card):
         addition = ''
     addition = _review_numbers(addition, text + '\n' + card.get('bio', ''), warnings, 'bio_addition')
     lists, existing = {}, card.get('skills', []) + card.get('interests', [])
-    for kind, limit in (('skills', 8), ('interests', 5)):
+    for kind, limit in (('skills', DIGEST_SKILLS), ('interests', DIGEST_INTERESTS)):
         seen, rows = {_key(v) for v in card.get(kind, [])}, []
         for item in value.get(kind) if isinstance(value.get(kind), list) else []:
             entry = _clean(item, 40)
@@ -304,14 +309,15 @@ def finish_digest(value, text, card):
     for item in value.get('careers') if isinstance(value.get('careers'), list) else []:
         if not isinstance(item, dict):
             continue
-        career = {key: _clean(item.get(key), 400 if key == 'description' else 120) for key in CAREER_KEYS}
+        career = {key: _clean(item.get(key), 400 if key == 'description' else CAREER_TITLE if key == 'title' else 120) for key in CAREER_KEYS}
         # Gemini flash wrote "개발 및 검증 총괄" for a report that names no role, and the author line
         # "손만우 책임 (C18408)" or "책임 (C18408)" for another (2026-10-06): a role is stated wording,
         # not a byline with a name or an employee number.
         for key in ('organization', 'role'):
             if not _stated(career[key], text + '\n' + card.get('organization', '')):
                 career[key] = ''
-        if (card.get('name') and _squash(card['name']) in _squash(career['role'])) or re.search(r'\d', career['role']):
+        # An employee number ('C18408') is not a role; an author order ('제1저자') is.
+        if (card.get('name') and _squash(card['name']) in _squash(career['role'])) or re.search(r'\d{3,}', career['role']):
             career['role'] = ''
         if not career['title'] or not career['description'] or _key(career['title']) in titles:
             continue
@@ -319,10 +325,10 @@ def finish_digest(value, text, card):
         for key in ('title', 'period', 'description'):
             career[key] = _review_numbers(career[key], text, warnings, 'careers', index=len(careers), part=key)
         careers.append(career)
-        if len(careers) == 3:
+        if len(careers) == DIGEST_CAREERS:
             break
     summary = _review_numbers(_clean(value.get('summary'), 200), text, warnings, 'summary')
-    return {'summary': summary, **identity, 'bio_addition': addition, **lists, 'careers': careers[:3], 'warnings': warnings}
+    return {'summary': summary, **identity, 'bio_addition': addition, **lists, 'careers': careers[:DIGEST_CAREERS], 'warnings': warnings}
 
 
 class ProfileReader:
