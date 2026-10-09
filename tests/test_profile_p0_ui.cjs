@@ -67,6 +67,8 @@ function fixture(){
   const model=createModel({schema_version:'people-map-existing-v1',people:[person],topics:[],featured_ids:[],capabilities:[]});
   const state={...model.initialState(),query:'Explicit Alias',selectedId:'P'};
   assert.equal(model.visiblePeople(state).length,1,'기존 이름 검색 경로에서 aliases를 찾는다');
+  // 소속·부서·직위·한 줄 소개가 전용 칸으로 옮겨 가도 연구 맵 검색에서 찾힌다(P0 회귀 방지).
+  for(const query of ['저장 소속','저장 부서','저장 직위','저장된 한 줄 소개'])assert.equal(model.visiblePeople({...state,query}).length,1,query);
   const createView=require('../rndplz/web/people-map.js');
   const map=createView(model,()=>({})).renderDetail(state);
   for(const value of ['Explicit Alias','저장 소속','저장 부서','저장 직위','입력 자료.txt','자료 기반 + 사용자 수정'])assert(map.includes(value),value);
