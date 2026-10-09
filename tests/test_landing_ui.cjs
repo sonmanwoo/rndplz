@@ -61,7 +61,8 @@ class Element {
 }
 
 const fixture = {
-  schema_version: 'people-map-home-v1',
+  schema_version: 'people-map-landing-v1',
+  counts: {people: 2345, capabilities: 2, records: 6789},
   people: [
     {id: 'PUB-Z', name: 'Fallback', profile: {display_name: '<b>첫 연구자</b>', portrait: {path: '/portraits/first.png'}}, field_label: '기록 분야', private_value: 'omit'},
     {id: 'LOCAL-1', name: '개인 자료', profile: {portrait: {path: '/portraits/local.png'}}},
@@ -82,29 +83,30 @@ function harness(mode = 'people', quiet = false) {
   const element = (id, parent = doc.body, tag = 'div') => { const node = new Element(tag, doc); if (id) ids[id] = node; parent.append(node); return node; };
   doc.getElementById = id => ids[id] || null;
   doc.createElement = tag => new Element(tag, doc);
-  for (const id of ['landingIntro', 'landingDown', 'landingFeatures', 'landingFields', 'landingPeople', 'landingMap', 'landingMapCanvas', 'landingPersonError', 'message', 'accountMenu', 'accountToggle', 'googleLogin', 'feedbackDialog', 'chatForm']) element(id);
+  for (const id of ['landingIntro', 'landingDown', 'landingFeatures', 'landingFields', 'landingMap', 'landingMapCanvas', 'landingSources', 'message', 'accountMenu', 'accountToggle', 'googleLogin', 'feedbackDialog', 'chatForm']) element(id);
   element('', ids.landingFeatures, 'h2');
   element('landingFeatureRail', ids.landingFeatures, 'ul').className = 'landing-rail';
   element('', ids.landingFeatureRail, 'li');
   const featureImage = element('', ids.landingFeatures, 'img'); featureImage.dataset.src = '/landing-assets/chat.webp';
-  element('landingPeopleRail', ids.landingPeople, 'ul').className = 'landing-rail';
+  element('landingCounts', ids.landingSources, 'ul').hidden = true;
   element('landingFieldWindow', ids.landingFields, 'div');
   element('landingFieldList', ids.landingFieldWindow, 'ul');
   element('landingFieldsAll', ids.landingFields, 'a');
-  for (const host of [ids.landingFields, ids.landingPeople]) element('', host, 'p').dataset.landingDataStatus = '';
+  for (const host of [ids.landingFields, ids.landingSources]) element('', host, 'p').dataset.landingDataStatus = '';
   const retry = element('', ids.landingFields, 'button'); retry.dataset.landingRetry = '';
+  const sourcesRetry = element('', ids.landingSources, 'button'); sourcesRetry.dataset.landingRetry = '';
   const ask = element('', doc.body, 'button'); ask.dataset.landingAsk = '';
   const login = element('', doc.body, 'button'); login.dataset.landingLogin = '';
   const feedback = element('', doc.body, 'button'); feedback.dataset.landingFeedback = '';
   const existingFeedback = element('', doc.body, 'button'); existingFeedback.dataset.feedbackOpen = '';
   const next = element('', ids.landingFeatures, 'button'); next.dataset.landingNext = 'landingFeatureRail';
-  ids.accountMenu.hidden = true; ids.landingMap.hidden = true;
+  ids.accountMenu.hidden = true;
   ids.accountToggle.addEventListener('click', () => { ids.accountMenu.hidden = false; });
   doc.addEventListener('click', event => {
     if (event.target !== ids.accountToggle && !ids.accountMenu.contains(event.target)) ids.accountMenu.hidden = true;
   });
   existingFeedback.addEventListener('click', () => { ids.feedbackDialog.open = true; });
-  const observers = [], mediaEvents = [], intervals = new Map(), timeouts = [], fetches = [], scripts = [], cards = [], mapMounts = [];
+  const observers = [], mediaEvents = [], intervals = new Map(), timeouts = [], fetches = [], scripts = [], mapMounts = [];
   let timer = 0;
   const media = {matches: quiet, addEventListener(type, fn) { mediaEvents.push(fn); }};
   const win = new Element('window', doc); win.document = doc;
@@ -122,18 +124,16 @@ function harness(mode = 'people', quiet = false) {
     clearTimeout() {},
     clearInterval(id) { intervals.delete(id); },
     fetch(url, options) { fetches.push({url, options}); return Promise.resolve({ok: true, json: async () => fixture}); },
-    openPersonCard(...args) { cards.push(args); return Promise.resolve(); },
-    LandingMapPreview: {mount(host) { mapMounts.push(host); return Promise.resolve(); }},
+    LandingMapPreview: {mount(host) { mapMounts.push(host); return Promise.resolve({}); }},
   });
   win.Landing = {
     quiet: () => media.matches || doc.body.classList.contains('no-motion'),
     loadScript: async url => { scripts.push(url); },
-    openPersonCard: (...args) => win.openPersonCard(...args),
   };
   const intersect = (target, isIntersecting, intersectionRatio = isIntersecting ? 1 : 0) => {
     for (const observer of [...observers]) if (observer.targets.includes(target)) observer.callback([{target, isIntersecting, intersectionRatio}]);
   };
-  return {doc, win, ids, featureImage, retry, ask, login, feedback, existingFeedback, next, observers, media, mediaEvents, intervals, timeouts, fetches, scripts, cards, mapMounts, intersect};
+  return {doc, win, ids, featureImage, retry, sourcesRetry, ask, login, feedback, existingFeedback, next, observers, media, mediaEvents, intervals, timeouts, fetches, scripts, mapMounts, intersect};
 }
 
 function runBoot(h) {
@@ -150,69 +150,107 @@ function runBoot(h) {
     assert.equal(ordinary.fetches.length, 0); assert.equal(ordinary.win.Landing, undefined);
   }
 
-  // Public projection drops unrelated source fields and preserves API ordering.
+  // The ticker uses only field labels; counts come from the API rather than projected portraits.
   const source = JSON.stringify(fixture), projected = landing.project(fixture);
   assert.equal(JSON.stringify(fixture), source);
-  assert.deepEqual(projected.people, [
-    {id: 'PUB-Z', name: '<b>첫 연구자</b>', portrait: '/portraits/first-thumb.webp', field: '기록 분야'},
-    {id: 'PUB-A', name: '둘째 연구자', portrait: '/portraits/second-detail.webp', field: '분리·정제'},
+  assert.deepEqual(projected.fields, [
+    {id: '분리 / 정제', label: '분리·정제'}, {id: 'empty', label: '다른 분야'},
   ]);
-  assert.deepEqual(projected.fields.map(item => [item.id, item.label, item.people.map(person => person.id)]), [
-    ['분리 / 정제', '분리·정제', ['PUB-A', 'PUB-Z']], ['empty', '다른 분야', []],
+  assert.deepEqual(projected.counts, [
+    {label: '공개 연구자', value: 2345, unit: '명'},
+    {label: '연구 분야', value: 2, unit: '개'},
+    {label: '근거 기록', value: 6789, unit: '건'},
   ]);
-  assert.deepEqual(projected.fields.map(item => Object.keys(item).sort()), [['id', 'label', 'people'], ['id', 'label', 'people']]);
-  assert.deepEqual(landing.project(null), {people: [], fields: []});
-  for (const value of ['https://example.invalid/a.webp', '/portraits/../a.png', '/portraits/a.svg', '/portraits/a.png?x=1', 'javascript:alert(1)', null]) assert.equal(landing.safePortrait(value), '');
-  assert.equal(landing.safePortrait('/portraits/a.JPEG'), '/portraits/a-thumb.webp');
+  assert.equal('people' in projected, false, 'unused person card projections are removed');
+  assert.deepEqual(landing.project(null), {fields: [], counts: []});
+  assert.deepEqual(landing.project({counts: {people: 0, capabilities: 0}}).counts, [
+    {label: '공개 연구자', value: 0, unit: '명'}, {label: '연구 분야', value: 0, unit: '개'},
+  ], 'zero is a real count and a missing evidence total is omitted');
+  for (const value of [-1, 1.5, '43', Infinity, NaN, null, undefined, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.deepEqual(landing.project({counts: {people: value, capabilities: value, records: value}}).counts, []);
+  }
   assert.equal(landing.capabilityURL('분리 / 정제'), '/explore?capability=%EB%B6%84%EB%A6%AC%20%2F%20%EC%A0%95%EC%A0%9C#map');
 
-  const people = harness(); landing.init(people.win);
-  assert.equal(people.fetches.length, 0); assert.equal(people.scripts.length, 0); assert.equal(people.featureImage.src, undefined);
-  people.intersect(people.ids.landingFields, false); people.intersect(people.featureImage, false);
-  assert.equal(people.fetches.length, 0); assert.equal(people.featureImage.src, undefined);
-  people.intersect(people.ids.landingFields, true, 0); people.intersect(people.ids.landingPeople, true, 0); people.intersect(people.featureImage, true, 0);
-  assert.equal(people.fetches.length, 0); assert.equal(people.featureImage.src, undefined); assert.equal(people.intervals.size, 0);
-  assert(people.observers.every(observer => observer.options.threshold > 0), 'visibility must cross a positive-area threshold');
-  people.intersect(people.featureImage, true); assert.equal(people.featureImage.src, '/landing-assets/chat.webp');
-  people.intersect(people.ids.landingFields, true); people.intersect(people.ids.landingPeople, true); await settle();
-  assert.equal(people.fetches.length, 1); assert.match(people.fetches[0].url, /^\/api\/people-map\?view=home(?:&landing=1)?$/);
-  assert.equal(people.fetches[0].options.credentials, 'same-origin');
-  assert.equal(people.ids.landingPeopleRail.children.length, 2);
-  const firstPerson = people.ids.landingPeopleRail.children[0];
-  assert.equal(firstPerson.querySelector('h3').textContent, '<b>첫 연구자</b>');
-  assert.equal(firstPerson.querySelector('b'), null, 'display name must remain plain text');
-  const portraits = people.ids.landingPeopleRail.querySelectorAll('img');
-  assert(portraits.length > 0); assert(portraits.every(image => image.src === undefined && image.loading === 'lazy'));
-  people.intersect(portraits[0], true); assert.match(portraits[0].src, /^\/portraits\/.+\.webp$/);
-  firstPerson.querySelector('button').click(); await settle();
-  assert.equal(people.cards[0][0], 'PUB-Z'); assert.equal(people.cards[0][1], firstPerson.querySelector('button'));
-  assert.equal(people.intervals.size, 1); [...people.intervals.values()][0]();
-  const links = people.ids.landingFieldList.querySelectorAll('a');
+  const page = harness(); landing.init(page.win);
+  assert.equal(page.ids.landingCounts.hidden, true, 'counts stay absent until real data arrives');
+  assert.equal(page.fetches.length, 0); assert.equal(page.scripts.length, 0); assert.equal(page.featureImage.src, undefined);
+  page.intersect(page.ids.landingFields, false); page.intersect(page.featureImage, false);
+  assert.equal(page.fetches.length, 0); assert.equal(page.featureImage.src, undefined);
+  page.intersect(page.ids.landingFields, true, 0); page.intersect(page.ids.landingSources, true, 0); page.intersect(page.featureImage, true, 0);
+  assert.equal(page.fetches.length, 0); assert.equal(page.featureImage.src, undefined); assert.equal(page.intervals.size, 0);
+  assert(page.observers.every(observer => observer.options.threshold > 0), 'visibility must cross a positive-area threshold');
+  page.intersect(page.featureImage, true); assert.equal(page.featureImage.src, '/landing-assets/chat.webp');
+  page.intersect(page.ids.landingFields, true); page.intersect(page.ids.landingSources, true); await settle();
+  assert.equal(page.fetches.length, 1); assert.equal(page.fetches[0].url, '/api/people-map?view=home&landing=1');
+  assert.equal(page.fetches[0].options.credentials, 'same-origin');
+  assert.equal(page.ids.landingCounts.hidden, false);
+  const countSentences = h => h.ids.landingCounts.children.map(item => {
+    assert.equal(item.tagName, 'LI');
+    return item.querySelector('span').textContent.trim() + ' ' + item.querySelector('strong').textContent.replace(/,/g, '');
+  });
+  assert.deepEqual(countSentences(page), ['공개 연구자 2345명', '연구 분야 2개', '근거 기록 6789건']);
+  assert.equal(page.ids.landingSources.querySelector('[data-landing-data-status]').hidden, true);
+  assert.equal(page.retry.hidden, true); assert.equal(page.sourcesRetry.hidden, true);
+  assert.equal(page.mapMounts.length, 0, 'loading field and count data does not start the research map');
+  assert.equal(page.intervals.size, 1); [...page.intervals.values()][0]();
+  const links = page.ids.landingFieldList.querySelectorAll('a');
   assert.equal(links[1].classList.contains('is-current'), true);
-  assert.equal(people.ids.landingFieldsAll.hidden, false); assert.match(people.ids.landingFieldsAll.textContent, /분야 2개 모두 보기/);
-  people.intersect(people.ids.landingFields, true, 0); assert.equal(people.intervals.size, 0, 'edge contact does not count as a visible rotating list');
-  people.intersect(people.ids.landingFields, true); assert.equal(people.intervals.size, 1);
-  people.media.matches = true; people.mediaEvents.forEach(fn => fn()); assert.equal(people.intervals.size, 0);
-  const rail = people.ids.landingFeatureRail;
+  assert.equal(page.ids.landingFieldsAll.hidden, false); assert.match(page.ids.landingFieldsAll.textContent, /분야 2개 모두 보기/);
+  page.intersect(page.ids.landingFields, true, 0); assert.equal(page.intervals.size, 0, 'edge contact does not count as a visible rotating list');
+  page.intersect(page.ids.landingFields, true); assert.equal(page.intervals.size, 1);
+  page.media.matches = true; page.mediaEvents.forEach(fn => fn()); assert.equal(page.intervals.size, 0);
+  const rail = page.ids.landingFeatureRail;
   assert.equal(rail.emit('keydown', {key: 'ArrowRight'}).defaultPrevented, true); assert.equal(rail.scrolledBy.behavior, 'instant');
   rail.emit('keydown', {key: 'End'}); assert.equal(rail.scrolledTo.left, rail.scrollWidth);
   assert.equal(rail.emit('keydown', {key: 'ArrowLeft', ctrlKey: true}).defaultPrevented, undefined);
-  people.ask.click(); assert.equal(people.doc.activeElement, people.ids.message); assert.equal(people.win.scrolledTo.top, 0); assert.equal(people.win.scrolledTo.behavior, 'instant');
-  people.login.click(); assert.equal(people.ids.accountToggle.clicks, 1); assert.equal(people.doc.activeElement, people.ids.googleLogin);
-  assert.equal(people.ids.accountMenu.hidden, false, 'footer login must survive the account menu outside-click listener');
-  people.feedback.click(); assert.equal(people.existingFeedback.clicks, 1); people.ids.feedbackDialog.emit('close'); assert.equal(people.doc.activeElement, people.feedback);
+  page.ask.click(); assert.equal(page.doc.activeElement, page.ids.message); assert.equal(page.win.scrolledTo.top, 0); assert.equal(page.win.scrolledTo.behavior, 'instant');
+  page.login.click(); assert.equal(page.ids.accountToggle.clicks, 1); assert.equal(page.doc.activeElement, page.ids.googleLogin);
+  assert.equal(page.ids.accountMenu.hidden, false, 'footer login must survive the account menu outside-click listener');
+  page.feedback.click(); assert.equal(page.existingFeedback.clicks, 1); page.ids.feedbackDialog.emit('close'); assert.equal(page.doc.activeElement, page.feedback);
 
-  const map = harness('map'); landing.init(map.win);
-  map.intersect(map.ids.landingMap, false); await settle(); assert.deepEqual(map.scripts, []); assert.equal(map.fetches.length, 0);
-  map.intersect(map.ids.landingMap, true, 0); await settle(); assert.deepEqual(map.scripts, []); assert.deepEqual(map.mapMounts, []);
-  map.intersect(map.ids.landingMap, true); await settle();
-  assert.deepEqual(map.scripts, ['/landing-map-preview.js']); assert.deepEqual(map.mapMounts, [map.ids.landingMapCanvas]);
+  for (const mode of ['people', 'map']) {
+    const map = harness(mode); landing.init(map.win);
+    map.intersect(map.ids.landingMap, false); await settle(); assert.deepEqual(map.scripts, []); assert.equal(map.fetches.length, 0);
+    map.intersect(map.ids.landingMap, true, 0); await settle(); assert.deepEqual(map.scripts, []); assert.deepEqual(map.mapMounts, []);
+    map.intersect(map.ids.landingMap, true); await settle();
+    assert.deepEqual(map.scripts, ['/landing-map-preview.js']); assert.deepEqual(map.mapMounts, [map.ids.landingMapCanvas]);
+    assert.equal(map.fetches.length, 0, 'the map adapter owns its separate canonical graph request');
+    map.intersect(map.ids.landingMap, true); await settle(); assert.equal(map.mapMounts.length, 1);
+  }
 
-  // The small entry waits for a positive intersection and reuses original card actions.
-  for (const quiet of [false, true]) {
-    const h = harness('map', quiet); h.doc.body.dataset.landingAssets = JSON.stringify({'/landing.js': '/landing.js?v=abc'});
-    runBoot(h); assert.equal(h.doc.head.children.length, 0); assert.equal(h.ids.landingPeople.hidden, true); assert.equal(h.ids.landingMap.hidden, false);
-    await h.win.Landing.openPersonCard('PUB-Z', h.ask); assert.equal(h.cards.length, 1); assert.equal(h.doc.head.children.length, 0);
+  // Jumping directly to the data strip loads counts without starting the map or timer.
+  const sources = harness(); landing.init(sources.win);
+  sources.intersect(sources.ids.landingSources, true, 0); await settle(); assert.equal(sources.fetches.length, 0);
+  sources.intersect(sources.ids.landingSources, true); await settle();
+  assert.equal(sources.fetches.length, 1); assert.deepEqual(countSentences(sources), countSentences(page));
+  assert.equal(sources.mapMounts.length, 0); assert.equal(sources.intervals.size, 0);
+  sources.intersect(sources.ids.landingFields, true); await settle(); assert.equal(sources.fetches.length, 1);
+
+  // Failed/invalid counts never become invented zeroes; either visible section can retry.
+  for (const retryAtSources of [false, true]) {
+    const failed = harness();
+    const successfulFetch = failed.win.fetch;
+    failed.win.fetch = async () => ({ok: true, json: async () => ({...fixture, counts: {people: -1, capabilities: 2}})});
+    landing.init(failed.win); failed.intersect(failed.ids.landingSources, true); await settle();
+    assert.equal(failed.ids.landingCounts.children.length, 0); assert.equal(failed.ids.landingCounts.hidden, true);
+    assert.equal(failed.retry.hidden, false); assert.equal(failed.sourcesRetry.hidden, false);
+    assert.equal(failed.ids.landingSources.querySelector('[data-landing-data-status]').hidden, false);
+    failed.win.fetch = successfulFetch;
+    (retryAtSources ? failed.sourcesRetry : failed.retry).click(); await settle();
+    assert.deepEqual(countSentences(failed), countSentences(page));
+    assert.equal(failed.retry.hidden, true); assert.equal(failed.sourcesRetry.hidden, true);
+  }
+
+  const withoutRecords = harness();
+  withoutRecords.win.fetch = async () => ({ok: true, json: async () => ({...fixture, counts: {people: 0, capabilities: 2}})});
+  landing.init(withoutRecords.win); withoutRecords.intersect(withoutRecords.ids.landingSources, true); await settle();
+  assert.deepEqual(countSentences(withoutRecords), ['공개 연구자 0명', '연구 분야 2개']);
+
+  // Both opt-in URLs use the same map document; the entry waits for a positive intersection.
+  for (const mode of ['people', 'map']) for (const quiet of [false, true]) {
+    const h = harness(mode, quiet); h.doc.body.dataset.landingAssets = JSON.stringify({'/landing.js': '/landing.js?v=abc'});
+    runBoot(h); assert.equal(h.doc.head.children.length, 0); assert.equal(h.ids.landingMap.hidden, false);
+    assert.equal(h.win.Landing.openPersonCard, undefined, 'the removed card strip has no adapter');
     h.ids.landingDown.click(); assert.equal(h.doc.activeElement, h.ids.landingFeatures); assert.equal(h.ids.landingFeatures.scrolledInto.behavior, quiet ? 'instant' : 'smooth');
     h.intersect(h.ids.landingFeatures, false); assert.equal(h.doc.head.children.length, 0);
     h.intersect(h.ids.landingFeatures, true, 0); assert.equal(h.doc.head.children.length, 0, 'touching the viewport edge must not load below-fold code');
@@ -237,7 +275,7 @@ function runBoot(h) {
   const savedCapabilities = fixture.capabilities;
   fixture.capabilities = Array.from({length: 10}, (_, i) => ({id: 'f' + i, label: '분야 ' + i, people: [{id: 'PUB-A'}]}));
   const ticker = harness(); landing.init(ticker.win);
-  ticker.intersect(ticker.ids.landingFields, true); ticker.intersect(ticker.ids.landingPeople, true); await settle();
+  ticker.intersect(ticker.ids.landingFields, true); await settle();
   const labels = () => ticker.ids.landingFieldList.querySelectorAll('a').map(link => link.textContent);
   const highlighted = () => ticker.ids.landingFieldList.querySelectorAll('a').findIndex(link => link.classList.contains('is-current'));
   assert.deepEqual(labels(), ['분야 9', '분야 0', '분야 1', '분야 2', '분야 3', '분야 4', '분야 5', '분야 6', '분야 7'], '8 rows plus one waiting below; the first field opens on row 2');
