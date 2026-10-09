@@ -146,8 +146,15 @@ class Corpus:
                 [Contribution(person.id, person.name, "co_inventor")], raw["tags"], raw["field"], "provided_bibliography",
                 "user_provided_research_list", raw["id"], raw["url"], raw.get("checked_at", featured["checked_at"]),
                 "patent_bibliography", raw.get("classification_basis", ["사용자 제공 특허 목록"]), details=details))
-        for raw in featured.get("experience_records", []):
+        experiences = featured.get("experience_records", [])
+        for raw in experiences:
             person = self.people[raw["person_id"]]
+            # Legacy curated timelines have no IDs. Only an unambiguous one-to-one
+            # date pair can be migrated; parallel careers must carry explicit IDs.
+            entries = [entry for entry in person.profile.get("timeline", []) if entry.get("date") == raw["date"]]
+            peers = [entry for entry in experiences if entry["person_id"] == person.id and entry["date"] == raw["date"]]
+            if raw["date"] and len(entries) == len(peers) == 1 and not entries[0].get("record_id"):
+                entries[0]["record_id"] = raw["id"]
             self.add(self.records, Record(raw["id"], "career_record", raw["title"], raw["summary"], raw["date"],
                 [Contribution(person.id, person.name, "recorded_role")], raw["tags"], raw.get("field", "process_engineering"), raw.get("scope", "self_reported"),
                 "user_provided_resume", raw["id"], "", raw.get("checked_at", featured["checked_at"]), "career_experience",

@@ -98,9 +98,10 @@ class PersonCardTests(unittest.TestCase):
         # Values the account left alone keep the curated card.
         self.assertEqual((card['profile']['tagline'], card['profile']['interests'], card['profile']['display_name']),
                          (MANWOO['tagline'], MANWOO['interests'], '손만우'))
-        self.assertEqual(card['profile']['timeline'][-1], {'date': '2026', 'text': 'GS칼텍스 · 공정 개발. 증류로 잔존 미세 물질 제거', 'url': ''})
         added = [e for e in card['evidence'] if e['title'] == 'TCB 솔벤트 정제']
         self.assertEqual((len(added), len(card['evidence'])), (1, curated_evidence + 1))
+        self.assertEqual(card['profile']['timeline'][-1], {'record_id': added[0]['id'], 'date': '2026',
+                                                        'text': 'GS칼텍스 · 공정 개발. 증류로 잔존 미세 물질 제거', 'url': ''})
         self.assertTrue(any(r.title == 'TCB 솔벤트 정제' for r in self.engine.corpus.by_person['LOCAL-MANWOO']))
 
         # A restart shows the same card from the stored draft.
@@ -156,6 +157,34 @@ class PersonCardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.profiles(card=False).card_preview({})  # only a bound account has a card
 
+    def test_parallel_careers_keep_record_ids_when_saved_and_reordered(self):
+        careers = self.profiles().read()['profile']['careers']
+        for i, row in enumerate(careers):
+            row['period'] = '2026'
+            row['description'] = f'동일 기간의 별도 경력 {i}'
+        self.cards.apply('LOCAL-MANWOO', {'fields': self.profiles().read()['profile']['fields'],
+                                          'careers': list(reversed(careers))})
+        card = card_of(self.engine)
+        evidence = {entry['id']: entry for entry in card['evidence']}
+        for entry, row in zip(card['profile']['timeline'], reversed(careers)):
+            self.assertEqual(evidence[entry['record_id']]['title'], row['title'])
+            self.assertIn(row['description'], entry['text'])
+        from rndplz.person_cards import card_values
+        person = self.engine.corpus.people['LOCAL-MANWOO']
+        records = [r for r in self.engine.corpus.by_person[person.id] if r.kind == 'career_record']
+        values = card_values(person, list(reversed(records)))
+        descriptions = {row['title']: row['description'] for row in values['careers']}
+        self.assertEqual(descriptions, {row['title']: row['description'] for row in careers})
+
+    def test_curated_career_timeline_has_unambiguous_record_ids(self):
+        corpus = Corpus()
+        for pid, person in corpus.people.items():
+            careers = [r for r in corpus.by_person[pid] if r.kind == 'career_record']
+            if not careers:
+                continue
+            timeline = person.profile['timeline']
+            self.assertEqual({entry['record_id'] for entry in timeline}, {record.id for record in careers})
+
     def test_career_rows_are_the_card_timeline_lines(self):
         careers = self.profiles().read()['profile']['careers']
         first = careers[0]
@@ -176,7 +205,8 @@ class PersonCardTests(unittest.TestCase):
             state['self_profile']['profile']['careers'] = legacy
         store.transaction(downgrade)
         self.cards.apply('LOCAL-MANWOO', {'fields': view['profile']['fields'], 'careers': legacy})
-        self.assertEqual(card_of(self.engine)['profile']['timeline'], MANWOO['timeline'])  # an old seed is no change
+        self.assertEqual([{k: v for k, v in entry.items() if k != 'record_id'}
+                          for entry in card_of(self.engine)['profile']['timeline']], MANWOO['timeline'])  # wording is unchanged
         upgraded = profiles.read()
         self.assertEqual(upgraded['profile']['careers'], self.cards.values('LOCAL-MANWOO')['careers'])
         self.assertEqual(upgraded['profile']['version'], view['profile']['version'] + 1)

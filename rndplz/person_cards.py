@@ -35,13 +35,17 @@ def _affiliation(profile):
 
 
 def _timeline_rows(profile, careers):
-    """Each career record's line in the card's timeline (same date, in order) as organization, role, description."""
+    """Join a career's timeline by ID; only unambiguous legacy dates may fall back."""
     entries, rows = list(profile.get('timeline') or []), {}
     for record in careers:
-        entry = next((item for item in entries if item.get('date') == record.date), None)
+        entry = next((item for item in entries if item.get('record_id') == record.id), None)
+        if entry is None:
+            dated = [item for item in entries if record.date and item.get('date') == record.date]
+            peers = [item for item in careers if item.date == record.date]
+            if len(dated) == len(peers) == 1 and not dated[0].get('record_id'):
+                entry = dated[0]
         if entry is None:
             continue
-        entries.remove(entry)
         text = entry.get('text') or ''
         prefix, sep, rest = text.partition('. ')
         if sep and ' · ' in prefix and len(prefix) <= 80:
@@ -193,7 +197,8 @@ class PersonCards:
                                     self.corpus.checked_at, 'career_experience', ['본인 계정에서 추가한 경력'],
                                     'local_self_reported', False, {'text_kind': 'self_reported', 'abstract_available': False})
                 records.append(record)
-            profile['timeline'] = [{'date': row['period'].strip(), 'text': _career_text(row), 'url': ''} for row in rows]
+            profile['timeline'] = [{'record_id': record.id, 'date': row['period'].strip(), 'text': _career_text(row), 'url': ''}
+                                   for row, record in zip(rows, records)]
         if changed or careers_changed:
             profile['sources'] = [*profile.get('sources', []), {'title': '본인 계정의 내 프로필에서 수정', 'url': ''}]
         card = dataclasses.replace(person, org=org, profile=profile) if (changed or careers_changed) else person

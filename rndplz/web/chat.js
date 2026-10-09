@@ -853,7 +853,7 @@ function checkProposalSelection(ids){
  for(const id of ids){const c=session?.result?.candidates.find(x=>x.id===id);if(!canPropose(c))throw new Error(c?.proposal_unavailable_reason||"현재 시연 범위의 인물과 근거로 다시 찾아 주세요.");}
 }
 // Server-scoped registered-career results are browser-only, never proposal authority.
-let registeredEpoch=0,registeredDetailTicket=0,registeredLetterTicket=0;
+let registeredEpoch=0,registeredLetterTicket=0;
 function registeredViewCurrent(s=session){
  const revision=s?.scout?.revision;
  if(accountNavigationPending||accountInvalidated||busy||prepareBusy||profileBusy||profileUI?.isOpen?.()||uploading||files.length||composerComposing||s?.pending||$("message").value.trim()||!s?.ready||!s.scout?.disclosed||s.scout.status!=="complete"||s.search_context?.kind==="stopped"||s.request_spec?.state!=="current"||!revision||revision!==s.discovery?.revision||revision!==s.prepared_discovery_revision||revision!==s.request_spec?.revision)return false;
@@ -879,7 +879,7 @@ function registeredContextHtml(c){
  const limits=[c.purpose_missing,...c.unverified_conditions].filter(v=>typeof v==="string"&&v.trim());
  return '<section class="candidate-request-context"><h3>이번 질문과의 연결</h3><p>'+esc(c.reason)+'</p><p class="candidate-purpose-label">등록 이력에서 찾은 후보 · 수행·가용성 미확인</p>'+
   (limits.length?'<h4>확인이 필요한 점</h4><ul>'+limits.map(v=>'<li>'+esc(v)+'</li>').join('')+'</ul>':'')+
-  '<h4>연결된 등록 근거</h4>'+c.evidence.map(e=>'<section class="detail-record"><h3>'+esc(e.title||e.id||'등록 근거')+'</h3><p>'+esc([e.date,e.role,e.scope_label||e.scope].filter(Boolean).join(' · '))+'</p>'+(e.excerpt?'<p>'+esc(e.excerpt)+'</p>':'')+(e.boundary?'<p>'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">출처 보기 ↗</a>':'')+extraRecordSources(e)+'</section>').join('')+'</section>';
+  '<h4>이번 조건에 연결된 근거 '+c.evidence.length+'건</h4>'+c.evidence.map(e=>'<section class="detail-record"><h3>'+esc(e.title||e.id||'등록 근거')+'</h3><p>'+esc([e.date,e.role,e.scope_label||e.scope].filter(Boolean).join(' · '))+'</p>'+(e.excerpt?'<p>'+esc(e.excerpt)+'</p>':'')+(e.boundary?'<p>'+esc(e.boundary)+'</p>':'')+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">출처 보기 ↗</a>':'')+extraRecordSources(e)+'</section>').join('')+'</section>';
 }
 function registeredRequestAction(c){
  return '<section class="detail-record" aria-label="등록 전문가 의뢰 검토"><p><strong>'+esc(c.name)+'</strong>님과 논의할 의뢰</p>'+
@@ -887,28 +887,28 @@ function registeredRequestAction(c){
   '<p class="small subtle">검토용 초안이에요. 연락 의향·수행 가능 여부는 미확인이며 저장하거나 발송하지 않습니다.</p></section>';
 }
 function invalidateRegisteredUI(){
- registeredEpoch++;registeredDetailTicket++;registeredLetterTicket++;
+ registeredEpoch++;registeredLetterTicket++;
  $("registeredExpertsZone")?.remove();
- if($("detailDialog").dataset.registeredReview==="true"){$("detailDialog").close();delete $("detailDialog").dataset.registeredReview;$("detailContent").replaceChildren();}
+ if($("personCardDialog").dataset.registeredReview==="true"){inspectTicket++;$("personCardDialog").close();delete $("personCardDialog").dataset.registeredReview;$("personCardHost").replaceChildren();}
  if(letter?.kind==="registered_review"){$("letterDialog").close();$("letterBody").value="";letter=null;$("draftButton").disabled=true;$("proposeButton").disabled=true;}
 }
 function renderRegisteredExperts(){
  const r=registeredEnvelope();let zone=$("registeredExpertsZone");
  const lookupError=registeredViewCurrent()&&typeof session.registered_experts_error==="string"?session.registered_experts_error.trim():"";
  if(lookupError){
-  if(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true")invalidateRegisteredUI();
+  if(letter?.kind==="registered_review"||$("personCardDialog").dataset.registeredReview==="true")invalidateRegisteredUI();
   zone=$("registeredExpertsZone");
   if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 이력 조회 안내");$("proposalZone").after(zone);}
   zone.dataset.renderKey="error:"+lookupError;
   zone.innerHTML='<section class="detail-record"><h3>등록 이력 조회 안내</h3><p class="response-error" role="alert">'+esc(lookupError)+'</p></section>';return;
  }
- if(!r||!r.candidates.length){zone?.remove();if(!r&&(letter?.kind==="registered_review"||$("detailDialog").dataset.registeredReview==="true"))invalidateRegisteredUI();return;}
- if((letter?.kind==="registered_review"&&letter.registeredBinding!==registeredBinding(r))||($("detailDialog").dataset.registeredReview==="true"&&$("detailDialog").dataset.registeredBinding!==registeredBinding(r)))invalidateRegisteredUI();
+ if(!r||!r.candidates.length){zone?.remove();if(!r&&(letter?.kind==="registered_review"||$("personCardDialog").dataset.registeredReview==="true"))invalidateRegisteredUI();return;}
+ if((letter?.kind==="registered_review"&&letter.registeredBinding!==registeredBinding(r))||($("personCardDialog").dataset.registeredReview==="true"&&$("personCardDialog").dataset.registeredBinding!==registeredBinding(r)))invalidateRegisteredUI();
  zone=$("registeredExpertsZone");
  if(!zone){zone=document.createElement("section");zone.id="registeredExpertsZone";zone.className="proposal-zone";zone.setAttribute("aria-label","등록 이력 연결 후보");$("proposalZone").after(zone);}
  const key=JSON.stringify(r);if(zone.dataset.renderKey===key)return;zone.dataset.renderKey=key;
  zone.innerHTML='<div class="collection-heading"><div><h2>등록 이력에서 찾은 사람</h2><p class="small subtle">이번 질문과 연결되는 등록 경력·논문·특허 이력이에요. AI의 공개 논문 조회와 별도로 검색했으며 이 자료를 AI에 추가 전송하지 않았습니다.</p></div><span class="collection-count">'+r.candidate_count+'</span></div>'+
- r.candidates.map(c=>'<article class="detail-record"><h3>'+esc(c.name)+'</h3><p>'+esc([c.org,c.role].filter(Boolean).join(' · '))+'</p>'+registeredContextHtml(c)+'<button type="button" class="secondary" data-action="registered-person" data-id="'+esc(c.id)+'">인물 상세 보기 ↗</button>'+registeredRequestAction(c)+'</article>').join('');
+ r.candidates.map(c=>'<article class="detail-record"><h3>'+esc(c.name)+'</h3><p>'+esc([c.org,c.role].filter(Boolean).join(' · '))+'</p>'+registeredContextHtml(c)+'<button type="button" class="secondary" data-action="registered-person" data-id="'+esc(c.id)+'">인물 상세 보기</button>'+registeredRequestAction(c)+'</article>').join('');
 }
 async function openRegisteredLetter(id){
  const source=session,r=registeredEnvelope(),c=r?.candidates.find(row=>row.id===id),binding=registeredBinding(r),epoch=registeredEpoch,ticket=++registeredLetterTicket;
@@ -1347,24 +1347,6 @@ function currentDetailCandidate(id){
  if(!session?.ready||!scout?.disclosed||session.pending||!scout.revision||scout.revision!==session.discovery?.revision||scout.revision!==session.prepared_discovery_revision)return null;
  return session.result?.candidates?.find(candidate=>candidate.id===id)||null;
 }
-async function showPerson(id,opener=document.activeElement,registered=false){
- const registeredSource=session,registeredKey=registered?registeredBinding():null,registeredRequestEpoch=registeredEpoch,detailTicket=++registeredDetailTicket;
- if(registered&&!currentRegisteredCandidate(id))throw new Error("현재 등록 후보를 다시 확인해 주세요.");
- const stored=session?.result?.candidates.find(c=>c.id===id);
- const historical=Boolean(stored&&session?.result?.historical_result);
- const p=historical?stored:await api("/api/person?id="+encodeURIComponent(id));
- if(registered&&(detailTicket!==registeredDetailTicket||registeredRequestEpoch!==registeredEpoch||session!==registeredSource||registeredBinding()!==registeredKey||!currentRegisteredCandidate(id)))return;
- if(registered&&p?.id!==id)throw new Error("등록 인물 정보를 확인하지 못했어요.");
- const profile=RndCraft.profileDetails(p),candidate=registered?currentRegisteredCandidate(id):session?.result?.candidates.find(c=>c.id===id);
- const historicalNotice=historical?'<p class="subtle small">이전 응답 당시 선택 근거</p>'+
-  (session.result.scope_note?'<p class="subtle small">'+esc(session.result.scope_note)+'</p>':'')+
-  (p.proposal_unavailable_reason?'<p class="candidate-boundary">'+esc(p.proposal_unavailable_reason)+'</p>':''):'';
- const profileNotice=!historical&&candidate?.profile_only?'<p class="subtle small">전체 등록 이력 · 이번 조건의 수행 근거로 확인된 목록 아님</p>':'';
- const requestContext=registered?registeredContextHtml(candidate):candidateContextHtml(candidate);
-  const reasonDetails=!requestContext&&typeof candidate?.reason==="string"&&candidate.reason.trim()?'<section class="detail-record"><h3>이번 조회 설명</h3><p>'+esc(candidate.reason)+'</p></section>':'';
- $("detailContent").innerHTML=(registered?registeredRequestAction(candidate):detailRequestAction(currentDetailCandidate(id))||pickRequestAction(id,p.profile?.display_name||p.name,p.profile))+historicalNotice+profileNotice+(profile||'<h2>'+esc(p.name)+'</h2><p class="subtle">'+esc(p.org)+'</p>')+requestContext+reasonDetails+'<p class="small">'+(historical?"저장된 응답의 일부 근거이며 현재 전체 등록 이력이 아닙니다.":p.virtual?"시연용 가상 인물":p.evidence?.length?"전체 등록 이력 · 개인 수행·본인 확인·연락 의향 미확인":"등록 프로필 · 연결된 수행 기록 없음")+'</p>'+(p.evidence||[]).map(e=>'<section class="detail-record"><h3>'+esc(e.title)+'</h3><p>'+esc(e.date)+" · "+esc(e.role)+" · "+esc(e.scope)+'</p><p>'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원문 출처 ↗</a>':"")+extraRecordSources(e)+'</section>').join("");
- $("detailDialog").dataset.registeredReview=String(registered);$("detailDialog").dataset.registeredBinding=registeredKey||"";modal("detailDialog",opener);$("detailDialog").scrollTop=0;
-}
 // Model prose sometimes carries LaTeX such as "$\text{CO}_2$", whose "\t" can arrive as a
 // tab ("$	ext{CO}_2$"). Show it as plain text with subscript digits ("CO₂").
 function plainScience(text){return String(text).replace(/\$\s*(?:\\text|ext)?\s*\{?([A-Za-z0-9]+)\}?(?:_\{?([0-9]+)\}?)?\s*\$/g,(m,base,sub)=>base+(sub?Array.from(sub,d=>"₀₁₂₃₄₅₆₇₈₉"[d]).join(""):""));}
@@ -1373,21 +1355,27 @@ function plainScience(text){return String(text).replace(/\$\s*(?:\\text|ext)?\s*
 let inspectTicket=0;
 const inspectPeople=new Map();
 function inspectCandidateIds(){return (session?.result?.candidates||[]).map(c=>c?.id).filter(id=>typeof id==="string"&&id);}
-async function inspectPerson(id,candidate){
- if(candidate&&session?.result?.historical_result)return null;
+async function inspectPerson(id,historical=false){
+ if(historical)return null;
  const key=(session?.id||"")+":"+id;
  if(!inspectPeople.has(key)){
   try{const person=await api("/api/person?id="+encodeURIComponent(id));if(person?.id===id)inspectPeople.set(key,person);}catch{return null;}
  }
  return inspectPeople.get(key)||null;
 }
-// What a record is about: a paper's excerpt, or the profile's own words for a career (timeline, same dates)
+// What a record is about: a paper's excerpt, or the profile's own words for a career (record ID first)
 // or a project (same id). The source label already says where it comes from, so the boundary notice is not
 // repeated per record; a record with nothing more to say does not open.
 function evidenceDescription(e,profile){
  if(typeof e.excerpt==="string"&&e.excerpt.trim())return e.excerpt;
  if(e.kind==="project_record")return (Array.isArray(profile?.projects)?profile.projects:[]).find(p=>p&&p.id===e.id)?.text||"";
- if(e.kind==="career_record")return (Array.isArray(profile?.timeline)?profile.timeline:[]).find(t=>t&&t.date&&t.date===e.date)?.text||"";
+ if(e.kind==="career_record"){
+  const timeline=(Array.isArray(profile?.timeline)?profile.timeline:[]).filter(t=>t&&typeof t==="object");
+  const linked=timeline.find(t=>e.id&&t.record_id===e.id);
+  if(linked)return linked.text||"";
+  const dated=timeline.filter(t=>e.date&&t.date===e.date);
+  return dated.length===1&&!dated[0].record_id?dated[0].text||"":"";
+ }
  return "";
 }
 function inspectEvidenceHtml(e,profile){
@@ -1396,7 +1384,7 @@ function inspectEvidenceHtml(e,profile){
  return body?'<details><summary><strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'')+'</summary>'+body+'</details>':'<div class="pi-evidence-plain"><strong>'+title+'</strong>'+(meta?'<span>'+meta+'</span>':'')+'</div>';
 }
 // 전체 약력 opens in the same card (the same button brings the summary back) instead of another window.
-function inspectFullHtml(person,profile){
+function inspectFullHtml(person,profile,partial=false){
  const p=profile||{},rows=v=>Array.isArray(v)?v.filter(x=>x&&typeof x==="object"):[];
  const links=rows(p.links).filter(l=>safeUrl(l.url)).map(l=>'<a href="'+esc(l.url)+'" target="_blank" rel="noopener noreferrer">'+esc(l.label||"소개 페이지")+' ↗</a>');
  const evidence=rows(person?.evidence);
@@ -1404,29 +1392,39 @@ function inspectFullHtml(person,profile){
   ((p.skills||[]).length?'<section><h3>기술</h3><p class="pi-skills">'+p.skills.map(s=>'<span>'+esc(s)+'</span>').join("")+'</p></section>':'')+
   (rows(p.timeline).length?'<section><h3>경력</h3>'+rows(p.timeline).map(t=>'<div class="pi-row"><span>'+esc(t.date||"")+'</span><p>'+esc(t.text||"")+'</p></div>').join("")+'</section>':'')+
   (rows(p.projects).length?'<section><h3>프로젝트</h3>'+rows(p.projects).map(t=>'<div class="pi-row"><span>'+esc([t.title,t.date].filter(Boolean).join(" · "))+'</span><p>'+esc(t.text||"")+'</p></div>').join("")+'</section>':'')+
-  (evidence.length?'<section><h3>등록 이력 전체 <small>설명이 있는 항목은 눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,p)).join("")+'</section>':'');
+  '<section><h3>'+(partial?'이번 조건에 연결된 근거 ':'전체 등록 이력 ')+evidence.length+'건 <small>설명이 있는 항목은 눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,p)).join("")+'</section>';
 }
 async function renderInspect(id){
  const dialog=$("personCardDialog"),ticket=++inspectTicket,ids=dialog.inspectIds||[];
- const candidate=session?.result?.candidates?.find(c=>c.id===id)||null;
- const person=await inspectPerson(id,candidate);
- if(ticket!==inspectTicket)return;
+ const registered=dialog.dataset.registeredReview==="true",source=session,key=registered?registeredBinding():null,epoch=registeredEpoch;
+ const candidate=registered?currentRegisteredCandidate(id):session?.result?.candidates?.find(c=>c.id===id)||null;
+ if(registered&&!candidate)throw new Error("현재 등록 후보를 다시 확인해 주세요.");
+ const historical=Boolean(!registered&&candidate&&session?.result?.historical_result);
+ const person=await inspectPerson(id,historical);
+ if(ticket!==inspectTicket||session!==source)return false;
+ if(registered&&(epoch!==registeredEpoch||registeredBinding()!==key||!currentRegisteredCandidate(id)))return false;
+ if(!person&&!candidate)throw new Error("인물 정보를 불러오지 못했어요. 다시 열어 주세요.");
  const profile=(person?person.profile:candidate?.profile)||{};
  const name=profile.display_name||person?.name||candidate?.name||"이름 미확인";
  const org=typeof person?.org==="string"?person.org:typeof candidate?.org==="string"?candidate.org:"";
  const portrait=cardPortrait(profile.portrait?.path),capability=cardCapability({profile});
- const relation=candidatePurposeRelation(candidate),label=candidatePurposeLabel(candidate);
+ const relation=registered?"":candidatePurposeRelation(candidate),label=registered?"":candidatePurposeLabel(candidate);
  const reason=typeof candidate?.reason==="string"?plainScience(candidate.reason.trim()):"";
  const missing=typeof candidate?.purpose_missing==="string"?candidate.purpose_missing.trim():"";
- const outside=!candidate&&pickAvailable(id),closed=outside&&historicalProfile(person?.profile);
+ const outside=!registered&&!candidate&&pickAvailable(id),closed=outside&&historicalProfile(person?.profile);
  // Opened from the home heading (no conversation yet): a plain researcher card, not a candidate of a request.
- const browse=!session&&!candidate,own=outside||browse;
- const evidence=(Array.isArray(own?person?.evidence:candidate?.evidence)?(own?person.evidence:candidate.evidence):[]).filter(e=>e&&typeof e==="object").slice(0,4);
- const request=currentDetailCandidate(id),allowed=canPropose(request);
+ const browse=!session&&!candidate,own=!candidate;
+ const allEvidence=(Array.isArray(person?.evidence)?person.evidence:[]).filter(e=>e&&typeof e==="object");
+ const linkedEvidence=(Array.isArray(candidate?.evidence)?candidate.evidence:[]).filter(e=>e&&typeof e==="object");
+ const shownEvidence=own?allEvidence:linkedEvidence,evidence=shownEvidence.slice(0,4);
+ const request=registered?null:currentDetailCandidate(id),allowed=canPropose(request);
+ const partialNotice=historical?'<p class="pi-note">이전 응답 당시 선택 근거이며 현재 전체 등록 이력이 아닙니다.</p>'+(session.result.scope_note?'<p class="pi-note">'+esc(session.result.scope_note)+'</p>':''):
+  !person?'<p class="pi-note">인물 정보를 불러오지 못해 응답에 저장된 근거만 표시합니다.</p>':'';
+ const totalHtml=person?'<p class="pi-note">전체 등록 이력 '+allEvidence.length+'건</p>':'';
  const unavailable=typeof request?.proposal_unavailable_reason==="string"&&request.proposal_unavailable_reason.trim()?request.proposal_unavailable_reason:(browse?"등록 이력은 본인 제공·공개 기록이에요. 지금의 역량이나 협업 가능 여부를 확인한 것은 아니에요.":"전체 약력에서 근거를 확인해 주세요.");
  const index=ids.indexOf(id),count=ids.length;
  $("personCardHost").innerHTML='<div class="pi-sheet"'+(relation?' data-relation="'+relation+'"':'')+'>'+
-  '<div class="pi-top">'+(index<0?'<span class="pi-count">'+(browse?'연구자 카드':'추천 밖 인물')+'</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
+  '<div class="pi-handle" aria-hidden="true"></div><div class="pi-top">'+(index<0?'<span class="pi-count">'+(registered?'등록 이력에서 찾은 사람':browse?'연구자 카드':'추천 밖 인물')+'</span>':count>1?'<button type="button" class="pi-nav" data-step="-1" aria-label="이전 후보"'+(index<=0?' disabled':'')+'>‹</button><span class="pi-count" aria-live="polite">'+(index+1)+' / '+count+'</span><button type="button" class="pi-nav" data-step="1" aria-label="다음 후보"'+(index<0||index>=count-1?' disabled':'')+'>›</button>':'<span class="pi-count">후보</span>')+'</div>'+
   '<div class="pi-main"><div class="pi-hero">'+
    '<button type="button" class="pi-card" aria-label="'+esc(name)+' 카드 다시 뒤집기"><span class="pi-turn">'+
     '<span class="pi-face pi-front"><span class="pi-portrait">'+(portrait?'<img src="'+esc(portrait)+'" alt="" decoding="async">':'<span class="pi-portrait-empty">초상 미제공</span>')+'</span><span class="pi-card-name">'+esc(name)+'</span><span class="pi-foil" aria-hidden="true"></span></span>'+
@@ -1434,9 +1432,9 @@ async function renderInspect(id){
    '</span></button>'+
    '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+'<h2 class="pi-name" id="piName">'+esc(name)+'</h2>'+(org?'<p class="pi-org">'+esc(org)+'</p>':'')+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
   '</div><div class="pi-info"><div class="pi-body">'+
-   (browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
-   (evidence.length?'<section><h3>'+(own?'등록 이력':'핵심 근거')+' <small>눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,profile)).join('')+'</section>':'')+
-  '</div><div class="pi-actions">'+(allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">의뢰 초안 보기</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 보낼 의뢰 초안 보기</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
+   partialNotice+(registered?registeredContextHtml(candidate):browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation?(reason?'<p>'+esc(reason)+'</p>':'<p>'+esc(label)+'</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
+   (own?'':totalHtml)+(registered?'':'<section><h3>'+(own?'전체 등록 이력 ':'이번 조건에 연결된 근거 ')+shownEvidence.length+'건 <small>'+(shownEvidence.length>4?'앞 4건 · ':'')+'눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,profile)).join('')+'</section>')+
+  '</div><div class="pi-actions">'+(registered?registeredRequestAction(candidate):allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">의뢰 초안 보기</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 보낼 의뢰 초안 보기</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");
  const sheet=$("personCardHost").querySelector(".pi-sheet"),card=sheet.querySelector(".pi-card");
  const quiet=RndCraft.quiet();sheet.classList.toggle("pi-quiet",quiet);
@@ -1445,8 +1443,7 @@ async function renderInspect(id){
  sheet.querySelectorAll(".pi-nav").forEach(b=>b.addEventListener("click",()=>stepInspect(Number(b.dataset.step))));
  const full=sheet.querySelector(".pi-full"),inspectBody=sheet.querySelector(".pi-body");let summaryHtml=null;
  full.addEventListener("click",()=>{
-  if(!person){showPerson(id,dialog.inspectOpener).catch(exc=>error(exc.message));return;} // a past answer's frozen record
-  if(summaryHtml===null){summaryHtml=inspectBody.innerHTML;inspectBody.innerHTML=inspectFullHtml(person,profile);full.textContent="요약으로";}
+  if(summaryHtml===null){summaryHtml=inspectBody.innerHTML;inspectBody.innerHTML=partialNotice+inspectFullHtml(person||candidate,profile,!person);full.textContent="요약으로";}
   else{inspectBody.innerHTML=summaryHtml;summaryHtml=null;full.textContent="전체 약력 보기";}
   inspectBody.scrollTop=0;
  });
@@ -1459,32 +1456,64 @@ async function renderInspect(id){
  }
  // The camera follows the person being inspected (the close-up users liked).
  if(typeof drawController?.select==="function")drawController.select(id);
+ return true;
 }
 function stepInspect(step){
  const dialog=$("personCardDialog"),ids=dialog.inspectIds||[],index=ids.indexOf(dialog.dataset.personId),next=ids[index+step];
  if(index<0||!next)return;
  renderInspect(next).then(()=>dialog.querySelector(".pi-nav[data-step='"+step+"']:not(:disabled)")?.focus({preventScroll:true})).catch(exc=>error(exc.message));
 }
-async function openPersonCard(id,opener=document.activeElement){
+// Same 40px threshold and height transition as the map sheet; tapping does nothing.
+function bindInspectHandle(dialog){
+ let drag=null,timer=null,finish=null;
+ const mobile=matchMedia("(max-width:700px)");
+ const reset=()=>{if(finish)dialog.removeEventListener("transitionend",finish);clearTimeout(timer);finish=null;const active=drag;drag=null;if(active?.handle.hasPointerCapture(active.id))active.handle.releasePointerCapture(active.id);dialog.style.height="";dialog.style.maxHeight="";dialog.style.transition="";};
+ const slide=(height,close=false)=>{
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){reset();if(close)dialog.close();return;}
+  void dialog.offsetHeight;dialog.style.transition="height .26s cubic-bezier(.22,.75,.18,1)";dialog.style.height=height+"px";
+  finish=e=>{if(e&&(e.target!==dialog||e.propertyName!=="height"))return;reset();if(close)dialog.close();};
+  dialog.addEventListener("transitionend",finish);timer=setTimeout(finish,380);
+ };
+ dialog.addEventListener("pointerdown",e=>{
+  if(!mobile.matches||!e.target.closest(".pi-handle")||e.button!==0||drag)return;
+  reset();e.preventDefault();const handle=e.target.closest(".pi-handle");drag={id:e.pointerId,y:e.clientY,height:dialog.getBoundingClientRect().height,handle};
+  dialog.style.maxHeight="none";dialog.style.height=drag.height+"px";handle.setPointerCapture(e.pointerId);
+ });
+ dialog.addEventListener("pointermove",e=>{
+  if(!drag||drag.id!==e.pointerId)return;
+  dialog.style.height=Math.max(60,drag.height-Math.max(0,e.clientY-drag.y))+"px";
+ });
+ dialog.addEventListener("pointerup",e=>{
+  if(!drag||drag.id!==e.pointerId)return;
+  const {height,y,handle}=drag;drag=null;
+  if(handle.hasPointerCapture(e.pointerId))handle.releasePointerCapture(e.pointerId);
+  const dy=e.clientY-y;if(dy>40)slide(0,true);else if(dy>0)slide(height);else reset();
+ });
+ dialog.addEventListener("pointercancel",reset);dialog.addEventListener("lostpointercapture",()=>{if(drag)reset();});
+ dialog.addEventListener("close",reset);window.addEventListener("resize",reset);
+}
+async function openPersonCard(id,opener=document.activeElement,registered=false){
  const dialog=$("personCardDialog");
  if(!dialog.inspectBound){
   dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});
   dialog.addEventListener("keydown",e=>{if(e.altKey||e.ctrlKey||e.metaKey)return;if(e.key==="ArrowRight"){e.preventDefault();stepInspect(1);}else if(e.key==="ArrowLeft"){e.preventDefault();stepInspect(-1);}});
   let swipe=null;
-  dialog.addEventListener("pointerdown",e=>{swipe=e.pointerType==="mouse"?null:{id:e.pointerId,x:e.clientX,y:e.clientY};});
+  bindInspectHandle(dialog);
+  dialog.addEventListener("pointerdown",e=>{swipe=e.pointerType==="mouse"||e.target.closest(".pi-handle")?null:{id:e.pointerId,x:e.clientX,y:e.clientY};});
   dialog.addEventListener("pointercancel",()=>{swipe=null;});
   dialog.addEventListener("pointerup",e=>{if(!swipe||swipe.id!==e.pointerId)return;const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;if(Math.abs(dx)>56&&Math.abs(dx)>Math.abs(dy)*1.5)stepInspect(dx<0?1:-1);});
   dialog.inspectBound=true;
  }
- dialog.inspectOpener=opener;dialog.inspectIds=inspectCandidateIds();
- await renderInspect(id);
+ dialog.inspectOpener=opener;dialog.inspectIds=registered?(registeredEnvelope()?.candidates||[]).map(c=>c.id):inspectCandidateIds();
+ dialog.dataset.registeredReview=String(registered);dialog.dataset.registeredBinding=registered?registeredBinding()||"":"";
+ if(!await renderInspect(id))return;
  if(!dialog.open)modal("personCardDialog",opener);
  dialog.querySelector(".pi-card")?.focus({preventScroll:true});
 }
 // A failed draft remains in the currently open person dialog; no draft or send is simulated.
 function detailRequestDraftError(message,button){
- const dialog=$("detailDialog");
- if(!dialog?.open||!button?.isConnected||!dialog.contains(button))return false;
+ const dialog=button?.closest("dialog");
+ if(!dialog?.open||!["detailDialog","personCardDialog"].includes(dialog.id)||!button?.isConnected)return false;
  let notice=dialog.querySelector("[data-request-draft-error]");
  if(!message){if(notice)notice.remove();return true;}
  if(!notice){
@@ -1628,9 +1657,9 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
   else if(action==="choice-free"){$("message").focus();}
   else if(action==="prepare")await prepareDiscovery(button,e.detail===0);
   else if(action==="person-select"){const choice=session.result?.choices?.find(c=>c.id===id);if(!choice)throw new Error("표시된 인물을 다시 선택해 주세요.");await send({text:choice.name+"의 이력 보여줘",person_id:id,session_id:session.id,model_id:selectedModel,model_selection_origin:modelSelectionOrigin,turn_id:crypto.randomUUID()});}
-  else if(action==="registered-person")await showPerson(id,button,true);
+  else if(action==="registered-person")await openPersonCard(id,button,true);
   else if(action==="registered-letter"){detailRequestDraftError("",button);await openLetter([id],true);}
-  else if(action==="person")await showPerson(id,button);
+  else if(action==="person")await openPersonCard(id,button);
   else if(action==="letter"){detailRequestDraftError("",button);await openLetter([id]);}
   else if(action==="pick-letter"){button.disabled=true;await openPickedLetter(id);button.disabled=false;}
   else if(action==="route-letter"){const ids=session?.result?.intent==="person_lookup"?[]:(session?.result?.candidates||[]).filter(canPropose).map(c=>c.id);if(ids.length)await openLetter(ids);}

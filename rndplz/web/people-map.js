@@ -192,7 +192,7 @@
   const observer=win.ResizeObserver?new win.ResizeObserver(()=>schedule()):null;
   // Cards keep their positions across filters, settle by force and can be dragged; the fixed layout only seeds them.
   const live=new Map(),statics=new Map(),infos=new Map(),peopleById=new Map(C.people.map(p=>[p.id,p]));
-  let prefs=loadPrefs(),shown=null,lastTest=()=>true,mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[],rings=new Map();
+  let prefs=loadPrefs(),shown=null,lastTest=()=>true,appliedGraphFilter='',mode='global',localRoot=null,depth=2,groupTests=[],nodeEls=[],edgeEls=[],rings=new Map();
   let autoFit=true,fitted=false,lastSize='',loop=0,lastFrame=0,counts='',phase='',flash='',flashTimer=0,selectedBefore=null;
   const sim=new Live.Simulation(prefs),ui=liveControls();
   const quiet=()=>doc.body.classList.contains('no-motion')||win.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -220,7 +220,7 @@
   function display(){
    const on={person:true,capability:prefs.capabilities,topic:prefs.topics,project:prefs.projects};
    let test=lastTest;
-   try{test=Live.compileFilter(prefs.filter);lastTest=test;ui.error('');}catch(error){ui.error(error.message);}
+   try{test=Live.compileFilter(prefs.filter);lastTest=test;appliedGraphFilter=prefs.filter.trim();ui.error('');}catch(error){ui.error(error.message);}
    let keys=new Set(graph.nodes.filter(n=>on[n.kind]&&test(info(n))).map(n=>n.key));
    let links=graph.edges.filter(e=>keys.has(e.from)&&keys.has(e.to));
    let root=mode==='local'&&keys.has(localRoot)?localRoot:null;
@@ -588,7 +588,10 @@
   function found(id){
    const person=C.visiblePeople(state).find(p=>p.id===id);if(!person)return null;
    const capability=currentCapability(state),link=C.capabilityLink(state,person);
+   const filteredIds=appliedGraphFilter?new Set((shown?.links||[]).filter(edge=>edge.from==='person:'+id||edge.to==='person:'+id).flatMap(edge=>edge.recordIds||[])):null;
    return {terms:C.searchTerms(state.query),team:person.sourcePerson?.team_member===true,
+    hasCondition:Boolean(C.searchTerms(state.query).length||state.capability||state.topic||appliedGraphFilter),
+    recordIds:C.visibleEvidence(state,person).filter(record=>!filteredIds||filteredIds.has(record.id)).map(record=>record.id),
     capability:capability&&link?{label:capability.label,recordIds:[...link.recordIds]}:null,
     topic:state.topic?{label:topicName(state.topic),recordIds:person.records.filter(r=>r.topics.includes(state.topic)).map(r=>r.id)}:null};
   }

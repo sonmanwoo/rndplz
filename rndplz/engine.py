@@ -188,7 +188,23 @@ class Engine:
                 boundary += " 공동발명자 기재이며 출원인·특허권자는 현재 소속이 아닙니다. 공보별 항목 수는 독립 발명 수가 아닙니다."
             boundary += " " + " ".join(record.details.get(k, "") for k in ("contribution_note", "boundary_note") if record.details.get(k))
         if record.kind == "project_record":
-            boundary = "사용자가 제공한 프로젝트 참여 정보입니다. 역할·성과·수상·정확한 일정·주최는 미기재이며, 특정 기술 전문성·현재 소속·협업 가능성·계정 소유를 입증하지 않습니다."
+            outcome = record.details.get("outcome")
+            has_outcome = isinstance(outcome, str) and bool(outcome.strip())
+            roles = record.details.get("roles") or {}
+            participants = {item.person_id for item in record.people if item.person_id}
+            stated_roles = {pid for pid, role in roles.items() if pid in participants and isinstance(role, str) and role.strip()}
+            stated = ["프로젝트 참여 정보"] + (["성과 항목"] if has_outcome else []) + (["기재된 역할"] if stated_roles else [])
+            boundary = "·".join(stated) + ": 사용자 제공 자료에 기재된 내용이며 독립 검증하지 않았습니다. "
+            boundary += ("성과·수상·일정은 자료에 기재된 범위에 한합니다. " if has_outcome else
+                         "성과·수상은 미기재입니다. 일정은 기록 날짜에 기재된 범위에 한합니다. ")
+            if not stated_roles:
+                boundary += "참여자의 역할은 미기재입니다. "
+            elif stated_roles != participants:
+                boundary += "역할은 일부 참여자만 기재되어 있으며, 나머지 참여자의 역할은 미기재입니다. "
+            organizer = record.details.get("organizer")
+            boundary += ("주최는 사용자 제공 자료에 기재된 내용이며 독립 검증하지 않았습니다. "
+                         if isinstance(organizer, str) and organizer.strip() else "주최는 미기재입니다. ")
+            boundary += "특정 기술 전문성·현재 소속·협업 가능성·계정 소유를 입증하지 않습니다."
         if record.kind == "career_record":
             boundary = "본인 제공 경력 자료입니다. 회사 HR 검증·수행 수준·현재 협업 가능 여부는 확인하지 않았습니다."
         if record.scope == "provided_resume":

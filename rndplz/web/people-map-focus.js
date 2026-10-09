@@ -139,13 +139,15 @@
       const p = people.get(debug.center), state = controller.getState();
       if (!p) return;
       const capabilities = core.capabilities.filter(c => c.kind !== 'project' && core.capabilityLink({...state, capability:c.id}, p)).slice(0,3);
-      const records = core.visibleEvidence(state, p).length;
+      const found = controller.found(p.id), total = (p.sourcePerson?.evidence || []).length;
+      const records = found?.recordIds.length || 0;
       card.innerHTML = `<div class="mp-focus-top">`
         + (history.length ? `<div class="mp-focus-history" role="group" aria-label="앞서 본 사람">${history.map(id => `<button type="button" data-focus-history="${esc(id)}" aria-label="${esc(people.get(id)?.name)} 다시 보기" title="${esc(people.get(id)?.name)}">${face(id,24)}</button>`).join('')}</div>` : '<span></span>')
         + `<button type="button" class="mp-focus-close" data-focus-close aria-label="주변 보기 닫기">×</button></div>`
         + `<div class="mp-focus-person"><div class="mp-focus-face">${face(p.id,56)}</div><div><strong>${esc(p.name)}</strong><p>${esc(p.organization || '')}</p></div></div>`
         + (capabilities.length ? `<p class="mp-focus-label">다룰 수 있는 일</p><div class="mp-focus-skills">${capabilities.map(c => `<span>${esc(c.label)}</span>`).join('')}</div>` : '')
-        + `<p class="mp-focus-evidence">연결된 근거 ${records}건</p>`
+        + `<p class="mp-focus-evidence">전체 등록 이력 ${total}건</p>`
+        + (found?.hasCondition ? `<p class="mp-focus-evidence">이번 조건에 연결된 근거 ${records}건</p>` : '')
         + '<button type="button" class="mp-focus-open" data-focus-open>전체 카드 보기</button>';
     }
 
