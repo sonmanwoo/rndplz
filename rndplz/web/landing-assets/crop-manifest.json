@@ -1,0 +1,144 @@
+{
+  "coordinate_system": "original PNG pixels, left/top/right/bottom, right/bottom exclusive",
+  "encoding": "WebP, quality 82, method 6",
+  "assets": [
+    {
+      "asset": "chat.webp",
+      "source": "m_chat_answer.png",
+      "crop": [
+        12,
+        82,
+        378,
+        336
+      ],
+      "blurs": [],
+      "source_size": [
+        390,
+        844
+      ],
+      "output_size": [
+        366,
+        254
+      ],
+      "bytes": 9494
+    },
+    {
+      "asset": "evidence.webp",
+      "source": "m_person_card.png",
+      "crop": [
+        16,
+        373,
+        373,
+        751
+      ],
+      "blurs": [],
+      "source_size": [
+        390,
+        844
+      ],
+      "output_size": [
+        357,
+        378
+      ],
+      "bytes": 14094
+    },
+    {
+      "asset": "map.webp",
+      "source": "m_map_focus.png",
+      "crop": [
+        17,
+        104,
+        374,
+        590
+      ],
+      "blurs": [
+        {
+          "box": [
+            18,
+            159,
+            374,
+            590
+          ],
+          "radius": 2.5
+        },
+        {
+          "box": [
+            173,
+            343,
+            224,
+            392
+          ],
+          "radius": 12
+        },
+        {
+          "box": [
+            288,
+            266,
+            326,
+            310
+          ],
+          "radius": 12
+        }
+      ],
+      "source_size": [
+        390,
+        844
+      ],
+      "output_size": [
+        357,
+        486
+      ],
+      "bytes": 5700
+    },
+    {
+      "asset": "letter.webp",
+      "source": "m_letter.png",
+      "crop": [
+        17,
+        57,
+        372,
+        795
+      ],
+      "blurs": [],
+      "source_size": [
+        390,
+        844
+      ],
+      "output_size": [
+        355,
+        738
+      ],
+      "bytes": 12538
+    },
+    {
+      "asset": "profile.webp",
+      "source": "m_profile_digest.png",
+      "crop": [
+        43,
+        243,
+        345,
+        740
+      ],
+      "blurs": [
+        {
+          "box": [
+            203,
+            299,
+            307,
+            737
+          ],
+          "radius": 14
+        }
+      ],
+      "source_size": [
+        390,
+        844
+      ],
+      "output_size": [
+        302,
+        497
+      ],
+      "bytes": 2580
+    }
+  ]
+}

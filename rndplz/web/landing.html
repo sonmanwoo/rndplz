@@ -1,0 +1,56 @@
+<div id="landingIntro" class="landing-intro">
+  <section id="landingFeatures" class="landing-section landing-features" aria-labelledby="landingFeaturesTitle" tabindex="-1">
+    <h2 id="landingFeaturesTitle">수소문으로 할 수 있는 일</h2>
+    <div class="landing-rail-wrap">
+      <ul id="landingFeatureRail" class="landing-rail landing-feature-rail" tabindex="0" aria-label="수소문 기능, 좌우 방향키로 넘기기">
+        <li class="landing-feature">
+          <div class="landing-feature-image"><img data-src="/landing-assets/chat.webp" loading="lazy" decoding="async" width="366" height="254" alt="문제와 조건을 정리한 대화 화면"></div>
+          <h3>문제를 적으면 사람을 찾아요</h3>
+          <p>막힌 문제를 대화로 정리하면 연구·경력 기록에서 함께 풀 사람을 찾아요.</p>
+        </li>
+        <li class="landing-feature">
+          <div class="landing-feature-image"><img data-src="/landing-assets/evidence.webp" loading="lazy" decoding="async" width="357" height="378" alt="인물 카드의 추천 이유와 연결된 논문 기록"></div>
+          <h3>근거로 보여줘요</h3>
+          <p>논문·경력·프로젝트 기록으로 왜 이 사람인지 보여 줘요.</p>
+        </li>
+        <li class="landing-feature">
+          <div class="landing-feature-image"><img data-src="/landing-assets/map.webp" loading="lazy" decoding="async" width="357" height="486" alt="분야와 사람이 연결된 연구 맵"></div>
+          <h3>연구 맵으로 둘러봐요</h3>
+          <p>분야와 사람이 어떻게 이어지는지 지도로 살펴봐요.</p>
+        </li>
+        <li class="landing-feature">
+          <div class="landing-feature-image"><img data-src="/landing-assets/letter.webp" loading="lazy" decoding="async" width="355" height="738" alt="의뢰 초안을 검토하는 화면"></div>
+          <h3>의뢰 초안까지</h3>
+          <p>의뢰 초안을 만들고 제안함에 시연 기록으로 남겨요.</p>
+        </li>
+        <li class="landing-feature">
+          <div class="landing-feature-image"><img data-src="/landing-assets/profile.webp" loading="lazy" decoding="async" width="302" height="497" alt="지금 카드와 AiU 제안을 비교하는 두 열, 이력 값은 가림"></div>
+          <h3>내 이력은 자료로 채워요</h3>
+          <p>이력서·보고서를 올리면 AI가 읽고 카드에 맞게 제안해요.</p>
+        </li>
+      </ul>
+      <button type="button" class="landing-next" data-landing-next="landingFeatureRail" aria-label="다음 기능 보기" aria-controls="landingFeatureRail"><span aria-hidden="true">›</span></button>
+    </div>
+  </section>
+  <section id="landingFields" class="landing-section landing-fields" aria-labelledby="landingFieldsTitle">
+    <h2 id="landingFieldsTitle">이런 분야의 연구자를<br>찾을 수 있어요</h2>
+    <p class="landing-load" data-landing-data-status role="status">분야를 불러오는 중이에요.</p>
+    <ul id="landingFieldList" class="landing-field-list"></ul>
+    <button type="button" class="landing-pill landing-retry" data-landing-retry hidden>다시 불러오기</button>
+  </section>
+  <section id="landingPeople" class="landing-section landing-people" aria-labelledby="landingPeopleTitle">
+    <div class="landing-section-head"><h2 id="landingPeopleTitle">연구 맵의 사람들</h2><a class="landing-pill" href="/explore#map">연구 맵 둘러보기</a></div>
+    <p class="landing-load" data-landing-data-status role="status">사람들을 불러오는 중이에요.</p>
+    <ul id="landingPeopleRail" class="landing-rail landing-people-rail" tabindex="0" aria-label="공개 연구자 카드, 좌우 방향키로 넘기기"></ul>
+    <p id="landingPersonError" class="landing-load" role="status" hidden></p>
+  </section>
+  <section id="landingMap" class="landing-section landing-map" aria-labelledby="landingMapTitle" hidden>
+    <div class="landing-section-head"><h2 id="landingMapTitle">연구 맵으로 연결을 살펴보세요</h2><a class="landing-pill" href="/explore#map">전체 연구 맵 열기</a></div>
+    <div id="landingMapCanvas" class="landing-map-canvas" aria-label="연구 맵 미리보기"><p class="landing-load" role="status">화면에 들어오면 연구 맵을 불러와요.</p></div>
+  </section>
+  <footer class="landing-closing" aria-labelledby="landingClosingTitle">
+    <div class="landing-closing-call"><h2 id="landingClosingTitle">막힌 문제,<br>같이 풀 사람을<br>찾아요</h2><div class="landing-closing-actions"><button type="button" class="landing-pill landing-primary" data-landing-ask>질문하기</button><button type="button" class="landing-pill" data-landing-login>로그인</button></div></div>
+    <nav class="landing-links" aria-label="서비스"><h3>서비스</h3><a href="/">대화</a><a href="/explore#map">연구 맵</a><a href="/explore#inbox">제안함</a><a href="/profile">내 프로필</a></nav>
+    <nav class="landing-links" aria-label="정보"><h3>정보</h3><a href="/privacy">개인정보</a><a href="/terms">이용약관</a><button type="button" data-landing-feedback aria-haspopup="dialog" aria-controls="feedbackDialog">의견 보내기</button></nav>
+  </footer>
+</div>

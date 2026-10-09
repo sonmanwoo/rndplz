@@ -1,0 +1,73 @@
+/* LANDING r1. Only the opt-in document loads these rules. */
+body.home-landing.home-welcome {display:block}
+body.home-landing.home-welcome .chat-shell {height:calc(100dvh - 92px);min-height:490px}
+body.home-landing.home-welcome .chat-shell>main.welcome {min-height:0}
+body.home-landing.home-welcome .home-whirl {position:absolute}
+.home-landing .landing-down {display:none}
+.home-landing.home-welcome .landing-down {position:absolute;bottom:16px;left:calc(50% - 22px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink,#0d0d0d);font:24px/1 var(--font-sans);z-index:4}
+.home-landing .landing-down::before {content:"";position:absolute;inset:2px;border:1px solid var(--line,#ddd9d6);border-radius:50%;background:var(--sheet,#fff);z-index:-1}
+.home-landing:not(.home-welcome) .landing-intro {display:none}
+.home-landing .landing-intro {position:relative;z-index:1;background:var(--desk,#f7f5f3);color:var(--ink,#0d0d0d);padding-top:72px;--landing-gap:24px;--landing-pad:clamp(24px,4vw,72px)}
+.home-landing .landing-section {margin:0 auto;padding:0 var(--landing-pad);max-width:1680px;scroll-margin-top:32px}
+.home-landing .landing-section+.landing-section {margin-top:132px}
+.home-landing .landing-section h2 {margin:0 0 32px;font:650 clamp(28px,3vw,44px)/1.13 var(--font-sans);letter-spacing:-.045em;word-break:keep-all}
+.home-landing .landing-rail-wrap {position:relative}
+.home-landing .landing-rail {display:flex;gap:var(--landing-gap);padding:4px 2px 20px;margin:0;list-style:none;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:2px;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#c8c4c1 transparent}
+.home-landing .landing-rail>li {flex:0 0 calc((100% - 3.25 * var(--landing-gap))/4.25);min-width:0;scroll-snap-align:start}
+.home-landing .landing-feature-image {display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.08;padding:20px;border-radius:24px;overflow:hidden;background:#eeece9}
+.home-landing .landing-feature-image img {display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.home-landing .landing-feature h3 {font:650 clamp(18px,1.65vw,24px)/1.3 var(--font-sans);letter-spacing:-.04em;margin:18px 0 8px;word-break:keep-all}
+.home-landing .landing-feature p {font-size:15px;line-height:1.55;color:var(--muted,#77716d);margin:0;word-break:keep-all}
+.home-landing .landing-next {position:absolute;right:-18px;top:calc((100vw - 2 * var(--landing-pad)) / 4.25 * .54 - 22px);width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--line,#ddd9d6);border-radius:50%;background:var(--sheet,#fff);color:var(--ink);font:30px/1 var(--font-sans)}
+.home-landing .landing-field-list {list-style:none;margin:0;padding:0}
+.home-landing .landing-field-list a {display:block;width:fit-content;min-height:44px;padding:3px 0;font:650 clamp(30px,4.8vw,72px)/1.13 var(--font-sans);letter-spacing:-.05em;color:#bcb8b4;word-break:keep-all}
+.home-landing .landing-field-list a.is-current,.home-landing .landing-field-list a:hover,.home-landing .landing-field-list a:focus-visible {color:var(--ink,#0d0d0d)}
+.home-landing .landing-section-head {display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:32px}
+.home-landing .landing-section-head h2 {margin:0;max-width:700px}
+.home-landing .landing-pill {display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-height:44px;padding:11px 24px;border:0;border-radius:999px;background:#eeece9;color:var(--ink,#0d0d0d);font:600 14px/1.5 var(--font-sans);text-align:center;cursor:pointer}
+.home-landing .landing-primary {background:var(--ink,#0d0d0d);color:var(--sheet,#fff)}
+.home-landing .landing-person {border:1px solid var(--line,#ddd9d6);border-radius:22px;overflow:hidden;background:var(--sheet,#fff);text-align:center;padding:0 14px 16px;display:flex;align-items:center;flex-direction:column}
+.home-landing .landing-collage {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:calc(100% + 28px);height:126px;background:#eeece9}
+.home-landing .landing-collage img {width:100%;height:126px;object-fit:cover;object-position:50% 22%}
+.home-landing .landing-avatar {width:68px;height:68px;object-fit:cover;object-position:50% 25%;border:4px solid var(--sheet,#fff);border-radius:50%;margin-top:-28px;position:relative;background:#eeece9}
+.home-landing .landing-person h3 {margin:10px 0 4px;font:650 21px/1.3 var(--font-sans);letter-spacing:-.03em;word-break:keep-all}
+.home-landing .landing-person p {margin:0 0 20px;font-size:13px;color:var(--muted,#77716d);line-height:1.45;word-break:keep-all}
+.home-landing .landing-person .landing-pill {width:100%;margin-top:auto}
+.home-landing .landing-load {font-size:14px;color:var(--muted,#77716d);margin:16px 0}
+.home-landing .landing-map-canvas {height:520px;position:relative;overflow:hidden;border:1px solid var(--line,#ddd9d6);border-radius:24px;background:var(--sheet,#fff)}
+.home-landing .landing-map-canvas>.landing-load {padding:24px}
+.home-landing .landing-map-graph {display:block}
+.home-landing .landing-closing {display:grid;grid-template-columns:1.6fr .6fr .6fr;gap:clamp(24px,5vw,100px);padding:88px var(--landing-pad);margin-top:144px;background:#efedea}
+.home-landing .landing-closing h2 {margin:0 0 32px;font:750 clamp(48px,6.6vw,104px)/.98 var(--font-sans);letter-spacing:-.06em;word-break:keep-all}
+.home-landing .landing-closing-actions {display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.home-landing .landing-closing-actions .landing-pill {min-width:142px}
+.home-landing .landing-links {align-self:end;padding-bottom:4px;display:flex;flex-direction:column;align-items:flex-start}
+.home-landing .landing-links h3 {font:500 14px/1.5 var(--font-sans);color:var(--muted,#77716d);margin:0 0 22px}
+.home-landing .landing-links :is(a,button) {display:flex;align-items:center;min-width:44px;min-height:44px;padding:8px 0;font:500 15px/1.5 var(--font-sans);color:var(--ink,#0d0d0d);text-align:left}
+.home-landing .landing-intro :is(a,button,[tabindex]):focus-visible,.home-landing .landing-down:focus-visible {outline:2px solid var(--green,#2f7f86);outline-offset:3px}
+.home-landing .landing-pill:hover {filter:brightness(.96)}
+@media(min-width:1680px){.home-landing .landing-next{top:168px}}
+@media(max-width:1000px){.home-landing .landing-rail>li{flex-basis:calc((100% - 2.2 * var(--landing-gap))/3.2)}.home-landing .landing-next{top:120px}}
+@media(max-width:700px){
+  body.home-landing.home-welcome .chat-shell{height:calc(100dvh - 64px);min-height:430px}
+  .home-landing.home-welcome .landing-down{bottom:12px}
+  .home-landing .landing-intro{padding-top:48px;--landing-pad:20px;--landing-gap:16px}
+  .home-landing .landing-section+.landing-section{margin-top:80px}
+  .home-landing .landing-section h2{font-size:30px;margin-bottom:24px}
+  .home-landing .landing-rail{margin-right:calc(-1 * var(--landing-pad));padding-right:var(--landing-pad)}
+  .home-landing .landing-rail>li{flex-basis:76%;max-width:330px}
+  .home-landing .landing-feature-image{border-radius:20px;padding:18px}
+  .home-landing .landing-feature h3{font-size:21px}
+  .home-landing .landing-feature p{font-size:14px}
+  .home-landing .landing-next{display:none}
+  .home-landing .landing-field-list a{font-size:clamp(29px,7.7vw,48px);padding:6px 0}
+  .home-landing .landing-section-head{align-items:flex-start;flex-direction:column;gap:16px;margin-bottom:24px}
+  .home-landing .landing-section-head h2{margin-bottom:0}
+  .home-landing .landing-map-canvas{height:420px;border-radius:20px}
+  .home-landing .landing-closing{grid-template-columns:1fr 1fr;gap:56px 24px;padding:64px var(--landing-pad);margin-top:88px}
+  .home-landing .landing-closing-call{grid-column:1/-1}
+  .home-landing .landing-closing h2{font-size:clamp(48px,13vw,72px)}
+  .home-landing .landing-links{align-self:start}
+}
+@media(prefers-reduced-motion:reduce){html:has(body.home-landing){scroll-behavior:auto}.home-landing .landing-rail{scroll-behavior:auto}}
+html:has(body.home-landing.no-motion){scroll-behavior:auto}
