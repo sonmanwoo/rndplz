@@ -151,6 +151,21 @@ class PersonCardTests(unittest.TestCase):
         card = profiles.card_preview({'fields': {'bio': '미리 보는 소개'}, 'careers': careers})['card']
         self.assertEqual((card['id'], card['profile']['biography']), ('LOCAL-MANWOO', '미리 보는 소개'))
         self.assertEqual([row['text'] for row in card['profile']['timeline']], ['GS칼텍스 바이오공정팀 · 책임. 미리보기 설명'])
+        # The shared reader gets the same scoped non-career records and the draft careers.
+        scoped = {r.id for r in self.engine.corpus.by_person['LOCAL-MANWOO'] if r.kind != 'career_record'}
+        draft_ids = {row['record_id'] for row in card['profile']['timeline']}
+        self.assertEqual({e['id'] for e in card['evidence']}, scoped | draft_ids)
+        self.assertEqual(card['record_count'], len(card['evidence']))
+        self.assertEqual([e['id'] for e in card['evidence'] if e['kind'] == 'career_record'],
+                         [row['record_id'] for row in card['profile']['timeline']])
+        # An unchanged preview and the actual map carry identical evidence, independent of row order.
+        original = profiles.card_preview({})['card']
+        current = card_of(self.engine)
+        preview_evidence = {e['id']: e for e in original['evidence']}
+        self.assertEqual(set(preview_evidence), {e['id'] for e in current['evidence']})
+        self.assertEqual(preview_evidence,
+                         {e['id']: {key: e[key] for key in preview_evidence[e['id']]}
+                          for e in current['evidence']})
         self.assertEqual(card_of(self.engine)['profile'], before)  # the map card is unchanged
         self.assertEqual(profiles.read()['profile']['version'], view['profile']['version'])  # nothing saved
         self.assertEqual(profiles.card_preview({})['card']['profile']['biography'], MANWOO['biography'])

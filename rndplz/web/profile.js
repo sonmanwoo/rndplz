@@ -9,6 +9,8 @@
   let digest=null, digestTicket=0; // the company AI's card proposal for one document
   // A bound account edits its research-map card: the card as saving would show it, one block open at a time.
   let cardPerson=null, cardEditing=null, cardBefore=null, cardSeq=0, cardTimer=0, cardError="";
+  const cardSheetMedia=window.matchMedia?.("(max-width:900px)");
+  cardSheetMedia?.addEventListener("change",()=>{if(cardMode())renderCard();});
   const deletionRetries=new Map(), dialogOpeners=new Map();
   const clone=value=>JSON.parse(JSON.stringify(value));
   const requestId=()=>crypto.randomUUID().replaceAll("-","");
@@ -96,7 +98,6 @@
   const CARD_BLOCKS={identity:{label:"이름·소속",fields:["name","organization","role"]},bio:{label:"약력",fields:["bio"]},skills:{label:"대표 기술",fields:["skills"]},
     skillGroups:{label:"다룰 수 있는 일",fields:["skills"]},careers:{label:"이력의 발자취",careers:true},interests:{label:"관심 분야",fields:["interests"]},
     projects:{label:"프로젝트 이력",locked:true},education:{label:"교육 이력",locked:true}};
-  const CARD_HEADINGS={"이력의 발자취":"careers","프로젝트 이력":"projects","교육 이력":"education","다룰 수 있는 일":"skillGroups","관심 분야":"interests"};
   function renderCardMode(){
     const on=cardMode();document.body.classList.toggle("card-mode",on);$("cardEditor").hidden=!on;
     document.querySelectorAll("[data-card-number]").forEach(el=>{el.dataset.formNumber??=el.textContent;el.textContent=on?el.dataset.cardNumber:el.dataset.formNumber;});
@@ -108,14 +109,6 @@
     try{const data=await api("/api/self-profile/card-preview",payload);if(seq!==cardSeq)return;cardPerson=data.card;cardError="";}
     catch(e){if(seq!==cardSeq)return;cardError="카드 미리보기를 만들지 못했어요. "+e.message;}
     renderCard();
-  }
-  function blockKey(el){
-    if(el.matches(".researcher-name,.personal-name,.laureate-name"))return "identity";
-    if(el.matches(".researcher-bio"))return "bio";
-    if(el.matches(".researcher-skills"))return "skills";
-    if(el.tagName==="H3")return CARD_HEADINGS[el.textContent.trim()]||null;
-    if(el.matches(".researcher-detail-hero,.scope-note,details,.personal-portrait-note,.laureate-award,.researcher-sources"))return null;
-    return undefined;
   }
   function blockChanged(cfg){
     return cfg.careers?manualChanges().careers:(cfg.fields||[]).some(k=>draft.fields[k]!==view.profile.fields[k]);
@@ -129,22 +122,37 @@
   }
   function renderCard(){
     const host=$("cardView");if(!host||!cardMode())return;
-    if(!cardPerson||!window.RndCraft){host.replaceChildren(empty(cardError||"연구맵 카드를 불러오고 있어요."));return;}
+    if(!cardPerson||!window.RndPersonView){host.replaceChildren(empty(cardError||"연구맵 카드를 불러오고 있어요."));return;}
     if(cardEditing&&host.querySelector(".card-block-editor"))return; // keep the open editor; the card follows when it closes
-    host.innerHTML=RndCraft.profileDetails(cardPerson);
-    const groups=[];let current=null;
-    for(const el of [...host.children]){const key=blockKey(el);if(key!==undefined||!current){current={key:key??null,nodes:[]};groups.push(current);}current.nodes.push(el);}
-    for(const [key,text] of [["careers","＋ 이력 추가"],["interests","＋ 관심 분야 추가"]])if(!groups.some(g=>g.key===key)){const h=node("h3","",CARD_BLOCKS[key].label),p=node("p","card-empty",text);groups.push({key,nodes:[h,p]});}
+    // The public reading sections also identify the editable blocks; visible headings can change freely.
+    const sheet=Boolean(cardSheetMedia?.matches),options={editable:true,includeEvidence:true,recordAction:false,personLinks:true};
+    const reading=sheet?[
+      {id:"identity",html:'<div class="sheet-head"><span class="sheet-face">'+RndPersonView.portrait(cardPerson.profile,RndPersonView.displayName(cardPerson),{variant:"thumb",decorative:true,fallbackInitial:true})+'</span>'+RndPersonView.nameBlock(cardPerson,"strong","sheet-id",{compact:true})+'</div>'},
+      {id:"skillSummary",html:RndPersonView.skills(cardPerson,{limit:4,className:"sheet-chips"})+'<p class="sheet-stats">'+RndPersonView.countLabel(cardPerson.evidence?.length||0)+'</p>'},
+      ...RndPersonView.sheetSections(cardPerson,options)
+    ]:RndPersonView.sections(cardPerson,options);
+    const group=section=>{
+      if(section.children){
+        const fold=node("details","sheet-more");fold.append(node("summary","",section.summary),...section.children.map(child=>cardBlock(group(child))));
+        if(section.children.some(child=>child.id===cardEditing))fold.open=true;
+        return {key:section.id,nodes:[fold]};
+      }
+      const body=node("div");body.innerHTML=section.html;return {key:section.id,nodes:[...body.childNodes]};
+    };
+    const groups=reading.map(group);
     host.replaceChildren(...groups.map(group=>cardBlock(group)));
+    RndPersonView.bind(host);
     if(cardError)host.prepend(node("p","profile-error",cardError));
     if(cardEditing){renderCareers();host.querySelector(".card-block-editor input,.card-block-editor textarea")?.focus();}
   }
   function cardBlock({key,nodes}){
     const cfg=CARD_BLOCKS[key],block=node("div","card-block");
+    block.dataset.personSection=key;
     if(!cfg){block.append(...nodes);return block;}
     block.dataset.block=key;
     if(cardEditing===key){block.classList.add("is-editing");block.append(blockEditor(cfg));return block;}
-    if(key==="bio"&&!nodes[0].textContent.trim())nodes[0].replaceChildren(node("span","card-empty","＋ 약력 적기"));
+    const emptyLabels={bio:"＋ 약력 적기",skills:"＋ 대표 기술 추가",careers:"＋ 이력 추가",interests:"＋ 관심 분야 추가"};
+    if(emptyLabels[key]&&(!nodes.length||!nodes.some(n=>n.textContent.trim())))nodes=[...(key==="careers"||key==="interests"?[node("h3","",cfg.label)]:[]),node("p","card-empty",emptyLabels[key])];
     if(cfg.locked){block.classList.add("is-locked");block.append(...nodes,node("p","card-locked-note",cfg.label+"은 아직 여기서 고칠 수 없어요."));return block;}
     block.classList.add("is-editable");
     const edit=button("수정",()=>openBlock(key),"card-edit");edit.setAttribute("aria-label",cfg.label+" 수정");block.append(edit);

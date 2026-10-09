@@ -13,6 +13,7 @@ function take(file, name) {
   return source.slice(start, source.indexOf('\n}', start) + 2);
 }
 function install(file, names) { for (const name of names) vm.runInThisContext(take(file, name)); }
+global.RndPersonView = require('./rndplz/web/person-view.js');
 global.esc = s => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 global.safeUrl = () => false;
 function element() {

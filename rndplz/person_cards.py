@@ -118,8 +118,20 @@ class PersonCards:
     def preview(self, person_id, draft):
         """The card a draft would give, as /api/person shows it; the corpus is not changed."""
         with self.lock:
-            card, _, _ = self._build(person_id, draft)
-            return {'id': person_id, 'name': card.name, 'org': card.org, 'virtual': card.virtual, 'profile': copy.deepcopy(card.profile)}
+            from .engine import Engine
+
+            card, careers, _ = self._build(person_id, draft)
+            # Use only the already scoped corpus, replacing its careers with the draft.
+            # Preview neither publishes those records nor reads the account's private files.
+            records = [record for record in self.corpus.by_person.get(person_id, [])
+                       if record.kind != 'career_record'] + careers
+            engine = Engine(self.corpus)
+            return {'id': person_id, 'name': card.name, 'org': card.org, 'virtual': card.virtual,
+                    'profile': copy.deepcopy(card.profile), 'record_count': len(records),
+                    'evidence': [engine.explain_record(record, next(c for c in record.people if c.person_id == person_id))
+                                 for record in records],
+                    'profile_topics': [topic.get('name', '') for topic in card.profile.get('topics', [])[:3]],
+                    'person_confirmed': False}
 
     def apply(self, person_id, draft):
         """Show a saved draft (profile.fields/careers) as the card. Returns the changed items."""

@@ -341,7 +341,7 @@ FONT_FILES = {'/fonts/pretendard/pretendardvariable-dynamic-subset.css': 'text/c
 # One canonical allowlist for serving and HTML/CSS content-version references.
 STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
                 '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
-for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
+for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
 
 INTENT_SECONDS = 12
