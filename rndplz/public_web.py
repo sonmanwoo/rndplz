@@ -38,6 +38,7 @@ from .landing import LANDING_ASSETS, build_landing_people_map, capability_docume
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .person_cards import PersonCards
+from .public_read import build_public_engine, record_payload
 from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
@@ -496,15 +497,8 @@ class PublicApp:
         self.origin = self.hosted_demo_policy.origin if self.hosted_demo_policy is not None else self.env.get('RNDPLZ_PUBLIC_ORIGIN', '').rstrip('/')
         if self.hosted_demo_policy is not None:
             self.allowed_hosts.add(self.hosted_demo_policy.authority.split(':')[0])
-        corpus = Corpus()
-        approved = self.env.get('RNDPLZ_PUBLISH_PERSONAL') == '1' if include_personal is None else include_personal
-        if not approved:
-            from .public_profiles import restrict_personal_publication, selected_public_people
-            selected = selected_public_people(self.env) if include_personal is None else frozenset()
-            restrict_personal_publication(corpus, selected)
-        from .demo_pool import project_corpus
-        corpus = project_corpus(corpus, allow_personal_omission=not approved)
-        self.engine = Engine(corpus)
+        self.engine = build_public_engine(self.env, include_personal, corpus=Corpus())
+        corpus = self.engine.corpus
         if self.env.get('APP_RUNTIME') == 'hosted_public' and self.env.get('RNDPLZ_GEMMA_BRIDGE_BACKEND') == 'redis':
             from .hosted_gemma import HostedGemmaModels
             self.models = HostedGemmaModels(self.env)
@@ -1191,7 +1185,7 @@ class PublicApp:
                 if path == '/api/record':
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
-                    return send(200, {**self.engine.explain_record(record), 'text': record.text, 'details': record.details})
+                    return send(200, record_payload(self.engine, identifier))
                 if path in STATIC_FILES:
                     return serve_static()
                 return send(404, {'error': '페이지를 찾을 수 없습니다.'})

@@ -7,6 +7,7 @@ from collections import Counter
 import json
 from pathlib import Path
 from datetime import datetime, timezone
+from .public_read import SOURCE_NOTE, AVAILABILITY_NOTE
 
 PROFILE_KEYS = {
     'id', 'slug', 'name', 'display_name', 'aliases', 'org', 'org_type', 'curated',
@@ -99,8 +100,8 @@ def build_people_map(engine):
         'source': {
             'generated_at': datetime.now(timezone.utc).isoformat(),
             'method': '현재 서비스에서 제공하는 인물·근거 기록을 읽기 전용으로 연결',
-            'note': '공개 논문·제공 경력·가상 현장 기록이며 사내 실명부가 아닙니다.',
-            'availability_note': '현재 소속·가용 시간·연락 의향은 미확인',
+            'note': SOURCE_NOTE,
+            'availability_note': AVAILABILITY_NOTE,
         },
         'counts': {
             'people': len(people), 'nonvirtual_people': sum(not p['virtual'] for p in people),

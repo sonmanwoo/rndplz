@@ -10,6 +10,7 @@ SCOPE = {"provided_bibliography":"사용자 제공 논문·특허 목록","user_
 KIND = {"patent_bibliography":"제공 특허 목록","project_participation":"제공 프로젝트 이력","public_profile":"공식 공개 프로필 기록","career_experience":"제공된 직무 경력","experiment":"실험 문헌","simulation":"시뮬레이션 문헌","review":"리뷰 문헌","theory":"이론 문헌","mixed":"복합 문헌","unknown":"종류 미확인","site_experience":"가상 현장 경험"}
 MODE = {"advice":"자문","verify":"검증 요청","member":"프로젝트 멤버","site_request":"현장 의뢰","resource_request":"자원 요청"}
 ROLE = {"co_inventor":"공동발명자","participant_unspecified":"참여 · 역할 미기재","first":"1저자","middle":"공저자","last":"마지막 저자","unknown":"저자","recorded_role":"기록상 담당"}
+PUBLIC_RESEARCH_NOTE = "공식 프로필·논문에 근거한 공개 연구 사례입니다. 사내 재직·개인 수행·현재 협업 가능 여부는 확인하지 않았습니다."
 
 
 class Engine:
@@ -177,7 +178,7 @@ class Engine:
         if record.scope == "ai_foundations":
             boundary = "공개 AI 연구 사례입니다. 사내 재직·협업 가능 여부나 정유·냉각 분야 수행 경험을 뜻하지 않습니다."
         if record.scope == "public_research_case":
-            boundary = "공식 프로필·논문에 근거한 공개 연구 사례입니다. 사내 재직·개인 수행·현재 협업 가능 여부는 확인하지 않았습니다."
+            boundary = PUBLIC_RESEARCH_NOTE
             boundary += " " + " ".join(record.details.get(k, "") for k in ("contribution_note", "boundary_note") if record.details.get(k))
         if record.scope == "public_profile":
             boundary = "회사·기관의 공식 공개자료를 요약한 경력·학력 기록입니다. 직함·직무는 기록의 기준일에 한정하며 개인 수행 수준·현재 협업 가능성은 확인하지 않았습니다."
