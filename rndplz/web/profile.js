@@ -132,14 +132,7 @@
       {id:"skillSummary",html:RndPersonView.skills(cardPerson,{limit:4,className:"sheet-chips"})+'<p class="sheet-stats">'+RndPersonView.countLabel(cardPerson.evidence?.length||0)+'</p>'},
       ...RndPersonView.sheetSections(cardPerson,options)
     ]:RndPersonView.sections(cardPerson,options);
-    const group=section=>{
-      if(section.children){
-        const fold=node("details","sheet-more");fold.append(node("summary","",section.summary),...section.children.map(child=>cardBlock(group(child))));
-        if(section.children.some(child=>child.id===cardEditing))fold.open=true;
-        return {key:section.id,nodes:[fold]};
-      }
-      const body=node("div");body.innerHTML=section.html;return {key:section.id,nodes:[...body.childNodes]};
-    };
+    const group=section=>{const body=node("div");body.innerHTML=section.html;return {key:section.id,nodes:[...body.childNodes]};};
     const groups=reading.map(group);
     host.replaceChildren(...groups.map(group=>cardBlock(group)));
     RndPersonView.bind(host);
