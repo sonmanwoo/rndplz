@@ -74,11 +74,13 @@ class AiuProviderTests(unittest.TestCase):
             list(models.stream('aiu:gpt-luna', [{'role': 'user', 'content': '증류 전문가 찾아줘'}]))
         self.assertEqual(sink[0][1]['Authorization'], 'Bearer app-gpt')
 
-    def test_the_hosted_catalog_lists_aiu_first_as_the_default(self):
+    def test_the_hosted_catalog_keeps_aiu_selectable_but_not_the_default(self):
         from rndplz.public_web import PublicModels
         hosted = PublicModels({**ENV, 'RNDPLZ_PUBLIC_MODEL': 'bridge', 'RNDPLZ_BRIDGE_TOKEN': 'fixture-secret'})
         catalog = hosted.catalog()
-        self.assertEqual(catalog['default'], 'aiu')
+        self.assertEqual(catalog['default'], 'guide')  # Gemma not connected: no AI rather than the company AI
+        hosted.bridge.control = lambda command: {'models': ['gemma4:e4b'], 'draining': False}
+        self.assertEqual(hosted.catalog()['default'], 'bridge')  # connected Gemma is the default
         self.assertEqual([m['id'] for m in catalog['models']], ['bridge', 'guide', 'aiu'])
         without = PublicModels({'RNDPLZ_PUBLIC_MODEL': 'bridge', 'RNDPLZ_BRIDGE_TOKEN': 'fixture-secret'})
         self.assertEqual([m['id'] for m in without.catalog()['models']], ['bridge', 'guide'])
