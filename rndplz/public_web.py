@@ -20,7 +20,7 @@ from .chat_models import ChatModels
 from .attachments import AttachmentError, MAX_UPLOAD_BODY, MAX_HTTPS_BODY
 from .attachment_uploads import AttachmentUploads
 from .https_documents import FetchError
-from .gemma_bridge import GemmaRelay
+from .gemma_bridge import GemmaRelay, gemma_display_name
 from .conversation import Conversation
 from .model_conversation import ModelResponseUnavailable, ModelResponseBudgetExhausted, ScoutSourceChanged
 from .discovery import DiscoveryError
@@ -367,7 +367,7 @@ class PublicModels(ChatModels):
                 ready=model in available and not status['draining']
                 suffix='' if ready else ' · 점검 중' if status['draining'] else ' · 연결 대기'
                 items.append({'id':'bridge' if model==self.bridge.model else 'bridge:'+model,
-                              'provider':'bridge','model':model,'name':model+' · 운영자 PC'+suffix,
+                              'provider':'bridge','model':model,'name':gemma_display_name(model)+' · 운영자 PC'+suffix,
                               'enabled':ready,'local':False,'vision':False})
             items.append({'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False})
             # A configured company AI (AiU) app is the default; Gemma on the operator PC stays selectable.
