@@ -200,6 +200,23 @@ html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
 /* Stable section IDs do not introduce layout boxes into existing reading views. */
 .person-section{display:contents}
 
+/* The profile editor uses the map's reading fragments without importing the map page's shell. */
+#cardView{font:15px/1.65 var(--font-sans)}
+#cardView .scope-note{padding:0;border:0;border-radius:0;background:none;font-size:12px;line-height:1.75;color:var(--muted)}
+#cardView .detail-block{margin:24px 0;padding-top:20px;border-top:1px dashed #bdc7b5}
+#cardView .detail-block h3{font-size:16px}
+#cardView .detail-block p{font-size:14px}
+#cardView .detail-block dl{display:grid;grid-template-columns:90px 1fr;gap:8px;font-size:12px}
+#cardView .detail-block dt{color:var(--muted)}
+#cardView .detail-block dd{margin:0;overflow-wrap:anywhere}
+#cardView .record-link{display:block;text-align:left;font-size:15px;font-weight:600;padding:0;margin-bottom:12px;border:0;background:none;color:inherit;text-decoration:underline;text-decoration-color:#c4ccba;text-underline-offset:4px}
+#cardView .sheet-row{font:inherit;font-size:13.5px;line-height:1.5}
+#cardView .project-participants .text-button{color:var(--green);font-size:13px;min-height:0;text-decoration:underline;text-decoration-color:#c4cec1;text-underline-offset:5px;padding:4px 0}
+#cardView .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+#cardView .tag{font-size:12px;line-height:1.5;padding:3px 7px;border:1px solid #83978377;border-radius:20px}
+#cardView .detail-note{background:#eef0e7;border-radius:10px;padding:14px;font-size:12px}
+@media(max-width:700px){#cardView .detail-block dl{grid-template-columns:75px 1fr}}
+
 /* The shared expansion button keeps the existing invisible 44px touch target. */
 @media (pointer:coarse),(max-width:700px){
  :is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chip-more{position:relative}

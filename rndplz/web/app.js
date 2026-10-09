@@ -149,7 +149,7 @@ function evidenceDatesHtml(e){
  return '<dt>출원일</dt><dd>'+esc(e.filing_date||'미기재')+'</dd><dt>'+esc(label)+'</dt><dd>'+esc(e.publication_date||e.date||'미기재')+'</dd><dt>공보번호</dt><dd>'+esc(e.publication_id||'미기재')+'</dd>';
 }
 function evidenceHtml(e,currentPersonId=null,foundLabel=""){
- return '<section class="detail-block'+(foundLabel?' found-record':'')+'">'+(foundLabel?'<p class="found-label">'+esc(foundLabel)+'</p>':'')+'<button class="record-link" data-action="record" title="근거 기록의 내용과 출처 보기" data-id="'+esc(e.id)+'"'+(e.in_current_pool===false?' disabled':'')+'>'+esc(e.title)+'</button><div class="tags"><span class="tag">'+esc(e.evidence_label)+'</span><span class="tag">'+esc(e.scope)+'</span><span class="tag">'+esc(e.role)+(e.corresponding?" · 교신":"")+'</span></div><dl>'+evidenceDatesHtml(e)+'<dt>자료 확인일</dt><dd>'+esc(e.checked_at)+'</dd><dt>확인한 자료</dt><dd>'+esc(e.access)+'</dd><dt>기록 종류 근거</dt><dd>'+esc((e.classification_basis||[]).join(" · ")||"분류할 정보가 부족함")+'</dd></dl><p class="detail-note">'+esc(e.boundary)+'</p>'+(safeUrl(e.url)?'<a href="'+esc(e.url)+'" target="_blank" rel="noopener noreferrer">원본 출처 열기 ↗</a>':"")+extraRecordSources(e)+projectParticipantsHtml(e,currentPersonId)+'</section>';
+ return RndPersonView.detailEvidence(e,{personId:currentPersonId,label:foundLabel});
 }
 function safeUrl(u){try{return ["http:","https:"].includes(new URL(u).protocol);}catch{return false;}}
 // Presentation only: callers pass the current disclosed candidate, never a directory profile.
@@ -231,14 +231,14 @@ function sheetHtml(p,found,labels,evidence,candidate,context={}){
  const historicalPerson=pr.display_type==="historical_researcher"||pr.current_status?.category==="deceased"||pr.affiliation_status==="deceased";
  const tags=[found?.team?"우리 팀":"",RndCraft.isLaureate(pr)?[pr.award.year,pr.award.label_ko||"노벨상"].filter(Boolean).join(" "):"",historicalPerson?"역사적 연구 자료":""].filter(Boolean);
  const letter=candidate&&canPropose(candidate)?'<button type="button" class="sheet-primary" data-action="letter" data-id="'+esc(candidate.id)+'">의뢰 초안 보기</button>':"";
- const content=RndPersonView.render(p,{includeIdentity:false,includePortrait:false,portraitMetadata:true,includeSkills:false,evidence,partial,historical,scopeNote,recordAction:true,labels});
+ const content=RndPersonView.sheetSections(p,{evidence,labels,partial,historical,scopeNote}).map(section=>section.html).join("");
  return '<div class="sheet-handle" aria-hidden="true"></div>'+
-  '<div class="sheet-head"><span class="sheet-face">'+RndPersonView.portrait(pr,name,{variant:"thumb"})+'</span>'+RndPersonView.nameBlock(p,"strong","sheet-id",{tags})+
+  '<div class="sheet-head"><span class="sheet-face">'+RndPersonView.portrait(pr,name,{variant:"thumb",decorative:true,fallbackInitial:true})+'</span>'+RndPersonView.nameBlock(p,"strong","sheet-id",{compact:true,tags})+
   '<div class="sheet-nav"><button type="button" data-sheet-step="-1" aria-label="이전 인물">‹</button><button type="button" data-sheet-step="1" aria-label="다음 인물">›</button></div></div>'+
   RndPersonView.skills(p,{limit:4,className:"sheet-chips"})+
   '<p class="sheet-stats">'+esc(partial||historical?RndPersonView.countLabel(evidence.length,true):personEvidenceStats(p,found,candidate))+'</p>'+
   '<div class="sheet-actions sheet-peek-only"><button type="button" data-sheet-mode="full">자세히 보기 ↑</button>'+letter+'</div>'+
-  '<div class="sheet-full-only">'+(p.reason?'<p class="context-note">'+esc(p.reason)+'</p>':"")+content+
+  '<div class="sheet-full-only">'+content+
    (candidate&&!canPropose(candidate)?detailRequestAction(candidate):"")+
    '<div class="sheet-bar"><button type="button" data-sheet-mode="peek">맵으로 ↓</button>'+letter+'</div>'+
   '</div>';
@@ -249,9 +249,8 @@ function showPerson(p,candidate=false,found=null,docked=false,sheet=null){
  const labels=foundLabels(found),evidence=[...(p.evidence||[])].sort((a,b)=>labels.has(b.id)-labels.has(a.id));
  const result=displayResult(session),chosen=session?.pending?null:result?.candidates.find(c=>c.id===p.id);
  const historical=Boolean(candidate&&result?.historical_result),scopeNote=historical?result?.scope_note:undefined;
- const context='<div class="detail-block"><h3>이 기록과 연결되어 있어요.</h3><p>'+esc(p.reason||"출처가 연결된 연구·직무 경력입니다.")+'</p><p class="muted">'+esc(candidate||historical?RndPersonView.countLabel(evidence.length,true):personEvidenceStats(p,found,chosen))+'</p></div>';
- const card=detailRequestAction(chosen)+RndPersonView.sections(p,{evidence,partial:candidate,historical,scopeNote,recordAction:true,labels})
-  .map(section=>(section.id==="evidence"?context:"")+'<section class="person-section" data-person-section="'+section.id+'">'+section.html+'</section>').join("");
+ const context=RndPersonView.evidenceContext(p,{evidence,partial:candidate,found,candidate:chosen,historical,scopeNote});
+ const card=detailRequestAction(chosen)+RndCraft.profileDetails(p)+'<div class="selected-holo"'+(p.profile?.curated?' hidden':'')+'><span class="tag">'+(p.virtual?"시연용 가상 인물":"공개 연구자 프로필")+'</span><h2 class="detail-name">'+esc(RndPersonView.displayName(p))+'</h2><p class="muted">'+esc(p.org)+'</p><div class="checks"><span>참여 기록 확인</span><span>개인 수행 미확인</span><span>본인 확인 미완료</span></div></div>'+context+evidence.map(e=>evidenceHtml(e,p.id,labels.get(e.id))).join("");
  $("detailContent").innerHTML=sheet?sheetHtml(p,found,labels,evidence,chosen,{partial:candidate,historical,scopeNote}):card;
  markFound(found,labels,sheet?$("detailContent").querySelector(".sheet-full-only"):null);
  showDialog("detailDialog",docked);
@@ -266,6 +265,14 @@ async function openMapPerson(id,map,mode=null){
  for(const b of $("detailContent").querySelectorAll("[data-sheet-step]"))b.disabled=!map.neighbor(id,Number(b.dataset.sheetStep));
  const r=$("detailDialog").getBoundingClientRect();
  if(sheet==="peek")map.focus(id,innerHeight-r.top);else if(!sheet)map.reveal(id,innerWidth-r.left,0);
+}
+// A participant link from the profile editor opens only a person in the current public map.
+async function openLinkedPerson(){
+ const id=new URLSearchParams(location.search).get("person");if(!id)return;
+ const map=await RndPeopleMap.ensure($("peopleMapHost"),api);
+ if(!map?.found(id))throw new Error("현재 공개된 인물과 근거를 다시 확인해 주세요.");
+ map.select(id);rememberDetailTrigger(null,id);
+ await openMapPerson(id,map,SHEET_MEDIA.matches?"full":null);
 }
 async function openDetailRecord(id,button){
  const dialog=$("detailDialog"),content=$("detailContent");
@@ -415,7 +422,7 @@ document.addEventListener("change",e=>{
  if(e.target.id==="modelConsent")sessionStorage.setItem("rndplz-model-consent",e.target.checked?"yes":"no");
 });
 (async()=>{
- try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("people-map")?.scrollIntoView({block:"start"});}
+ try{boot=await api("/api/bootstrap");token=boot.token;session=boot.session;if(boot.public)document.querySelectorAll('[data-action="export"]').forEach(b=>b.hidden=true);$("aiQuestionButton").hidden=!boot.model.enabled;$("inboxCount").textContent=boot.proposal_count;$("modelStatus").textContent=boot.model.enabled?"AI 문장 도우미 사용 가능":"모델 없이도 연결되는 경험";renderExamples();renderSession();await showTab("map");if(location.hash==="#inbox")await openInbox();if(location.hash==="#peopleCards")$("people-map")?.scrollIntoView({block:"start"});await task(openLinkedPerson);}
  catch(e){toast(e.message+" 새로고침해 주세요.",true);$("askButton").disabled=true;}
 })();
 

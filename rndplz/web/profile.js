@@ -9,6 +9,8 @@
   let digest=null, digestTicket=0; // the company AI's card proposal for one document
   // A bound account edits its research-map card: the card as saving would show it, one block open at a time.
   let cardPerson=null, cardEditing=null, cardBefore=null, cardSeq=0, cardTimer=0, cardError="";
+  const cardSheetMedia=window.matchMedia?.("(max-width:900px)");
+  cardSheetMedia?.addEventListener("change",()=>{if(cardMode())renderCard();});
   const deletionRetries=new Map(), dialogOpeners=new Map();
   const clone=value=>JSON.parse(JSON.stringify(value));
   const requestId=()=>crypto.randomUUID().replaceAll("-","");
@@ -123,9 +125,21 @@
     if(!cardPerson||!window.RndPersonView){host.replaceChildren(empty(cardError||"연구맵 카드를 불러오고 있어요."));return;}
     if(cardEditing&&host.querySelector(".card-block-editor"))return; // keep the open editor; the card follows when it closes
     // The public reading sections also identify the editable blocks; visible headings can change freely.
-    const groups=RndPersonView.sections(cardPerson,{editable:true,includeEvidence:true,recordAction:false}).map(section=>{
+    const sheet=Boolean(cardSheetMedia?.matches),options={editable:true,includeEvidence:true,recordAction:false,personLinks:true};
+    const reading=sheet?[
+      {id:"identity",html:'<div class="sheet-head"><span class="sheet-face">'+RndPersonView.portrait(cardPerson.profile,RndPersonView.displayName(cardPerson),{variant:"thumb",decorative:true,fallbackInitial:true})+'</span>'+RndPersonView.nameBlock(cardPerson,"strong","sheet-id",{compact:true})+'</div>'},
+      {id:"skillSummary",html:RndPersonView.skills(cardPerson,{limit:4,className:"sheet-chips"})+'<p class="sheet-stats">'+RndPersonView.countLabel(cardPerson.evidence?.length||0)+'</p>'},
+      ...RndPersonView.sheetSections(cardPerson,options)
+    ]:RndPersonView.sections(cardPerson,options);
+    const group=section=>{
+      if(section.children){
+        const fold=node("details","sheet-more");fold.append(node("summary","",section.summary),...section.children.map(child=>cardBlock(group(child))));
+        if(section.children.some(child=>child.id===cardEditing))fold.open=true;
+        return {key:section.id,nodes:[fold]};
+      }
       const body=node("div");body.innerHTML=section.html;return {key:section.id,nodes:[...body.childNodes]};
-    });
+    };
+    const groups=reading.map(group);
     host.replaceChildren(...groups.map(group=>cardBlock(group)));
     RndPersonView.bind(host);
     if(cardError)host.prepend(node("p","profile-error",cardError));

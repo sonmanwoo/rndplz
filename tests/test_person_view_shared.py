@@ -78,7 +78,8 @@ def test_history_uses_passed_snapshot_without_latest_registry_counts():
     run_js(r"""
 const snapshot={name:'저장 이름',profile:{display_name:'저장 표시명',biography:'당시 소개'},
  evidence:[{id:'old',title:'당시 기록',excerpt:'당시 설명'}],record_count:500};
-const output=P.render(snapshot,{historical:true,scopeNote:'저장된 범위'});
+const output=P.nameBlock(snapshot)+P.evidenceSection(snapshot.evidence,snapshot.profile,{historical:true})+
+ P.notice(snapshot,{historical:true,scopeNote:'저장된 범위'});
 assert(output.includes('저장 표시명') && output.includes('당시 설명'));
 assert(output.includes('이번 조건에 연결된 근거 1건'));
 assert(!output.includes('<h3>전체 등록 이력'));
@@ -111,15 +112,17 @@ const person={id:'P',name:'합성 인물',profile:{curated:true,biography:'합�
  links:[{url:'https://example.org',label:'소개 링크'}]},evidence:[
  {id:'C1',kind:'career_record',title:'경력 기록',date:'2026'},
  {id:'P1',kind:'project_record',title:'프로젝트 기록',date:'2025'}]};
-const sections=P.sections(person,{editable:true});
+const sections=P.sections(person,{editable:true,includeEvidence:true});
 const ids=sections.map(s=>s.id);
 for(const id of ['identity','bio','skills','careers','projects','links','evidence'])assert(ids.includes(id),id);
 assert.equal(new Set(ids).size,ids.length);
 const output=P.render(person);
 assert.equal(output.split('한 번만 보여줄 경력').length-1,1);
 assert.equal(output.split('한 번만 보여줄 성과').length-1,1);
-for(const id of ['identity','careers','projects','links'])assert(output.includes('data-person-section="'+id+'"'));
-const notice=P.notice(person);assert(notice);assert.equal(output.split(notice).length-1,1);
+assert.equal(output,P.sections(person).map(section=>section.html).join(''));
+assert(!output.includes('person-section'));
+assert(!P.sections(person).some(section=>section.id==='evidence'));
+const notice=P.notice(person,{variant:'detail'});assert(notice);assert.equal(output.split(notice).length-1,1);
 const chips=P.skills(person,{limit:4,className:'sheet-chips'});
 assert(chips.includes('data-chips-more') && chips.includes('+1') && chips.includes('hidden'));
 """)
