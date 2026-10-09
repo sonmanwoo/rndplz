@@ -34,6 +34,7 @@ from .service import Service, ProviderScopeError, PickError
 from .storage import StateStore
 from .people_map import build_people_map, build_home_people_map
 from .static_assets import StaticAssets
+from .landing import LANDING_ASSETS, build_landing_people_map, capability_document, chat_script_variant, home_script_variant, landing_document, landing_variant
 from .diagnostics import DiagnosticAuth, Diagnostics, OperationalDiagnostics, attachment_client_metadata, scope as diagnostic_scope
 from .profiles import Profiles, ProfileError
 from .person_cards import PersonCards
@@ -343,6 +344,8 @@ STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', '
                 '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html')}
 for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
+
+STATIC_FILES.update(LANDING_ASSETS)
 
 INTENT_SECONDS = 12
 
@@ -1019,6 +1022,16 @@ class PublicApp:
             try: asset = self.static_assets.read(path)
             except FileNotFoundError: asset = None
             if asset is None: return send(404, {'error': '파일을 찾을 수 없습니다.'})
+            if path == '/landing-home.js':
+                asset = home_script_variant(asset)
+            elif path == '/landing-chat.js':
+                asset = chat_script_variant(asset)
+            elif path == '/':
+                variant = landing_variant(environ.get('QUERY_STRING', ''))
+                if variant:
+                    asset = landing_document(asset, variant, WEB, self.static_assets)
+            elif path == '/explore' and 'capability' in parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True):
+                asset = capability_document(asset, self.static_assets)
             raw, mime = asset.body, asset.mime
             if not mime.startswith('text/html'):
                 versions = parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True).get('v')
@@ -1168,7 +1181,7 @@ class PublicApp:
                     return send(200,browser_project(session))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
                 if path == '/api/people-map':
-                    value = build_home_people_map(service.engine) if query.get('view') == ['home'] else build_people_map(service.engine)
+                    value = (build_landing_people_map(service.engine) if query.get('landing') == ['1'] else build_home_people_map(service.engine)) if query.get('view') == ['home'] else build_people_map(service.engine)
                     return send(200, value, public=True)
                 if path == '/api/admin': return send(200, service.admin())
                 if path == '/api/person': return send(200, service.person(identifier))
