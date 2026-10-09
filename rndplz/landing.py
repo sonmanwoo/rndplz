@@ -82,7 +82,8 @@ def landing_document(asset, variant, web, static_assets):
     css = html.escape(static_assets.versioned_url('/landing.css', '/'), quote=True)
     source = source.replace('</head>', '<link rel="stylesheet" href="' + css + '"></head>', 1)
     down = ('<a id="landingDown" class="landing-down" href="#landingFeatures" aria-label="소개 보기">'
-            '<span aria-hidden="true">⌄</span></a>')
+            '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">'
+            '<path d="M4.25 9.25 12 17l7.75-7.75" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></a>')
     fragment = (web / 'landing.html').read_bytes().decode('utf-8')
     # HTML remains in source order: welcome, introduction, and existing dialogs.
     source = source.replace('</main></div>', down + newline + '</main></div>' + newline + fragment, 1)
