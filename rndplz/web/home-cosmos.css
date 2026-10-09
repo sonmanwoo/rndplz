@@ -38,7 +38,6 @@ body.home-welcome .home-intro-on .home-intro{display:flex}
 
 /* Composer on the home screen: narrower, larger text and a rotating example (shape and buttons: site-cosmos.css). */
 body.home-welcome .composer-dock{max-width:640px;width:100%;margin:0 auto}
-body.home-welcome #homeExample{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .home-input{position:relative;flex:1;min-width:0;display:flex;align-items:center}
 /* min-height covers a height chat.js measured in the conversation view (smaller text) before returning home. */
 body.home-welcome .composer textarea{font-size:18px;line-height:26px;padding:10px 4px;min-height:46px;min-width:0}

@@ -114,3 +114,29 @@ def build_people_map(engine):
         'featured_ids': featured, 'topics': corpus.topics, 'people': people,
         'capabilities': build_capabilities(corpus),
     }
+
+
+def build_home_people_map(engine):
+    """Only the home animation's fields, from the same already scoped corpus.
+
+    Keep the full map's order and curated-profile publication rule. Reuse its
+    capability membership, but do not materialize evidence or detailed profiles.
+    Person-card details still come from /api/person when a portrait is opened.
+    """
+    corpus = engine.corpus
+    people = []
+    for person in corpus.people.values():
+        profile = person.profile if person.profile.get('curated') else {}
+        home_profile = {key: profile[key] for key in ('display_name',) if key in profile}
+        portrait = profile.get('portrait') or {}
+        if 'path' in portrait:
+            home_profile['portrait'] = {'path': portrait['path']}
+        people.append({'id': person.id, 'name': person.name, 'profile': home_profile})
+    return {
+        'schema_version': 'people-map-home-v1',
+        'people': people,
+        'capabilities': [
+            {'id': category['id'], 'people': [{'id': link['id']} for link in category['people']]}
+            for category in build_capabilities(corpus)
+        ],
+    }
