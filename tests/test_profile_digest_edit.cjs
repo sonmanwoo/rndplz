@@ -148,10 +148,11 @@ function fixture({reduced = false, width = 700} = {}) {
   document.getElementById = id => id === 'digestView' ? host : null;
   document.querySelector = selector => document.body.querySelector(selector);
   document.querySelectorAll = selector => document.body.querySelectorAll(selector);
-  const draft = {fields: {bio: '현재 소개\n둘째 줄', skills: '증류, 추출', interests: '촉매'}, careers: [
+  const draft = {fields: {name:'기존 이름',organization:'기존 소속',department:'기존 부서',role:'기존 직위',aliases:['Old Name'],tagline:'기존 한 줄 소개',bio: '현재 소개\n둘째 줄', skills: '증류, 추출', interests: '촉매'}, careers: [
     {title: '탈색 공정 개발', period: '2023.01 — 현재'}, {title: '두 번째 경력'}, {title: '세 번째 경력'}
   ]};
-  const digest = {name: '시험 자료', editing: null, skip: new Set(), proposal: {
+  const digest = {name: '시험 자료',source_id:'source-fixture', editing: null, skip: new Set(), proposal: {
+    name:'제안 이름',organization:'제안 소속',department:'제안 부서',role:'제안 직위',aliases:['New Name'],tagline:'제안 한 줄 소개',
     bio_addition: '새 소개', skills: ['공정 모델링', '실험 설계'], interests: ['막 분리'],
     careers: [{title: '새 프로젝트', organization: '조직', period: '2026', role: '설계', description: '한 일과 적용 조건'},
       {title: '다음 프로젝트', organization: '', period: '', role: '', description: ''}]
@@ -193,7 +194,7 @@ function assertFocus(f, expected, message) {
   assert.equal(f.document.focuses.at(-1)?.options?.preventScroll, true, '초점 이동은 자동 스크롤을 억제한다');
 }
 
-const cases = [['bio', 'bio'], ['skills:0', 'skills'], ['interests:0', 'interests'], ['career:0', 'careers']];
+const cases = [['name','name'],['organization','organization'],['department','department'],['role','role'],['tagline','tagline'],['aliases:0','aliases'],['bio', 'bio'], ['skills:0', 'skills'], ['interests:0', 'interests'], ['career:0', 'careers']];
 let transitions = 0;
 for (const width of [390, 1200]) for (const [id, key] of cases) for (const ending of ['완료', '취소', '닫기', 'Escape']) {
   const f = fixture({width});
@@ -229,7 +230,7 @@ for (const width of [390, 1200]) for (const [id, key] of cases) for (const endin
   assert.equal(current.inert, false, '종료하면 현재값의 비활성 상태를 해제한다');
   assert.equal(current.getAttribute('aria-hidden'), 'false');
   assertFocus(f, f.pen(id), '종료 후 같은 항목의 연필로 초점을 돌린다');
-  const value = key === 'bio' ? f.digest.proposal.bio_addition : key === 'careers' ? f.digest.proposal.careers[0].title : f.digest.proposal[key][0];
+  const value = key === 'bio' ? f.digest.proposal.bio_addition : key === 'careers' ? f.digest.proposal.careers[0].title : Array.isArray(f.digest.proposal[key])?f.digest.proposal[key][0]:f.digest.proposal[key];
   assert.equal(value === '고친 내용', ending === '완료', '완료만 편집 내용을 반영한다');
   f.flush();
   assert(!originalRow.classList.contains('is-transitioning'), '타이머로 전환 중 상태를 정리한다');
@@ -304,7 +305,7 @@ for (const [id] of cases) {
   assert.equal(f.context.digestRowKey('career:1'), 'careers');
   assert.equal(f.context.digestCurrentSummary('careers'), '지금 카드: 2023.01 — 현재 · 탈색 공정 개발 외 2건');
   assert.equal(f.context.digestCurrentSummary('bio'), '지금 카드: 현재 소개 둘째 줄', '현재 소개의 줄바꿈은 한 줄로 정리한다');
-  for (const key of ['bio', 'skills', 'interests']) f.draft.fields[key] = '';
+  for (const key of ['name','organization','department','role','tagline','aliases','bio', 'skills', 'interests']) f.draft.fields[key] = '';
   f.draft.careers = [];
   for (const [id, key] of cases) {
     f.pen(id).click();
@@ -360,4 +361,55 @@ for (const rect of [{top: 900, bottom: 1160}, {top: -400, bottom: -100}, {top: -
   f.flush();
 }
 
-console.log(JSON.stringify({통과: true, 화면폭: [390, 1200], 시작종료전환: transitions, 검사: '행 유지·요약·초점·선택·키보드·스크롤·빠른 전환·움직임 축소'}));
+// 기존 행 동작을 기본 정보에도 적용하고, 경고와 채택 출처가 저장 직전까지 이어지는지 확인한다.
+{
+  const f=fixture();
+  f.pen('role').click();f.action('고치기 완료').click();
+  assert(!f.digest.edited?.has('role'),'값을 그대로 완료하면 사용자 수정으로 표시하지 않는다');
+  f.digest.proposal.warnings=[{message:'원문에서 확인되지 않은 숫자를 확인 필요로 표시했습니다.'}];
+  f.context.renderDigest();
+  assert(f.host.textContent.includes(f.digest.proposal.warnings[0].message));
+  f.pen('organization').click();f.editor().querySelector('input').value='사용자가 고친 소속';f.action('고치기 완료').click();
+  assert(f.row('organization').textContent.includes('자료 기반 + 사용자 수정'));
+  f.item('name').querySelector('.digest-add').click();
+  const apply=source.slice(source.indexOf('  function applyDigest(){'),source.indexOf('  function renderHistory()'));
+  const cleaners=source.slice(source.indexOf('  function cleanCareers('),source.indexOf('  function hasChanges('));
+  let serial=0;
+  Object.assign(f.context,{requestId:()=>`new-${++serial}`,renderFields:()=>{},renderCareers:()=>{},updateControls:()=>{},cardEditing:null,cardBefore:null});
+  const originalLookup=f.context.$;
+  f.context.$=id=>id==='basics'?f.host:originalLookup(id);
+  f.context.view.profile={fields:JSON.parse(JSON.stringify(f.draft.fields)),careers:[],provenance:{bio:{source_ids:['old-source']}}};
+  f.context.view.limits.careers=20;
+  vm.runInContext(cleaners+apply,f.context);
+  vm.runInContext('applyDigest()',f.context);
+  assert.equal(f.draft.fields.name,'기존 이름','뺀 기본 정보는 현재값을 유지한다');
+  assert.equal(f.draft.fields.organization,'사용자가 고친 소속');
+  assert.deepEqual([...f.draft.fields.aliases],['Old Name','New Name'],'별칭을 배열로 채택한다');
+  assert.equal(f.draft.field_sources.organization.edited,true);
+  assert.deepEqual([...f.draft.field_sources.bio.source_ids],['old-source','source-fixture'],'누적 문장의 이전 출처를 유지한다');
+  f.draft.fields.department='채택 후 직접 수정';
+  const fields=vm.runInContext('fieldSources(manualChanges().fields)',f.context);
+  assert.equal(fields.department.edited,true,'채택 이후 편집도 사용자 수정으로 구분한다');
+  assert(!fields.name,'제외한 필드의 출처를 보내지 않는다');
+  f.draft.careers.at(-1).description='직접 고친 설명';
+  const careers=vm.runInContext('cleanCareers(draft.careers)',f.context);
+  assert.deepEqual([...careers.at(-1).source_ids],['source-fixture']);
+  assert.equal(careers.at(-1).edited,true);
+  assert.equal(careers.at(-2).edited,false);
+  assert(!('_sourceValue' in careers.at(-1)),'내부 비교용 값은 저장 페이로드에 넣지 않는다');
+  f.draft.fields.bio+=' 직접 고친 문장';
+  f.context.digest={source_id:'second-source',name:'둘째 자료',proposal:{bio_addition:'두 번째 추가'},skip:new Set()};
+  vm.runInContext('applyDigest()',f.context);
+  assert.equal(f.draft.field_sources.bio.edited,true,'직접 고친 뒤 다른 자료를 누적해도 수정 표시를 유지한다');
+  assert.deepEqual([...f.draft.field_sources.bio.source_ids],['old-source','source-fixture','second-source']);
+  const block=source.slice(source.indexOf('  function blockEditor('),source.indexOf('  function editableField('));
+  Object.assign(f.context,{labels:{organization:'소속'},clone:value=>JSON.parse(JSON.stringify(value)),fieldOrigin:()=>'',editableField:()=>f.document.createElement('input'),closeBlock:()=>{},cancelBlock:()=>{},renderCard:()=>{}});
+  f.context.$=id=>['basics','cardView'].includes(id)?f.host:originalLookup(id);
+  vm.runInContext(block,f.context);
+  const editor=vm.runInContext('blockEditor({label:"이름·소속",fields:["organization"]})',f.context);
+  editor.querySelectorAll('button').find(button=>button.textContent==='이 항목 되돌리기').click();
+  assert.equal(f.draft.fields.organization,'기존 소속');
+  assert(!f.draft.field_sources.organization,'저장값으로 되돌리면 새 자료의 출처 연결도 제거한다');
+}
+
+console.log(JSON.stringify({통과: true, 화면폭: [390, 1200], 시작종료전환: transitions, 검사: '기본 정보·별칭·행 유지·초점·선택·경고·출처 채택·사용자 수정·움직임 축소'}));

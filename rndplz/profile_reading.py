@@ -4,7 +4,7 @@ The extracted text (up to DOCUMENT_CHARS) goes to the company AI (AiU) in one ca
 it to the card: sentences to add to the biography, new skills and interests, and new career rows. The
 operator-PC Gemma needed 9,000-character parts with verbatim quotes and a merge call (2026-09-28);
 the company AI reads a 70-page note (~78k characters) at once, so neither is needed. Numbers the
-document does not state are dropped. Nothing is applied here: the page shows the current card
+document does not state are marked for review. Nothing is applied here: the page shows the current card
 beside the proposal and the user keeps what fits.
 """
 from __future__ import annotations
@@ -21,6 +21,7 @@ DOCUMENT_CHARS = 80000
 # The profile app when its key is configured (RNDPLZ_AIU_PROFILE_API_KEY), else the chat's AiU app.
 DIGEST_MODELS = (AIU_PROFILE_APP, 'aiu')
 CAREER_KEYS = ('title', 'organization', 'period', 'role', 'description')
+IDENTITY_FIELDS = {'name': 120, 'organization': 180, 'department': 180, 'role': 180, 'tagline': 240}
 
 
 def _s(limit):
@@ -33,6 +34,8 @@ def _obj(props):
 
 DIGEST_SCHEMA = _obj({
     'summary': _s(200),
+    **{field: _s(limit) for field, limit in IDENTITY_FIELDS.items()},
+    'aliases': {'type': 'array', 'maxItems': 20, 'items': _s(120)},
     'bio_addition': _s(300),
     'skills': {'type': 'array', 'maxItems': 8, 'items': _s(40)},
     'interests': {'type': 'array', 'maxItems': 5, 'items': _s(40)},
@@ -43,6 +46,11 @@ DIGEST_SYSTEM = (
     "당신은 연구맵 역량 카드 편집자입니다. 카드 주인이 자기 이력에 참고하라고 올린 자료(document)를 끝까지 읽고, "
     "동료가 '이 사람에게 무엇을 물어볼 수 있는지' 한눈에 알 수 있도록 현재 카드(current_card)에 더할 내용을 압축해 제안하세요.\n"
     "summary: 이 자료가 무엇인지 한 문장(자료 종류·주제·연도).\n"
+    "기본 정보 name(표시 이름), organization(현재 소속 기관), department(현재 부서), role(현재 직위·직무), "
+    "tagline(한 줄 소개)은 자료에 카드 주인 본인의 현재 정보로 명시된 표현을 그대로 옮기세요. "
+    "과거 소속·다른 사람의 정보·추측을 현재 정보로 쓰거나 한 줄 소개를 새로 만들지 마세요. "
+    "자료에 없거나 현재 카드와 같으면 빈 문자열입니다. aliases는 자료에 명시된 카드 주인의 영문 이름·다른 이름·별칭을 "
+    "원문 그대로 목록으로 쓰세요(최대 20개). 현재 이름 및 기존 aliases와 같은 것은 빼고, 없으면 빈 배열입니다.\n"
     "bio_addition: 현재 약력(current_card.bio) 뒤에 그대로 덧붙일 1~2문장(200자 이내). 자료에서 드러난 핵심 역량 중 현재 약력에 없는 것만 쓰고, "
     "현재 약력을 고쳐 쓰거나 되풀이하지 마세요. 더할 것이 없으면 빈 문자열.\n"
     "skills: 카드에 아직 없는 기술·방법론·도구·분석법 중 카드 주인이 직접 익혀 쓴 것. 짧은 한국어 명사구로 중요한 순서대로 최대 8개. "
@@ -159,7 +167,9 @@ def validate_request(value, text, snapshot):
 
 
 def _squash(value):
-    return re.sub(r'\s+', '', value)
+    # Ordinary spacing does not change a stated phrase. Whitespace between digits is a
+    # boundary, though: "10 17" must never become the invented number "1017".
+    return re.sub(r'(?<!\d) | (?!\d)', '', re.sub(r'\s+', ' ', value))
 
 
 def _json(raw):
@@ -180,13 +190,70 @@ def _key(value):
     return re.sub(r'[\s·,./()\-]+', '', value).lower()
 
 
-_NUMBER = re.compile(r'\d+(?:[.,]\d+)*')
+_NUMBER = re.compile(r'(?<!\d)(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?!\d)')
+
+
+def _numbers(value):
+    # Keep the original boundaries. Commas join only groups of three digits (1,200),
+    # not a bibliography number and year (eadd1017, 2022 or eadd1017,2022).
+    return {number.replace(',', '') for number in _NUMBER.findall(value)}
 
 
 def _grounded(value, text):
     """Every number in value also appears in the document (catches invented periods and metrics)."""
-    squashed = _squash(text)
-    return all(number in squashed for number in _NUMBER.findall(_squash(value)))
+    return _numbers(value) <= _numbers(text)
+
+
+def _review_numbers(value, text, warnings, field, **location):
+    """Keep the sentence, replacing only unsupported numeric tokens with a visible marker."""
+    stated, missing = _numbers(text), []
+
+    def replace(match):
+        number = match.group()
+        if number.replace(',', '') in stated:
+            return number
+        if number not in missing:
+            missing.append(number)
+        return '[확인 필요]'
+
+    reviewed = _NUMBER.sub(replace, value)
+    if missing:
+        warnings.append({'field': field, **location, 'reason': 'unsupported_number', 'numbers': missing,
+                         'message': '원문에서 확인되지 않은 숫자를 확인 필요로 표시했습니다.'})
+    return reviewed
+
+
+def _identity(value, text, card, warnings):
+    """Only explicit document wording may fill a current identity field."""
+    fields = {}
+    for field, limit in IDENTITY_FIELDS.items():
+        entry = _clean(value.get(field), limit)
+        if entry and (not _said(entry, text) or not _grounded(entry, text)):
+            warnings.append({'field': field, 'reason': 'not_stated',
+                             'message': '원문에서 확인되지 않은 기본 정보는 제안에서 제외했습니다.'})
+            entry = ''
+        fields[field] = '' if _squash(entry).lower() == _squash(card.get(field) or '').lower() else entry
+    previous = card.get('aliases', [])
+    if not isinstance(previous, list):
+        previous = re.split(r'[,;\n]+', previous) if isinstance(previous, str) else []
+    # A hyphen, period or word boundary can be the explicitly supplied alternate spelling.
+    # Keep it: the broader skill/title key would collapse "Hae-Won" and "Hae Won".
+    alias_key = lambda alias: _clean(alias, 120).casefold()
+    seen = {alias_key(alias) for alias in [card.get('name', ''), fields['name'], *previous] if isinstance(alias, str)}
+    aliases = []
+    for item in value.get('aliases') if isinstance(value.get('aliases'), list) else []:
+        entry = _clean(item, 120)
+        if not entry or alias_key(entry) in seen:
+            continue
+        if not _said(entry, text) or not _grounded(entry, text):
+            warnings.append({'field': 'aliases', 'reason': 'not_stated',
+                             'message': '원문에서 확인되지 않은 별칭은 제안에서 제외했습니다.'})
+            continue
+        aliases.append(entry)
+        seen.add(alias_key(entry))
+        if len(aliases) == 20:
+            break
+    return {**fields, 'aliases': aliases}
 
 
 def _document(text):
@@ -216,9 +283,12 @@ def _covered(entry, existing):
 
 def finish_digest(value, text, card):
     """Keep what the card does not have yet and whose numbers the document (or the card's biography) states."""
+    warnings = []
+    identity = _identity(value, text, card, warnings)
     addition = _clean(value.get('bio_addition'), 300)
-    if not _grounded(addition, text + '\n' + card.get('bio', '')) or _squash(addition) in _squash(card.get('bio', '')):
+    if _squash(addition) in _squash(card.get('bio', '')):
         addition = ''
+    addition = _review_numbers(addition, text + '\n' + card.get('bio', ''), warnings, 'bio_addition')
     lists, existing = {}, card.get('skills', []) + card.get('interests', [])
     for kind, limit in (('skills', 8), ('interests', 5)):
         seen, rows = {_key(v) for v in card.get(kind, [])}, []
@@ -226,15 +296,15 @@ def finish_digest(value, text, card):
             entry = _clean(item, 40)
             if entry and _key(entry) not in seen and not _covered(entry, existing):
                 seen.add(_key(entry))
-                rows.append(entry)
+                rows.append(_review_numbers(entry, text, warnings, kind, index=len(rows)))
+                if len(rows) == limit:
+                    break
         lists[kind] = rows[:limit]
     titles, careers = {_key(c.get('title', '')) for c in card.get('careers', [])}, []
     for item in value.get('careers') if isinstance(value.get('careers'), list) else []:
         if not isinstance(item, dict):
             continue
         career = {key: _clean(item.get(key), 400 if key == 'description' else 120) for key in CAREER_KEYS}
-        if not _grounded(career['period'], text):
-            career['period'] = ''
         # Gemini flash wrote "개발 및 검증 총괄" for a report that names no role, and the author line
         # "손만우 책임 (C18408)" or "책임 (C18408)" for another (2026-10-06): a role is stated wording,
         # not a byline with a name or an employee number.
@@ -243,12 +313,16 @@ def finish_digest(value, text, card):
                 career[key] = ''
         if (card.get('name') and _squash(card['name']) in _squash(career['role'])) or re.search(r'\d', career['role']):
             career['role'] = ''
-        if (not career['title'] or not career['description'] or _key(career['title']) in titles
-                or not _grounded(career['title'] + career['description'], text)):
+        if not career['title'] or not career['description'] or _key(career['title']) in titles:
             continue
         titles.add(_key(career['title']))
+        for key in ('title', 'period', 'description'):
+            career[key] = _review_numbers(career[key], text, warnings, 'careers', index=len(careers), part=key)
         careers.append(career)
-    return {'summary': _clean(value.get('summary'), 200), 'bio_addition': addition, **lists, 'careers': careers[:3]}
+        if len(careers) == 3:
+            break
+    summary = _review_numbers(_clean(value.get('summary'), 200), text, warnings, 'summary')
+    return {'summary': summary, **identity, 'bio_addition': addition, **lists, 'careers': careers[:3], 'warnings': warnings}
 
 
 class ProfileReader:

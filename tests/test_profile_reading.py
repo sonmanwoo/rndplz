@@ -18,7 +18,8 @@ from pathlib import Path
 
 from rndplz.attachments import Attachments, MAX_TEXT
 from rndplz.chat_models import AIU_PROFILE_APP, AiuRejected, ChatModels
-from rndplz.profile_reading import DIGEST_CONTRACT, DOCUMENT_CHARS, ProfileReader, ReadingError, finish_digest
+from rndplz.profile_reading import (DIGEST_CONTRACT, DIGEST_SCHEMA, DOCUMENT_CHARS, ProfileReader,
+                                   ReadingError, _grounded, _squash, finish_digest)
 from rndplz.profiles import ProfileError, Profiles
 
 
@@ -81,19 +82,19 @@ class DigestTests(unittest.TestCase):
                  'skills': ['doe', 'PatchCore', 'patchcore', ''], 'interests': ['반응기'],
                  'careers': [{'title': '반응기 수율 개선', 'organization': '기술연구소 공정팀', 'period': '2021-2022', 'role': '분석 담당',
                               'description': '수율을 12.5% 높였다.'},
-                             {**career, 'title': '없는 성과', 'description': '수율을 40% 높였다.'},
                              {**career, 'title': '기존 과제'},
                              {**career, 'title': '역할 추측', 'period': '2023', 'role': '개발 총괄'},
                              {**career, 'title': '저자 표기', 'role': '홍길동 책임'}]}
         result = finish_digest(value, text, card)
-        self.assertEqual((result['summary'], result['bio_addition']), ('수율 개선 기록', ''))  # an invented metric drops the sentence
+        self.assertEqual((result['summary'], result['bio_addition']), ('수율 개선 기록', '수율을 [확인 필요]% 높였습니다.'))
         self.assertEqual((result['skills'], result['interests']), (['PatchCore'], ['반응기']))
         listed = {**card, 'skills': ['Taichi Lang 기반 GPU 수치 해석'], 'interests': ['베이지안 다목적 최적화']}
         repeated = finish_digest({'skills': ['Taichi Lang 수치 해석', '베이지안 다목적 최적화', 'Taichi Lang 메시 생성']}, text, listed)
         self.assertEqual(repeated['skills'], ['Taichi Lang 메시 생성'])  # every word already in one entry: not new
         self.assertEqual([c['title'] for c in result['careers']], ['반응기 수율 개선', '역할 추측', '저자 표기'])
         first, guessed, byline = result['careers']
-        self.assertEqual((first['organization'], first['period'], first['role']), ('기술연구소 공정팀', '', '분석 담당'))
+        self.assertEqual((first['organization'], first['period'], first['role']),
+                         ('기술연구소 공정팀', '[확인 필요]-[확인 필요]', '분석 담당'))
         self.assertEqual((guessed['period'], guessed['role']), ('2023', ''))  # "총괄" is not in the document
         self.assertEqual(byline['role'], '')  # the author line names the card owner, not a role
         numbered = finish_digest({'careers': [{**career, 'title': '사번 표기', 'role': '책임 (C18408)'}]}, text + ' C18408', card)
@@ -101,6 +102,72 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(finish_digest({'bio_addition': '수율을 12.5% 높였습니다.'}, text, card)['bio_addition'], '수율을 12.5% 높였습니다.')
         said = {**card, 'bio': '반응기 수율을 12.5% 높였습니다.'}
         self.assertEqual(finish_digest({'bio_addition': '수율을 12.5% 높였습니다.'}, text, said)['bio_addition'], '')  # already in the biography
+
+    def test_identity_contract_only_proposes_explicit_new_document_values(self):
+        text = ('이름: 홍길동 / Gil Dong Hong. 별칭: Hong Gildong. '
+                '현재 소속: 시험연구원. 부서: 냉각연구팀. 직위: 수석연구원. '
+                '한 줄 소개: 열관리 연구를 수행합니다.')
+        value = {'name': '홍길동', 'organization': '시험연구원', 'department': '냉각연구팀',
+                 'role': '수석연구원', 'tagline': '열관리 연구를 수행합니다.',
+                 'aliases': ['Gil Dong Hong', '홍길동', 'Hong Gildong', 'gil dong hong', 'Invented Name']}
+        result = finish_digest(value, text, CARD)
+        self.assertEqual(result['name'], '')  # already the current display name
+        for field in ('organization', 'department', 'role', 'tagline'):
+            self.assertEqual(result[field], value[field])
+        self.assertEqual(result['aliases'], ['Gil Dong Hong', 'Hong Gildong'])
+        self.assertEqual(result['warnings'][0]['field'], 'aliases')
+        new = finish_digest(value, text, {**CARD, 'name': '', 'aliases': ['Gil Dong Hong']})
+        self.assertEqual((new['name'], new['aliases']), ('홍길동', ['Hong Gildong']))
+        for field in ('name', 'organization', 'department', 'role', 'tagline', 'aliases'):
+            self.assertIn(field, DIGEST_SCHEMA['required'])
+
+    def test_missing_or_invented_identity_stays_empty_with_a_reason(self):
+        blank = finish_digest({}, '', CARD)
+        for field in ('name', 'organization', 'department', 'role', 'tagline'):
+            self.assertEqual(blank[field], '')
+        self.assertEqual(blank['aliases'], [])
+        invented = finish_digest({'organization': '다른연구원', 'department': '제9연구팀',
+                                  'role': '센터장', 'tagline': '세계 최고 연구자'}, '시험연구원 연구원', CARD)
+        self.assertTrue(all(invented[field] == '' for field in ('organization', 'department', 'role', 'tagline')))
+        self.assertEqual({warning['field'] for warning in invented['warnings']},
+                         {'organization', 'department', 'role', 'tagline'})
+
+    def test_aliases_keep_document_spelling_variants_with_different_boundaries(self):
+        value = {'aliases': ['Gil-Dong Hong', 'Gil Dong Hong', 'GilDong Hong', 'gil dong hong']}
+        result = finish_digest(value, '별칭: Gil-Dong Hong, Gil Dong Hong, GilDong Hong', CARD)
+        self.assertEqual(result['aliases'], value['aliases'][:3])
+        current = finish_digest(value, '별칭: Gil-Dong Hong, Gil Dong Hong, GilDong Hong',
+                                {**CARD, 'aliases': ['Gil-Dong Hong']})
+        self.assertEqual(current['aliases'], value['aliases'][1:3])
+
+    def test_bibliography_year_decimal_and_thousands_keep_numeric_boundaries(self):
+        text = '논문 식별번호 eadd1017; 연도 2022. 처리량 1,200건. 개선율 12.5%.'
+        for value in ('eadd1017, 2022', 'eadd1017,2022', '2022 1017', '1200건', '1,200건', '12.5%'):
+            with self.subTest(value=value):
+                self.assertTrue(_grounded(value, text))
+        for value, source in (('40%', '140%'), ('12%', '12.5%'), ('1017', '10 17'),
+                              ('10172022', '1017 2022'), ('1,200', '1, 200')):
+            with self.subTest(value=value, source=source):
+                self.assertFalse(_grounded(value, source))
+        self.assertEqual(_squash('10 17 연구 팀'), '10 17연구팀')
+        row = {'title': '등반 연구', 'description': '논문 eadd1017, 2022의 결과를 분석했다.', 'period': '2022'}
+        result = finish_digest({'careers': [row]}, text, CARD)
+        self.assertEqual(result['careers'][0]['description'], row['description'])
+        self.assertEqual(result['warnings'], [])
+
+    def test_unsupported_numbers_keep_the_line_and_explain_each_changed_item(self):
+        value = {'bio_addition': '수율을 40% 개선했습니다.',
+                 'careers': [{'title': '반응기 7호 과제', 'period': '2022-2029',
+                              'description': '수율을 12.5%에서 99%로 높였다.'}]}
+        result = finish_digest(value, '2022년 반응기 7호 수율 12.5% 분석', CARD)
+        self.assertEqual(result['bio_addition'], '수율을 [확인 필요]% 개선했습니다.')
+        self.assertEqual(len(result['careers']), 1)
+        self.assertEqual(result['careers'][0]['period'], '2022-[확인 필요]')
+        self.assertEqual(result['careers'][0]['description'], '수율을 12.5%에서 [확인 필요]%로 높였다.')
+        self.assertEqual([(w['field'], w.get('part'), w['numbers']) for w in result['warnings']],
+                         [('bio_addition', None, ['40']), ('careers', 'period', ['2029']),
+                          ('careers', 'description', ['99'])])
+        self.assertTrue(all(w['message'] and w['reason'] == 'unsupported_number' for w in result['warnings']))
 
     def test_an_unpublished_profile_app_falls_back_to_the_chat_app(self):
         models = DigestModels(reject={AIU_PROFILE_APP})

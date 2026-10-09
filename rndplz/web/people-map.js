@@ -37,7 +37,9 @@
    const label=/\bcorrection\b|정정/i.test(marker)?"정정 출처":"추가 출처";
    return '<a class="source-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer"'+(typeof item.title==="string"?' title="'+esc(item.title)+'"':'')+'>'+label+' ↗</a>';
   }).filter(Boolean);
-  return links.length?'<div class="asset-source-field">'+links.join(" · ")+'</div>':"";
+  const documents=(Array.isArray(raw.sources)?raw.sources:[]).map(item=>{const url=safeUrl(item.url),label=item.title||item.name||"첨부 자료";return url?'<a class="source-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(label)+' ↗</a>':'<span>'+esc(label)+'</span>';});
+  const lineage=documents.length||raw.source_review?'<p class="micro">'+esc(raw.source_review||"자료 기반")+(documents.length?' · '+documents.join(' · '):'')+'</p>':"";
+  return lineage+(links.length?'<div class="asset-source-field">'+links.join(" · ")+'</div>':"");
  }
  function projectParticipants(raw){
   if(raw.kind!=="project_record"||!Array.isArray(raw.project_participants))return "";
@@ -72,7 +74,7 @@
   if(value==null||value==="")return "";
   if(Array.isArray(value))return '<ul>'+value.map(x=>'<li>'+displayValue(x)+'</li>').join("")+'</ul>';
   if(typeof value==="object"){
-   const labels={title:"제목",name:"이름",role:"역할",year:"연도",date:"자료 날짜·기재기간",period:"기재기간",start:"시작",end:"종료",org:"자료상 소속",organization:"자료상 소속",institution:"기관",description:"기재 내용",summary:"기재 요약",degree:"학위",field:"분야",url:"출처",label:"표시",source:"출처",note:"자료 설명",status:"기재 상태",verified:"확인 여부",items:"항목",skills:"기재 기술"};
+   const labels={title:"제목",name:"이름",role:"역할",year:"연도",date:"자료 날짜·기재기간",period:"기재기간",start:"시작",end:"종료",org:"자료상 소속",organization:"자료상 소속",department:"부서",aliases:"영문 이름·별칭",institution:"기관",description:"기재 내용",summary:"기재 요약",degree:"학위",field:"분야",url:"출처",label:"표시",source:"출처",sources:"근거 자료",source_review:"자료 확인",note:"자료 설명",status:"기재 상태",verified:"확인 여부",items:"항목",skills:"기재 기술"};
    return Object.entries(value).map(([k,v])=>'<div class="profile-field"><span>'+esc(labels[k]||k)+'</span> '+(k==="url"&&safeUrl(v)?'<a href="'+esc(v)+'" target="_blank" rel="noopener noreferrer">출처 열기 ↗</a>':displayValue(v))+'</div>').join("");
   }
   return safeUrl(value)?'<a href="'+esc(value)+'" target="_blank" rel="noopener noreferrer">출처 열기 ↗</a>':esc(String(value));
@@ -138,7 +140,7 @@
   const p=selectedPerson(s);
   if(!p)return '<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 class="mp-evidence-title">인물을 선택해 주세요</h2><p class="mp-empty">연결된 기록과 그 자료의 범위를 살펴볼 수 있어요.</p>';
   const records=C.visibleEvidence(s,p);
-  let html='<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 id="detail-title" class="mp-evidence-title" tabindex="-1">'+esc(title(p))+'</h2><p class="mp-evidence-scope">'+esc(shortScope(s,p))+'</p><div class="mp-detail-links"><button type="button" data-map-open="person" data-id="'+esc(p.id)+'">인물 상세 보기 ↗</button><button type="button" data-map-action="close">선택 닫기</button></div>';
+  let html='<p class="mp-section-label">선택한 사람의 연결 근거</p><h2 id="detail-title" class="mp-evidence-title" tabindex="-1">'+esc(title(p))+'</h2>'+((p.aliases||[]).length?'<p class="detail-meta">'+p.aliases.map(esc).join(' · ')+'</p>':'')+([p.organization,p.sourceProfile?.department,p.currentRole].filter(Boolean).length?'<p class="detail-meta">'+[p.organization,p.sourceProfile?.department,p.currentRole].filter(Boolean).map(esc).join(' · ')+'</p>':'')+'<p class="mp-evidence-scope">'+esc(shortScope(s,p))+'</p><div class="mp-detail-links"><button type="button" data-map-open="person" data-id="'+esc(p.id)+'">인물 상세 보기 ↗</button><button type="button" data-map-action="close">선택 닫기</button></div>';
   html+=renderIntroLinks(p);
   if(historical(p))html+='<p class="mp-record-limit">'+historicalNotice+'</p>';
   if(!records.length)return html+'<p class="mp-empty">현재 조건에 연결된 기록이 없습니다. 경험이 없다는 뜻은 아닙니다.</p>';
