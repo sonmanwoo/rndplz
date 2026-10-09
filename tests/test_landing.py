@@ -59,7 +59,6 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     principles = re.search(r'<ul class="landing-principles">(.*?)</ul>', body, re.S)[1]
     assert re.findall(r'<li>(.*?)</li>', principles) == [
         '공개 논문·제공 경력·프로젝트 기록을 근거로 찾아요.',
-        '연락 가능성·협업 의사는 확인하지 않아요 — 의뢰는 초안·제안함 시연까지.',
         '대화는 사내 AI(AiU) 또는 운영자 PC의 로컬 모델이 처리해요.',
     ]
     closing = body[body.index('class="landing-closing-actions"'):body.index('<nav class="landing-links"')]
@@ -67,6 +66,10 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     assert 'data-landing-login>로그인</button>' in closing
     assert re.search(r'<a\b[^>]*href="/profile"[^>]*>내 이력 올리기</a>', closing)
     assert 'id="landingDown"' in body and 'href="#landingFeatures"' in body
+    # 2026-10-10: the cosmos.so chevron (stroked SVG), not a text glyph that sits off-centre in the circle.
+    down = body[body.index('id="landingDown"'):body.index('</a>', body.index('id="landingDown"'))]
+    assert 'd="M4.25 9.25 12 17l7.75-7.75"' in down and '⌄' not in down
+    assert '<h2 id="landingClosingTitle">당신이 멈춘 지점,<br>같이 풀 사람을<br>찾아요</h2>' in body
     assert body.index('id="landingDown"') < body.index('</main></div>') < body.index('id="landingFeatures"')
     assert re.search(r'<script[^>]+src="/landing-boot\.js\?v=[a-f0-9]{10}"[^>]*defer', body)
     assert re.search(r'<link[^>]+href="/landing\.css\?v=[a-f0-9]{10}"', body)

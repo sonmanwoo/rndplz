@@ -4,8 +4,11 @@ body.home-landing.home-welcome .chat-shell {height:calc(100dvh - 92px);min-heigh
 body.home-landing.home-welcome .chat-shell>main.welcome {min-height:0}
 body.home-landing.home-welcome .home-whirl {position:absolute}
 .home-landing .landing-down {display:none}
-.home-landing.home-welcome .landing-down {position:absolute;bottom:16px;left:calc(50% - 22px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink,#0d0d0d);font:24px/1 var(--font-sans);z-index:4}
-.home-landing .landing-down::before {content:"";position:absolute;inset:2px;border:1px solid var(--line,#ddd9d6);border-radius:50%;background:var(--sheet,#fff);z-index:-1}
+.home-landing.home-welcome .landing-down {position:absolute;bottom:14px;left:calc(50% - 22px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink,#0d0d0d);z-index:4;transition:opacity .15s}
+/* cosmos.so: a 40px glass circle, 12% ink rim, a 24px stroked chevron centred by the box. */
+.home-landing .landing-down::before {content:"";position:absolute;inset:2px;border:1px solid color-mix(in srgb,var(--ink,#0d0d0d) 12%,transparent);border-radius:50%;background:color-mix(in srgb,var(--sheet,#fff) 40%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);z-index:-1}
+.home-landing .landing-down svg {display:block;width:24px;height:24px}
+.home-landing .landing-down:hover {opacity:.8}
 .home-landing:not(.home-welcome) .landing-intro {display:none}
 .home-landing .landing-intro {position:relative;z-index:1;background:var(--desk,#f7f5f3);color:var(--ink,#0d0d0d);padding-top:72px;--landing-gap:24px;--landing-pad:clamp(24px,4vw,72px)}
 .home-landing .landing-section {margin:0 auto;padding:0 var(--landing-pad);max-width:1680px;scroll-margin-top:32px}
