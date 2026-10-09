@@ -20,7 +20,7 @@ class HostedGemmaModels(ObservedRuntimeChatModels):
             # A disconnected local worker must not hide the existing GPT option.
             enabled = False
         return {'id': 'bridge', 'provider': 'bridge', 'model': self.bridge.model,
-                'name': gemma_display_name(self.bridge.model) + ' · 운영자 PC' + ('' if enabled else ' · 연결 대기'),
+                'name': '로컬 ' + gemma_display_name(self.bridge.model) + ('' if enabled else ' · 연결 대기'),
                 'enabled': enabled, 'local': False, 'vision': False, 'public_scope': True}
 
     def catalog(self, refresh=False):
