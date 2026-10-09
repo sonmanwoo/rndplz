@@ -12,7 +12,7 @@ class Element {
   constructor(tag = 'div', doc) {
     this.tagName = tag.toUpperCase(); this.doc = doc; this.children = []; this.dataset = {};
     this.attributes = {}; this.events = new Map(); this.className = ''; this.hidden = false;
-    this.scrollLeft = 0; this.scrollWidth = 900; this.clientWidth = 400;
+    this.scrollLeft = 0; this.scrollWidth = 900; this.clientWidth = 400; this.style = {};
     this.classList = {
       contains: name => this.className.split(/\s+/).includes(name),
       toggle: (name, on) => {
@@ -88,7 +88,8 @@ function harness(mode = 'people', quiet = false) {
   element('', ids.landingFeatureRail, 'li');
   const featureImage = element('', ids.landingFeatures, 'img'); featureImage.dataset.src = '/landing-assets/chat.webp';
   element('landingPeopleRail', ids.landingPeople, 'ul').className = 'landing-rail';
-  element('landingFieldList', ids.landingFields, 'ul');
+  element('landingFieldWindow', ids.landingFields, 'div');
+  element('landingFieldList', ids.landingFieldWindow, 'ul');
   element('landingFieldsAll', ids.landingFields, 'a');
   for (const host of [ids.landingFields, ids.landingPeople]) element('', host, 'p').dataset.landingDataStatus = '';
   const retry = element('', ids.landingFields, 'button'); retry.dataset.landingRetry = '';
@@ -189,11 +190,6 @@ function runBoot(h) {
   const links = people.ids.landingFieldList.querySelectorAll('a');
   assert.equal(links[1].classList.contains('is-current'), true);
   assert.equal(people.ids.landingFieldsAll.hidden, false); assert.match(people.ids.landingFieldsAll.textContent, /분야 2개 모두 보기/);
-  [...people.intervals.values()][0]();
-  assert.equal(people.ids.landingFieldList.classList.contains('is-rolling'), true, 'past the last field the window rolls on');
-  people.timeouts.forEach(fn => fn());
-  assert.equal(people.ids.landingFieldList.classList.contains('is-rolling'), false);
-  assert.equal(people.ids.landingFieldList.querySelectorAll('a')[0].classList.contains('is-current'), true);
   people.intersect(people.ids.landingFields, true, 0); assert.equal(people.intervals.size, 0, 'edge contact does not count as a visible rotating list');
   people.intersect(people.ids.landingFields, true); assert.equal(people.intervals.size, 1);
   people.media.matches = true; people.mediaEvents.forEach(fn => fn()); assert.equal(people.intervals.size, 0);
@@ -237,5 +233,21 @@ function runBoot(h) {
   }
   assert.equal((await recommendation).ready, true);
   await dependencies.win.Landing.loadRecommendation(); assert.equal(dependencies.doc.head.children.length, 4);
+  // More fields than rows: the highlight stays on the second row and the list slides up one field per step.
+  const savedCapabilities = fixture.capabilities;
+  fixture.capabilities = Array.from({length: 10}, (_, i) => ({id: 'f' + i, label: '분야 ' + i, people: [{id: 'PUB-A'}]}));
+  const ticker = harness(); landing.init(ticker.win);
+  ticker.intersect(ticker.ids.landingFields, true); ticker.intersect(ticker.ids.landingPeople, true); await settle();
+  const labels = () => ticker.ids.landingFieldList.querySelectorAll('a').map(link => link.textContent);
+  const highlighted = () => ticker.ids.landingFieldList.querySelectorAll('a').findIndex(link => link.classList.contains('is-current'));
+  assert.deepEqual(labels(), ['분야 9', '분야 0', '분야 1', '분야 2', '분야 3', '분야 4', '분야 5', '분야 6', '분야 7'], '8 rows plus one waiting below; the first field opens on row 2');
+  assert.equal(highlighted(), 1); assert.equal(ticker.ids.landingFieldWindow.style.height, '320px');
+  [...ticker.intervals.values()][0]();
+  assert.equal(highlighted(), 2, 'the next field takes the highlight as it slides into row 2');
+  assert.equal(ticker.ids.landingFieldList.style.transform, 'translateY(-40px)');
+  ticker.timeouts.forEach(fn => fn());
+  assert.deepEqual(labels().slice(0, 3), ['분야 0', '분야 1', '분야 2']); assert.equal(highlighted(), 1);
+  assert.equal(ticker.ids.landingFieldList.style.transform, '');
+  fixture.capabilities = savedCapabilities;
   console.log('landing UI contracts passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });
