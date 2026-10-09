@@ -31,7 +31,6 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
 
 /* Keep the conversation composer in flow while editing an inline profile. */
 #profileChatHost:not([hidden]) ~ .composer-dock{position:static;bottom:auto;background:var(--desk)}
-#profileChatHost:not([hidden]) ~ .composer-dock #homeExample{display:none}
 
 #profileChatHost:not([hidden]) ~ .composer-dock .composer textarea,
 #profileChatHost:not([hidden]) ~ .composer-dock .composer select{font-size:16px}
