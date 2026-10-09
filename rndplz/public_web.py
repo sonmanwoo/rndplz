@@ -41,6 +41,8 @@ from .profile_chat import ProfileChat
 from .scout_projection import project_session
 
 WEB = Path(__file__).with_name('web')
+# How long one ask for a profile document's reading waits before answering "still reading".
+DIGEST_WAIT_SECONDS = 20
 # How long an attachment request waits for the same visitor's other requests (e.g. a session re-check) to finish.
 ATTACHMENT_BUSY_WAIT_SECONDS = 5
 CHUNK_UPLOAD_ROUTES = {
@@ -1358,13 +1360,13 @@ class PublicApp:
                 return send(200,service.registered_expert_draft(payload['session_id'],
                     payload['candidate_id'],payload['snapshot_id'],payload['revision']))
             if path == '/api/self-profile/digest':
-                # One company AI call per document, admitted like a chat turn so reading cannot starve replies.
-                if not self.request_slots.acquire(blocking=False):
-                    return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 읽어 주세요.', 'code': 'busy'})
-                try:
-                    return send(200, profile.digest(payload))
-                finally:
-                    self.request_slots.release()
+                # One company AI call per document, admitted like a chat turn so reading cannot starve replies. The
+                # reading runs on its own and the page asks again while it lasts (2026-10-09: a 70-page report was
+                # read in 108 s, but the phone had dropped the silent request before the answer came back).
+                result = profile.digest_wait(payload, DIGEST_WAIT_SECONDS,
+                                             admit=lambda: self.request_slots.acquire(blocking=False),
+                                             release=self.request_slots.release)
+                return send(200, result if result is not None else {'status': 'reading', 'source_id': payload.get('source_id')})
             routes = {
                 '/api/self-profile/chat': lambda: ProfileChat(service, profile).handle(payload),
                 '/api/self-profile/save': lambda: profile.save(payload),

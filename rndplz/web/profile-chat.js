@@ -315,9 +315,18 @@
     async function digestDocument(id) {
       const e=generation;busy=true;activeMutation=true;error=null;errorRequest=null;paintError();
       readingProgress="사내 AI가 자료를 읽고 카드에 맞게 정리하고 있어요 (보통 10~40초)";controls();let result=null;
-      try{result=await api("/api/self-profile/digest",{source_id:id});}
+      // A long document outlasts what a phone keeps a silent request open: the server answers "reading" and this asks
+      // again every 2 s; an ask lost on the way is asked again, since the reading itself goes on on the server.
+      const started=Date.now(),tick=setInterval(()=>{if(e!==generation||!opened||!busy)return clearInterval(tick);readingProgress=`사내 AI가 자료를 읽고 있어요 (${Math.round((Date.now()-started)/1000)}초 · 긴 문서는 1~2분)`;controls();},1000);
+      try{let dropped=0;
+        for(;;){
+          try{result=await api("/api/self-profile/digest",{source_id:id});if(result?.status!=="reading")break;dropped=0;}
+          catch(err){if(err.status||!err.uncertain||++dropped>3)throw err;}
+          if(e!==generation||!opened)return true;
+          await new Promise(resolve=>setTimeout(resolve,2000));
+        }}
       catch(err){showError(err);return false;}
-      finally{busy=false;activeMutation=false;readingProgress="";controls();}
+      finally{clearInterval(tick);busy=false;activeMutation=false;readingProgress="";controls();}
       if(e!==generation||!opened)return true;
       const p=result.proposal||{},fields={};
       if(p.bio_addition)fields.bio=[String(view.profile.fields.bio||"").trim(),p.bio_addition].filter(Boolean).join(" ");

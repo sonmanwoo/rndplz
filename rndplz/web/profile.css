@@ -38,6 +38,8 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 /* A document the company AI read: the card as it is beside its proposal. */
 .digest-view{margin-top:22px;padding:22px 24px;border:1px solid var(--green);border-radius:12px;background:var(--sheet);box-shadow:0 8px 26px #13272214}
 .digest-view:focus{outline:none}
+/* Adding and reading a document report next to its upload box, not at the top of the page. */
+.source-status{padding:12px 0 0;min-height:0}.source-status:empty{display:none}#sourceError{margin:12px 0 0}
 .digest-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .digest-head h3{margin:0;font-size:15px;font-weight:500;color:var(--green);overflow-wrap:anywhere}
 .digest-head .close-button{flex:none;margin:-12px -10px 0 0}

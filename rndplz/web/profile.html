@@ -43,6 +43,8 @@
       </form>
       <section id="sources" class="profile-section"><div class="section-heading"><span class="section-number" data-card-number="02">04</span><div><h2>자료로 채우기</h2><p>이력서·연구노트·보고서를 올리면 사내 AI가 읽고 카드에 맞게 줄여 제안해요.</p></div></div>
         <div class="upload-box"><span class="upload-symbol" aria-hidden="true">↥</span><div><strong>이력에 참고할 자료를 올려 주세요.</strong><p id="uploadLimits">지원 형식과 용량을 확인하고 있습니다.</p><p>지금 카드와 제안을 나란히 보고, 고른 것만 카드에 넣어요.</p></div><label class="secondary-button upload-label" for="sourceFile">자료 올리기<input id="sourceFile" type="file" accept=".txt,.md,.csv,.json,.log,.pdf,.docx" data-lock disabled></label></div>
+        <div class="profile-status source-status" id="sourceStatus" role="status" aria-live="polite"></div>
+        <div class="profile-error" id="sourceError" role="alert" tabindex="-1" hidden></div>
         <div id="digestView" class="digest-view" tabindex="-1" aria-live="polite" hidden></div>
         <div id="sourceList" class="source-list"></div>
       </section>
