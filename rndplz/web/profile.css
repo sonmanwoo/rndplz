@@ -48,8 +48,16 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 @keyframes digest-spin{to{transform:rotate(360deg)}}
 .digest-row{margin-top:18px}
 .digest-label{margin:0 0 8px;font-size:12px;font-weight:600}
-.digest-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.digest-cols{--digest-gap:10px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--digest-gap);transition:grid-template-columns .22s ease,column-gap .22s ease}
 .digest-col{min-width:0;padding:12px;border-radius:8px;background:color-mix(in srgb,var(--muted) 9%,transparent)}
+.digest-col.is-current{padding:0;overflow:hidden}
+.digest-current-body{width:var(--digest-current-width,auto);padding:12px;transition:transform .22s ease}
+.digest-row.is-editing .digest-cols{grid-template-columns:minmax(0,0fr) minmax(0,1fr);column-gap:0}
+.digest-row.is-editing .is-current{height:0;pointer-events:none}
+.digest-row.is-editing .digest-current-body{transform:translateX(-100%)}
+.digest-row.is-transitioning .digest-cols{height:var(--digest-transition-height);overflow:hidden;overflow-anchor:none}
+.digest-row.is-transitioning .is-current{height:auto}
+.digest-row.is-measuring .digest-cols,.digest-row.is-measuring .digest-current-body{transition:none}
 .digest-col.is-next{background:color-mix(in srgb,var(--green) 8%,transparent)}
 .digest-side{display:block;margin-bottom:8px;font:10px/1.6 Consolas,monospace;letter-spacing:1px;color:var(--muted)}
 .profile-page .digest-text{margin:0;font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
@@ -72,11 +80,15 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 .profile-page .digest-edit{flex:none;min-width:28px;min-height:28px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:13px;line-height:1;text-decoration:none}
 .profile-page .digest-edit:hover,.profile-page .digest-edit:focus-visible{background:color-mix(in srgb,var(--green) 12%,transparent);color:var(--green)}
 .digest-editor{display:grid;gap:8px;width:100%;margin-bottom:6px;padding:10px;border:1px solid var(--green);border-radius:8px;background:var(--sheet)}
+.digest-editor-head{display:flex;align-items:center;gap:8px;min-width:0}
+.digest-current-summary{flex:1;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.8;color:var(--muted)}
+.digest-editor-head .close-button{flex:none;margin:-10px -10px -10px 0}
 .digest-editor label{display:grid;gap:4px;font-size:11px;color:var(--muted)}
 .profile-page .digest-editor input,.profile-page .digest-editor textarea{width:100%;font-size:12px}
 .digest-editor-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .profile-page .digest-editor-actions button{min-height:34px;padding:6px 12px;font-size:12px}
-@media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{gap:6px}.digest-col{padding:9px}}
+@media(max-width:700px){.digest-view{padding:16px 14px}.digest-cols{--digest-gap:6px}.digest-col,.digest-current-body{padding:9px}.digest-col.is-current{padding:0}}
+@media(prefers-reduced-motion:reduce){.digest-cols,.digest-current-body{transition:none}}
 /* Touch: proposed chips wrapped to two-line pills stacked only 6 px apart in the narrow column, so a finger aimed at
    one's lower line toggled the next (2026-10-09). Each proposal takes the column's width, with a wider gap. */
 @media(pointer:coarse),(max-width:700px){.digest-col.is-next .digest-chips{gap:12px 8px}.digest-col.is-next .digest-chips>.digest-item{width:100%}.digest-col.is-next .digest-chips>.digest-item>.digest-add{flex:1;min-width:0}}
