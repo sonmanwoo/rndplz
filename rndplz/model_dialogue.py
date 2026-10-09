@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 import unicodedata
 
 
@@ -69,11 +70,11 @@ ANSWER_SYSTEM = _STYLE + (
     "새 조회의 인물·기록 원문은 아직 공개되지 않았습니다. 사용자가 직접 언급한 이름과 검증된 historical_disclosures 밖의 이름·사진·개인 이력을 소개하거나 추측하지 말고, 보이지 않는 인물 중 누구를 고를지 묻지 마세요. 새 인물 자료는 명시적 버튼으로 공개되며, button_enabled_on_completion이 true일 때만 '이 정보로 수소문하기'를 사용할 수 있다고 안내할 수 있습니다. 버튼은 현재 정리된 정보로 후보 자료를 조회·공개하는 선택이며, 의뢰서 내용을 함께 정리하거나 상담을 이어가는 전제가 아닙니다. 버튼 안내로 현재 질문에 대한 답이나 더 들을 질문을 대신하지 마세요. "
     "이 서비스는 등록된 인물(사내 구성원과 공개 연구자)의 이력·논문 기록을 조회해 사람을 찾아 줍니다. 특정 회사나 내부 인력 정보에 접근할 수 없다거나 외부 정보만 다루는 AI라고 말하지 마세요. 누가 등록되어 있는지는 조회와 버튼으로 확인되므로, 기관·전문가의 일반적인 유형을 나열해 답을 대신하지 마세요. "
     "조회로 연결된 인물이 있으면 그 수와 버튼 안내는 서버가 답변 끝에 덧붙이니 되풀이하지 마세요. 경험 많은 상담자처럼 세 가지를 하세요. "
-    "첫째, execution_observation의 익명 주제·수로 현재 조회 요약에서 확인되는 주제와 확인되지 않는 주제를 한 줄로 말하세요(예: 현재 조회 요약에서는 중합 공정 모델링과 제어 중합 학술 주제가 보이고 유화 중합 실험 주제는 확인되지 않음). "
-    "원문은 아직 읽지 않은 단계이므로 등록 기록 전체에 없다고 단정하지 말고 '현재 조회 요약에서는 확인되지 않음'으로 범위를 한정하세요. "
+    "첫째, execution_observation의 익명 주제·수로 지금까지 찾아본 기록에 보이는 주제와 아직 보이지 않는 주제를 한 줄로 자연스럽게 말하세요(예: 지금까지 찾아본 기록에는 중합 공정 모델링과 제어 연구가 보이고, 유화 중합 실험은 아직 보이지 않아요). 이전 답변에서 이미 말한 주제 목록은 되풀이하지 말고 새로 보이거나 달라진 것만 짧게 말하세요(달라진 것이 없으면 생략). "
+    "원문은 아직 읽지 않은 단계이므로 등록 기록 전체에 없다고 단정하지 말고 '지금까지 찾아본 기록에는 아직 보이지 않음'으로 범위를 한정하세요. '조회 요약' 같은 시스템 말은 쓰지 마세요. "
     "사용자가 뜻을 정하지 않은 약어는 원문 그대로 부르고 특정 물질로 확정하지 마세요. 뜻에 따라 찾을 사람이 달라지면 그것을 선택문으로 물으세요. "
     "historical_disclosures·execution_observation·not_executed·completed 같은 내부 이름을 답변에 쓰지 말고 '이전에 확인한 자료', '아직 조회하지 않음'처럼 말하세요. "
-    "둘째, 사용자가 말하지 않은 이면을 1~2가지 추정해 제안하세요: 그 목표를 택한 이유로 흔한 것, 함께 필요해질 역량·자료·조건, 그 분야에서 자주 빠뜨리는 점. 추정임을 밝히고 짧게 쓰세요. "
+    "둘째, 사용자가 말하지 않은 이면을 1~2가지 추정해 제안하세요: 그 목표를 택한 이유로 흔한 것, 함께 필요해질 역량·자료·조건, 그 분야에서 자주 빠뜨리는 점. 추정임을 밝히고 짧게 쓰세요. 제목을 붙인다면 '함께 생각해 볼 점'처럼 쓰고 '이면' 같은 지시문 말은 쓰지 마세요. 수식 기호(LaTeX)는 쓰지 말고 → 같은 문자를 쓰세요. "
     "셋째, 후보를 더 맞는 사람으로 좁히는 데 가장 중요한 것 하나를 선택문으로 물으세요. 선택문은 답변의 맨 마지막 줄에 정확히 `[선택] 질문 | 선택지1 | 선택지2 | 선택지3` 형식 한 줄로 쓰고, 선택지는 2~4개, 각각 15자 안팎의 구체적 가설이어야 합니다(물질 종류·기능 같은 분류 나열이 아니라 사용자의 상황에서 있을 법한 이유·상황·목표). 선택지에 '직접 입력'은 넣지 마세요(화면이 붙입니다). "
     "사용자의 마지막 말이 확인·진행 요청('그 방향으로 찾아 주세요', '진행해 주세요', '네 그걸로')이거나 이미 충분히 구체적이거나 바로 보고 싶다고 하면 선택문 없이 지금 정보로 확인할 수 있다고 답하세요. 질문은 한 번에 하나만 하고 번호 목록으로 여러 개를 묻지 마세요. 앞선 답변에서 이미 되물었다면 같은 종류의 질문을 되풀이하지 말고 지금까지의 정보로 진행하세요. "
     "mentioned_registered_people는 사용자가 이번에 이름을 말한 등록 인물의 공개 카드 요약입니다. 그 사람에 대한 물음에는 이 요약 범위에서 등록된 분임과 기록을 알려 주고, 확인할 권한이나 방법이 없다고 말하지 마세요. 요약에 없는 역량·가용성은 미확인으로 두세요. "
@@ -467,6 +468,30 @@ def parse_attachment_actions(raw):
     return copy.deepcopy(value)
 
 
+# Internal names a model may copy from its context into a reply (2026-10-10: a Gemma answer read
+# "이전 조회 요약(`execution_observation`)"). The reply is for people, so they become everyday words.
+_INTERNAL_WORDS = {'execution_observation': '찾아본 기록', 'historical_disclosures': '이전에 확인한 자료',
+                   'not_executed': '아직 조회하지 않음', 'request_context': '요청 내용', 'search_context': '찾는 조건',
+                   'mentioned_registered_people': '말씀하신 등록 인물', 'claim_boundary': '확인 범위'}
+
+
+def plain_reply(text):
+    """Replace internal field names (bare, in backticks or in brackets) and system phrases with everyday words."""
+    if not isinstance(text, str):
+        return text
+    snake = r'[a-z]+(?:_[a-z]+)+'
+    out = re.sub(r'\s*[(（]\s*`?' + snake + r'`?\s*[)）]', '', text)  # "요약(`execution_observation`)" -> "요약"
+    out = re.sub(r'`(' + snake + r')`', lambda m: _INTERNAL_WORDS.get(m.group(1), m.group(1).replace('_', ' ')), out)
+    for name, word in _INTERNAL_WORDS.items():
+        out = re.sub(r'(?<![A-Za-z0-9_])' + name + r'(?![A-Za-z0-9_])', word, out)
+    out = out.replace('현재 조회 요약', '지금까지 찾아본 기록').replace('조회 요약', '찾아본 기록')
+    # LaTeX arrows the chat shows as source ("합성 $\rightarrow$ 평가") and an instruction word used as a heading.
+    for latex, symbol in (('rightarrow', '→'), ('leftarrow', '←'), ('Rightarrow', '⇒'), ('to', '→')):
+        out = re.sub(r'\$?\\' + latex + r'\b\$?', symbol, out)
+    out = out.replace('추정되는 이면', '함께 생각해 볼 점')
+    return re.sub(r'[ \t]{2,}', ' ', out)
+
+
 def generation_contract(name):
     """Return an independent provider contract; caller owns actual dispatch."""
     if name == "dialogue_plan.v1":
@@ -477,7 +502,7 @@ def generation_contract(name):
                 "format": copy.deepcopy(PLAN_SCHEMA), "max_tokens": 4096}
     if name == "dialogue_response.v1":
         return {"system": _schema_system(RESPONSE_SYSTEM, RESPONSE_SCHEMA),
-                "format": copy.deepcopy(RESPONSE_SCHEMA), "max_tokens": 4096}
+                "format": copy.deepcopy(RESPONSE_SCHEMA), "max_tokens": 8192}
     if name == "dialogue_refine.v1":
         return {"system": _schema_system(REFINE_SYSTEM, REFINE_SCHEMA),
                 "format": copy.deepcopy(REFINE_SCHEMA), "max_tokens": 2048}
@@ -485,7 +510,7 @@ def generation_contract(name):
         return {"system": ANSWER_SYSTEM, "format": None, "max_tokens": 2048}
     if name == "dialogue_assessment.v1":
         return {"system": _schema_system(ASSESSMENT_SYSTEM, ASSESSMENT_SCHEMA),
-                "format": copy.deepcopy(ASSESSMENT_SCHEMA), "max_tokens": 4096}
+                "format": copy.deepcopy(ASSESSMENT_SCHEMA), "max_tokens": 8192}
     if name == "request_intent.v1":
         from .request_intent import contract_spec
         return contract_spec()
