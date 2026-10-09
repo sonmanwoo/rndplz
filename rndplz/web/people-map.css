@@ -634,34 +634,11 @@ body:has(#detailDialog.docked[open]) #peopleMapHost .mp-spatial-edge:not(.active
 }
 .sheet-handle{height:26px;margin:0 44px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .sheet-handle::before{content:"";display:block;width:40px;height:4px;margin:10px auto 0;border-radius:2px;background:var(--line)}
-.sheet-head{display:flex;gap:12px;align-items:center;padding-right:36px}
-.sheet-face{width:56px;height:56px;flex:none;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:color-mix(in srgb,var(--ink) 8%,transparent);box-shadow:0 0 0 2px var(--sheet),0 0 0 3px var(--line);font-size:22px}
-.sheet-face img{width:100%;height:100%;object-fit:cover;object-position:50% 26%}
-.sheet-id{min-width:0}
-.sheet-id strong{display:block;font-size:18px;line-height:1.3}
-.sheet-id span,.sheet-id em{display:block;font-size:12.5px;line-height:1.45;color:var(--muted);font-style:normal}
-.sheet-id em{color:var(--ink);font-size:13px}
-.sheet-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
-.sheet-tags b{font-weight:600;font-size:11px;color:var(--green);border:1px solid var(--line);border-radius:10px;padding:0 6px}
 .sheet-nav{position:absolute;top:44px;right:12px;display:flex;flex-direction:column;gap:6px}
 .sheet-nav button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--sheet);color:var(--ink);font-size:16px;line-height:1}
-.sheet-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
-.sheet-chips span{font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--ink) 5%,transparent)}
-.sheet-chips .sheet-chips-rest{display:contents;padding:0;border:0;background:none}.sheet-chips .sheet-chips-rest[hidden]{display:none}
-.sheet-chips .sheet-chip-more{font:600 12px var(--font-sans);padding:3px 11px;border-radius:12px;border:1px solid var(--ink);background:var(--sheet);color:var(--ink);cursor:pointer}
-.sheet-stats{margin:4px 0 0;font-size:12px;color:var(--muted)}
 .sheet-actions,.sheet-bar{display:flex;gap:8px;margin:12px 0 14px}
 .sheet-actions button,.sheet-bar button{flex:1;min-height:42px;border-radius:10px;font-size:14px;border:1px solid var(--line);background:var(--sheet);color:var(--ink)}
 .sheet-actions .sheet-primary,.sheet-bar .sheet-primary{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
-.sheet-sec h3{margin:18px 0 6px;font-size:12.5px;font-weight:600;color:var(--muted)}
-.sheet-sec p{margin:0;font-size:13.5px;line-height:1.65}
-.sheet-sec .sheet-group{margin:8px 0 2px;font-size:12px;color:var(--muted)}
-.sheet-row{display:block;width:100%;padding:9px 0;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;font:inherit;font-size:13.5px;line-height:1.5}
-.sheet-row strong{display:block;font-weight:500}
-.sheet-row small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
-.sheet-row.found-record{padding-left:10px;border-left:3px solid var(--green)}
-.sheet-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.sheet-more{margin-top:18px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
 .sheet-back{margin:14px 0 4px;padding:0;border:0;background:none;color:var(--green);font:inherit;font-size:13px}
 .sheet-bar{position:sticky;bottom:0;margin-bottom:0;padding:10px 0 14px;background:var(--sheet);border-top:1px solid var(--line)}
 
@@ -677,9 +654,6 @@ body:has(#peopleMapHost):has(#detailDialog[open]:not(.docked)){overflow:hidden;o
 #peopleMapHost .mp-intro-label{display:block;font-size:10px;letter-spacing:.4px;color:var(--mp-muted,#62685f)}
 #peopleMapHost .mp-intro-link{font-weight:600}
 
-/* A card without a portrait should lead with its research, not a blank image. */
-#detailDialog.docked .researcher-detail-hero:has(.portrait-unavailable){max-width:none;margin:12px 0}
-#detailDialog.docked .researcher-detail-hero .portrait-unavailable{aspect-ratio:auto;min-height:0;padding:12px 14px;gap:4px;align-items:flex-start;text-align:left}
 /* Live graph (people-map-live.js): cards settle by force and can be dragged. The view switch sits at the
    top left of the map, the settings button at the top right, and the settings panel beside the map. */
 #peopleMapHost .mp-graph-stage{user-select:none;-webkit-user-select:none}
@@ -846,10 +820,8 @@ html.mp-sheet-open{overflow:hidden}
  .sheet-nav{gap:14px}
  .sheet-nav button{position:relative}
  .sheet-nav button::after{content:"";position:absolute;inset:-7px;border-radius:50%}
- .sheet-chips .sheet-chip-more{position:relative}
- .sheet-chips .sheet-chip-more::after{content:"";position:absolute;inset:-8px -4px}
  /* A ringed button does not nudge down when pressed, so a press near the ring's edge still lands on release. */
- #peopleMapHost .mp-focus-wheel button:active,body.crafted :is(.sheet-nav button,.sheet-chips .sheet-chip-more):active:not(:disabled){transform:none}
+ #peopleMapHost .mp-focus-wheel button:active,body.crafted .sheet-nav button:active:not(:disabled){transform:none}
 }
 /* Every person view becomes a bottom sheet at the same width (900px): the preview card as on phones, with the step
    wheel laid across the top of the map where no sheet reaches. */

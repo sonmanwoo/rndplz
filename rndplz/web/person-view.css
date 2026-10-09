@@ -1,0 +1,208 @@
+/* Shared person content: preserve the existing Palette B and surface styles. */
+/* Shared home/chat person content. Sheet frame and navigation stay in draw.css. */
+.pi-card {
+  --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
+  flex: 0 0 auto; width: 104px; aspect-ratio: 5 / 7; padding: 0; border: 0; background: transparent; cursor: pointer;
+  perspective: 900px; transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)); transition: transform .18s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.pi-card:focus-visible { outline: 3px solid #a65c3e; outline-offset: 4px; border-radius: 12px; }
+.pi-turn { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; }
+.pi-card.pi-reveal .pi-turn { animation: pi-reveal .7s cubic-bezier(.3, .7, .2, 1); }
+.pi-face { position: absolute; inset: 0; overflow: hidden; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 8px 20px #0a120d33; }
+.pi-front { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 5px 5px 4px; border: 1px solid var(--pc-edge); background: var(--pc-paper); }
+.pi-portrait { display: grid; place-items: center; min-height: 0; overflow: hidden; border-radius: 8px; background: #e8ecdf; }
+.pi-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
+.pi-portrait-empty { color: #5c6e5f; font-size: 11px; }
+.pi-card-name { overflow: hidden; color: var(--pc-ink); font-family: Georgia, "Noto Serif KR", "Batang", serif; font-size: 12px; line-height: 1.3; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
+.pi-back {
+  display: grid; place-items: center; transform: rotateY(180deg); color: #e8eddd; border: 5px solid #f8f5e9; background-color: var(--pc-green);
+  background-image: repeating-linear-gradient(45deg, transparent 0 8px, #cedec214 8px 9px, transparent 9px 17px), repeating-linear-gradient(-45deg, transparent 0 8px, #cedec20c 8px 9px, transparent 9px 17px);
+}
+.pi-back-word { font: 13px Georgia, "Batang", serif; letter-spacing: .24em; text-indent: .24em; }
+.pi-foil {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: soft-light; opacity: .3; transition: opacity .2s;
+  background: radial-gradient(farthest-corner circle at var(--mx) var(--my), #ffffffd9 0%, #ffffff00 42%), linear-gradient(115deg, #0000 22%, #ff9ed659 38%, #9ee6ff59 50%, #c9ff9e59 62%, #0000 78%);
+  background-size: 100% 100%, 260% 260%; background-position: center, var(--mx) var(--my);
+}
+.pi-card.is-lit .pi-foil { opacity: .85; }
+.pi-facts, .pi-identity { display: grid; gap: 4px; min-width: 0; }
+.pi-name { margin: 0; font-family: Georgia, "Noto Serif KR", "Batang", serif; font-size: 23px; font-weight: 500; line-height: 1.2; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.pi-org, .pi-capability { margin: 0; color: var(--pc-muted); font-size: 12.5px; line-height: 1.45; }
+.pi-capability { color: var(--pc-ink); }
+.pi-body section { display: grid; gap: 6px; }
+.pi-body h3 { margin: 0; color: var(--pc-green); font-size: 12.5px; font-weight: 700; letter-spacing: .03em; }
+.pi-body h3 small { margin-left: 4px; color: var(--pc-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; }
+.pi-body p { margin: 0; }
+.pi-missing { padding: 8px 10px; border-radius: 8px; background: #f6f1e6; color: #6b5536; font-size: 12.5px; }
+.pi-body details, .person-evidence, .pi-evidence-plain { border: 1px solid var(--pc-line,var(--line)); border-radius: 9px; }
+.pi-body summary, .person-evidence summary, .pi-evidence-plain { display: grid; gap: 2px; padding: 9px 12px; }
+.pi-body summary, .person-evidence summary { cursor: pointer; list-style: none; }
+.pi-body summary::-webkit-details-marker, .person-evidence summary::-webkit-details-marker { display: none; }
+.pi-body summary::after, .person-evidence summary::after { content: "펼치기 ▾"; justify-self: end; margin-top: -18px; color: var(--pc-muted,var(--muted)); font-size: 11px; }
+.pi-body details[open] summary::after, .person-evidence[open] summary::after { content: "접기 ▴"; }
+.pi-body summary strong, .person-evidence summary strong, .pi-evidence-plain strong { padding-right: 56px; font-size: 13px; line-height: 1.4; }
+.pi-body summary span, .person-evidence summary span, .pi-evidence-plain span { color: var(--pc-muted,var(--muted)); font-size: 11.5px; }
+.pi-body details > :not(summary), details.person-evidence > :not(summary) { margin: 0 12px 10px; color: var(--pc-muted,var(--muted)); font-size: 12.5px; }
+.pi-body details > a, details.person-evidence > a { display: inline-block; color: var(--pc-green,var(--green)); }
+.pi-boundary { font-style: italic; }
+.person-evidence.found-record{border-left:3px solid var(--green)}
+.person-evidence .found-label{color:var(--green);font-size:12px;font-weight:600}
+.pi-note { margin: 0; color: var(--pc-muted); font-size: 12px; }
+@media (min-width: 901px) {
+  .pi-card { width: 100%; }
+  .pi-face { border-radius: 16px; box-shadow: 0 16px 36px #0a120d40; }
+  .pi-front { padding: 10px 10px 8px; gap: 8px; }
+  .pi-card-name { font-size: 20px; }
+  .pi-back-word { font-size: 18px; }
+}
+html[data-theme="dark"] .pi-portrait { background: #2a3350; }
+html[data-theme="dark"] .pi-back { border-color: #20283d; background-color: #1e6975; }
+html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
+/* 전체 약력 inside the card (chat.js inspectFullHtml). */
+.pi-row { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--pc-line); }
+.pi-row:first-of-type { border-top: 0; }
+.pi-row span { color: var(--pc-muted); font-size: 12px; }
+.pi-row p { margin: 0; }
+.pi-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pi-skills span { padding: 3px 10px; border: 1px solid var(--pc-line); border-radius: 999px; font-size: 12.5px; }
+.pi-links a { color: var(--pc-green); }
+
+/* Existing portrait, identity, biography, skills, history and source styles from craft.css. */
+.portrait-art{position:relative;aspect-ratio:3/4;overflow:hidden;border:1px solid #58654336;border-radius:5px;background:#e5e4d7;isolation:isolate}
+.portrait-art img{display:block;width:100%;height:100%;object-fit:contain}
+.portrait-label{position:absolute;left:8px;bottom:8px;z-index:3;font:7px/1.3 Consolas,monospace;letter-spacing:1px;background:#fff8e9d9;color:#52634d;padding:4px 6px;border:1px solid #68735b44}
+.foil-sheen,.foil-glare{position:absolute;inset:0;pointer-events:none;opacity:.12;transition:opacity .25s}
+.foil-sheen{background-image:repeating-linear-gradient(115deg,#77dfffa8 0%,#a19cff99 12%,#f4a6d1aa 22%,#efce8aaa 32%,#96dfbdaa 42%,#77dfff99 50%),repeating-linear-gradient(25deg,transparent 0 3px,#ffffff77 3px 4px,transparent 4px 8px);background-size:260% 260%,100% 100%;background-position:var(--light-x,50%) var(--light-y,35%),center;mix-blend-mode:color-dodge;filter:saturate(1.5) contrast(1.1)}
+.foil-glare{background:radial-gradient(ellipse at var(--light-x,50%) var(--light-y,35%),#ffffffdb 0%,#fff8 12%,transparent 60%);mix-blend-mode:soft-light}
+.holo-card:hover .foil-sheen,.holo-card:focus-within .foil-sheen{opacity:.6}
+.holo-card:hover .foil-glare,.holo-card:focus-within .foil-glare{opacity:.8}
+.researcher-korean{font-size:10px;letter-spacing:1px;color:#7c8370;display:block;margin-bottom:5px}
+.researcher-skills{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}
+.researcher-skills span{font-size:9px;padding:4px 6px;border:1px solid #7b8e7155;border-radius:3px;color:#52654b}
+.researcher-detail-hero{max-width:330px;margin:12px auto 25px}
+.researcher-detail-hero .portrait-art{aspect-ratio:3/4}
+.researcher-detail-hero .portrait-art img{object-position:center}
+.researcher-bio{font-size:13px;line-height:1.9}
+.researcher-capability{margin:0 0 14px;color:var(--ink);font-size:13px;line-height:1.45;font-style:normal}
+.researcher-timeline{list-style:none;margin:12px 0 24px;padding:0;border-top:1px solid #c9d1bc}
+.researcher-timeline li{display:grid;grid-template-columns:83px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid #d7ddcd;font-size:12px;line-height:1.65}
+.researcher-timeline li>span{font:italic 14px Georgia,serif;color:#8a664b}
+.researcher-timeline a,.researcher-sources a{font-size:10px;color:#647458;text-decoration:underline}
+.researcher-sources{margin-bottom:20px;font-size:11px}
+.candidate .portrait-art{margin-bottom:18px;aspect-ratio:3/4}
+.candidate .portrait-art img{object-position:center}
+.no-motion .holo-card{transform:none!important}
+.no-motion .foil-sheen,.no-motion .foil-glare{opacity:.08!important}
+@media(max-width:700px){.researcher-skills span{font-size:8px}.researcher-detail-hero{max-width:270px}}
+.portrait-art.is-photo{background:#e4ece7}.portrait-art.is-photo img{object-fit:contain;filter:saturate(.8)}
+.researcher-detail-hero .portrait-art.is-photo,.candidate .portrait-art.is-photo{aspect-ratio:3/4}
+
+/* Self-provided portrait over a separately generated process/research backdrop. */
+.portrait-art.has-process-art{background:#efe7d5}
+.portrait-art.has-process-art>img.portrait-backdrop{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:none}
+.portrait-art.has-process-art>img.portrait-person{position:absolute;z-index:1;left:1%;top:5.5%;width:98%;height:auto;object-fit:contain;mix-blend-mode:normal;filter:grayscale(.6) sepia(.32) saturate(.8) contrast(.94) brightness(1.015)}
+.portrait-art.portrait-jinho>img.portrait-person{top:2%;width:102%;left:-1%}
+.portrait-art.has-process-art>img.portrait-backdrop{z-index:0}
+.portrait-art.has-process-art .foil-sheen,.portrait-art.has-process-art .foil-glare{z-index:2}
+.portrait-art.portrait-manwoo>img.portrait-person{mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201400%201800%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22edge%22%3E%3CfeGaussianBlur%20stdDeviation%3D%221.8%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22white%22%20filter%3D%22url%28%23edge%29%22%20d%3D%22M0%201800V1700C90%201640%20239%201603%20299%201541C303%201476%20332%201434%20374%201419L362%201275C338%201212%20314%201153%20299%201090C223%201075%20211%201002%20181%20923C155%20865%20145%20809%20161%20780Q175%20761%20196%20765C166%20684%20142%20600%20156%20494C166%20349%20233%20239%20345%20170Q438%20124%20534%20141C545%2079%20608%2051%20658%2051C827%2042%201005%2093%201080%20178C1191%20266%201226%20375%201242%20477C1260%20594%201230%20710%201218%20747C1248%20776%201230%20864%201211%20945C1194%201034%201167%201077%201094%201099C1077%201178%201022%201240%201015%201291L1008%201436C1036%201471%201046%201511%201057%201538C1141%201596%201274%201623%201400%201680V1800Z%22%2F%3E%3C%2Fsvg%3E");mask-size:100% 100%;mask-repeat:no-repeat}
+.portrait-art.portrait-jinho>img.portrait-person{mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20413%20531%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22edge%22%3E%3CfeGaussianBlur%20stdDeviation%3D%22.55%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22white%22%20filter%3D%22url%28%23edge%29%22%20d%3D%22M0%20531C2%20479%2017%20423%2042%20394C61%20373%2096%20355%20122%20339L131%20303C119%20270%20115%20236%20110%20213C101%20200%2094%20177%20103%20160C103%20112%20124%2065%20160%2045C189%2029%20220%2028%20247%2039C284%2049%20301%2083%20305%20120L305%20166C314%20176%20306%20203%20302%20219L301%20299C316%20327%20351%20343%20375%20369C401%20397%20412%20435%20413%20471V531Z%22%2F%3E%3C%2Fsvg%3E");mask-size:100% 100%;mask-repeat:no-repeat}
+
+
+/* Nobel portrait presentation only. The original artwork stays unchanged. */
+.laureate-name{padding:0 0 13px;min-width:0}
+.laureate-name h2,.laureate-name h3{margin:0 0 7px;font:600 25px/1.25 Georgia,"Malgun Gothic",serif;letter-spacing:-.6px;overflow-wrap:anywhere}
+.laureate-name .candidate-org{margin:0 0 6px;min-height:0;font-size:11px;line-height:1.65;color:#576657;overflow-wrap:anywhere}
+.laureate-role{font-size:10px;line-height:1.65;color:#586451;margin:0;overflow-wrap:anywhere}
+.candidate .laureate-portrait,.researcher-detail-hero .laureate-portrait,.laureate-portrait{aspect-ratio:3/4;width:100%;flex:none;background:var(--sheet,#ffffff)}
+.candidate .laureate-portrait img,.researcher-detail-hero .laureate-portrait img,.laureate-portrait img{position:absolute;inset:0;object-fit:contain;object-position:center;width:100%;height:100%;opacity:0;filter:none}
+.laureate-portrait[data-asset="ready"] img{opacity:1}
+.portrait-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;font-size:12px;line-height:1.8;color:#69715c;background:var(--sheet,#ffffff);overflow-wrap:anywhere}
+.portrait-status[hidden]{display:none}
+.laureate-portrait .portrait-label{font-size:8px;padding:5px 7px;background:#fff8e9ed;color:#42533d}
+.laureate-portrait .foil-sheen,.laureate-portrait .foil-glare{z-index:2;opacity:0!important;mask-image:radial-gradient(ellipse 37% 35% at 50% 37%,#0002 0%,#0002 52%,#000 100%);-webkit-mask-image:radial-gradient(ellipse 37% 35% at 50% 37%,#0002 0%,#0002 52%,#000 100%)}
+.laureate-portrait[data-laureate-effect="gold"] .foil-sheen{background-image:repeating-linear-gradient(115deg,#d1b46c80 0%,#fff5c790 15%,#bc985364 32%,#e5d7a882 49%,#d1b46c80 65%),repeating-linear-gradient(25deg,transparent 0 3px,#ffffff45 3px 4px,transparent 4px 8px);filter:none}
+.laureate-portrait[data-laureate-effect="prism"] .foil-sheen{filter:saturate(1.1)}
+.laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-sheen{opacity:.16!important}
+.laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-glare{opacity:.15!important}
+.laureate-card:is(:hover,:focus-within) .laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-sheen{opacity:.34!important}
+.laureate-card:is(:hover,:focus-within) .laureate-portrait[data-asset="ready"]:not([data-laureate-effect="off"]) .foil-glare{opacity:.38!important}
+.laureate-card[data-laureate-effect="off"]{--rx:0deg!important;--ry:0deg!important}
+.laureate-award{border-top:1px solid #7b8e7140;padding:13px 0;margin:0 0 12px;font-size:12px;line-height:1.75;color:#3b4d36;overflow-wrap:anywhere}
+.laureate-award p{margin:0 0 7px}.laureate-award .laureate-award-label{color:#775521;font-weight:600;font-size:12px}.laureate-award .laureate-award-domain{font:10px/1.5 Consolas,monospace;color:#68715e}
+.laureate-award a,.portrait-provenance a{color:var(--green,#2f7f86);text-decoration:underline;text-underline-offset:3px;font-size:11px;overflow-wrap:anywhere}
+.laureate-award small{display:block;font-size:10px;color:#63705b;margin-top:7px}
+.laureate-effect-controls{margin:0 0 16px;min-width:0}.laureate-effect-controls label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-size:11px;color:#53614d}
+.laureate-effect-controls select{font:inherit;min-height:40px;width:auto;min-width:105px;max-width:100%;padding:7px 9px;margin:0;border:1px solid #a6b39b;border-radius:4px;background:var(--sheet,#ffffff);color:#344c32;cursor:pointer}
+.laureate-effect-controls select:disabled{cursor:default;color:#69715c}.laureate-effect-help{font-size:10px!important;line-height:1.6;margin:7px 0 0;color:#66705e}
+.portrait-provenance{border-top:1px dashed #75886666;margin:18px 0;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.portrait-provenance summary{min-height:44px;padding:11px 0;cursor:pointer;color:#344c32;font-size:12px}
+.portrait-provenance h4{font-size:12px;margin:13px 0 5px}.portrait-provenance p{margin:5px 0}
+.laureate-effect-controls select:focus-visible,.portrait-provenance summary:focus-visible{outline:3px solid var(--green,#2f7f86);outline-offset:3px}
+.no-motion .laureate-portrait .foil-sheen,.no-motion .laureate-portrait .foil-glare{display:none!important;opacity:0!important}
+@media(prefers-reduced-motion:reduce){.laureate-card{transform:none!important;translate:none!important}.laureate-portrait .foil-sheen,.laureate-portrait .foil-glare{display:none!important;opacity:0!important}}
+@media(max-width:430px){.laureate-name h2,.laureate-name h3{font-size:24px}.laureate-effect-controls label{gap:8px}.laureate-portrait .portrait-label{font-size:7px}.portrait-provenance{max-width:100%}}
+
+
+/* User-provided profiles: a complete illustration, separate from old photo masks. */
+.candidate .personal-illustration,.researcher-detail-hero .personal-illustration,.personal-illustration{aspect-ratio:3/4;width:100%;flex:none;background:var(--sheet,#ffffff)}
+.candidate .personal-illustration img,.researcher-detail-hero .personal-illustration img,.personal-illustration img{position:absolute;inset:0;left:0;top:0;width:100%;height:100%;object-fit:contain;object-position:center;mask:none;-webkit-mask:none;filter:none;mix-blend-mode:normal;opacity:0}
+.personal-illustration[data-asset="ready"] img{opacity:1}
+.personal-illustration .portrait-label{font-size:8px;padding:5px 7px;background:#fff8e9ed;color:#42533d}
+.personal-name{padding:0 0 13px;min-width:0}
+.personal-name h2,.personal-name h3{margin:0 0 7px;font:600 25px/1.25 Georgia,"Malgun Gothic",serif;letter-spacing:-.6px;overflow-wrap:anywhere}
+.personal-name .candidate-org{margin:0 0 6px;min-height:0;font-size:11px;line-height:1.65;color:#576657;overflow-wrap:anywhere}
+.personal-portrait-note{font-size:11px;line-height:1.8;color:#53614d;overflow-wrap:anywhere;margin:0 0 14px}
+.personal-portrait-provenance{border-top:1px dashed #75886666;margin:16px 0;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.personal-portrait-provenance summary{min-height:44px;padding:11px 0;cursor:pointer;color:#344c32;font-size:12px}
+.personal-portrait-provenance h4{font-size:12px;margin:13px 0 5px}.personal-portrait-provenance p{margin:5px 0}
+.personal-portrait-provenance summary:focus-visible{outline:3px solid var(--green,#2f7f86);outline-offset:3px}
+@media(max-width:430px){.personal-name h2,.personal-name h3{font-size:24px}.personal-illustration .portrait-label{font-size:7px}}
+
+/* The same name-first frame also applies to ordinary public researcher cards. */
+.researcher-name{padding:0 0 13px;min-width:0}
+.researcher-name h2,.researcher-name h3{margin:0 0 7px;font:600 25px/1.25 Georgia,"Malgun Gothic",serif;letter-spacing:-.6px;overflow-wrap:anywhere}
+.researcher-name .candidate-org{margin:0 0 6px;min-height:0;font-size:11px;line-height:1.65;color:#576657;overflow-wrap:anywhere}
+.portrait-unavailable{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:linear-gradient(145deg,#f3f0e5,#e3e5d9);color:#66715b}
+.portrait-unavailable strong{font-size:14px;font-weight:500}.portrait-unavailable p{margin:0;font-size:11px;line-height:1.8}
+@media(max-width:430px){.researcher-name h2,.researcher-name h3{font-size:24px}}
+
+.researcher-intro-links{margin:4px 0 12px;font-size:12px;line-height:1.8}.researcher-intro-links span{display:block;font-size:10px;letter-spacing:.4px;color:#62685f}.researcher-intro-link{font-weight:600;text-decoration:underline;text-underline-offset:3px}
+
+/* Shared map sheet content. Docking, handle, navigation and viewport rules stay in people-map.css. */
+.sheet-head{display:flex;gap:12px;align-items:center;padding-right:36px}
+.sheet-face{width:56px;height:56px;flex:none;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:color-mix(in srgb,var(--ink) 8%,transparent);box-shadow:0 0 0 2px var(--sheet),0 0 0 3px var(--line);font-size:22px}
+.sheet-face img{width:100%;height:100%;object-fit:cover;object-position:50% 26%}
+.sheet-id{min-width:0}
+.sheet-id strong{display:block;font-size:18px;line-height:1.3}
+.sheet-id span,.sheet-id em{display:block;font-size:12.5px;line-height:1.45;color:var(--muted);font-style:normal}
+.sheet-id em{color:var(--ink);font-size:13px}
+.sheet-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.sheet-tags b{font-weight:600;font-size:11px;color:var(--green);border:1px solid var(--line);border-radius:10px;padding:0 6px}
+.sheet-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+.sheet-chips span{font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--ink) 5%,transparent)}
+:is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chips-rest{display:contents;padding:0;border:0;background:none}:is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chips-rest[hidden]{display:none}
+:is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chip-more{font:600 12px var(--font-sans);padding:3px 11px;border-radius:12px;border:1px solid var(--ink);background:var(--sheet);color:var(--ink);cursor:pointer}
+.sheet-stats{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.sheet-sec h3{margin:18px 0 6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.sheet-sec p{margin:0;font-size:13.5px;line-height:1.65}
+.sheet-sec .sheet-group{margin:8px 0 2px;font-size:12px;color:var(--muted)}
+.sheet-row{display:block;width:100%;padding:9px 0;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);text-align:left;font:inherit;font-size:13.5px;line-height:1.5}
+.sheet-row strong{display:block;font-weight:500}
+.sheet-row small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
+.sheet-row.found-record{padding-left:10px;border-left:3px solid var(--green)}
+.sheet-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.sheet-more{margin-top:18px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+/* A card without a portrait should lead with its research, not a blank image. */
+#detailDialog.docked .researcher-detail-hero:has(.portrait-unavailable){max-width:none;margin:12px 0}
+#detailDialog.docked .researcher-detail-hero .portrait-unavailable{aspect-ratio:auto;min-height:0;padding:12px 14px;gap:4px;align-items:flex-start;text-align:left}
+
+/* Stable section IDs do not introduce layout boxes into existing reading views. */
+.person-section{display:contents}
+
+/* The shared expansion button keeps the existing invisible 44px touch target. */
+@media (pointer:coarse),(max-width:700px){
+ :is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chip-more{position:relative}
+ :is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chip-more::after{content:"";position:absolute;inset:-8px -4px}
+ body.crafted :is(.sheet-chips,.researcher-skills,.pi-skills) .sheet-chip-more:active:not(:disabled){transform:none}
+}
