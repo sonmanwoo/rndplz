@@ -458,7 +458,9 @@
     for(const s of LIVE_SLIDERS){panel.querySelector('[data-live-pref="'+s.key+'"]').value=String(prefs[s.key]);output(s);}
     groups();compileGroups();
    }
-   function open(show){panel.hidden=!show;gear.setAttribute('aria-expanded',String(show));placePanel();}
+   // On a phone the panel opens below the map, out of sight: bring it up so the reader sees it opened (2026-10-10).
+   function open(show){panel.hidden=!show;gear.setAttribute('aria-expanded',String(show));placePanel();
+    if(show&&win.matchMedia('(max-width:760px)').matches)panel.scrollIntoView({block:'start',behavior:quiet()?'instant':'smooth'});}
    function groupsChanged(){compileGroups();colorize();savePrefs();}
    panel.addEventListener('input',e=>{
     const t=e.target,key=t.dataset.livePref,s=LIVE_SLIDERS.find(x=>x.key===key);
