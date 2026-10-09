@@ -19,10 +19,10 @@ body.home-landing.home-welcome .home-whirl {position:absolute}
 .home-landing .landing-feature h3 {font:650 clamp(18px,1.65vw,24px)/1.3 var(--font-sans);letter-spacing:-.04em;margin:18px 0 8px;word-break:keep-all}
 .home-landing .landing-feature p {font-size:15px;line-height:1.55;color:var(--muted,#77716d);margin:0;word-break:keep-all}
 .home-landing .landing-next {position:absolute;right:-18px;top:calc((100vw - 2 * var(--landing-pad)) / 4.25 * .54 - 22px);width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--line,#ddd9d6);border-radius:50%;background:var(--sheet,#fff);color:var(--ink);font:30px/1 var(--font-sans)}
-.home-landing .landing-field-list {list-style:none;margin:0;padding:0;transition:opacity .25s}
-.home-landing .landing-field-list.is-rolling {opacity:0}
+.home-landing .landing-field-window {overflow:hidden;transition:height .45s ease}
+.home-landing .landing-field-list {list-style:none;margin:0;padding:0;will-change:transform}
 .home-landing .landing-fields-all {margin-top:28px}
-.home-landing .landing-field-list a {display:block;width:fit-content;min-height:44px;padding:3px 0;font:650 clamp(30px,4.8vw,72px)/1.13 var(--font-sans);letter-spacing:-.05em;color:#bcb8b4;word-break:keep-all}
+.home-landing .landing-field-list a {display:block;width:fit-content;min-height:44px;padding:3px 0;font:650 clamp(30px,4.8vw,72px)/1.13 var(--font-sans);letter-spacing:-.05em;color:#bcb8b4;word-break:keep-all;transition:color .45s ease}
 .home-landing .landing-field-list a.is-current,.home-landing .landing-field-list a:hover,.home-landing .landing-field-list a:focus-visible {color:var(--ink,#0d0d0d)}
 .home-landing .landing-section-head {display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:32px}
 .home-landing .landing-section-head h2 {margin:0;max-width:700px}

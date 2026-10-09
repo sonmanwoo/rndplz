@@ -66,27 +66,37 @@
       current = index;
       fieldLinks.forEach((link, i) => link.classList.toggle('is-current', i === current));
     }
-    // A few fields at a time (6 on a phone, 8 wider): the highlight walks them, then the window rolls on to the next ones.
-    const narrow = win.matchMedia('(max-width:700px)');
+    // A ticker: 6 rows on a phone, 8 wider. The highlight stays on the second row and the list slides up one field per step,
+    // so the next fields are always waiting just below it. With motion off, every field stands still.
+    const narrow = win.matchMedia('(max-width:700px)'), FOCUS = 1;
+    let rows = 0;
     const windowSize = () => quiet() ? fields.length : Math.min(narrow.matches ? 6 : 8, fields.length);
+    const ticking = () => windowSize() < fields.length;
+    const rowHeight = item => { const r = item.getBoundingClientRect(); return (r.bottom - r.top) || 0; };
     function paintFields() {
-      const list = $('landingFieldList'); list.replaceChildren(); fieldLinks = [];
-      for (let k = 0; k < windowSize(); k++) {
-        const field = fields[(start + k) % fields.length];
+      const list = $('landingFieldList'), frame = $('landingFieldWindow'); list.replaceChildren(); fieldLinks = []; rows = windowSize();
+      for (let k = 0; k < rows + (ticking() ? 1 : 0); k++) {
+        const field = fields[((ticking() ? start : 0) + k) % fields.length];
         const item = node('li'), link = node('a', '', field.label); link.href = capabilityURL(field.id);
         item.append(link); list.append(item); fieldLinks.push(link);
       }
-      selectField(0);
+      selectField(ticking() ? FOCUS : 0);
+      // The frame shows exactly the visible rows; the extra one below waits to slide in.
+      frame.style.height = ticking() ? [...list.children].slice(0, rows).reduce((sum, item) => sum + rowHeight(item), 0) + 'px' : '';
     }
     function step() {
-      if (current < fieldLinks.length - 1) { selectField(current + 1); return; }
-      const list = $('landingFieldList'); start = (start + fieldLinks.length) % fields.length;
-      list.classList.toggle('is-rolling', true); win.clearTimeout(rolling);
-      rolling = win.setTimeout(() => { paintFields(); list.classList.toggle('is-rolling', false); }, 250);
+      if (!ticking()) { selectField((current + 1) % fieldLinks.length); return; }
+      const list = $('landingFieldList'), shift = rowHeight(list.firstElementChild);
+      selectField(FOCUS + 1);
+      list.style.transition = 'transform .45s ease'; list.style.transform = 'translateY(' + (-shift) + 'px)';
+      win.clearTimeout(rolling);
+      rolling = win.setTimeout(() => {
+        start = (start + 1) % fields.length; list.style.transition = 'none'; list.style.transform = ''; paintFields();
+      }, 460);
     }
     function syncTimer() {
       win.clearInterval(timer); timer = 0;
-      if (fields.length && fieldLinks.length !== windowSize()) paintFields();
+      if (fields.length && rows !== windowSize()) paintFields();
       if (!quiet() && !doc.hidden && fieldsVisible && !held && body.classList.contains('home-welcome') && fieldLinks.length > 1) {
         timer = win.setInterval(step, 1600);
       }
@@ -101,7 +111,8 @@
     new win.MutationObserver(syncTimer).observe(body, {attributes:true, attributeFilter:['class']});
     win.addEventListener('pagehide', () => win.clearInterval(timer)); win.addEventListener('pageshow', syncTimer);
     function render(data) {
-      const projected = project(data), people = projected.people; fields = projected.fields; start = 0;
+      const projected = project(data), people = projected.people; fields = projected.fields;
+      start = (fields.length - FOCUS) % Math.max(fields.length, 1); // the first field opens on the highlighted row
       paintFields(); syncTimer();
       const all = $('landingFieldsAll'); all.hidden = !fields.length; all.textContent = '연구 맵에서 분야 ' + fields.length + '개 모두 보기';
       const rail = $('landingPeopleRail'); rail.replaceChildren();
