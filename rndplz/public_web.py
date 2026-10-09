@@ -374,13 +374,14 @@ class PublicModels(ChatModels):
                               'provider':'bridge','model':model,'name':'로컬 '+gemma_display_name(model)+suffix,
                               'enabled':ready,'local':False,'vision':False})
             items.append({'id':'guide','provider':'guide','name':'기록 탐색 안내 · AI 미사용','enabled':True,'local':False,'vision':False})
-            # Gemma on the operator PC is the default, so a visitor's words reach the company AI (AiU) only when
-            # the visitor picks it (2026-10-10 operator decision); with Gemma not connected, record search without AI.
+            # The company AI's fast consultation (Gemini) is the default again (2026-10-10 operator decision);
+            # Gemma on the operator PC stays selectable, and without AiU a connected Gemma, else record search.
             aiu = self.aiu_options()
             items.extend(aiu)
             option = self.gemini_option()
             if option: items.append(option)
-            default = next((m['id'] for m in items if m['provider'] == 'bridge' and m['enabled']), 'guide')
+            gemma = next((m['id'] for m in items if m['provider'] == 'bridge' and m['enabled']), 'guide')
+            default = aiu[0]['id'] if aiu else option['id'] if option else gemma
             return {'models':items,'default':default,'public':True}
         items = [{'id': p, 'provider': p, 'name': label + ' · ' + c['model'],
                   'enabled': True, 'local': False, 'vision': False}

@@ -60,7 +60,7 @@ def test_landing_composes_only_opt_in_document_and_defers_map(app, query, varian
     assert re.findall(r'<li>(.*?)</li>', principles) == [
         '공개 논문·제공 경력·프로젝트 기록을 근거로 찾아요.',
         '연락 가능성·협업 의사는 확인하지 않아요 — 의뢰는 초안·제안함 시연까지.',
-        '대화는 기본으로 운영자 PC의 로컬 모델이 처리하고, 사내 AI(AiU)는 직접 고를 때만 써요.',
+        '대화는 사내 AI(AiU) 또는 운영자 PC의 로컬 모델이 처리해요.',
     ]
     closing = body[body.index('class="landing-closing-actions"'):body.index('<nav class="landing-links"')]
     assert 'data-landing-ask>질문하기</button>' in closing
