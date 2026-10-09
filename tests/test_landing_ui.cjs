@@ -28,7 +28,7 @@ class Element {
   replaceChildren(...children) { this.children.forEach(child => { child.parent = null; }); this.children = []; this.append(...children); }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); this.parent = null; }
   get firstElementChild() { return this.children[0]; }
-  getBoundingClientRect() { return {width: 260}; }
+  getBoundingClientRect() { const top = this.rectTop ?? 0; return {width: 260, top, bottom: top + 40}; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(type, fn) { if (!this.events.has(type)) this.events.set(type, []); this.events.get(type).push(fn); }
@@ -89,6 +89,7 @@ function harness(mode = 'people', quiet = false) {
   const featureImage = element('', ids.landingFeatures, 'img'); featureImage.dataset.src = '/landing-assets/chat.webp';
   element('landingPeopleRail', ids.landingPeople, 'ul').className = 'landing-rail';
   element('landingFieldList', ids.landingFields, 'ul');
+  element('landingFieldsAll', ids.landingFields, 'a');
   for (const host of [ids.landingFields, ids.landingPeople]) element('', host, 'p').dataset.landingDataStatus = '';
   const retry = element('', ids.landingFields, 'button'); retry.dataset.landingRetry = '';
   const ask = element('', doc.body, 'button'); ask.dataset.landingAsk = '';
@@ -102,7 +103,7 @@ function harness(mode = 'people', quiet = false) {
     if (event.target !== ids.accountToggle && !ids.accountMenu.contains(event.target)) ids.accountMenu.hidden = true;
   });
   existingFeedback.addEventListener('click', () => { ids.feedbackDialog.open = true; });
-  const observers = [], mediaEvents = [], intervals = new Map(), fetches = [], scripts = [], cards = [], mapMounts = [];
+  const observers = [], mediaEvents = [], intervals = new Map(), timeouts = [], fetches = [], scripts = [], cards = [], mapMounts = [];
   let timer = 0;
   const media = {matches: quiet, addEventListener(type, fn) { mediaEvents.push(fn); }};
   const win = new Element('window', doc); win.document = doc;
@@ -114,7 +115,10 @@ function harness(mode = 'people', quiet = false) {
       disconnect() { this.targets = []; }
     },
     MutationObserver: class { constructor(callback) { this.callback = callback; } observe() {} },
-    setInterval(fn, delay) { assert.equal(delay, 2000); intervals.set(++timer, fn); return timer; },
+    innerHeight: 800,
+    setInterval(fn, delay) { assert.equal(delay, 1600); intervals.set(++timer, fn); return timer; },
+    setTimeout(fn) { timeouts.push(fn); return timeouts.length; },
+    clearTimeout() {},
     clearInterval(id) { intervals.delete(id); },
     fetch(url, options) { fetches.push({url, options}); return Promise.resolve({ok: true, json: async () => fixture}); },
     openPersonCard(...args) { cards.push(args); return Promise.resolve(); },
@@ -128,7 +132,7 @@ function harness(mode = 'people', quiet = false) {
   const intersect = (target, isIntersecting, intersectionRatio = isIntersecting ? 1 : 0) => {
     for (const observer of [...observers]) if (observer.targets.includes(target)) observer.callback([{target, isIntersecting, intersectionRatio}]);
   };
-  return {doc, win, ids, featureImage, retry, ask, login, feedback, existingFeedback, next, observers, media, mediaEvents, intervals, fetches, scripts, cards, mapMounts, intersect};
+  return {doc, win, ids, featureImage, retry, ask, login, feedback, existingFeedback, next, observers, media, mediaEvents, intervals, timeouts, fetches, scripts, cards, mapMounts, intersect};
 }
 
 function runBoot(h) {
@@ -184,6 +188,12 @@ function runBoot(h) {
   assert.equal(people.intervals.size, 1); [...people.intervals.values()][0]();
   const links = people.ids.landingFieldList.querySelectorAll('a');
   assert.equal(links[1].classList.contains('is-current'), true);
+  assert.equal(people.ids.landingFieldsAll.hidden, false); assert.match(people.ids.landingFieldsAll.textContent, /분야 2개 모두 보기/);
+  [...people.intervals.values()][0]();
+  assert.equal(people.ids.landingFieldList.classList.contains('is-rolling'), true, 'past the last field the window rolls on');
+  people.timeouts.forEach(fn => fn());
+  assert.equal(people.ids.landingFieldList.classList.contains('is-rolling'), false);
+  assert.equal(people.ids.landingFieldList.querySelectorAll('a')[0].classList.contains('is-current'), true);
   people.intersect(people.ids.landingFields, true, 0); assert.equal(people.intervals.size, 0, 'edge contact does not count as a visible rotating list');
   people.intersect(people.ids.landingFields, true); assert.equal(people.intervals.size, 1);
   people.media.matches = true; people.mediaEvents.forEach(fn => fn()); assert.equal(people.intervals.size, 0);
