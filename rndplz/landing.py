@@ -16,8 +16,10 @@ LANDING_ASSETS = {
        for name in ('landing.css', 'landing.js', 'landing-boot.js', 'landing-map-link.js', 'landing-map-preview.js')},
     '/landing-home.js': ('home-cosmos.js', 'text/javascript'),
     '/landing-chat.js': ('chat.js', 'text/javascript'),
-    **{'/landing-assets/' + name + '.webp': ('landing-assets/' + name + '.webp', 'image/webp')
-       for name in ('chat', 'evidence', 'map', 'letter', 'profile')},
+    '/landing-assets/profile.webp': ('landing-assets/profile.webp', 'image/webp'),
+    # Five scenes recorded from the real service (_work/landing/motion): a clip and its still each.
+    **{'/landing-assets/scene-' + str(n) + extension: ('landing-assets/scene-' + str(n) + extension, mime)
+       for n in range(1, 6) for extension, mime in (('.mp4', 'video/mp4'), ('.jpg', 'image/jpeg'))},
 }
 MAP_SCRIPTS = ('people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js')
 DEFERRED_ASSETS = ('landing.js', 'landing-map-preview.js', 'recommendation-map.js', *MAP_SCRIPTS)
@@ -85,6 +87,9 @@ def landing_document(asset, variant, web, static_assets):
             '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">'
             '<path d="M4.25 9.25 12 17l7.75-7.75" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></a>')
     fragment = (web / 'landing.html').read_bytes().decode('utf-8')
+    # Scene clips (~5 MB) and stills carry their content hash, so a returning browser keeps them (immutable).
+    fragment = re.sub(r'"(/landing-assets/[a-z0-9-]+\.(?:mp4|jpg|webp))"',
+                      lambda match: '"' + html.escape(static_assets.versioned_url(match[1], '/'), quote=True) + '"', fragment)
     # HTML remains in source order: welcome, introduction, and existing dialogs.
     source = source.replace('</main></div>', down + newline + '</main></div>' + newline + fragment, 1)
     return _asset('/?landing=' + variant, source.encode('utf-8'), asset.mime)

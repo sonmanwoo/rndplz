@@ -35,6 +35,7 @@
       for (const img of host.querySelectorAll('img[data-src]')) whenVisible(img, () => { img.src = img.dataset.src; delete img.dataset.src; });
     }
     lazyImages($('landingFeatures'));
+    if ($('landingFeatureRail')) scenes($('landingFeatureRail'), win, quiet);
     function moveRail(rail, direction) {
       rail.scrollBy({left:direction * (rail.firstElementChild?.getBoundingClientRect().width || rail.clientWidth * .8) + direction * 24,
         behavior:quiet() ? 'instant' : 'smooth'});
@@ -170,5 +171,76 @@
       if (dialog?.open) dialog.addEventListener('close', () => feedback.focus({preventScroll:true}), {once:true});
     });
   }
-  return {capabilityURL, project, init};
+  // The scene rail (2026-10-10): the first card in view plays from its start; when it ends the rail slides to the
+  // next card and plays it, and after the last card returns to the first. A hand on the rail, the rail out of view,
+  // a hidden tab or motion off stops the sliding; with motion off a tap plays a scene.
+  function scenes(rail, win, quiet) {
+    const doc = win.document, cards = [...rail.children];
+    const videos = cards.map(card => card.querySelector('video'));
+    if (!videos.some(Boolean) || !('IntersectionObserver' in win)) return null;
+    const ratio = new Map(), now = () => Date.now();
+    let active = -1, onScreen = false, loaded = false, touchedAt = -Infinity, glidedAt = -Infinity, hold = 0;
+    const visible = index => (ratio.get(cards[index]) || 0) >= .6;
+    const firstVisible = () => cards.findIndex((card, index) => visible(index));
+    const start = video => { const started = video.play && video.play(); if (started && started.catch) started.catch(() => {}); };
+    function load() {
+      if (loaded) return; loaded = true;
+      for (const video of videos) if (video) { video.poster = video.dataset.poster; video.src = video.dataset.src; }
+    }
+    function play(index) {
+      const video = videos[index];
+      if (!video || quiet() || !onScreen || doc.hidden) return;
+      try { video.currentTime = 0; } catch (_) { /* not loaded yet: it starts from 0 anyway */ }
+      start(video);
+    }
+    function activate(index) {
+      win.clearTimeout(hold); active = index;
+      videos.forEach((video, k) => { if (video && k !== index && video.pause) video.pause(); });
+      cards.forEach((card, k) => card.classList.toggle('is-playing', k === index && !!videos[k]));
+      if (videos[index]) play(index);
+      else if (!quiet()) hold = win.setTimeout(advance, 4000);   // a still card rests, then the story starts again
+    }
+    function advance() {
+      if (quiet() || !onScreen || doc.hidden) return;
+      if (now() - touchedAt < 2500) { play(active); return; }    // someone is reading: replay instead of sliding away
+      const next = (active + 1) % cards.length, first = rail.firstElementChild;
+      glidedAt = now();
+      rail.scrollTo({left: Math.max(0, cards[next].offsetLeft - first.offsetLeft), behavior: quiet() ? 'instant' : 'smooth'});
+      activate(next);
+    }
+    videos.forEach((video, index) => {
+      if (!video) return;
+      video.addEventListener('ended', () => { if (index === active) advance(); });
+      video.addEventListener('timeupdate', () => {
+        const bar = cards[index].querySelector('.landing-scene-time i');
+        if (bar && video.duration) bar.style.width = (video.currentTime / video.duration * 100).toFixed(1) + '%';
+      });
+      video.parentElement.addEventListener('click', () => {
+        touchedAt = now(); load();
+        if (index !== active) { activate(index); if (quiet()) start(video); return; }
+        if (video.paused) start(video); else if (video.pause) video.pause();
+      });
+    });
+    for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) rail.addEventListener(type, () => { touchedAt = now(); }, {passive: true});
+    const seen = new win.IntersectionObserver(entries => {
+      for (const entry of entries) ratio.set(entry.target, entry.intersectionRatio);
+      if (now() - glidedAt < 900 || (active >= 0 && visible(active))) return;   // our own slide settles first
+      const index = firstVisible();
+      if (index >= 0 && index !== active) activate(index);
+    }, {root: rail, threshold: [.3, .6, .9]});
+    cards.forEach(card => seen.observe(card));
+    new win.IntersectionObserver(entries => {
+      onScreen = entries.some(entry => entry.isIntersecting && entry.intersectionRatio > 0);
+      if (!onScreen) { videos.forEach(video => video && video.pause && video.pause()); return; }
+      load();
+      if (active < 0) { const index = firstVisible(); activate(index >= 0 ? index : 0); }
+      else play(active);
+    }, {threshold: .25}).observe(rail);
+    doc.addEventListener('visibilitychange', () => {
+      const video = videos[active];
+      if (video && doc.hidden && video.pause) video.pause(); else if (video && onScreen && !quiet()) start(video);
+    });
+    return {activate, advance, get active() { return active; }};
+  }
+  return {capabilityURL, project, init, scenes};
 }));
