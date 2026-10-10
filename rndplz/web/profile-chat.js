@@ -24,7 +24,8 @@
     const wrap=el("section","panel"),status=el("p","status"),errors=el("div","error"),summary=el("div","summary"),editorBox=el("details","editor"),editorBody=el("div","editor-body"),all=el("details","all"),allBody=el("div","all-body"),review=el("section","review"),receipts=el("section","receipts"),conflicts=el("section","conflict"),drafts=el("section","draft");
     wrap.setAttribute("aria-label","대화 속 내 프로필");status.setAttribute("role","status");status.setAttribute("aria-live","polite");errors.setAttribute("role","alert");errors.tabIndex=-1;
     editorBox.append(el("summary",null,"항목 직접 수정"),editorBody);all.append(el("summary",null,"전체 정보와 자료 펼치기"),allBody);
-    wrap.append(status,errors,summary,editorBox,conflicts,drafts,review,receipts,all);host.append(wrap);host.hidden=true;
+    const thinking=document.createElement("span");thinking.className="susomun-ci susomun-ci--busy profile-chat-thinking";thinking.setAttribute("aria-hidden","true");thinking.innerHTML='<span class="susomun-ci-h">H</span>';thinking.hidden=true;
+    wrap.append(thinking,status,errors,summary,editorBox,conflicts,drafts,review,receipts,all);host.append(wrap);host.hidden=true;
     function button(label,fn,action,free=false) { const b=el("button","button",label);b.type="button";b.dataset.profileAction=action;if(!free)b.dataset.profileLock="";b.addEventListener("click",event=>{if(cancelActions.has(action)&&(activeMutation||uncertain)){showError(new Error("저장 결과를 아직 확인하지 못했습니다. 입력과 선택은 유지하며, 이 작업을 취소한 것은 아닙니다."));return;}fn(event);});return b; }
     function field(label,input,key) { const box=el("label","field",label);input.id=prefix+"-"+key;input.dataset.profileKey=key;box.htmlFor=input.id;box.append(input);return box; }
     function note(value) { return el("p","note",value); }
@@ -34,7 +35,7 @@
       for(const n of wrap.querySelectorAll("[data-profile-lock]"))n.disabled=accountNavigationPending||busy||!!uncertain||!view;
       for(const n of wrap.querySelectorAll('[data-profile-action="apply"], [data-profile-action="save-editor"], [data-profile-action="save-draft"]'))n.disabled=accountNavigationPending||busy||!!uncertain||!!conflict||!view;
       for(const n of wrap.querySelectorAll('[data-profile-action="cancel-editor"], [data-profile-action="cancel-selection"], [data-profile-action="cancel-delete"]'))n.disabled=activeMutation||!!uncertain;
-      wrap.setAttribute("aria-busy",String(busy));notify(onBusy,accountNavigationPending||busy||!!uncertain);
+      wrap.setAttribute("aria-busy",String(busy));thinking.hidden=!busy;notify(onBusy,accountNavigationPending||busy||!!uncertain);
       status.textContent=busy?(readingProgress||"프로필 요청을 처리하고 있어요. 저장 완료 응답을 기다려 주세요."):error||uncertain||conflict?"":reply;
     }
     function showError(e) { error=e;notify(onError,e);paintError(); }
