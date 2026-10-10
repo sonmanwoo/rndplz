@@ -98,7 +98,7 @@ assert.equal(previews,1);assert(applied);assert.equal(renders,3);assert.equal(co
 """)
 
 
-def test_mobile_profile_keeps_map_sheet_order_and_editable_ids_inside_folded_sources():
+def test_mobile_profile_keeps_map_sheet_order_and_editable_ids_in_one_scrolling_card():
     run_js(r"""
 install(['renderCard','cardBlock']);
 const host=element();global.$=id=>id==='cardView'?host:{disabled:false};
@@ -117,12 +117,13 @@ for(const key of ['identity','bio','skills','careers','interests']){
  const block=blocks.get(key);assert(block.classList.values.has('is-editable'),key);
  block.children.find(child=>child.className==='card-edit').listeners.get('click')();assert.equal(opened,key);
 }
-const fold=blocks.get('provenance').children[0];assert.equal(fold.tagName,'DETAILS');assert(!fold.open);
-assert.equal(fold.children[0].textContent,'출처와 근거 설명 전체 보기');
-assert(fold.children.some(child=>child.dataset?.personSection==='interests'));
+// 2026-10-10: no folded '출처와 근거 설명 전체 보기' — every block sits in the card's one scroll.
+assert(!host.children.some(node=>node.tagName==='DETAILS'));assert(!shared.some(section=>section.children));
+assert.deepEqual(shared.map(section=>section.id),['bio','links','evidence','careers','projects','skills','interests','portraitNote','notice','recordDetails']);
+assert(host.children.some(node=>node.dataset.personSection==='interests'));
 assert(blocks.get('projects').classList.values.has('is-locked'));
 assert(!blocks.get('recordDetails').dataset.block);
-for(const section of shared.filter(section=>!section.children)){
+for(const section of shared){
  const fragment=blocks.get(section.id).children.find(child=>child.outerHTML);
  assert.equal(fragment.outerHTML,section.html,section.id);
 }
@@ -152,13 +153,13 @@ for(const mobile of [false,true]){
  assert.equal(JSON.stringify(draft),before);
 }
 const sheet=RndPersonView.sheetSections(cardPerson,{personLinks:true,recordAction:false});
-assert(sheet.find(section=>section.id==='provenance').html.includes('href="/explore?person=OTHER"'));
+assert(sheet.find(section=>section.id==='recordDetails').html.includes('href="/explore?person=OTHER"'));
 assert(!RndPersonView.sheetSections({...cardPerson,evidence:[{...cardPerson.evidence[0],in_current_pool:false}]},
  {personLinks:true}).map(section=>section.html).join('').includes('href="/explore?person=OTHER"'));
 """)
 
 
-def test_map_sheet_keeps_dense_records_then_timeline_and_folded_unique_sources():
+def test_map_sheet_reads_records_then_timeline_then_skills_in_one_scroll():
     run_js(r"""
 install(['personEvidenceStats','sheetHtml'],'app');
 global.esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
@@ -178,15 +179,17 @@ assert(!markup.includes('조건에 연결된 이유'));
 for(const value of ['전체 등록 이력 2건 · 이번 조건에 연결된 근거 1건','조건으로 찾은 기록','data-action="record" data-id="C"','data-chips-more'])assert(markup.includes(value),value);
 assert(markup.includes('data-action="record" data-id="X" disabled'));
 const expanded=markup.slice(markup.indexOf('<div class="sheet-full-only">'));
-const folded=expanded.indexOf('<details class="sheet-more">');assert(folded>0);
-const visible=expanded.slice(0,folded);
-assert.deepEqual([...visible.matchAll(/<h3>([^<]+)<\/h3>/g)].map(match=>match[1]),['소개','기술·주제','전체 등록 이력 2건','이력']);
+assert(!markup.includes('sheet-more'));assert(!markup.includes('출처와 근거 설명 전체 보기'));
+assert.deepEqual([...expanded.matchAll(/<h3>([^<]+)<\/h3>/g)].map(match=>match[1]),['소개','전체 등록 이력 2건','이력','기술·주제','근거 상세']);
+// Only the record that cannot be opened (X, outside the pool) repeats its details in the card.
+const closed=expanded.slice(expanded.indexOf('<h3>근거 상세</h3>'));
+assert(closed.includes('설명 없는 기록'));assert(!closed.includes('경력 기록'));
+const visible=expanded.slice(0,expanded.indexOf('<h3>근거 상세</h3>'));
 assert(visible.includes('<strong>경력 기록</strong><small>2026 · 제공된 직무 경력 ›</small></button>'));
 assert(visible.includes('<span class="sheet-clamp">연결된 실제 경력 설명</span><small>2026</small>'));
 assert(!visible.includes('person-evidence'));assert(!visible.includes('기록 보기 ›'));assert(!visible.includes('detail-note'));
 assert(!/<details[^>]*\bopen\b/.test(expanded));
-assert(!expanded.slice(folded).includes('researcher-detail-hero'));
-assert(expanded.indexOf('출처와 근거 설명 전체 보기')<expanded.indexOf('맵으로 ↓'));
+assert(!expanded.includes('researcher-detail-hero'));
 assert(!markup.includes('data-action="letter"'));
 assert(!markup.includes('data-person-section="identity"'));assert(!markup.includes('data-person-section="skills"'));
 """)

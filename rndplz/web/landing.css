@@ -19,6 +19,14 @@ body.home-landing.home-welcome .home-whirl {position:absolute}
 .home-landing .landing-rail>li {flex:0 0 calc((100% - 3.25 * var(--landing-gap))/4.25);min-width:0;scroll-snap-align:start}
 .home-landing .landing-feature-image {display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.08;padding:20px;border-radius:24px;overflow:hidden;background:#eeece9}
 .home-landing .landing-feature-image img {display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+/* Scene cards: a recorded clip of the real service fills the tile; the bar fills as it plays (2026-10-10). */
+.home-landing .landing-feature-image {aspect-ratio:3/4}
+.home-landing .landing-feature-image.landing-scene-media {position:relative;padding:0;cursor:pointer}
+.home-landing .landing-scene-media video {display:block;width:100%;height:100%;object-fit:cover;background:#eeece9}
+.home-landing .landing-scene-time {position:absolute;left:14px;right:14px;top:12px;height:3px;border-radius:2px;background:rgba(13,13,13,.12);opacity:0;transition:opacity .2s}
+.home-landing .landing-scene-time i {display:block;width:0;height:100%;border-radius:2px;background:var(--red,#cc503c)}
+.home-landing .landing-scene.is-playing .landing-scene-time {opacity:1}
+.home-landing .landing-feature h3 .landing-scene-no {margin-right:10px;font:700 13px/1 var(--font-sans);letter-spacing:.04em;color:var(--red,#cc503c);font-variant-numeric:tabular-nums}
 .home-landing .landing-feature h3 {font:650 clamp(18px,1.65vw,24px)/1.3 var(--font-sans);letter-spacing:-.04em;margin:18px 0 8px;word-break:keep-all}
 .home-landing .landing-feature p {font-size:15px;line-height:1.55;color:var(--muted,#77716d);margin:0;word-break:keep-all}
 .home-landing .landing-next {position:absolute;right:-18px;top:calc((100vw - 2 * var(--landing-pad)) / 4.25 * .54 - 22px);width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--line,#ddd9d6);border-radius:50%;background:var(--sheet,#fff);color:var(--ink);font:30px/1 var(--font-sans)}
