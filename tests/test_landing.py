@@ -2,6 +2,7 @@
 import gzip
 import hashlib
 import html
+import io
 import json
 import re
 from types import SimpleNamespace
@@ -268,3 +269,27 @@ def test_landing_first_document_and_eager_assets_stay_within_home_byte_budget(ap
         baseline = size('/?landing=off', encoding)
         assert size('/?landing', encoding) < baseline
         assert size('/?landing=map', encoding) < baseline
+
+
+def test_scene_rail_plays_recorded_service_clips(app):
+    """2026-10-10: the feature rail shows five scenes recorded from the real service; the old crops are gone."""
+    body = request(app, '/')['body'].decode('utf-8')
+    start = body.index('id="landingFeatureRail"')
+    rail = body[start:body.index('</ul>', start)]
+    videos = re.findall(r'<video\b[^>]*>', rail)
+    assert len(videos) == 5
+    for n, tag in enumerate(videos, 1):
+        assert 'muted' in tag and 'playsinline' in tag and 'preload="none"' in tag and 'autoplay' not in tag
+        assert f'data-src="/landing-assets/scene-{n}.mp4"' in tag and f'data-poster="/landing-assets/scene-{n}.jpg"' in tag
+    assert '/landing-assets/profile.webp' in rail and '연구 맵으로 둘러봐요' not in rail
+    for name in ('chat', 'evidence', 'map', 'letter'):
+        assert request(app, f'/landing-assets/{name}.webp')['status'] == 404
+    clip = request(app, '/landing-assets/scene-1.mp4')
+    assert clip['status'] == 200 and clip['headers']['Content-Type'] == 'video/mp4'
+    # iOS Safari plays a clip only through byte ranges.
+    environ = {'REQUEST_METHOD': 'GET', 'PATH_INFO': '/landing-assets/scene-1.mp4', 'QUERY_STRING': '', 'HTTP_HOST': '127.0.0.1',
+               'wsgi.url_scheme': 'http', 'wsgi.input': io.BytesIO(b''), 'CONTENT_LENGTH': '0', 'HTTP_COOKIE': '', 'HTTP_RANGE': 'bytes=0-99'}
+    status = {}
+    part = b''.join(app(environ, lambda code, headers: status.update(code=code, headers=dict(headers))))
+    assert status['code'].startswith('206') and len(part) == 100
+    assert status['headers']['Content-Range'].startswith('bytes 0-99/')
