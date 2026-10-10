@@ -87,6 +87,9 @@ def landing_document(asset, variant, web, static_assets):
             '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">'
             '<path d="M4.25 9.25 12 17l7.75-7.75" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></a>')
     fragment = (web / 'landing.html').read_bytes().decode('utf-8')
+    # Scene clips (~5 MB) and stills carry their content hash, so a returning browser keeps them (immutable).
+    fragment = re.sub(r'"(/landing-assets/[a-z0-9-]+\.(?:mp4|jpg|webp))"',
+                      lambda match: '"' + html.escape(static_assets.versioned_url(match[1], '/'), quote=True) + '"', fragment)
     # HTML remains in source order: welcome, introduction, and existing dialogs.
     source = source.replace('</main></div>', down + newline + '</main></div>' + newline + fragment, 1)
     return _asset('/?landing=' + variant, source.encode('utf-8'), asset.mime)

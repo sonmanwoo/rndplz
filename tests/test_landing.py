@@ -280,8 +280,13 @@ def test_scene_rail_plays_recorded_service_clips(app):
     assert len(videos) == 5
     for n, tag in enumerate(videos, 1):
         assert 'muted' in tag and 'playsinline' in tag and 'preload="none"' in tag and 'autoplay' not in tag
-        assert f'data-src="/landing-assets/scene-{n}.mp4"' in tag and f'data-poster="/landing-assets/scene-{n}.jpg"' in tag
-    assert '/landing-assets/profile.webp' in rail and '연구 맵으로 둘러봐요' not in rail
+        assert re.search(rf'data-src="/landing-assets/scene-{n}\.mp4\?v=[a-f0-9]{{10}}"', tag), tag
+        assert re.search(rf'data-poster="/landing-assets/scene-{n}\.jpg\?v=[a-f0-9]{{10}}"', tag), tag
+    assert re.search(r'data-src="/landing-assets/profile\.webp\?v=[a-f0-9]{10}"', rail) and '연구 맵으로 둘러봐요' not in rail
+    # A versioned clip is cached for a year and still answers byte ranges.
+    versioned = re.search(r'data-src="(/landing-assets/scene-1\.mp4\?v=[a-f0-9]{10})"', rail)[1]
+    cached = request(app, versioned)
+    assert cached['status'] == 200 and 'immutable' in cached['headers']['Cache-Control']
     for name in ('chat', 'evidence', 'map', 'letter'):
         assert request(app, f'/landing-assets/{name}.webp')['status'] == 404
     clip = request(app, '/landing-assets/scene-1.mp4')
