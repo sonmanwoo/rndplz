@@ -229,27 +229,42 @@ function detailEvidence(e,options={}){
     if(options.includeEvidence===true)add('evidence',evidenceContext(person,options)+evidence.map(e=>detailEvidence(e,{...options,personId:person.id,label:options.labels?.get(e.id)||''})).join(''));
     return result;
   }
-  // The map sheet shares fragments, while keeping its compact reading order and folded details.
+  // The map sheet is one scrolling card (2026-10-10 operator decision: no folded "전체 보기").
+  // Reading order: introduction, the records behind the card, what they did, what they can do, where it came from.
   function sheetSections(person,options={}){
     const p=person?.profile||{},result=[],editable=options.editable===true,evidence=rows(options.evidence??person?.evidence),labels=options.labels||new Map();
     const groups=rows(p.skill_groups).filter(g=>strings(g.items).length),topics=skillValues(person),timeline=rows(p.timeline).filter(t=>typeof t.text==='string');
     const chips=list=>list.map(s=>'<span>'+html(s)+'</span>').join('');
+    const sec=(title,body)=>'<section class="sheet-sec"><h3>'+title+'</h3>'+body+'</section>';
     const add=(id,content)=>{if(content)result.push({id,html:content});};
-    add('bio',p.biography?'<section class="sheet-sec"><h3>소개</h3><p>'+html(p.biography)+'</p></section>':editable?'<section class="sheet-sec"><h3>소개</h3><p class="card-empty">아직 적은 소개가 없어요.</p></section>':'');
-    add('skills',groups.length?'<section class="sheet-sec"><h3>기술</h3>'+groups.map(g=>'<p class="sheet-group">'+html(g.name||'')+'</p><div class="sheet-chips">'+chips(strings(g.items))+'</div>').join('')+'</section>':
-      topics.length>4?'<section class="sheet-sec"><h3>기술·주제</h3><div class="sheet-chips">'+chips(topics)+'</div></section>':editable?'<section class="sheet-sec"><h3>기술</h3>'+(topics.length?'<div class="sheet-chips">'+chips(topics)+'</div>':'<p class="card-empty">아직 적은 기술이 없어요.</p>')+'</section>':'');
-    add('evidence','<section class="sheet-sec"><h3>'+countLabel(evidence.length,options.partial||options.historical)+'</h3>'+evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+html(e.id)+'"'+(options.recordAction===false||e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+html(labels.get(e.id))+'</span>':'')+'<strong>'+html(e.title)+'</strong><small>'+html([e.date,e.evidence_label||evidenceKind(e)].filter(Boolean).join(' · '))+' ›</small></button>').join('')+'</section>');
-    add('careers',timeline.length?'<section class="sheet-sec"><h3>이력</h3>'+timeline.map(t=>{
+    // Links, sources, portrait notes and the notice are the detailed card's own fragments.
+    const detail=new Map(sections(person,{...options,evidence,includeIdentity:false,includePortrait:false,portraitMetadata:true,includeSkills:false,includeEvidence:false})
+      .map(section=>[section.id,section.html]));
+    add('bio',p.biography?sec('소개','<p>'+html(p.biography)+'</p>'):editable?sec('소개','<p class="card-empty">아직 적은 소개가 없어요.</p>'):'');
+    add('links',detail.get('links'));
+    add('evidence',sec(countLabel(evidence.length,options.partial||options.historical),evidence.map(e=>'<button type="button" class="sheet-row'+(labels.has(e.id)?' found-record':'')+'" data-action="record" data-id="'+html(e.id)+'"'+(options.recordAction===false||e.in_current_pool===false?' disabled':'')+'>'+(labels.has(e.id)?'<span class="found-label">'+html(labels.get(e.id))+'</span>':'')+'<strong>'+html(e.title)+'</strong><small>'+html([e.date,e.evidence_label||evidenceKind(e)].filter(Boolean).join(' · '))+' ›</small></button>').join('')));
+    add('careers',timeline.length?sec('이력',timeline.map(t=>{
       const record=careerRecord(t,evidence,timeline),text=t.text||(record?evidenceDescription(record,p):'');
       return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><span class="sheet-clamp">'+timelineTitle(t,text)+html(text)+'</span><small>'+html(t.date||'')+'</small>'+sourceEvidence(t)+'</div>';
-    }).join('')+'</section>':editable?'<section class="sheet-sec"><h3>이력</h3><p class="card-empty">＋ 이력 추가</p></section>':'');
-    // The folded area keeps unique provenance and record metadata, without repeating the profile card.
-    const children=sections(person,{...options,evidence,includeIdentity:false,includePortrait:false,portraitMetadata:true,includeSkills:false,includeEvidence:false})
-      .filter(section=>!['bio','careers','skillGroups'].includes(section.id));
-    if(!children.some(section=>section.id==='notice'))children.push({id:'notice',html:notice(person,{...options,variant:'detail'})});
-    children.push({id:'recordDetails',html:evidence.map(e=>detailEvidence(e,{personId:person?.id,label:labels.get(e.id),recordAction:options.recordAction,personLinks:options.personLinks})).join('')});
-    const summary='출처와 근거 설명 전체 보기',extra=children.map(section=>'<section class="person-section" data-person-section="'+section.id+'">'+section.html+'</section>').join('');
-    result.push({id:'provenance',summary,children,html:'<details class="sheet-more"><summary>'+summary+'</summary>'+extra+'</details>'});
+    }).join('')):editable?sec('이력','<p class="card-empty">＋ 이력 추가</p>'):'');
+    for(const [key,title] of [['projects','프로젝트 이력'],['education','교육 이력']]){
+      add(key,rows(p[key]).length?sec(title,rows(p[key]).map(x=>{
+        const id=x.record_id||x.id,record=key==='projects'&&id?evidence.find(r=>r.id===id)||null:null,text=x.text||(record?evidenceDescription(record,p):'');
+        return '<div class="sheet-row"'+(record?' data-record-id="'+html(record.id)+'"':'')+'><strong>'+html(x.title)+'</strong>'+(text?'<span class="sheet-clamp">'+html(text)+'</span>':'')+'<small>'+html(x.date||'')+'</small></div>';
+      }).join('')):'');
+    }
+    // The head already shows four skills; the grouped list follows the experience it comes from.
+    add('skills',groups.length?sec('기술',groups.map(g=>'<p class="sheet-group">'+html(g.name||'')+'</p><div class="sheet-chips">'+chips(strings(g.items))+'</div>').join('')):
+      topics.length>4?sec('기술·주제','<div class="sheet-chips">'+chips(topics)+'</div>'):editable?sec('기술',topics.length?'<div class="sheet-chips">'+chips(topics)+'</div>':'<p class="card-empty">아직 적은 기술이 없어요.</p>'):'');
+    add('interests',strings(p.interests).length?sec('관심 분야',strings(p.interests).map(x=>'<div class="sheet-row">'+html(x)+'</div>').join('')):editable?sec('관심 분야','<p class="card-empty">＋ 관심 분야 추가</p>'):'');
+    const sources=detail.get('sources');
+    add('sources',sources&&sources!=='<div class="researcher-sources"></div>'?sec('출처',sources):'');
+    add('portrait',detail.get('portrait'));
+    add('portraitNote',detail.get('portraitNote'));
+    add('notice',detail.get('notice')||notice(person,{...options,variant:'detail'}));
+    // A record that cannot be opened from here (the profile editor, an earlier pool) keeps its details in the card.
+    const closed=evidence.filter(e=>options.recordAction===false||e.in_current_pool===false);
+    add('recordDetails',closed.length?sec('근거 상세',closed.map(e=>detailEvidence(e,{personId:person?.id,label:labels.get(e.id),recordAction:options.recordAction,personLinks:options.personLinks})).join('')):'');
     return result;
   }
 
