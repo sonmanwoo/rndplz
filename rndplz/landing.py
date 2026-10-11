@@ -18,7 +18,7 @@ LANDING_ASSETS = {
     '/landing-chat.js': ('chat.js', 'text/javascript'),
     # Six scenes recorded from the real service (_work/landing/motion): a clip and its still each.
     **{'/landing-assets/scene-' + str(n) + extension: ('landing-assets/scene-' + str(n) + extension, mime)
-       for n in range(1, 7) for extension, mime in (('.mp4', 'video/mp4'), ('.jpg', 'image/jpeg'))},
+       for n in range(1, 7) for extension, mime in (('.mp4', 'video/mp4'), ('.webp', 'image/webp'))},
 }
 MAP_SCRIPTS = ('people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map.js')
 DEFERRED_ASSETS = ('landing.js', 'landing-map-preview.js', 'recommendation-map.js', *MAP_SCRIPTS)
