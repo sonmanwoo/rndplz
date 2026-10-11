@@ -292,7 +292,7 @@
   function renderDigest(){
     const host=$("digestView");host.replaceChildren();host.hidden=!digest;if(!digest)return;
     const head=node("div","digest-head"),title=node("div");title.append(node("h3","",`「${digest.name}」에서 찾은 내용`));head.append(title);host.append(head);
-    if(digest.loading){host.setAttribute("aria-busy","true");const note=node("p","digest-summary","사내 AI가 읽고 있어요");if(digest.seconds){const time=node("span","",` · ${digest.seconds}초`);time.setAttribute("aria-hidden","true");note.append(time);}title.append(note);return;}
+    if(digest.loading){host.setAttribute("aria-busy","true");const note=node("p","digest-summary","사내 AI가 읽고 있어요"),mark=node("span","susomun-ci susomun-ci--busy");mark.setAttribute("aria-hidden","true");mark.append(node("span","susomun-ci-h","H"));note.prepend(mark);if(digest.seconds){const time=node("span","",` · ${digest.seconds}초`);time.setAttribute("aria-hidden","true");note.append(time);}title.append(note);return;}
     host.removeAttribute("aria-busy");
     const p=digest.proposal||{},close=button("×",closeDigest,"close-button");close.setAttribute("aria-label","제안 닫기");head.append(close);
     if(p.summary)title.append(node("p","digest-summary",p.summary));

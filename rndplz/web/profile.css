@@ -44,8 +44,8 @@ html[data-theme="dark"] .card-asis summary{color:#2a230c}
 .digest-head h3{margin:0;font-size:15px;font-weight:500;color:var(--green);overflow-wrap:anywhere}
 .digest-head .close-button{flex:none;margin:-12px -10px 0 0}
 .digest-summary{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.8}
-.digest-view[aria-busy="true"] .digest-summary:after{content:"";display:inline-block;width:10px;height:10px;margin-left:8px;border:2px solid var(--green);border-right-color:transparent;border-radius:50%;animation:digest-spin .8s linear infinite;vertical-align:-1px}
-@keyframes digest-spin{to{transform:rotate(360deg)}}
+/* Reading wait: the 수소문 CI orbit, as in the chat answer wait. */
+.digest-summary>.susomun-ci{--ci-size:20px;--ci-surface:var(--sheet);margin:-2px 8px 0 0}
 .digest-row{margin-top:18px}
 .digest-label{margin:0 0 8px;font-size:12px;font-weight:600}
 .digest-cols{--digest-gap:10px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--digest-gap);transition:grid-template-columns .22s ease,column-gap .22s ease}
