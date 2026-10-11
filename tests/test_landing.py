@@ -272,22 +272,22 @@ def test_landing_first_document_and_eager_assets_stay_within_home_byte_budget(ap
 
 
 def test_scene_rail_plays_recorded_service_clips(app):
-    """2026-10-10: the feature rail shows five scenes recorded from the real service; the old crops are gone."""
+    """2026-10-10: the feature rail shows six scenes recorded from the real service; the old crops are gone."""
     body = request(app, '/')['body'].decode('utf-8')
     start = body.index('id="landingFeatureRail"')
     rail = body[start:body.index('</ul>', start)]
     videos = re.findall(r'<video\b[^>]*>', rail)
-    assert len(videos) == 5
+    assert len(videos) == 6
     for n, tag in enumerate(videos, 1):
         assert 'muted' in tag and 'playsinline' in tag and 'preload="none"' in tag and 'autoplay' not in tag
         assert re.search(rf'data-src="/landing-assets/scene-{n}\.mp4\?v=[a-f0-9]{{10}}"', tag), tag
         assert re.search(rf'data-poster="/landing-assets/scene-{n}\.jpg\?v=[a-f0-9]{{10}}"', tag), tag
-    assert re.search(r'data-src="/landing-assets/profile\.webp\?v=[a-f0-9]{10}"', rail) and '연구 맵으로 둘러봐요' not in rail
+    assert '<img' not in rail and '연구 맵으로 둘러봐요' not in rail
     # A versioned clip is cached for a year and still answers byte ranges.
     versioned = re.search(r'data-src="(/landing-assets/scene-1\.mp4\?v=[a-f0-9]{10})"', rail)[1]
     cached = request(app, versioned)
     assert cached['status'] == 200 and 'immutable' in cached['headers']['Cache-Control']
-    for name in ('chat', 'evidence', 'map', 'letter'):
+    for name in ('chat', 'evidence', 'map', 'letter', 'profile'):
         assert request(app, f'/landing-assets/{name}.webp')['status'] == 404
     clip = request(app, '/landing-assets/scene-1.mp4')
     assert clip['status'] == 200 and clip['headers']['Content-Type'] == 'video/mp4'
