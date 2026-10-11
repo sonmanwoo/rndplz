@@ -180,7 +180,9 @@ async function api(path,body,signal){
  return data;
 }
 function displayError(message){return message==="http_503"?"일시적으로 응답할 수 없습니다. 잠시 후 다시 시도해 주세요.":message;}
-function error(message=""){$("composerError").textContent=displayError(message);$("composerError").hidden=!message;}
+function error(message=""){const box=$("composerError");box.classList?.remove("is-note");box.setAttribute?.("role","alert");box.textContent=displayError(message);box.hidden=!message;}
+// The same place, quietly: something the visitor should know but need not fix.
+function note(message){error(message);const box=$("composerError");box.classList?.add("is-note");box.setAttribute?.("role","status");}
 function toast(message){clearTimeout(toastTimer);$("toast").textContent=message;$("toast").hidden=false;toastTimer=setTimeout(()=>$ ("toast").hidden=true,5500);}
 function modal(id,returnFocus=document.activeElement){
  document.querySelectorAll("dialog[open]").forEach(d=>d.close());const dialog=$(id);dialog.returnFocus=returnFocus;
@@ -1662,4 +1664,4 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
  dialog.addEventListener("click",e=>{if(pressed&&outside(e))dialog.querySelector("button.close").click();pressed=false;});}
 window.addEventListener("scroll",()=>{autoScroll=document.documentElement.scrollHeight-innerHeight-scrollY<160;},{passive:true});
 var mailDelivery=false;
-(async()=>{try{const ticket=++modelCatalogTicket,data=await api("/api/chat/bootstrap");token=data.token;history=data.history;mailDelivery=Boolean(data.mail_delivery&&data.mail_delivery.enabled===true);if(ticket===modelCatalogTicket)modelOptions(data);const id=new URLSearchParams(location.search).get("chat");if(id){const epoch=modelSelectionEpoch;session=await api("/api/chat/session?id="+encodeURIComponent(id));restoreModelSelection(session,epoch);}render();resizeInput();if(new URLSearchParams(location.search).has("settings"))modal("settingsDialog");}catch(e){error(e.message);}})();
+(async()=>{try{const ticket=++modelCatalogTicket,data=await api("/api/chat/bootstrap");token=data.token;history=data.history;mailDelivery=Boolean(data.mail_delivery&&data.mail_delivery.enabled===true);if(ticket===modelCatalogTicket)modelOptions(data);const id=new URLSearchParams(location.search).get("chat");if(id){const epoch=modelSelectionEpoch;try{session=await api("/api/chat/session?id="+encodeURIComponent(id));restoreModelSelection(session,epoch);}catch(e){if(e.code!=="session_unavailable")throw e;const url=new URL(location.href);url.searchParams.delete("chat");window.history.replaceState(null,"",url.pathname+url.search+url.hash);note(e.message);}}render();resizeInput();if(new URLSearchParams(location.search).has("settings"))modal("settingsDialog");}catch(e){error(e.message);}})();
