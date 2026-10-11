@@ -1466,6 +1466,10 @@ class PublicApp:
                 '이 대화에는 이미지가 있습니다. 이미지 지원 모델을 선택하거나 새 대화를 시작해 주세요.',
             }
             message = str(exc)
+            if path == '/api/chat/session' and message == '대화를 찾을 수 없습니다.':
+                # A link or remembered id this visitor cannot open (a login that ended, another device): not a broken request.
+                diagnostic_error = 'session_unavailable'
+                return send(404, {'error': '이전 대화를 열 수 없어요. 로그인한 계정의 대화라면 다시 로그인하면 볼 수 있어요.', 'code': 'session_unavailable'})
             if path == '/api/draft' and message == '대화를 찾을 수 없습니다.':
                 diagnostic_error = 'draft_session_unavailable'
                 return send(409, {'error': '이 대화의 저장된 후보를 현재 서버에서 찾을 수 없어요. 새 대화에서 수소문한 뒤 편지를 작성해 주세요.', 'code': 'draft_session_unavailable'})
