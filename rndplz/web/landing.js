@@ -179,19 +179,27 @@
     const videos = cards.map(card => card.querySelector('video'));
     if (!videos.some(Boolean) || !('IntersectionObserver' in win)) return null;
     const ratio = new Map(), now = () => Date.now();
-    let active = -1, onScreen = false, loaded = false, touchedAt = -Infinity, glidedAt = -Infinity, hold = 0;
+    let active = -1, onScreen = false, touchedAt = -Infinity, glidedAt = -Infinity, hold = 0;
     const visible = index => (ratio.get(cards[index]) || 0) >= .6;
     const firstVisible = () => cards.findIndex((card, index) => visible(index));
     const start = video => { const started = video.play && video.play(); if (started && started.catch) started.catch(() => {}); };
-    function load() {
-      if (loaded) return; loaded = true;
-      for (const video of videos) if (video) { video.poster = video.dataset.poster; video.src = video.dataset.src; }
+    const live = video => videos[active] === video && onScreen && !doc.hidden && !quiet();
+    // Slow phone networks (2026-10-11): clips download one at a time, the playing one first and then the next,
+    // and a still shows until a clip can play through, so nothing stutters halfway.
+    function prepare(index, fetch) {
+      const video = videos[index];
+      if (!video) return;
+      if (!video.poster && video.dataset.poster) video.poster = video.dataset.poster;
+      if (fetch && !video.src) { video.preload = 'auto'; video.src = video.dataset.src; if (video.load) video.load(); }
     }
+    const loadedFully = video => { const got = video.buffered; return !!(got && got.length && video.duration && got.end(got.length - 1) >= video.duration - .25); };
     function play(index) {
       const video = videos[index];
       if (!video || quiet() || !onScreen || doc.hidden) return;
+      prepare(index, true);
       try { video.currentTime = 0; } catch (_) { /* not loaded yet: it starts from 0 anyway */ }
-      start(video);
+      if (video.readyState >= 4) start(video);
+      else video.addEventListener('canplaythrough', () => { if (live(video)) start(video); }, {once: true});
     }
     function activate(index) {
       win.clearTimeout(hold); active = index;
@@ -211,12 +219,15 @@
     videos.forEach((video, index) => {
       if (!video) return;
       video.addEventListener('ended', () => { if (index === active) advance(); });
+      // Once the playing clip is all here, the next one starts downloading (and the one after shows its still).
+      const ahead = () => { if (index === active && loadedFully(video)) { prepare((index + 1) % cards.length, true); prepare((index + 2) % cards.length, false); } };
+      video.addEventListener('progress', ahead); video.addEventListener('canplaythrough', ahead);
       video.addEventListener('timeupdate', () => {
         const bar = cards[index].querySelector('.landing-scene-time i');
         if (bar && video.duration) bar.style.width = (video.currentTime / video.duration * 100).toFixed(1) + '%';
       });
       video.parentElement.addEventListener('click', () => {
-        touchedAt = now(); load();
+        touchedAt = now(); prepare(index, true);
         if (index !== active) { activate(index); if (quiet()) start(video); return; }
         if (video.paused) start(video); else if (video.pause) video.pause();
       });
@@ -232,10 +243,15 @@
     new win.IntersectionObserver(entries => {
       onScreen = entries.some(entry => entry.isIntersecting && entry.intersectionRatio > 0);
       if (!onScreen) { videos.forEach(video => video && video.pause && video.pause()); return; }
-      load();
       if (active < 0) { const index = firstVisible(); activate(index >= 0 ? index : 0); }
       else play(active);
     }, {threshold: .25}).observe(rail);
+    // A screen before the rail: the first clip starts downloading and the second card's still loads.
+    const near = new win.IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      near.disconnect(); prepare(0, !quiet()); prepare(1, false);
+    }, {rootMargin: '600px 0px'});
+    near.observe(rail);
     doc.addEventListener('visibilitychange', () => {
       const video = videos[active];
       if (video && doc.hidden && video.pause) video.pause(); else if (video && onScreen && !quiet()) start(video);
