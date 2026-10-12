@@ -18,6 +18,10 @@ body.crafted .craft-lead #historyButton{font-size:16px;line-height:38px;text-ali
 body.crafted .site-menu-toggle,body.crafted .account-toggle{display:inline-grid;place-items:center}
 body.crafted .craft-lead #historyButton:hover:not(:disabled),body.crafted .site-menu-toggle:hover,body.crafted .site-menu-toggle[aria-expanded=true],body.crafted .account-toggle:hover,body.crafted .account-toggle[aria-expanded=true]{background:#f2f1f0}
 body.crafted .account-toggle.has-photo{border:0;box-shadow:0 0 0 2px var(--sheet),0 0 0 3px #0000001f}
+/* A visitor's 로그인: the home's closing pill (landing.css .landing-pill) at the header's button height. */
+body.crafted .account-control #accountToggle.is-login{width:auto;padding:0 18px;border:0;border-radius:999px;background:#eeece9;color:var(--ink);font:600 14px/1 var(--font-sans);white-space:nowrap}
+body.crafted .account-control #accountToggle.is-login:is(:hover,[aria-expanded=true]){background:#eeece9;filter:brightness(.96)}
+body.crafted .account-control #accountToggle.is-login::after{border-radius:999px}
 body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle,.craft-nav a,.craft-nav button):focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 /* Drop-down cards: the "more" menu and the account menu share one look. */
@@ -117,6 +121,7 @@ body.chat-page .file-chip .remove:hover{background:#f2f1f0;color:var(--ink)}
   body.crafted .craft-wordmark{display:block}
   body.crafted .craft-nav :is(a,button){padding:8px 6px;font-size:14px}
   body.crafted :is(.craft-lead #historyButton,.site-menu-toggle,.account-toggle){width:36px;height:36px}
+  body.crafted .account-control #accountToggle.is-login{width:auto;padding:0 14px}
   body.crafted .craft-lead #historyButton{line-height:34px}
   body.crafted .craft-actions{gap:6px}
 }

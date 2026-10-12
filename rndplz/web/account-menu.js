@@ -1,17 +1,24 @@
 (() => {
   'use strict';
   const toggle=document.getElementById('accountToggle'),menu=document.getElementById('accountMenu');
-  const plainIcon=toggle?.innerHTML||'';
-  // A signed-in account bound to a map card shows that card's portrait instead of the outline icon.
-  function accountIcon(account){
-   const path=typeof account?.portrait==='string'&&/^\/portraits\/[a-z0-9-]+-thumb\.webp$/i.test(account.portrait)?account.portrait:'';
-   if(!toggle||toggle.dataset.photo===path)return;toggle.dataset.photo=path;toggle.classList.toggle('has-photo',Boolean(path));
+  const plainIcon=toggle?.innerHTML||'',plainLabel=toggle?.getAttribute('aria-label')||'';
+  // A signed-in account bound to a map card shows that card's portrait instead of the outline icon;
+  // a visitor sees a 로그인 pill, the home's closing button in the header (2026-10-12).
+  function accountIcon(account,visitor=false){
+   const path=visitor?'':typeof account?.portrait==='string'&&/^\/portraits\/[a-z0-9-]+-thumb\.webp$/i.test(account.portrait)?account.portrait:'';
+   const look=visitor?'login':path;
+   if(!toggle||toggle.dataset.look===look)return;toggle.dataset.look=look;toggle.classList.toggle('has-photo',Boolean(path));toggle.classList.toggle('is-login',visitor);
+   toggle.setAttribute('aria-label',visitor?'로그인 메뉴 열기':plainLabel);
+   if(visitor){toggle.textContent='로그인';return;}
    if(!path){toggle.innerHTML=plainIcon;return;}
    const img=document.createElement('img');img.src=path;img.alt='';img.decoding='async';
    img.addEventListener('error',()=>{toggle.classList.remove('has-photo');toggle.innerHTML=plainIcon;},{once:true});
    toggle.replaceChildren(img);
   }
   if(!toggle||!menu)return;
+  // The last answer decides the first look, so neither a returning visitor's pill nor an account's icon blinks on load.
+  let lastLook='';try{lastLook=localStorage.getItem('rndplz.account.look')||'';}catch{}
+  if(lastLook!=='account')accountIcon(null,true);
   const logout=document.getElementById('logoutButton'),note=document.getElementById('accountSessionNote'),error=document.getElementById('accountError');
   const identity=document.getElementById('accountIdentity'),login=document.getElementById('googleLogin'),unavailable=document.getElementById('accountLoginUnavailable'),verifySession=document.getElementById('accountVerifySession');
   let token='',supported=false,ending=false,invalidated=false,principal=null,accountAPI=null,checking=false,requestEpoch=0;
@@ -242,7 +249,8 @@
     const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);
     if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
     if(value.authenticated)show(pendingNote,false);
-    accountIcon(value.authenticated?account:null);
+    accountIcon(value.authenticated?account:null,!value.authenticated);
+    try{localStorage.setItem('rndplz.account.look',value.authenticated?'account':'visitor');}catch{}
     logout.textContent=value.authenticated?'로그아웃':'방문자 세션 끝내기';
     if(value.authenticated){
       identity.textContent=(typeof account.display_name==='string'&&account.display_name.trim())||'Google 계정';
@@ -263,7 +271,7 @@
     if(principal!==null&&principal!=='visitor:'+nextToken){replaceAccountContext();return;}
     setMoleAccount(null,'로그인 연결을 확인한 뒤 이용할 수 있어요.');
     token=nextToken;principal='visitor:'+token;supported=value.logout_supported===true&&!!token;logout.disabled=ending||!supported;
-    show(identity,false);show(login,false);show(unavailable,false);logout.textContent='방문자 세션 끝내기';
+    show(identity,false);show(login,false);show(unavailable,false);accountIcon(null);logout.textContent='방문자 세션 끝내기';
     note.textContent=supported?'임시 방문자 세션입니다. 세션을 끝내면 이 화면에서 저장 기록에 다시 접근할 수 없어요.':'로컬 단일 사용자 모드 · 별도 로그인 세션이 없습니다.';
   }
   async function refreshSession(verifyLogout=false){

@@ -1152,6 +1152,16 @@ async function retryTurn(id){
  if(!canRetryMessage(assistant))return;
  await send({text:user.input_text??user.text,session_id:session.id,attachments:(user.attachments||[]).map(f=>f.id),...selectedRequestModel(),turn_id:id,...(user.person_id?{person_id:user.person_id}:{})});
 }
+// Leaving the home for the conversation (2026-10-12): the heading and portraits recede, the composer glides to its
+// dock and the question rises from where it was typed (home-cosmos.css). One frame later than a plain render; motion off renders at once.
+async function enterChat(){
+ const root=document.documentElement;
+ if($("main").className!=="welcome"||!document.startViewTransition||document.body.classList.contains("no-motion")||matchMedia("(prefers-reduced-motion: reduce)").matches){render();return;}
+ const from=$("chatForm").getBoundingClientRect();root.classList.add("home-to-chat");
+ const move=document.startViewTransition(()=>{render();root.style.setProperty("--ask-rise",Math.round(from.top-$("thread").getBoundingClientRect().top)+"px");});
+ move.finished.catch(()=>{}).finally(()=>{root.classList.remove("home-to-chat");root.style.removeProperty("--ask-rise");});
+ await move.updateCallbackDone;
+}
 async function send(payload,submission=null){
  if(composerSendLocked()){restoreComposerDraft(submission);return;}
  if(!catalog.some(m=>m.id===payload.model_id&&m.enabled)){restoreComposerDraft(submission);error("선택한 모델을 지금 사용할 수 없어요. 사용 가능한 모델을 선택해 주세요.");return;}
@@ -1162,7 +1172,7 @@ async function send(payload,submission=null){
  const briefSubmission=beginBriefSubmission(payload),briefSubmissionSession=payload.session_id;
  invalidateRegisteredUI();invalidateRecovery(true);prepareTicket++;error();streamText="";busy=true;responseProgress="preparing";ciBusyStarted=performance.now();autoScroll=true;controller=new AbortController();controller.signal.addEventListener("abort",()=>{stopBusyCi();responseProgress="";render();},{once:true});retryPayload=payload;retryDisplay=repeated?{turn_id:payload.turn_id,model_id:payload.model_id,name:catalog.find(m=>m.id===payload.model_id)?.name||payload.model_id}:null;
  if(!session?.messages.some(m=>m.turn_id===payload.turn_id&&m.role==="user"))optimistic={role:"user",text:payload.text||"첨부한 자료를 함께 검토해 주세요.",attachments:files};
- render();let accepted=false,finished=false,recoveryRequestId=null;
+ await enterChat();let accepted=false,finished=false,recoveryRequestId=null;
  try{
   // Only a new request with a known automatic guide choice checks recovery.
   // Retry preserves the original request and uses the current model selection; no input is auto-resubmitted.
