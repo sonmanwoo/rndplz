@@ -488,6 +488,16 @@
 #peopleMapHost .mp-filters label{display:grid;gap:5px;font-size:11px;color:var(--mp-muted);min-width:145px;flex:1}
 #peopleMapHost .mp-filters input,#peopleMapHost .mp-filters select{width:100%;min-height:42px;border:1px solid var(--mp-line);border-radius:4px;background:#fcfaf3;color:var(--mp-ink);padding:9px 10px;font:inherit;font-size:12px}
 #peopleMapHost .mp-filters button{min-height:42px;padding:10px 12px;border:1px solid var(--mp-line);border-radius:4px;background:transparent;font-size:12px}
+/* Same-meaning words under the search (2026-10-12): a line of their own below the controls; in the phone sheet,
+   right under the search field, where they sit in the page. */
+#peopleMapHost .mp-synonyms{order:99;flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--mp-muted)}
+#peopleMapHost .mp-synonyms[hidden]{display:none}
+#peopleMapHost .mp-synonyms-note{margin-right:4px}
+#peopleMapHost .mp-filters .mp-synonym{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 8px 4px 12px;border:0;border-radius:999px;background:#eeece9;color:var(--mp-ink);font-size:12px;cursor:pointer}
+#peopleMapHost .mp-filters .mp-synonym span{font-size:14px;line-height:1;color:var(--mp-muted)}
+#peopleMapHost .mp-filters .mp-synonym:hover{filter:brightness(.96)}
+#peopleMapHost .mp-person-synonym{margin-top:4px;font-size:10px;color:var(--mp-muted)}
+@media(max-width:700px){#peopleMapHost .mp-map[data-mp-sheet="filters"] .mp-synonyms{order:0}}
 #peopleMapHost .mp-results{padding:2px 0 15px;font-size:12px;color:var(--mp-muted)}
 #peopleMapHost .mp-pool-note{font-size:10px;line-height:1.8;color:var(--mp-muted);margin:16px 10px 0}
 #peopleMapHost .mp-capability-list{display:grid;margin-top:17px}

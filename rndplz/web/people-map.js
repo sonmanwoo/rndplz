@@ -122,7 +122,7 @@
  function personCard(p,s){
   const active=s.selectedId===p.id,records=C.visibleEvidence(s,p),path=portraitPath(p),distinction=personDistinction(p),scope=shortScope(s,p);
   const label=[title(p),...distinction.labels,scope,'근거 '+records.length+'개 보기',p.virtual?'가상 사례':''].filter(Boolean).join(' · ');
-  return '<button type="button" class="mp-person'+distinction.classes+'" data-person="'+esc(p.id)+'" data-map-open="person" data-id="'+esc(p.id)+'" aria-haspopup="dialog" aria-pressed="'+active+'" aria-controls="detailDialog" aria-label="'+esc(label)+'"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(scope)+'</span><span class="mp-person-records">'+(distinction.team?'<span class="mp-list-team-marker" aria-hidden="true">'+esc(distinction.teamLabel)+'</span> · ':'')+'근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
+  return '<button type="button" class="mp-person'+distinction.classes+'" data-person="'+esc(p.id)+'" data-map-open="person" data-id="'+esc(p.id)+'" aria-haspopup="dialog" aria-pressed="'+active+'" aria-controls="detailDialog" aria-label="'+esc(label)+'"><span class="mp-portrait"><span class="mp-initial" aria-hidden="true">'+esc(Array.from(title(p))[0]||"")+'</span>'+(path?'<img src="'+esc(path)+'" alt="" loading="lazy" decoding="async" width="108" height="144">':'')+'</span><span class="mp-person-text"><strong class="mp-person-name">'+esc(title(p))+'</strong><span class="mp-person-field">'+esc(scope)+'</span>'+(C.foundBySynonym(s,p)?'<span class="mp-person-synonym">같은 뜻: '+esc(C.synonymTerms(s,p)[0])+'</span>':'')+'<span class="mp-person-records">'+(distinction.team?'<span class="mp-list-team-marker" aria-hidden="true">'+esc(distinction.teamLabel)+'</span> · ':'')+'근거 '+records.length+'개 보기'+(p.virtual?' · 가상 사례':'')+'</span></span><span class="mp-person-arrow" aria-hidden="true">↗</span></button>';
  }
  function renderLegacyMap(s){
   const people=C.visiblePeople(s),capability=currentCapability(s),page=Math.min(s.page||0,Math.max(0,Math.ceil(people.length/PAGE_SIZE)-1)),shown=people.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
@@ -398,7 +398,9 @@
    $('map-explanation').textContent=(capability?.description||'이름·기술·이력으로 검색하거나 역량을 골라 연결 근거를 살펴보세요.')+(state.view==='organization'?' 자료에 기재된 소속이며 현재 재직이나 협업 관계를 뜻하지 않습니다.':'');
    const peopleCount=capability?.kind==='project'&&(state.query||state.topic)?people.length+'/'+capability.people.length:people.length;
    $('map-count').textContent=peopleCount+'명 · 연결 기록 '+ids.size+'개';
-   $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 검색 “'+state.query+'”':'')+(state.topic?' · '+topicName(state.topic):'');
+   const withSynonyms=state.query&&people.some(p=>C.foundBySynonym(state,p));
+   $('results-summary').textContent=peopleCount+'명'+(capability?' · '+capability.label:'')+(state.query?' · 검색 “'+state.query+'”'+(withSynonyms?'(같은 뜻 포함)':''):'')+(state.topic?' · '+topicName(state.topic):'');
+   renderSynonyms();
    $('view-control').value=state.view;$('topic-controls').value=state.topic;if($('name-search').value!==state.query)$('name-search').value=state.query;
    detail();mobile();pointers.clear();drag=null;pinch=null;
    observer?.disconnect();if(stage)observer?.observe(stage);schedule();
@@ -506,7 +508,7 @@
     error(message){errorLine.hidden=!message;errorLine.textContent=message;if(message)filterInput.setAttribute('aria-invalid','true');else filterInput.removeAttribute('aria-invalid');}};
   }
   function letGo(){if(drag?.pinned)sim.release(drag.node);drag=null;}
-  const filtering=new Set(['QUERY','TOPIC','SCOPE','CAPABILITY','CLEAR_FILTERS','PAGE','VIEW']);
+  const filtering=new Set(['QUERY','SYNONYMS','REMOVE_SYNONYM','TOPIC','SCOPE','CAPABILITY','CLEAR_FILTERS','PAGE','VIEW']);
   function dispatch(action){state=C.reduce(state,action);if(filtering.has(action.type))render();else detail();}
   function clearSelection(restore){const id=state.selectedId;dispatch({type:'CLOSE_DETAIL'});if(restore){const candidates=[...host.querySelectorAll('[data-person]')].filter(b=>b.dataset.person===(id||lastPerson));candidates.find(b=>b.getClientRects().length)?.focus({preventScroll:true});}}
   $('topic-controls').innerHTML='<option value="">전체 주제</option>'+C.topics.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>').join('');
@@ -515,7 +517,38 @@
    const image=event.target;if(!image.matches?.('.mp-portrait img,.mp-node-face img'))return;
    const face=image.parentElement;image.remove();face.classList.add('mp-portrait-failed');face.textContent='그림 없음';face.setAttribute('aria-label','초상을 불러오지 못했습니다. 이름과 근거로 탐색할 수 있습니다.');
   },true);
-  host.addEventListener('input',event=>{const t=event.target;if(t.id==='name-search'){dispatch({type:'QUERY',value:t.value});return;}const types={problem:'PROBLEM',draft:'DRAFT',aiText:'AI_TEXT'};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
+  // Same-meaning words (2026-10-12): when typing pauses, the local Gemma gives translations and synonyms of the typed
+  // words (/api/people-map/expand, map_synonyms.py); the people they find join the results, marked, and any word can be
+  // taken out. The typed words' own results never wait for it.
+  const synonymCache=new Map();let synonymTimer=0,synonymAbort=null,synonymPending='';
+  const typedWords=()=>state.query.trim().replace(/\s+/g,' ');
+  function askSynonyms(){
+   win.clearTimeout(synonymTimer);synonymAbort?.abort();synonymAbort=null;synonymPending='';
+   const words=typedWords();
+   if(words.length<2||words.length>60){renderSynonyms();return;}
+   if(synonymCache.has(words)){dispatch({type:'SYNONYMS',query:state.query,terms:synonymCache.get(words)});return;}
+   renderSynonyms();
+   synonymTimer=win.setTimeout(async()=>{
+    const control=new win.AbortController();synonymAbort=control;synonymPending=words;renderSynonyms();
+    try{
+     const response=await win.fetch('/api/people-map/expand?q='+encodeURIComponent(words),{credentials:'same-origin',signal:control.signal});
+     const data=response.ok?await response.json():null,terms=Array.isArray(data?.terms)?data.terms.filter(term=>typeof term==='string'):[];
+     if(data?.available)synonymCache.set(words,terms);
+     if(synonymAbort===control&&typedWords()===words)dispatch({type:'SYNONYMS',query:state.query,terms});
+    }catch(_){/* the typed words' results stay; same-meaning words are simply not shown */}
+    finally{if(synonymAbort===control){synonymAbort=null;synonymPending='';renderSynonyms();}}
+   },350);
+  }
+  function renderSynonyms(){
+   const box=$('name-synonyms');if(!box)return;
+   const terms=state.synonyms?.query===state.query?state.synonyms.terms:[];
+   if(synonymPending){box.hidden=false;box.innerHTML='<span class="mp-synonyms-note">같은 뜻으로도 찾는 중…</span>';return;}
+   if(!terms.length){box.hidden=true;box.innerHTML='';return;}
+   const added=C.visiblePeople(state).filter(p=>C.foundBySynonym(state,p)).length;
+   box.hidden=false;
+   box.innerHTML='<span class="mp-synonyms-note">같은 뜻으로도 찾음'+(added?' · '+added+'명 더':'')+'</span>'+terms.map(term=>'<button type="button" class="mp-synonym" data-synonym="'+esc(term)+'" aria-label="'+esc(term)+' 빼기">'+esc(term)+'<span aria-hidden="true">×</span></button>').join('');
+  }
+  host.addEventListener('input',event=>{const t=event.target;if(t.id==='name-search'){dispatch({type:'QUERY',value:t.value});askSynonyms();return;}const types={problem:'PROBLEM',draft:'DRAFT',aiText:'AI_TEXT'};if(types[t.dataset.field])state=C.reduce(state,{type:types[t.dataset.field],value:t.value});});
   host.addEventListener('change',event=>{const t=event.target;if(t.id==='topic-controls')dispatch({type:'TOPIC',value:t.value});else if(t.id==='view-control')dispatch({type:'VIEW',value:t.value});else if(t.dataset.evidence){const id=t.id;dispatch({type:'EVIDENCE',id:t.dataset.evidence,checked:t.checked});$(id)?.focus({preventScroll:true});}else if(t.id==='include-ai'){dispatch({type:'INCLUDE_AI',value:t.checked});$('include-ai')?.focus({preventScroll:true});}});
   host.addEventListener('click',event=>{
    const button=event.target.closest('button');if(!button||!host.contains(button)||button.closest('.mp-live-bar,.mp-live-gear,.mp-live-panel'))return;
@@ -525,7 +558,8 @@
    else if(button.hasAttribute('data-capability')){const id=button.dataset.capability;dispatch({type:'CAPABILITY',value:state.capability===id?'':id});[...host.querySelectorAll('[data-capability]')].find(b=>b.dataset.capability===id)?.focus({preventScroll:true});}
    else if(button.dataset.person){if(dragged){event.preventDefault();event.stopPropagation();return;}lastPerson=button.dataset.person;dispatch({type:'SELECT',id:lastPerson});}
    else if(button.hasAttribute('data-page')){dispatch({type:'PAGE',value:Number(button.dataset.page)});$('map-title').scrollIntoView({block:'start',behavior:'auto'});}
-   else if(button.id==='clear-filters'||button.dataset.mapAction==='clear-all'){dispatch({type:'CLEAR_FILTERS'});$('name-search').focus({preventScroll:true});}
+   else if(button.dataset.synonym!==undefined){dispatch({type:'REMOVE_SYNONYM',term:button.dataset.synonym});$('name-search').focus({preventScroll:true});}
+   else if(button.id==='clear-filters'||button.dataset.mapAction==='clear-all'){dispatch({type:'CLEAR_FILTERS'});askSynonyms();$('name-search').focus({preventScroll:true});}
    else if(['close','clear-selection'].includes(button.dataset.mapAction))clearSelection(true);
    else if(button.dataset.mapAction==='show-detail'){$('detail-title')?.focus({preventScroll:true});$('person-detail').scrollIntoView({block:'start',behavior:'auto'});}
    else if(button.dataset.mapAction==='mobile-view'){mobileMap=!mobileMap;mobile();fit();}
@@ -593,7 +627,7 @@
    const person=C.visiblePeople(state).find(p=>p.id===id);if(!person)return null;
    const capability=currentCapability(state),link=C.capabilityLink(state,person);
    const filteredIds=appliedGraphFilter?new Set((shown?.links||[]).filter(edge=>edge.from==='person:'+id||edge.to==='person:'+id).flatMap(edge=>edge.recordIds||[])):null;
-   return {terms:C.searchTerms(state.query),team:person.sourcePerson?.team_member===true,
+   return {terms:[...C.searchTerms(state.query),...C.synonymTerms(state,person)],team:person.sourcePerson?.team_member===true,
     hasCondition:Boolean(C.searchTerms(state.query).length||state.capability||state.topic||appliedGraphFilter),
     recordIds:C.visibleEvidence(state,person).filter(record=>!filteredIds||filteredIds.has(record.id)).map(record=>record.id),
     capability:capability&&link?{label:capability.label,recordIds:[...link.recordIds]}:null,

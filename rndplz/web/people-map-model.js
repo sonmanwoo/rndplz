@@ -177,7 +177,7 @@
 
   function initialState() {
     return {
-      query: '', topic: '', capability: '', view: 'experience', scope: 'all',
+      query: '', synonyms: null, topic: '', capability: '', view: 'experience', scope: 'all',
       selectedId: null, evidenceIds: [], problem: '', draft: '',
       includeAi: false, aiText: '', draftEdited: false, draftNeedsReview: false,
       expandedGroups: [], page: 0, pageSize: 25
@@ -187,9 +187,21 @@
   function searchTerms(query) {
     return unique(text(query).split(/\s+/).filter(Boolean));
   }
+  function queryMatches(state, person) {
+    return searchTerms(state.query).every(function (term) { return person.searchKey.indexOf(key(term)) !== -1; });
+  }
+  // Same-meaning words for this very query (people-map.js asks the server when typing pauses): a person whose text
+  // holds one of them is found too. Words from an earlier query never count.
+  function synonymTerms(state, person) {
+    var synonyms = state.synonyms;
+    if (!synonyms || synonyms.query !== state.query || !text(state.query).trim()) return [];
+    return synonyms.terms.filter(function (term) { return person.searchKey.indexOf(key(term)) !== -1; });
+  }
+  // Found only through a same-meaning word, not the typed one: shown with that word.
+  function foundBySynonym(state, person) { return !queryMatches(state, person) && synonymTerms(state, person).length > 0; }
   function matches(state, person) {
     return true &&
-      searchTerms(state.query).every(function (term) { return person.searchKey.indexOf(key(term)) !== -1; }) &&
+      (queryMatches(state, person) || synonymTerms(state, person).length > 0) &&
       (!state.capability || Boolean(capabilityLink(state, person))) &&
       (!state.topic || person.records.some(function (record) {
         var link = capabilityLink(state, person);
@@ -272,6 +284,8 @@
   function sanitize(input) {
     var state = {
       query: text(input.query), topic: text(input.topic),
+      synonyms: input.synonyms && input.synonyms.query === text(input.query) && Array.isArray(input.synonyms.terms) ?
+        {query: input.synonyms.query, terms: unique(input.synonyms.terms.filter(function (term) { return typeof term === 'string' && term.trim(); })).slice(0, 8)} : null,
       capability: capabilities.some(function (item) { return item.id === input.capability; }) ? input.capability : '',
       view: input.view === 'organization' ? 'organization' : 'experience',
       scope: 'all',
@@ -300,7 +314,17 @@
     var person = getPerson(state);
     switch (action.type) {
       case 'QUERY':
+        if (text(action.value) !== state.query) state.synonyms = null;
         state.query = text(action.value); resetPage(state); break;
+      case 'SYNONYMS':
+        if (text(action.query) === state.query) {
+          state.synonyms = {query: state.query, terms: unique((Array.isArray(action.terms) ? action.terms : []).filter(function (term) { return typeof term === 'string' && term.trim(); })).slice(0, 8)};
+          resetPage(state);
+        }
+        break;
+      case 'REMOVE_SYNONYM':
+        if (state.synonyms) { state.synonyms = {query: state.synonyms.query, terms: state.synonyms.terms.filter(function (term) { return term !== action.term; })}; resetPage(state); }
+        break;
       case 'CAPABILITY':
         state.capability = text(action.value); resetPage(state); break;
       case 'TOPIC':
@@ -360,7 +384,7 @@
         if (person && state.evidenceIds.length && state.includeAi) state.aiText = text(action.value);
         break;
       case 'CLEAR_FILTERS':
-        state.query = ''; state.topic = ''; state.capability = ''; state.scope = 'all'; resetPage(state); break;
+        state.query = ''; state.synonyms = null; state.topic = ''; state.capability = ''; state.scope = 'all'; resetPage(state); break;
       case 'CLEAR_TOPIC':
         state.topic = ''; resetPage(state); break;
       case 'CLOSE_DETAIL':
@@ -380,6 +404,7 @@
   }
   return Object.freeze({
     people: people, topics: topics, capabilities: capabilities, capabilityLink: capabilityLink, searchTerms: searchTerms, counts: data.counts, source: data.source,
+    synonymTerms: synonymTerms, foundBySynonym: foundBySynonym,
     featuredIds: featuredIds, initialState: initialState, visiblePeople: visiblePeople,
     visibleEvidence: visibleEvidence, selectedEvidence: selectedEvidence, reduce: reduce
   });

@@ -109,7 +109,7 @@ const source=read('people-map'),start=source.indexOf('  function found(id){');
 vm.runInThisContext(source.slice(start,source.indexOf('\n  }',start)+4));
 global.state={query:'',capability:'',topic:''};global.appliedGraphFilter='';
 const person={id:'P',records:[],sourcePerson:{}};
-global.C={visiblePeople:()=>[person],capabilityLink:()=>null,searchTerms:()=>[],
+global.C={visiblePeople:()=>[person],capabilityLink:()=>null,searchTerms:()=>[],synonymTerms:()=>[],
   visibleEvidence:()=>[{id:'a'},{id:'b'},{id:'c'}]};
 global.currentCapability=()=>null;global.shown={links:[
   {from:'capability:x',to:'person:P',recordIds:['b','b','missing']},

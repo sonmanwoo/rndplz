@@ -33,6 +33,7 @@ from .model_conversation import ObservedRuntimeChatModels
 from .service import Service, ProviderScopeError, PickError
 from .storage import StateStore
 from .people_map import build_people_map, build_home_people_map
+from .map_synonyms import MapSynonyms
 from .static_assets import StaticAssets
 from .landing import LANDING_ASSETS, build_landing_people_map, capability_document, chat_script_variant, home_script_variant, landing_document, landing_variant
 from .agent_http import PREFIX as AGENT_PREFIX, AgentHTTP
@@ -514,6 +515,8 @@ class PublicApp:
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
+        # Same-meaning words for the research map's search box: the local Gemma (RNDPLZ_MAP_SYNONYM_MODEL, 'off' to stop).
+        self.map_synonyms = MapSynonyms(self.env.get('RNDPLZ_OLLAMA_URL', 'http://127.0.0.1:11434'), self.env.get('RNDPLZ_MAP_SYNONYM_MODEL', 'gemma4:e4b'))
         # The company AI reads private profile documents; the chat's model reads profile sentences (profile_reading).
         from .profile_reading import ProfileReader
         self.profile_reader = ProfileReader(self.models)
@@ -1186,6 +1189,15 @@ class PublicApp:
                         'http_status':200,'elapsed_ms':round((time.monotonic()-received)*1000)})
                     return send(200,browser_project(session))
                 if path == '/api/bootstrap': return send(200, {**service.bootstrap(), 'token': token, 'public': True, 'session_mode': session_mode, 'logout_supported': True, **account_view})
+                if path == '/api/people-map/expand':
+                    # A pause in typing sends one search here; a visitor's burst beyond that is not a search.
+                    with self.lock:
+                        now = time.monotonic()
+                        context['synonym_requests'] = [t for t in context.get('synonym_requests', []) if now - t < 60]
+                        if len(context['synonym_requests']) >= 40:
+                            return send(429, {'error': '요청이 많습니다. 잠시 후 다시 시도해 주세요.'})
+                        context['synonym_requests'].append(now)
+                    return send(200, self.map_synonyms.expand(query.get('q', [''])[0]))
                 if path == '/api/people-map':
                     value = (build_landing_people_map(service.engine) if query.get('landing') == ['1'] else build_home_people_map(service.engine)) if query.get('view') == ['home'] else build_people_map(service.engine)
                     return send(200, value, public=True)
