@@ -77,7 +77,13 @@ class HomeOpeningTest(unittest.TestCase):
         self.assertIn('body.home-welcome .home-whirl{display:none}', css)
         js = read('home-cosmos.js')
         self.assertIn("const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];", js)
-        self.assertIn("localStorage.setItem('rndplz.intro.day', new Date().toLocaleDateString('sv-SE'))", js)
+        seen = js.index("localStorage.setItem('rndplz.intro.seen', new Date().toLocaleDateString('sv-SE'))")
+        self.assertLess(js.index('if (!ready) { skip(); return; }'), seen)  # a skipped opening is not marked seen
+        self.assertNotIn('rndplz.intro.day', js)
+        self.assertIn("const homeData = window.rndplzHomeData || fetch('/api/people-map?view=home'", js)  # asked for in <head>
+        # On a phone line the team's photos come first and alone; the others start once the opening plays.
+        self.assertIn("map(p => photo(p, 'detail', 'high'))", js)
+        self.assertLess(seen, js.index("map(p => photo(p, narrow ? 'thumb' : 'detail'))"))
         self.assertIn('const SPIRAL = false;', js)
         self.assertIn("if (SPIRAL) run(home);", js)
 
