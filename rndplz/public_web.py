@@ -347,7 +347,7 @@ STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', '
                 '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html'),
                 # A read-only connection check for a phone outside (2026-10-12): round trips to /healthz, shown on screen only.
                 '/speed': ('speed.html', 'text/html'), '/speed.js': ('speed.js', 'text/javascript')}
-for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'site-menu.js', 'site-cosmos.css'):
+for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
 
 STATIC_FILES.update(LANDING_ASSETS)

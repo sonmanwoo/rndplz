@@ -1,6 +1,7 @@
-/* Home before the first message (main.welcome without .is-chat): researcher portraits drift along a spiral
- * toward the centre, the second heading line turns over every 4 s to another research field (its people take
- * over the spiral), a "re·search" intro plays once per browser, and the composer shows a rotating example.
+/* Home before the first message (main.welcome without .is-chat): an opening of the team and every researcher's
+ * face ends on the 수소문 mark (2026-10-12; a visitor every visit, a signed-in browser once a day), the second
+ * heading line turns over every 4 s to another research field, and the composer shows a rotating example.
+ * The portrait spiral that used to drift behind it is kept but no longer runs (SPIRAL).
  * Portraits and fields come from /api/people-map?view=home; position on the spiral means nothing about a person.
  */
 (() => {
@@ -58,7 +59,6 @@
   // ---- heading: first line fixed, second line turns over ------------------
   const flipBox = stage.querySelector('.home-flip');
   const heading = stage.querySelector('.home-title');
-  const intro = stage.querySelector('.home-intro');
   function spring(mass, stiffness, damping) {
     let x = 0, v = 0, rest = 0, done = false;
     return dt => {
@@ -101,6 +101,8 @@
   }
 
   // ---- spiral of portraits (Canvas 2D) ------------------------------------
+  // Off since the opening came in (2026-10-12, owner: no turning screen behind the home); the canvas stays hidden.
+  const SPIRAL = false;
   const ctx = canvas.getContext('2d');
   const cameraSize = () => innerWidth > 1920 ? Math.round(innerWidth / 1920 * 2500) : 2500;
   let R = .75 * cameraSize();
@@ -269,44 +271,139 @@
   addEventListener('touchend', event => { if (touchY !== null && atBottom() && touchY - event.changedTouches[0].clientY > 70) toMap(); touchY = null; }, { passive:true });
   addEventListener('pageshow', () => body.classList.remove('home-leaving')); // back from the map
 
-  // ---- re·search intro: on every load of the home screen, from the first frame, without waiting for data ----
-  // (2026-10-09: the owner wants it on each visit and refresh; a tap or a key skips it.)
-  let introDone = false;
-  let motionOff = false;
-  try { motionOff = sessionStorage.getItem('rndplz-motion') === 'off'; } catch {} // craft.js applies the same switch later
-  if (!intro || reduced.matches || motionOff || !isHome()) introDone = true;
-  let introAt = null, introLast = null, introFlip = null;
-  const splitSpring = spring(1.5, 120, 18);
-  function finishIntro() {
-    if (introDone) return;
-    introDone = true; stage.classList.remove('home-intro-on'); intro.remove();
-    heading.style.removeProperty('opacity'); heading.style.removeProperty('transform'); heading.style.removeProperty('filter');
-  }
-  function introTick(now) {
-    if (introDone) return;
-    if (!isHome()) { finishIntro(); return; }
-    if (introAt === null) introAt = now;
-    const dt = introLast === null ? 0 : Math.min((now - introLast) / 1000, .1), age = now - introAt; introLast = now;
-    if (age >= 600 && !introFlip) { intro.style.setProperty('--split', clamp(splitSpring(dt).x)); intro.classList.add('split'); }
-    if (age >= 2400 && !introFlip) introFlip = spring(1.5, 120, 18);
-    if (introFlip) {
-      const { x:q, done } = introFlip(dt);
-      setPose(heading, q, true); setPose(intro, q, false);
-      if (done) finishIntro();
+  // ---- opening (2026-10-12, owner) ----------------------------------------------------------------------------
+  // The team's four cards swing in (오진호 · 손만우 · 정다솔 · 홍윤기) and wipe to slices of one grid of every researcher's
+  // face, which closes up to fill the screen and lifts away like blinds over the 수소문 mark and wordmark (the header's
+  // own, scaled up); the mark settles into the header and the heading, the composer and the button rise in. After
+  // Cadence's Formation Loader — Slices, at 0.72 of its timings (about 6 s). home-intro-gate.js decides before the
+  // first paint (a visitor every visit, a signed-in browser once a day); a click, a tap, a key or the wheel goes straight
+  // to the composer. It waits at most 2.5 s for the data and the team's photos, else the home simply appears.
+  const root = document.documentElement, introStage = document.getElementById('homeIntro');
+  const homeData = fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  let introDone = root.dataset.homeIntro !== 'play' || !introStage || !isHome();
+  if (introDone) { delete root.dataset.homeIntro; introStage?.remove(); }
+  else playIntro();
+  async function playIntro() {
+    const T = ms => ms * .72, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), PAPER = '#f7f5f3';
+    const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];
+    let skipped = false, layer = null, brand = null, big = '';
+    try { localStorage.setItem('rndplz.intro.day', new Date().toLocaleDateString('sv-SE')); } catch {}
+    const onKey = event => { if (event.isTrusted) skip(); };
+    function end() {
+      introDone = true; delete root.dataset.homeIntro; introStage.remove(); layer?.remove();
+      removeEventListener('keydown', onKey, true); removeEventListener('wheel', skip);
     }
-    requestAnimationFrame(introTick);
-  }
-  if (introDone) intro?.remove();
-  else {
-    stage.classList.add('home-intro-on');
-    for (const type of ['pointerdown', 'keydown']) addEventListener(type, finishIntro, { once:true, capture:true, passive:true });
-    message?.addEventListener('focus', finishIntro, { once:true });
-    requestAnimationFrame(introTick);
+    // Straight to the composer: the stage clears, the mark flies to the header, the home rises quickly.
+    function skip() {
+      if (skipped || introDone) return;
+      skipped = true;
+      introStage.getAnimations({ subtree:true }).forEach(animation => animation.pause());
+      introStage.animate([{ opacity:1 }, { opacity:0 }], { duration:320, easing:'ease-out', fill:'forwards' });
+      if (brand) {
+        body.append(layer); layer.classList.add('home-intro-top'); layer.style.visibility = 'visible';
+        const now = getComputedStyle(brand).transform;
+        brand.getAnimations().forEach(animation => animation.cancel());
+        brand.animate([{ transform:now === 'none' ? big : now }, { transform:'none' }], { duration:520, easing:'cubic-bezier(.65,0,.35,1)', fill:'forwards' });
+      }
+      root.dataset.homeIntro = 'quick';
+      // With a mouse the caret lands in the composer; a phone keeps its keyboard down until the field is tapped.
+      setTimeout(() => { end(); if (matchMedia('(pointer: fine)').matches) message?.focus(); }, 560);
+    }
+    introStage.addEventListener('pointerdown', skip);
+    addEventListener('keydown', onKey, true); addEventListener('wheel', skip, { passive:true });
+
+    const path = p => p.profile?.portrait?.path;
+    const data = await Promise.race([homeData, wait(2500).then(() => null)]);
+    if (skipped) return;
+    const people = (data?.people || []).filter(p => /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path(p) || ''));
+    const photo = p => { const img = new Image(); img.decoding = 'async'; img.alt = ''; img.src = path(p).replace(/\.(png|jpe?g)$/i, '-detail.webp'); return img; };
+    const team = TEAM.map(id => people.find(p => p.id === id)).filter(Boolean).map(photo);
+    const others = people.filter(p => !TEAM.includes(p.id)).map(photo); // they keep loading while the team swings in
+    const ready = team.length > 1 && await Promise.race([Promise.all(team.map(img => img.decode())).then(() => true, () => false), wait(2500).then(() => false)]);
+    if (skipped) return;
+    if (!ready) { skip(); return; }
+    const vw = innerWidth, vh = innerHeight, narrow = vw < 700 || vw / vh < .8, n = team.length;
+    const gap = narrow ? 8 : 12, total = narrow ? .92 * vw : Math.min(.8 * vw, 1180), colH = (narrow ? .56 : .62) * vh;
+    const colW = (total - (n - 1) * gap) / n, left0 = (vw - total) / 2, top0 = (vh - colH) / 2;
+
+    // The header's own mark and wordmark, scaled up in the middle, under the slices until they lift.
+    const home = document.querySelector('.craft-header .craft-brand');
+    layer = document.createElement('div'); layer.className = 'home-intro-brand-layer';
+    brand = home.cloneNode(true); brand.classList.add('home-intro-brand'); brand.removeAttribute('href'); brand.setAttribute('aria-hidden', 'true');
+    const to = home.getBoundingClientRect(), word = brand.querySelector('.craft-wordmark');
+    const wordInHeader = !!home.querySelector('.craft-wordmark')?.getClientRects().length;
+    word.style.display = 'block'; // a phone header with past conversations shows the mark alone; the opening always names it
+    brand.style.left = to.left + 'px'; brand.style.top = to.top + 'px';
+    layer.append(brand); introStage.append(layer);
+    const own = brand.getBoundingClientRect(), k = Math.min(vw * (narrow ? .62 : .46) / own.width, vh * .3 / own.height);
+    big = `translate(${vw / 2 - to.left - own.width * k / 2}px,${vh / 2 - to.top - own.height * k / 2}px) scale(${k})`;
+    brand.style.transform = big; layer.style.visibility = 'hidden';
+
+    const cols = [];
+    team.forEach((img, i) => {
+      const L = left0 + i * (colW + gap), col = document.createElement('div'); col.className = 'home-intro-col';
+      col.style.cssText = `left:${L}px;top:${top0}px;width:${colW}px;height:${colH}px`;
+      const wipe = document.createElement('div'); wipe.className = 'home-intro-wipe';
+      const inner = document.createElement('div'); inner.className = 'home-intro-wipe-inner';
+      wipe.append(inner); col.append(img, wipe); introStage.append(col);
+      const slice = document.createElement('div'); slice.className = 'home-intro-slice';
+      slice.style.clipPath = `inset(${top0}px ${vw - L - colW}px ${vh - top0 - colH}px ${L}px round 6px)`; introStage.append(slice);
+      cols.push({ col, wipe, inner, slice, L, i });
+      col.animate([{ transform:'translateX(50%) rotate(-10deg) skewX(15deg) scaleX(1.05)', opacity:0 }, { transform:'none', opacity:1 }],
+                  { duration:T(1500), delay:T(i * 160), easing:'cubic-bezier(.25,1,.5,1)', fill:'both' });
+    });
+    await wait(T(1940)); if (skipped) return;
+    // One grid of every researcher's face, the size of the screen: each person once, in a mixed order; cells left over,
+    // or photos still on their way, stay paper.
+    const per = narrow ? 4 : 8, cw = vw / per, ch = cw * 4 / 3, rows = Math.ceil(vh / ch), dpr = Math.min(devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas'); canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
+    const g = canvas.getContext('2d'); g.scale(dpr, dpr); g.fillStyle = PAPER; g.fillRect(0, 0, vw, vh);
+    let seed = 7; const random = () => (seed = Math.imul(seed ^ (seed >>> 15), 2246822519) + 3266489917 >>> 0) / 4294967296;
+    const shown = [...team, ...others].filter(img => img.complete && img.naturalWidth);
+    for (let i = shown.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [shown[i], shown[j]] = [shown[j], shown[i]]; }
+    const y0 = (vh - rows * ch) / 2;
+    shown.slice(0, rows * per).forEach((img, cell) => {
+      const x = cell % per * cw, y = y0 + Math.floor(cell / per) * ch, cover = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+      g.save(); g.beginPath(); g.rect(x, y, cw, ch); g.clip();
+      g.drawImage(img, x + (cw - img.naturalWidth * cover) / 2, y + (ch - img.naturalHeight * cover) * .25, img.naturalWidth * cover, img.naturalHeight * cover);
+      g.restore();
+    });
+    const grid = `url(${canvas.toDataURL('image/jpeg', .9)})`;
+    for (const c of cols) {
+      c.inner.style.cssText = `background-image:${grid};background-size:${vw}px ${vh}px;background-position:${-c.L}px ${-top0}px`;
+      c.slice.style.backgroundImage = grid; c.slice.style.backgroundSize = `${vw}px ${vh}px`;
+      c.wipe.animate([{ transform:'translateY(-102%)' }, { transform:'none' }], { duration:T(1100), delay:T(c.i * 120), easing:'cubic-bezier(.45,0,.55,1)', fill:'both' });
+      c.inner.animate([{ transform:'translateY(102%)' }, { transform:'none' }], { duration:T(1100), delay:T(c.i * 120), easing:'cubic-bezier(.45,0,.55,1)', fill:'both' });
+    }
+    await wait(T((n - 1) * 120 + 1100 + 350)); if (skipped) return;
+    // The slices close up into the whole grid.
+    const mid = (n - 1) / 2;
+    for (const c of cols) {
+      c.slice.style.display = 'block'; c.col.style.display = 'none';
+      const share = vw / n; c.l = c.i * share; c.r = Math.max(0, vw - (c.i + 1) * share - 1);
+      c.slice.animate([{ clipPath:c.slice.style.clipPath }, { clipPath:`inset(0px ${c.r}px 0px ${c.l}px round 0px)` }],
+        { duration:T(1300), delay:T(Math.abs(c.i - mid) / mid * 100), easing:'cubic-bezier(.76,0,.24,1)', fill:'forwards' });
+    }
+    await wait(T(1300 + 100 + 525)); if (skipped) return;
+    // The grid lifts away like blinds and the mark shows through as it goes.
+    layer.style.visibility = 'visible';
+    for (const c of cols) c.slice.animate([{ clipPath:`inset(0px ${c.r}px 0px ${c.l}px round 0px)` }, { clipPath:`inset(0px ${c.r}px ${vh}px ${c.l}px round 0px)` }],
+      { duration:T(1100), delay:T(c.i * 80), easing:'cubic-bezier(.76,0,.24,1)', fill:'forwards' });
+    await wait(T((n - 1) * 80 + 1100) + 350); if (skipped) return;
+    // The mark settles into the header; the heading, the composer and the button rise in.
+    body.append(layer); layer.classList.add('home-intro-top');
+    introStage.animate([{ opacity:1 }, { opacity:0 }], { duration:450, easing:'ease', fill:'forwards' });
+    brand.animate([{ transform:big }, { transform:'none' }], { duration:780, easing:'cubic-bezier(.65,0,.35,1)', fill:'forwards' });
+    if (!wordInHeader) word.animate([{ opacity:1 }, { opacity:0 }], { duration:500, easing:'ease', fill:'forwards' });
+    await wait(380); if (skipped) return;
+    root.dataset.homeIntro = 'rise';
+    await wait(900); if (skipped) return;
+    end();
   }
 
   // ---- data and loop ------------------------------------------------------
   const thumb = path => typeof path === 'string' && /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path) ? path.replace(/\.(png|jpe?g)$/i, '-thumb.webp') : null;
-  fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).then(data => {
+  homeData.then(data => {
     if (!data || !Array.isArray(data.people)) return;
     const everyone = data.people.map(p => ({ id:p.id, name:p.profile?.display_name || p.name, image:thumb(p.profile?.portrait?.path) })).filter(p => p.image);
     const byId = new Map(everyone.map(p => [p.id, p]));
@@ -359,7 +456,7 @@
     prepared(0).then(() => {
       setScene(scenes[0], everyone);
       prepared(1 % scenes.length).then(() => { scenes[1 % scenes.length].ready = true; });
-      const go = home => { run(home); if (home && !timer && !document.hidden) { lastTick = null; timer = requestAnimationFrame(tick); } };
+      const go = home => { if (SPIRAL) run(home); if (home && !timer && !document.hidden) { lastTick = null; timer = requestAnimationFrame(tick); } };
       listeners.add(go); go(isHome());
       document.addEventListener('visibilitychange', () => go(isHome() && !document.hidden));
     });
