@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f5f3">
+  <meta name="robots" content="noindex">
+  <title>연결 속도 측정 — 수소문</title>
+  <script src="/theme.js"></script><link rel="stylesheet" href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"><link rel="stylesheet" href="/craft.css">
+  <style>
+    .speed-shell { width:min(100% - 2rem, 36rem); margin:clamp(1.5rem, 5vh, 3rem) auto 3rem; line-height:1.6; }
+    .speed-shell h1 { font-size:clamp(1.6rem, 6vw, 2.2rem); line-height:1.25; margin:0 0 .4rem; letter-spacing:-.03em; }
+    .speed-lead, .speed-note { color:var(--muted); font-size:.92rem; margin:0; }
+    .speed-status { margin:1.25rem 0; padding:.75rem 1rem; border-radius:12px; background:#eeece9; font-weight:600; font-size:.95rem; }
+    .speed-shell h2 { font-size:1rem; margin:1.75rem 0 .5rem; }
+    .speed-shell dl { display:grid; grid-template-columns:1fr auto; gap:.35rem 1rem; margin:0; font-size:.95rem; }
+    .speed-shell dt { color:var(--muted); }
+    .speed-shell dd { margin:0; font-weight:650; font-variant-numeric:tabular-nums; text-align:right; }
+    .speed-raw { margin:.5rem 0 0; font-size:.8rem; color:var(--muted); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+    .speed-actions { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:2rem; }
+    .speed-actions button { min-height:44px; padding:0 22px; border:0; border-radius:999px; font:600 14px/1 var(--font-sans, inherit); cursor:pointer; background:#eeece9; color:var(--ink); }
+    .speed-actions .speed-primary { background:var(--ink); color:var(--sheet); }
+    .speed-actions button:disabled { opacity:.5; cursor:default; }
+    .speed-shell a { color:var(--green); }
+  </style>
+<link rel="stylesheet" href="/theme.css"></head>
+<body class="crafted">
+  <main class="speed-shell">
+    <p class="speed-note"><a href="/">수소문</a></p>
+    <h1>연결 속도 측정</h1>
+    <p class="speed-lead">이 기기에서 수소문 서버까지 걸리는 시간을 잽니다. 결과는 이 화면에만 보이고, 어디에도 저장하거나 보내지 않습니다.</p>
+    <p id="speedStatus" class="speed-status" role="status" aria-live="polite">재는 중…</p>
+    <h2>처음 접속</h2>
+    <dl id="speedConnect"></dl>
+    <h2>작은 요청 20번 왕복</h2>
+    <dl id="speedTrips"></dl>
+    <p id="speedRaw" class="speed-raw"></p>
+    <h2>연구 맵 자료 받기</h2>
+    <dl id="speedMap"></dl>
+    <h2>연구 맵 검색어 확장의 예상 체감 시간</h2>
+    <dl id="speedSearch"></dl>
+    <p class="speed-note">왕복 시간에 서버의 모델 처리 시간(2026-10-12 서버에서 잰 값)을 더한 값입니다.</p>
+    <h2>망 정보</h2>
+    <dl id="speedNetwork"></dl>
+    <div class="speed-actions"><button type="button" id="speedAgain" class="speed-primary">다시 재기</button><button type="button" id="speedCopy">결과 복사</button></div>
+    <p class="speed-note" style="margin-top:1rem">처음 접속 값은 이 페이지를 새로 열 때만 정확해요. 이동통신과 와이파이에서 한 번씩 재 보세요.</p>
+  </main>
+  <script src="/speed.js" defer></script>
+</body>
+</html>
