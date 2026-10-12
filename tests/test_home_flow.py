@@ -64,5 +64,26 @@ class HomeSpiralFacesTest(unittest.TestCase):
         # A screen that would show more cards than people spaces them out.
         self.assertIn("Math.floor(crowd * .9 / Math.max(seen / samples, 1e-3))", js)
 
+
+class HomeOpeningTest(unittest.TestCase):
+    def test_opening_is_decided_before_the_first_paint_and_plays_on_the_home(self):
+        html = read('index.html')
+        # A blocking head script (no defer) right after theme.js, and the stage the opening plays on.
+        self.assertIn('<script src="/theme.js"></script><script src="/home-intro-gate.js"></script>', html)
+        self.assertIn('<div id="homeIntro" class="home-intro-stage" aria-hidden="true"></div>', html)
+        self.assertNotIn('home-intro-word', html)  # the old re·search opening is gone
+        css = read('home-cosmos.css')
+        self.assertIn('html[data-home-intro] .home-intro-stage{display:block;position:fixed;inset:0;z-index:300', css)
+        self.assertIn('body.home-welcome .home-whirl{display:none}', css)
+        js = read('home-cosmos.js')
+        self.assertIn("const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];", js)
+        self.assertIn("localStorage.setItem('rndplz.intro.day', new Date().toLocaleDateString('sv-SE'))", js)
+        self.assertIn('const SPIRAL = false;', js)
+        self.assertIn("if (SPIRAL) run(home);", js)
+
+    def test_gate_is_served(self):
+        from rndplz.public_web import STATIC_FILES
+        self.assertEqual(STATIC_FILES['/home-intro-gate.js'][0], 'home-intro-gate.js')
+
 if __name__ == '__main__':
     unittest.main()
