@@ -54,6 +54,28 @@ body.home-welcome .home-input.has-value .home-hint{display:none}
 @keyframes home-shine{from{-webkit-mask-position:100% 0;mask-position:100% 0}to{-webkit-mask-position:0 0;mask-position:0 0}}
 body.no-motion .home-hint-shine{animation:none;display:none}
 @media (prefers-reduced-motion:reduce){.home-hint-shine{animation:none;display:none}body.home-welcome .home-whirl{transition:none}}
+/* Leaving the home for the conversation (chat.js enterChat). The names exist only during that move; the thread rises
+   as a whole because render() replaces its messages, and a named element that leaves the page cancels the move. */
+.home-to-chat .craft-header{view-transition-name:site-header}
+.home-to-chat .home-whirl{view-transition-name:home-whirl}
+.home-to-chat .welcome-heading{view-transition-name:home-heading}
+.home-to-chat .composer-dock{view-transition-name:home-composer}
+.home-to-chat .history-rail{view-transition-name:history-rail}
+.home-to-chat #thread{view-transition-name:home-thread}
+.home-to-chat .home-hint{visibility:hidden}
+.home-to-chat::view-transition-group(*){animation-duration:.62s;animation-timing-function:cubic-bezier(.2,.75,.25,1)}
+.home-to-chat::view-transition-old(root){animation:.3s ease-out both home-fade-out}
+.home-to-chat::view-transition-new(root){animation:.42s ease-out .16s both home-fade-in}
+.home-to-chat::view-transition-old(home-whirl){animation:.6s cubic-bezier(.4,0,.2,1) both home-whirl-out}
+.home-to-chat::view-transition-old(home-heading){animation:.3s cubic-bezier(.4,0,1,1) both home-heading-out}
+.home-to-chat::view-transition-new(home-thread){animation:.62s cubic-bezier(.2,.75,.25,1) .1s both home-ask-rise}
+.home-to-chat::view-transition-new(history-rail){animation:.5s cubic-bezier(.2,.75,.25,1) .12s both home-rail-in}
+@keyframes home-fade-out{to{opacity:0}}
+@keyframes home-fade-in{from{opacity:0}}
+@keyframes home-whirl-out{to{opacity:0;transform:scale(1.14)}}
+@keyframes home-heading-out{to{opacity:0;transform:translateY(-40px) scale(.96);filter:blur(8px)}}
+@keyframes home-ask-rise{0%{opacity:0;transform:translateY(var(--ask-rise,48px)) scale(.96)}45%{opacity:1}}
+@keyframes home-rail-in{from{opacity:0;transform:translateX(-24px)}}
 @media (max-width:640px){
   .welcome-heading .home-title,.home-intro-word{font-size:32px}
   .home-flip{height:44px}
