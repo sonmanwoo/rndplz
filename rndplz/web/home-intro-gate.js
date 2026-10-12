@@ -17,5 +17,11 @@
     // The opening starts from the people, so they are asked for now, ahead of the fonts and the scripts that a phone line
     // otherwise spends seconds on first (2026-10-13). home-cosmos.js takes this answer instead of asking again.
     window.rndplzHomeData = fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+    // So are the four team photos it opens with (TEAM in home-cosmos.js, which takes them from the people's data).
+    for (const name of ['jinho', 'manwoo', 'dasol', 'hong']) {
+      const link = document.createElement('link');
+      link.rel = 'preload'; link.as = 'image'; link.fetchPriority = 'high'; link.href = `/portraits/${name}-illustration-detail.webp`;
+      document.head.append(link);
+    }
   } catch { /* storage blocked: the home appears without the opening */ }
 })();

@@ -358,14 +358,18 @@
       col.animate([{ transform:'translateX(50%) rotate(-10deg) skewX(15deg) scaleX(1.05)', opacity:0 }, { transform:'none', opacity:1 }],
                   { duration:T(1500), delay:T(i * 160), easing:'cubic-bezier(.25,1,.5,1)', fill:'both' });
     });
-    await wait(T(1940)); if (skipped) return;
-    // One grid of every researcher's face, the size of the screen: each person once, in a mixed order; cells left over,
-    // or photos still on their way, stay paper.
-    const per = narrow ? 4 : 8, cw = vw / per, ch = cw * 4 / 3, rows = Math.ceil(vh / ch), dpr = Math.min(devicePixelRatio || 1, 2);
+    // A slow line holds the team a little longer (2 s at most) for everyone else's photos, so the grid is not mostly paper.
+    const othersIn = Promise.all(others.map(img => img.decode().catch(() => {})));
+    await Promise.all([wait(T(1940)), Promise.race([othersIn, wait(T(1940) + 2000)])]); if (skipped) return;
+    // One grid of every researcher's face, the size of the screen: each person once, in a mixed order; cells left over
+    // stay paper. When a slow line still leaves many photos on their way, the cells grow until those at hand fill most of it.
+    const shown = [...team, ...others].filter(img => img.complete && img.naturalWidth), rowsFor = per => Math.ceil(vh / (vw / per * 4 / 3));
+    let per = narrow ? 4 : 8;
+    while (per > 2 && per * rowsFor(per) * .75 > shown.length) per--;
+    const cw = vw / per, ch = cw * 4 / 3, rows = rowsFor(per), dpr = Math.min(devicePixelRatio || 1, 2);
     const canvas = document.createElement('canvas'); canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     const g = canvas.getContext('2d'); g.scale(dpr, dpr); g.fillStyle = PAPER; g.fillRect(0, 0, vw, vh);
     let seed = 7; const random = () => (seed = Math.imul(seed ^ (seed >>> 15), 2246822519) + 3266489917 >>> 0) / 4294967296;
-    const shown = [...team, ...others].filter(img => img.complete && img.naturalWidth);
     for (let i = shown.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [shown[i], shown[j]] = [shown[j], shown[i]]; }
     const y0 = (vh - rows * ch) / 2;
     shown.slice(0, rows * per).forEach((img, cell) => {
