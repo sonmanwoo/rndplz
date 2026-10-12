@@ -105,7 +105,7 @@
   const cameraSize = () => innerWidth > 1920 ? Math.round(innerWidth / 1920 * 2500) : 2500;
   let R = .75 * cameraSize();
   const turns = 8, steps = 16384, samples = 4096;
-  let path = [], N = 0;
+  let path = [], N = 0, pathLength = 0;
   function buildPath() {
     R = .75 * cameraSize();
     const raw = [], lengths = new Float64Array(steps + 1);
@@ -113,7 +113,7 @@
       const t = i / steps, r = R * (1 - t), a = t * turns * 2 * Math.PI, x = r * Math.cos(a), y = r * Math.sin(a);
       raw.push({ x, y }); if (i) lengths[i] = lengths[i - 1] + Math.hypot(x - raw[i - 1].x, y - raw[i - 1].y);
     }
-    const length = lengths[steps]; N = Math.max(10, Math.ceil(length / 250)); path = [];
+    const length = pathLength = lengths[steps]; path = [];
     for (let j = 0, i = 1; j <= samples; j++) {
       const target = j / samples * length;
       while (i < steps && lengths[i] < target) i++;
@@ -124,7 +124,7 @@
     }
   }
   const sizes = [19111, 18700, 9632].map(area => { const h = Math.sqrt(area / .75); return { w:h * .75, h }; });
-  const assets = new Map(), lists = new Map();
+  const assets = new Map(), orders = new Map();
   let W = 0, H = 0, dpr = 1, scale = 1, spriteScale = 0, current = [], previous = null;
   let transitionAt = 0, start = null, last = null, offset = 0, raf = 0, firstSeen = new Float64Array(0), running = false;
   function bake(asset) {
@@ -144,22 +144,47 @@
     W = canvas.width = Math.round(innerWidth * dpr); H = canvas.height = Math.round(innerHeight * dpr);
     scale = Math.max(2000, innerWidth) * dpr / cameraSize();
     if (scale > spriteScale) { spriteScale = scale; assets.forEach(a => { if (a.ready) bake(a); }); }
+    if (path.length) fit();
   }
-  function sceneList(scene, everyone) {
-    if (lists.has(scene.id)) return lists.get(scene.id);
+  // Every face on screen is a different person (2026-10-12; before, half the cards repeated the field's few people and a
+  // large screen showed one face up to a dozen times). A card coming into view takes the next person not on screen:
+  // the field's people first, then everyone else, never the two faces beside the heading. A screen that would show
+  // more cards than there are people spaces them out instead.
+  let crowd = 0, order = [], inTitle = new Set(), onScreen = new Uint8Array(0), sceneSeed = 0, sceneFresh = false;
+  function spot(p, size) {
+    const alpha = p < 8 ? p / 8 : p > 92 ? (100 - p) / 8 : 1;
+    if (alpha < .01) return null;
+    const u = p / 100 * samples, j = Math.min(Math.floor(u), samples - 1), mix = u - j, a = path[j], b = path[j + 1];
+    let x = a.x + (b.x - a.x) * mix, y = a.y + (b.y - a.y) * mix;
+    const d = Math.hypot(x, y), k = d ? R * (d / R) ** (1 / .95) / d : 0; x *= k; y *= k;
+    const s = Math.min(d / R, 1) ** .35, factor = s * scale, { w, h } = sizes[size], radius = Math.hypot(w, h) * factor / 2;
+    const sx = W / 2 + x * scale, sy = H / 2 + y * scale;
+    if (sx + radius < 0 || sx - radius > W || sy + radius < 0 || sy - radius > H) return null;
+    if (Math.hypot((sx - W / 2) / (.45 * W), (sy - H / 2) / (.45 * H)) + radius / (.45 * Math.min(W, H)) < .505) return null;
+    return { alpha, sx, sy, factor, w, h, angle:Math.atan2(a.ty + (b.ty - a.ty) * mix, a.tx + (b.tx - a.tx) * mix) };
+  }
+  function fit() {
+    let seen = 0;
+    for (let j = 0; j < samples; j++) if (spot(j / samples * 100, 1)) seen++;
+    const most = Math.max(10, Math.ceil(pathLength / 250)), next = Math.max(10, Math.min(most, Math.floor(crowd * .9 / Math.max(seen / samples, 1e-3))));
+    if (next === N) return; // a phone's address bar coming and going keeps the cards as they are
+    N = next; onScreen = new Uint8Array(N); firstSeen = new Float64Array(N).fill(-1); current = new Array(N).fill(null); previous = null;
+  }
+  function sceneOrder(scene, everyone) {
+    if (orders.has(scene.id)) return orders.get(scene.id);
     let seed = 2166136261;
     for (const ch of scene.id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
     const random = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; };
     const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
-    const mine = shuffle(scene.people.map(p => p.id)), others = shuffle(everyone.map(p => p.id).filter(id => !mine.includes(id)));
-    const half = Math.ceil(N / 2), list = [];
-    for (let i = 0; i < N; i++) list.push(i < half || !others.length ? mine[i % mine.length] : others[(i - half) % others.length]);
-    shuffle(list); lists.set(scene.id, list); return list;
+    const title = new Set(scene.thumbs.map(p => p.id)), mine = scene.people.map(p => p.id).filter(id => !title.has(id));
+    const list = [...shuffle(mine), ...shuffle(everyone.map(p => p.id).filter(id => !title.has(id) && !mine.includes(id)))];
+    orders.set(scene.id, list); return list;
   }
   function setScene(scene, everyone) {
-    const next = sceneList(scene, everyone);
-    previous = current.length && !still() ? current : null;
-    current = next; transitionAt = performance.now();
+    order = sceneOrder(scene, everyone); inTitle = new Set(scene.thumbs.map(p => p.id));
+    previous = current.some(Boolean) && !still() ? current : null;
+    current = new Array(N).fill(null); onScreen.fill(0); sceneFresh = true; sceneSeed = (sceneSeed + 0x9e3779b9) >>> 0;
+    transitionAt = performance.now();
     if (start === null) { start = transitionAt; canvas.classList.add('ready'); }
   }
   function frame(now) {
@@ -173,22 +198,29 @@
     const progress = still() ? 1 : Math.min((now - transitionAt) / 850, 1);
     if (progress === 1) previous = null;
     const blend = progress * progress * (3 - 2 * progress), zoom = 1 + .12 * (1 - progress) ** 3;
+    const live = [];
     for (let i = 0; i < N; i++) {
-      const p = (offset + (i / N - .5) * 100 + 100) % 100;
-      let alpha = p < 8 ? p / 8 : p > 92 ? (100 - p) / 8 : 1;
-      if (alpha < .01) continue;
-      const u = p / 100 * samples, j = Math.min(Math.floor(u), samples - 1), mix = u - j, a = path[j], b = path[j + 1];
-      let x = a.x + (b.x - a.x) * mix, y = a.y + (b.y - a.y) * mix;
-      const d = Math.hypot(x, y), k = d ? R * (d / R) ** (1 / .95) / d : 0; x *= k; y *= k;
-      const s = Math.min(d / R, 1) ** .35, factor = s * scale, { w, h } = sizes[i % 3], radius = Math.hypot(w, h) * factor / 2;
-      const sx = W / 2 + x * scale, sy = H / 2 + y * scale;
-      if (sx + radius < 0 || sx - radius > W || sy + radius < 0 || sy - radius > H) continue;
-      if (Math.hypot((sx - W / 2) / (.45 * W), (sy - H / 2) / (.45 * H)) + radius / (.45 * Math.min(W, H)) < .505) continue;
+      const at = spot((offset + (i / N - .5) * 100 + 100) % 100, i % 3);
+      if (at) live.push([i, at]);
+    }
+    // Cards already on screen keep their person; the rest, in a mixed order so a field's people spread out, take the next free one.
+    const taken = new Set(inTitle), fresh = [];
+    for (const [i] of live) { if (onScreen[i] && current[i] && !taken.has(current[i])) taken.add(current[i]); else fresh.push(i); }
+    fresh.sort((m, n) => ((Math.imul(m + 1, 2654435761) ^ sceneSeed) >>> 0) - ((Math.imul(n + 1, 2654435761) ^ sceneSeed) >>> 0));
+    for (const i of fresh) {
+      const id = order.find(person => !taken.has(person)) || null;
+      current[i] = id; if (id) taken.add(id);
+      if (!sceneFresh) { firstSeen[i] = -1; if (previous) previous[i] = null; }
+    }
+    onScreen.fill(0); sceneFresh = false;
+    for (const [i, at] of live) {
+      onScreen[i] = 1;
       const asset = assets.get(current[i]); if (!asset?.ready) continue;
+      let alpha = at.alpha;
       if (firstSeen[i] < 0) firstSeen[i] = now;
       if (!still()) alpha *= Math.min((now - firstSeen[i]) / 400, 1);
-      const angle = Math.atan2(a.ty + (b.ty - a.ty) * mix, a.tx + (b.tx - a.tx) * mix), cos = Math.cos(angle), sin = Math.sin(angle);
-      ctx.setTransform(cos * factor, sin * factor, -sin * factor, cos * factor, sx, sy); ctx.globalAlpha = alpha;
+      const { w, h, factor } = at, cos = Math.cos(at.angle), sin = Math.sin(at.angle);
+      ctx.setTransform(cos * factor, sin * factor, -sin * factor, cos * factor, at.sx, at.sy); ctx.globalAlpha = alpha;
       if (previous) {
         const old = assets.get(previous[i]);
         if (old?.ready) ctx.drawImage(old.sprites[i % 3], -w / 2, -h / 2, w, h);
@@ -271,7 +303,7 @@
       return { ...scene, people, thumbs:people.slice(0, 2) };
     }).filter(scene => scene.people.length >= 2);
     if (!scenes.length || !everyone.length) return;
-    buildPath(); firstSeen = new Float64Array(N).fill(-1); resize();
+    crowd = Math.max(1, everyone.length - 2); buildPath(); resize();
     for (const person of everyone) {
       const img = new Image(); img.decoding = 'async'; img.src = person.image;
       const asset = { img, ready:false, sprites:[] };

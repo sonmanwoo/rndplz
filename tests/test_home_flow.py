@@ -52,5 +52,17 @@ class EnterConversationTest(unittest.TestCase):
             self.assertNotIn('.message', selector)
 
 
+
+class HomeSpiralFacesTest(unittest.TestCase):
+    def test_every_face_on_screen_is_a_different_person(self):
+        js = read('home-cosmos.js')
+        # The field's few people no longer fill half the cards.
+        self.assertNotIn('mine[i % mine.length]', js)
+        # A card coming into view takes the next person not on screen, never one beside the heading.
+        self.assertIn("const taken = new Set(inTitle), fresh = [];", js)
+        self.assertIn("const id = order.find(person => !taken.has(person)) || null;", js)
+        # A screen that would show more cards than people spaces them out.
+        self.assertIn("Math.floor(crowd * .9 / Math.max(seen / samples, 1e-3))", js)
+
 if __name__ == '__main__':
     unittest.main()
