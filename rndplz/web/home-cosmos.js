@@ -149,8 +149,10 @@
   // Every face on screen is a different person (2026-10-12; before, half the cards repeated the field's few people and a
   // large screen showed one face up to a dozen times). A card coming into view takes the next person not on screen:
   // the field's people first, then everyone else, never the two faces beside the heading. A screen that would show
-  // more cards than there are people spaces them out instead.
-  let crowd = 0, order = [], inTitle = new Set(), onScreen = new Uint8Array(0), sceneSeed = 0, sceneFresh = false;
+  // more cards than there are people spaces them out instead. A new field brings its people into a few of the cards
+  // on screen (the rest stay), so no face is ever shown twice, not even while one fades into another.
+  let crowd = 0, order = [], field = new Set(), inTitle = new Set(), onScreen = new Uint8Array(0), sceneSeed = 0, sceneFresh = false;
+  const mixed = list => list.sort((m, n) => ((Math.imul(m + 1, 2654435761) ^ sceneSeed) >>> 0) - ((Math.imul(n + 1, 2654435761) ^ sceneSeed) >>> 0));
   function spot(p, size) {
     const alpha = p < 8 ? p / 8 : p > 92 ? (100 - p) / 8 : 1;
     if (alpha < .01) return null;
@@ -177,13 +179,23 @@
     const random = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; };
     const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
     const title = new Set(scene.thumbs.map(p => p.id)), mine = scene.people.map(p => p.id).filter(id => !title.has(id));
-    const list = [...shuffle(mine), ...shuffle(everyone.map(p => p.id).filter(id => !title.has(id) && !mine.includes(id)))];
+    const list = { order:[...shuffle(mine), ...shuffle(everyone.map(p => p.id).filter(id => !title.has(id) && !mine.includes(id)))], field:new Set(mine) };
     orders.set(scene.id, list); return list;
   }
   function setScene(scene, everyone) {
-    order = sceneOrder(scene, everyone); inTitle = new Set(scene.thumbs.map(p => p.id));
-    previous = current.some(Boolean) && !still() ? current : null;
-    current = new Array(N).fill(null); onScreen.fill(0); sceneFresh = true; sceneSeed = (sceneSeed + 0x9e3779b9) >>> 0;
+    ({ order, field } = sceneOrder(scene, everyone)); inTitle = new Set(scene.thumbs.map(p => p.id));
+    sceneSeed = (sceneSeed + 0x9e3779b9) >>> 0;
+    const next = new Array(N).fill(null), before = new Array(N).fill(null), seen = [];
+    for (let i = 0; i < N; i++) if (onScreen[i] && current[i]) { next[i] = current[i]; seen.push(i); }
+    const shown = new Set(seen.map(i => next[i])), incoming = order.filter(id => field.has(id) && !shown.has(id));
+    // The new heading's faces leave the background; the field's people not on screen take cards held by others.
+    const leaving = seen.filter(i => inTitle.has(next[i])), open = mixed(seen.filter(i => !inTitle.has(next[i]) && !field.has(next[i])));
+    for (const i of [...leaving, ...open]) {
+      if (!inTitle.has(next[i]) && !incoming.length) break;
+      before[i] = next[i]; next[i] = incoming.shift() || null;
+    }
+    previous = !still() && before.some(Boolean) ? before : null;
+    current = next; sceneFresh = true;
     transitionAt = performance.now();
     if (start === null) { start = transitionAt; canvas.classList.add('ready'); }
   }
@@ -204,13 +216,14 @@
       if (at) live.push([i, at]);
     }
     // Cards already on screen keep their person; the rest, in a mixed order so a field's people spread out, take the next free one.
+    // While faces fade into new ones, the fading faces count as shown too.
     const taken = new Set(inTitle), fresh = [];
-    for (const [i] of live) { if (onScreen[i] && current[i] && !taken.has(current[i])) taken.add(current[i]); else fresh.push(i); }
-    fresh.sort((m, n) => ((Math.imul(m + 1, 2654435761) ^ sceneSeed) >>> 0) - ((Math.imul(n + 1, 2654435761) ^ sceneSeed) >>> 0));
-    for (const i of fresh) {
+    if (previous) for (const [i] of live) if (previous[i]) taken.add(previous[i]);
+    for (const [i] of live) { if ((onScreen[i] || sceneFresh) && current[i] && !taken.has(current[i])) taken.add(current[i]); else fresh.push(i); }
+    for (const i of mixed(fresh)) {
       const id = order.find(person => !taken.has(person)) || null;
       current[i] = id; if (id) taken.add(id);
-      if (!sceneFresh) { firstSeen[i] = -1; if (previous) previous[i] = null; }
+      if (!(sceneFresh && previous?.[i])) { firstSeen[i] = -1; if (previous) previous[i] = null; }
     }
     onScreen.fill(0); sceneFresh = false;
     for (const [i, at] of live) {
@@ -221,7 +234,7 @@
       if (!still()) alpha *= Math.min((now - firstSeen[i]) / 400, 1);
       const { w, h, factor } = at, cos = Math.cos(at.angle), sin = Math.sin(at.angle);
       ctx.setTransform(cos * factor, sin * factor, -sin * factor, cos * factor, at.sx, at.sy); ctx.globalAlpha = alpha;
-      if (previous) {
+      if (previous?.[i]) {
         const old = assets.get(previous[i]);
         if (old?.ready) ctx.drawImage(old.sprites[i % 3], -w / 2, -h / 2, w, h);
         ctx.save(); ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 20); ctx.clip();
