@@ -46,19 +46,19 @@
     observer.observe(first);
   } else start();
   // Scrolling into the introduction (2026-10-12): the home fades and sinks back as the introduction rises over it;
-  // the portraits drift a little slower and spread. Motion off keeps only the fade. On a touch screen nothing fades
+  // the portraits drift a little slower (never wider: a full-width layer would scroll sideways). Motion off keeps only the fade. On a touch screen nothing fades
   // while the composer has the caret, since the keyboard may scroll the page (a desktop home has the caret from the start).
   const main = document.getElementById('main'), shell = main?.parentElement, whirl = document.getElementById('homeWhirl');
   const message = document.getElementById('message'), touch = matchMedia('(pointer: coarse)');
   let recedeFrame = 0;
   function recede() {
     recedeFrame = 0;
-    const y = window.scrollY, depth = shell.offsetTop + shell.offsetHeight;
-    const p = body.classList.contains('home-welcome') && !(touch.matches && document.activeElement === message) ? Math.min(1, Math.max(0, y / (depth * .7))) : 0;
-    for (const [node, sink, grow] of [[main, .35, -.04], [whirl, .2, .08]]) {
+    const span = (shell.offsetTop + shell.offsetHeight) * .7, travel = Math.min(Math.max(window.scrollY, 0), span);
+    const p = body.classList.contains('home-welcome') && !(touch.matches && document.activeElement === message) ? travel / span : 0;
+    for (const [node, sink, grow] of [[main, .35, -.04], [whirl, .2, 0]]) {
       if (!node) continue;
       node.style.opacity = p ? (1 - p).toFixed(3) : '';
-      node.style.transform = p && !quiet() ? 'translateY(' + (y * sink).toFixed(1) + 'px) scale(' + (1 + grow * p).toFixed(4) + ')' : '';
+      node.style.transform = p && !quiet() ? 'translateY(' + (travel * sink).toFixed(1) + 'px) scale(' + (1 + grow * p).toFixed(4) + ')' : '';
       node.style.transition = p ? 'none' : '';
     }
   }
