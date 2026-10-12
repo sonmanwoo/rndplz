@@ -277,9 +277,10 @@
   // own, scaled up); the mark settles into the header and the heading, the composer and the button rise in. After
   // Cadence's Formation Loader — Slices, at 0.72 of its timings (about 6 s). home-intro-gate.js decides before the
   // first paint (a visitor every visit, a signed-in browser once a day); a click, a tap, a key or the wheel goes straight
-  // to the composer. It waits at most 2.5 s for the data and the team's photos, else the home simply appears.
+  // to the composer. It waits at most 4 s for the data and the team's photos, else the home simply appears. On a phone
+  // line (2026-10-13) the team's four photos come first and alone; everyone else follows once the opening has begun.
   const root = document.documentElement, introStage = document.getElementById('homeIntro');
-  const homeData = fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const homeData = window.rndplzHomeData || fetch('/api/people-map?view=home', { credentials:'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
   let introDone = root.dataset.homeIntro !== 'play' || !introStage || !isHome();
   if (introDone) { delete root.dataset.homeIntro; introStage?.remove(); }
   else playIntro();
@@ -287,7 +288,6 @@
     const T = ms => ms * .72, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), PAPER = '#f7f5f3';
     const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];
     let skipped = false, layer = null, brand = null, big = '';
-    try { localStorage.setItem('rndplz.intro.day', new Date().toLocaleDateString('sv-SE')); } catch {}
     const onKey = event => { if (event.isTrusted) skip(); };
     function end() {
       introDone = true; delete root.dataset.homeIntro; introStage.remove(); layer?.remove();
@@ -312,17 +312,23 @@
     introStage.addEventListener('pointerdown', skip);
     addEventListener('keydown', onKey, true); addEventListener('wheel', skip, { passive:true });
 
-    const path = p => p.profile?.portrait?.path;
-    const data = await Promise.race([homeData, wait(2500).then(() => null)]);
+    const path = p => p.profile?.portrait?.path, deadline = wait(4000);
+    const data = await Promise.race([homeData, deadline.then(() => null)]);
     if (skipped) return;
     const people = (data?.people || []).filter(p => /^\/portraits\/[a-z0-9-]+\.(png|jpe?g)$/i.test(path(p) || ''));
-    const photo = p => { const img = new Image(); img.decoding = 'async'; img.alt = ''; img.src = path(p).replace(/\.(png|jpe?g)$/i, '-detail.webp'); return img; };
-    const team = TEAM.map(id => people.find(p => p.id === id)).filter(Boolean).map(photo);
-    const others = people.filter(p => !TEAM.includes(p.id)).map(photo); // they keep loading while the team swings in
-    const ready = team.length > 1 && await Promise.race([Promise.all(team.map(img => img.decode())).then(() => true, () => false), wait(2500).then(() => false)]);
+    const photo = (p, size, priority = 'auto') => {
+      const img = new Image(); img.decoding = 'async'; img.fetchPriority = priority; img.alt = '';
+      img.src = path(p).replace(/\.(png|jpe?g)$/i, `-${size}.webp`); return img;
+    };
+    const team = TEAM.map(id => people.find(p => p.id === id)).filter(Boolean).map(p => photo(p, 'detail', 'high'));
+    const ready = team.length > 1 && await Promise.race([Promise.all(team.map(img => img.decode())).then(() => true, () => false), deadline.then(() => false)]);
     if (skipped) return;
     if (!ready) { skip(); return; }
+    // Only an opening that plays counts as seen: a slow line that ends in the plain home leaves the day's turn unspent.
+    try { localStorage.setItem('rndplz.intro.seen', new Date().toLocaleDateString('sv-SE')); } catch {}
     const vw = innerWidth, vh = innerHeight, narrow = vw < 700 || vw / vh < .8, n = team.length;
+    // They keep loading while the team swings in; a phone's grid cells are small enough for the thumbnails.
+    const others = people.filter(p => !TEAM.includes(p.id)).map(p => photo(p, narrow ? 'thumb' : 'detail'));
     const gap = narrow ? 8 : 12, total = narrow ? .92 * vw : Math.min(.8 * vw, 1180), colH = (narrow ? .56 : .62) * vh;
     const colW = (total - (n - 1) * gap) / n, left0 = (vw - total) / 2, top0 = (vh - colH) / 2;
 
@@ -352,14 +358,18 @@
       col.animate([{ transform:'translateX(50%) rotate(-10deg) skewX(15deg) scaleX(1.05)', opacity:0 }, { transform:'none', opacity:1 }],
                   { duration:T(1500), delay:T(i * 160), easing:'cubic-bezier(.25,1,.5,1)', fill:'both' });
     });
-    await wait(T(1940)); if (skipped) return;
-    // One grid of every researcher's face, the size of the screen: each person once, in a mixed order; cells left over,
-    // or photos still on their way, stay paper.
-    const per = narrow ? 4 : 8, cw = vw / per, ch = cw * 4 / 3, rows = Math.ceil(vh / ch), dpr = Math.min(devicePixelRatio || 1, 2);
+    // A slow line holds the team a little longer (2 s at most) for everyone else's photos, so the grid is not mostly paper.
+    const othersIn = Promise.all(others.map(img => img.decode().catch(() => {})));
+    await Promise.all([wait(T(1940)), Promise.race([othersIn, wait(T(1940) + 2000)])]); if (skipped) return;
+    // One grid of every researcher's face, the size of the screen: each person once, in a mixed order; cells left over
+    // stay paper. When a slow line still leaves many photos on their way, the cells grow until those at hand fill most of it.
+    const shown = [...team, ...others].filter(img => img.complete && img.naturalWidth), rowsFor = per => Math.ceil(vh / (vw / per * 4 / 3));
+    let per = narrow ? 4 : 8;
+    while (per > 2 && per * rowsFor(per) * .75 > shown.length) per--;
+    const cw = vw / per, ch = cw * 4 / 3, rows = rowsFor(per), dpr = Math.min(devicePixelRatio || 1, 2);
     const canvas = document.createElement('canvas'); canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     const g = canvas.getContext('2d'); g.scale(dpr, dpr); g.fillStyle = PAPER; g.fillRect(0, 0, vw, vh);
     let seed = 7; const random = () => (seed = Math.imul(seed ^ (seed >>> 15), 2246822519) + 3266489917 >>> 0) / 4294967296;
-    const shown = [...team, ...others].filter(img => img.complete && img.naturalWidth);
     for (let i = shown.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [shown[i], shown[j]] = [shown[j], shown[i]]; }
     const y0 = (vh - rows * ch) / 2;
     shown.slice(0, rows * per).forEach((img, cell) => {

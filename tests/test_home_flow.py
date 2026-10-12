@@ -77,9 +77,23 @@ class HomeOpeningTest(unittest.TestCase):
         self.assertIn('body.home-welcome .home-whirl{display:none}', css)
         js = read('home-cosmos.js')
         self.assertIn("const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];", js)
-        self.assertIn("localStorage.setItem('rndplz.intro.day', new Date().toLocaleDateString('sv-SE'))", js)
+        seen = js.index("localStorage.setItem('rndplz.intro.seen', new Date().toLocaleDateString('sv-SE'))")
+        self.assertLess(js.index('if (!ready) { skip(); return; }'), seen)  # a skipped opening is not marked seen
+        self.assertNotIn('rndplz.intro.day', js)
+        self.assertIn("const homeData = window.rndplzHomeData || fetch('/api/people-map?view=home'", js)  # asked for in <head>
+        # On a phone line the team's photos come first and alone; the others start once the opening plays.
+        self.assertIn("map(p => photo(p, 'detail', 'high'))", js)
+        self.assertLess(seen, js.index("map(p => photo(p, narrow ? 'thumb' : 'detail'))"))
+        self.assertIn('Promise.race([othersIn, wait(T(1940) + 2000)])', js)  # the grid waits a little for the others
+        self.assertIn('while (per > 2 && per * rowsFor(per) * .75 > shown.length) per--;', js)  # and grows its cells, never repeats
         self.assertIn('const SPIRAL = false;', js)
         self.assertIn("if (SPIRAL) run(home);", js)
+
+    def test_gate_preloads_existing_team_photos(self):
+        gate = read('home-intro-gate.js')
+        self.assertIn("for (const name of ['jinho', 'manwoo', 'dasol', 'hong'])", gate)
+        for name in ('jinho', 'manwoo', 'dasol', 'hong'):
+            self.assertTrue((WEB / 'portraits' / f'{name}-illustration-detail.webp').is_file(), name)
 
     def test_gate_is_served(self):
         from rndplz.public_web import STATIC_FILES
