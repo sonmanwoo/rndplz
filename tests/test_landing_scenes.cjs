@@ -78,14 +78,21 @@ assert.equal(r.cards[0].clip.plays, 1); assert(r.cards[0].classList.contains('is
 r.emit(r.cards[0].clip, 'progress');
 assert.equal(r.cards[1].clip.src, '/clip-1.mp4'); assert.equal(r.cards[2].clip.src, undefined, 'only the next one');
 
-// When a clip ends the row slides one card left and the next one plays; the previous one stops.
+// When a clip ends the row slides one card left and the next one becomes the active card; the previous one stops.
 r.emit(r.cards[0].clip, 'ended');
-assert.equal(r.player.active, 1); assert.equal(r.cards[1].clip.plays, 1); assert(r.cards[0].clip.pauses >= 1);
+assert.equal(r.player.active, 1); assert(r.cards[0].clip.pauses >= 1);
+assert.equal(r.cards[1].clip.plays, 0, 'no clip starts while the row slides (2026-10-13)');
 // The cards on the incoming side start later, 40 ms a slot: early on, the middle card has moved and the next has not.
 r.tick(20); r.frames.shift()();
 assert(r.x(0) < -1, 'the middle card is under way'); assert.equal(Math.round(r.x(2)), Math.round(2 * SLOT), 'the incoming card still waits');
+assert.equal(r.cards[1].clip.plays, 0);
 r.settle();
 assert.equal(Math.round(r.x(1)), 0); assert.equal(Math.round(r.x(0)), Math.round(-SLOT)); assert.equal(r.frames.length, 0, 'the frames stop once settled');
+assert.equal(r.cards[1].clip.plays, 1, 'the clip starts once the row has stopped');
+// A move that is overtaken before it settles never starts the card it left behind.
+r.player.go(2); r.tick(100); r.frames.shift()(); r.player.go(3); r.settle();
+assert.equal(r.player.active, 3); assert.equal(r.cards[2].clip.plays, 0); assert.equal(r.cards[3].clip.plays, 1);
+r.player.go(1); r.settle();
 
 // Endless: a far card comes the short way round (card 5, two slots to the left, moves right), and from the last card
 // the row goes on to the first, which arrives from the right.

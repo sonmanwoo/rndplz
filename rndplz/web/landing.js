@@ -175,12 +175,12 @@
   }
   // The scene rail (2026-10-13, after Cadence's Swipe Reveal and Contact Sheet): the six scenes stand in one endless
   // row, the middle card full size and the rest at 92%. Only the middle card shows its recording; the others wear a
-  // plain cover with their number and title, so the row stays calm. When a clip ends the row slides one card left, and
-  // the cards on the incoming side start 40 ms apart, so the gaps stretch and close. The first time the rail is in view the middle
-  // card opens through a slit while its neighbours gather in from the middle. Drag, a tap on a side card, the arrow
-  // keys or a sideways trackpad swipe move it too; a hand on the rail replays a scene instead of sliding away. Clips
-  // download one at a time (2026-10-11). The rail out of view or a hidden tab pauses it; with motion off nothing moves
-  // on its own and every move is instant.
+  // plain cover with their number and title, so the row stays calm. When a clip ends the row slides one card left,
+  // and the cards on the incoming side start 40 ms apart, so the gaps stretch and close. The first time the rail is
+  // in view the middle card opens through a slit while its neighbours gather in from the middle. Drag, a tap on a
+  // side card, the arrow keys or a sideways trackpad swipe move it too; a hand on the rail replays a scene instead of
+  // sliding away. Clips download one at a time (2026-10-11) and start only once the row has stopped. The rail out of
+  // view or a hidden tab pauses it; with motion off nothing moves on its own and every move is instant.
   function scenes(rail, win, quiet) {
     const doc = win.document, cards = [...rail.children], n = cards.length;
     const videos = cards.map(card => card.querySelector('video'));
@@ -210,7 +210,9 @@
       win.clearTimeout(hold); active = index; prepare(index, false);
       videos.forEach((video, k) => { if (video && k !== index && video.pause) video.pause(); });
       cards.forEach((card, k) => card.classList.toggle('is-playing', k === index && !!videos[k]));
-      if (videos[index]) play(index);
+      // While the row slides the card shows its still; the clip starts once the row has settled, so starting a
+      // video never competes with the slide (2026-10-13: the slide stuttered on phones).
+      if (videos[index]) settled(() => { if (active === index) play(index); });
       else if (!quiet()) hold = win.setTimeout(advance, 4000);   // a still card rests, then the story starts again
     }
     // The row. Each card keeps its own slide (from, to, start, delay) in card slots from the middle, before wrapping,
@@ -218,7 +220,8 @@
     const SLIDE = 700, LAG = 40, ease = bezier(.22, .61, .36, 1);
     const at = cards.map((card, k) => ({from: k, to: k, start: 0, delay: 0}));
     const wrap = slot => ((slot + n / 2) % n + n) % n - n / 2;
-    let size = {stage: 0, card: 0, slot: 1, falloff: 1}, drag = 0, frame = 0;
+    let size = {stage: 0, card: 0, slot: 1, falloff: 1}, drag = 0, frame = 0, waiting = [];
+    const settled = fn => { if (frame) waiting.push(fn); else fn(); };
     function place(t, k) {
       const a = at[k], u = (t - a.start - a.delay) / SLIDE;
       return u <= 0 ? a.from : u >= 1 ? a.to : a.from + (a.to - a.from) * ease(u);
@@ -238,6 +241,7 @@
         card.toggleAttribute('inert', Math.abs(x) > size.slot * 2.5);   // wrapped out of sight
       });
       frame = moving && win.requestAnimationFrame ? win.requestAnimationFrame(paint) : 0;
+      if (!frame && waiting.length) waiting.splice(0).forEach(fn => fn());
     }
     function go(index) {
       index = (index % n + n) % n;
