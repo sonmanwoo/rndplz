@@ -74,7 +74,9 @@ class HomeOpeningTest(unittest.TestCase):
         self.assertNotIn('home-intro-word', html)  # the old re·search opening is gone
         css = read('home-cosmos.css')
         self.assertIn('html[data-home-intro] .home-intro-stage{display:block;position:fixed;inset:0;z-index:300', css)
-        self.assertIn('body.home-welcome .home-whirl{display:none}', css)
+        # The spiral is back (2026-10-13): hidden while the opening plays, then it fades in.
+        self.assertIn('html[data-home-intro=play] body.home-welcome .home-whirl{opacity:0}', css)
+        self.assertNotIn('body.home-welcome .home-whirl{display:none}', css)
         js = read('home-cosmos.js')
         self.assertIn("const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];", js)
         seen = js.index("localStorage.setItem('rndplz.intro.seen', new Date().toLocaleDateString('sv-SE'))")
@@ -86,8 +88,13 @@ class HomeOpeningTest(unittest.TestCase):
         self.assertLess(seen, js.index("map(p => photo(p, narrow ? 'thumb' : 'detail'))"))
         self.assertIn('Promise.race([othersIn, wait(T(1940) + 2000)])', js)  # the grid waits a little for the others
         self.assertIn('while (per > 2 && per * rowsFor(per) * .75 > shown.length) per--;', js)  # and grows its cells, never repeats
-        self.assertIn('const SPIRAL = false;', js)
-        self.assertIn("if (SPIRAL) run(home);", js)
+        self.assertNotIn('SPIRAL', js)
+        self.assertIn('const go = home => { run(home);', js)
+        # Typing clears the spiral: the first letter sends the cards away, an empty composer without the caret brings them back.
+        self.assertIn('const clear = !!message && (message.value.length > 0 || (calm > 0 && document.activeElement === message));', js)
+        self.assertIn('let alpha = at.alpha * (1 - gone);', js)
+        # On the visitor's landing home the absolutely placed spiral must not spill sideways past a desktop scrollbar.
+        self.assertIn('body.home-landing.home-welcome .home-whirl {position:absolute;width:100%}', read('landing.css'))
 
     def test_gate_preloads_existing_team_photos(self):
         gate = read('home-intro-gate.js')

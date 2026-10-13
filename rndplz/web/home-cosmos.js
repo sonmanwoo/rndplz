@@ -1,7 +1,7 @@
 /* Home before the first message (main.welcome without .is-chat): an opening of the team and every researcher's
  * face ends on the 수소문 mark (2026-10-12; a visitor every visit, a signed-in browser once a day), the second
  * heading line turns over every 4 s to another research field, and the composer shows a rotating example.
- * The portrait spiral that used to drift behind it is kept but no longer runs (SPIRAL).
+ * Behind it the portrait spiral drifts again once the opening ends (back 2026-10-13, owner), and clears for typing.
  * Portraits and fields come from /api/people-map?view=home; position on the spiral means nothing about a person.
  */
 (() => {
@@ -101,8 +101,6 @@
   }
 
   // ---- spiral of portraits (Canvas 2D) ------------------------------------
-  // Off since the opening came in (2026-10-12, owner: no turning screen behind the home); the canvas stays hidden.
-  const SPIRAL = false;
   const ctx = canvas.getContext('2d');
   const cameraSize = () => innerWidth > 1920 ? Math.round(innerWidth / 1920 * 2500) : 2500;
   let R = .75 * cameraSize();
@@ -154,6 +152,11 @@
   // more cards than there are people spaces them out instead. A new field brings its people into a few of the cards
   // on screen (the rest stay), so no face is ever shown twice, not even while one fades into another.
   let crowd = 0, order = [], field = new Set(), inTitle = new Set(), onScreen = new Uint8Array(0), sceneSeed = 0, sceneFresh = false;
+  // Typing clears the stage (2026-10-13): the first letter in the composer sends every card outward and away (0.7 s), so
+  // the question has the screen to itself; an empty composer that loses the caret brings them back (1.1 s). The caret
+  // alone does nothing: a desktop home has it from the start.
+  let calm = 0;
+  const scatter = i => ((Math.imul(i + 1, 2654435761) >>> 0) / 4294967296) * .3, ease = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
   const mixed = list => list.sort((m, n) => ((Math.imul(m + 1, 2654435761) ^ sceneSeed) >>> 0) - ((Math.imul(n + 1, 2654435761) ^ sceneSeed) >>> 0));
   function spot(p, size) {
     const alpha = p < 8 ? p / 8 : p > 92 ? (100 - p) / 8 : 1;
@@ -207,7 +210,9 @@
     const dt = last === null ? 0 : Math.min((now - last) / 1000, .15); last = now;
     const elapsed = now - start, f = Math.min(elapsed / 3200, 1), ramp = Math.min(elapsed / 700, 1) ** 2;
     const burst = still() ? 1 : (1 - ramp) + (1 + 23 * (1 - f) ** 2) * ramp;
-    offset = (offset + (still() ? 0 : .32) * burst * dt) % 100;
+    const clear = !!message && (message.value.length > 0 || (calm > 0 && document.activeElement === message));
+    calm = still() ? +clear : Math.min(1, Math.max(0, calm + (clear ? dt / .7 : -dt / 1.1)));
+    offset = (offset + (still() ? 0 : .32) * burst * (1 - calm) * dt) % 100;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
     const progress = still() ? 1 : Math.min((now - transitionAt) / 850, 1);
     if (progress === 1) previous = null;
@@ -229,13 +234,15 @@
     }
     onScreen.fill(0); sceneFresh = false;
     for (const [i, at] of live) {
+      const gone = calm && ease(calm * 1.3 - scatter(i));
       onScreen[i] = 1;
       const asset = assets.get(current[i]); if (!asset?.ready) continue;
-      let alpha = at.alpha;
+      let alpha = at.alpha * (1 - gone);
       if (firstSeen[i] < 0) firstSeen[i] = now;
       if (!still()) alpha *= Math.min((now - firstSeen[i]) / 400, 1);
-      const { w, h, factor } = at, cos = Math.cos(at.angle), sin = Math.sin(at.angle);
-      ctx.setTransform(cos * factor, sin * factor, -sin * factor, cos * factor, at.sx, at.sy); ctx.globalAlpha = alpha;
+      if (alpha < .01) continue;
+      const { w, h } = at, factor = at.factor * (1 + .15 * gone), cos = Math.cos(at.angle), sin = Math.sin(at.angle), push = 1 + .55 * gone * gone;
+      ctx.setTransform(cos * factor, sin * factor, -sin * factor, cos * factor, W / 2 + (at.sx - W / 2) * push, H / 2 + (at.sy - H / 2) * push); ctx.globalAlpha = alpha;
       if (previous?.[i]) {
         const old = assets.get(previous[i]);
         if (old?.ready) ctx.drawImage(old.sprites[i % 3], -w / 2, -h / 2, w, h);
@@ -466,7 +473,7 @@
     prepared(0).then(() => {
       setScene(scenes[0], everyone);
       prepared(1 % scenes.length).then(() => { scenes[1 % scenes.length].ready = true; });
-      const go = home => { if (SPIRAL) run(home); if (home && !timer && !document.hidden) { lastTick = null; timer = requestAnimationFrame(tick); } };
+      const go = home => { run(home); if (home && !timer && !document.hidden) { lastTick = null; timer = requestAnimationFrame(tick); } };
       listeners.add(go); go(isHome());
       document.addEventListener('visibilitychange', () => go(isHome() && !document.hidden));
     });

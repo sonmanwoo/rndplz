@@ -2,7 +2,8 @@
 body.home-landing.home-welcome {display:block}
 body.home-landing.home-welcome .chat-shell {height:calc(100dvh - 92px);min-height:490px}
 body.home-landing.home-welcome .chat-shell>main.welcome {min-height:0}
-body.home-landing.home-welcome .home-whirl {position:absolute}
+/* 100%, not 100vw: placed absolutely, 100vw spilled a desktop scrollbar's width sideways (2026-10-13). */
+body.home-landing.home-welcome .home-whirl {position:absolute;width:100%}
 .home-landing .landing-down {display:none}
 .home-landing.home-welcome .landing-down {position:absolute;bottom:14px;left:calc(50% - 22px);display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink,#0d0d0d);z-index:4;transition:opacity .15s}
 /* cosmos.so: a 40px glass circle, 12% ink rim, a 24px stroked chevron centred by the box. */
