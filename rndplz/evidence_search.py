@@ -338,8 +338,10 @@ class PublicEvidenceSearch:
                 raise ValueError("groups_invalid")
             checked = []
             for group in groups:
-                if not isinstance(group, dict) or set(group) != {"topic_ids", "queries"}:
+                if not isinstance(group, dict) or not {"topic_ids", "queries"} <= set(group) <= {"topic_ids", "queries", "role"}:
                     raise ValueError("group_invalid")
+                if group.get("role", "field") not in ("field", "condition"):
+                    raise ValueError("group_role_invalid")
                 tids = _strings(group["topic_ids"], MAX_TOPIC_IDS, 100, "topic_ids")
                 queries = _strings(group["queries"], MAX_QUERIES, 200, "queries")
                 if not tids and not queries:
@@ -348,7 +350,8 @@ class PublicEvidenceSearch:
                     raise ValueError("topic_id_outside_current_corpus")
                 if any(not any(char.isalnum() for char in query) for query in queries):
                     raise ValueError("query_without_searchable_text")
-                checked.append({"topic_ids": tids, "queries": queries})
+                checked.append({"topic_ids": tids, "queries": queries,
+                                **({"role": "condition"} if group.get("role") == "condition" else {})})
             interpretations.append({"index": index, "label": label, "groups": checked,
                                     "source": "model_interpretation"})
         conditions = plan.get("conditions", [])
@@ -503,8 +506,12 @@ class PublicEvidenceSearch:
                 per_person.setdefault(pid, {"records": {}, "interpretations": []})["records"][rid] = 1.0
         for interpretation in interpretations:
             groups = [self._group_matches(group, records, people) for group in interpretation["groups"]]
-            eligible = set(groups[0])
-            for group in groups[1:]:
+            # Field groups decide who is found (AND). A condition group (2026-10-13) never drops anyone: a person
+            # without a record for it is admitted with that group unmatched, so the assessment judges the
+            # condition from the evidence instead of one coincidental word deciding the candidates.
+            field = [g for g, spec in zip(groups, interpretation["groups"]) if spec.get("role") != "condition"] or groups
+            eligible = set(field[0])
+            for group in field[1:]:
                 eligible.intersection_update(group)
             if names:
                 eligible.intersection_update(named)
@@ -526,31 +533,34 @@ class PublicEvidenceSearch:
                     eligible = {pid for pid, count in counts.items() if count == best_matched}
                     relaxed = True
             admitted = eligible - excluded
+            partial = {pid for pid in eligible if sum(pid in group for group in groups) < len(groups)}
             summaries.append({**deepcopy(interpretation), "matched_candidate_count": len(admitted),
-                              "group_relaxation": relaxed,
+                              "group_relaxation": relaxed or bool(partial & admitted),
                               **({"matched_group_count": best_matched, "required_group_count": len(groups)}
                                  if relaxed else {})})
             for pid in eligible:
                 row = per_person.setdefault(pid, {"records": {}, "interpretations": []})
                 details = []
+                matched_count = sum(pid in group for group in groups)
+                waived = relaxed or pid in partial
                 for index, group in enumerate(groups):
                     hits = sorted(group.get(pid, {}).values(), key=lambda hit: (-hit["score"], hit["record_id"]))
                     detail = {"index": index, "record_ids": [hit["record_id"] for hit in hits],
                               "matches": deepcopy(hits)}
-                    if relaxed:
+                    if waived:
                         detail["matched"] = bool(hits)
                     details.append(detail)
                     for hit in hits:
                         rid = hit["record_id"]
                         # A partial group match ranks below any complete match, and
                         # more matched groups rank above fewer.
-                        score = hit["score"] * (best_matched / len(groups) if relaxed else 1.0)
+                        score = hit["score"] * (matched_count / len(groups) if waived else 1.0)
                         row["records"][rid] = max(row["records"].get(rid, 0), score)
                 summary = {"index": interpretation["index"], "label": interpretation["label"],
                            "source": "model_interpretation", "groups": details}
-                if relaxed:
+                if waived:
                     summary["group_relaxation"] = True
-                    summary["matched_group_count"] = best_matched
+                    summary["matched_group_count"] = matched_count
                     summary["required_group_count"] = len(groups)
                     summary["unmatched_group_indexes"] = [d["index"] for d in details if not d["matched"]]
                 row["interpretations"].append(summary)
