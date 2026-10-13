@@ -30,6 +30,7 @@ MAX_GROUPS = 3
 MAX_TOPIC_IDS = 8
 MAX_QUERIES = 5
 MAX_CANDIDATES = 7
+CONDITION_SIDE_LIMIT = 2
 MAX_EVIDENCE = 3
 MAX_SNIPPET = 700
 MAX_READ_RECORDS = 21
@@ -386,6 +387,27 @@ class PublicEvidenceSearch:
                 ambiguous.append(name)
         return selected, unresolved, ambiguous
 
+    def _closest(self, pids, condition_groups, condition_specs, conditions, records):
+        """Order condition-side people by meaning against the user's condition words when the engine carries a
+        ranker (engine.meaning(sentence, {pid: records}) -> {pid: score}), else by their best lexical match."""
+        lexical = {pid: max((match["score"] for group in condition_groups for match in group.get(pid, {}).values()),
+                            default=0.0) for pid in pids}
+        order = sorted(pids, key=lambda pid: (-lexical[pid], pid))
+        sentence = " ".join(condition["source_quote"] for condition in conditions).strip() or \
+            " ".join(query for spec in condition_specs for query in spec["queries"])
+        ranker = getattr(self.engine, "meaning", None)
+        if not callable(ranker) or not sentence or not pids:
+            return order
+        own = {pid: [record for record in records.values() if any(c.person_id == pid for c in record.people)]
+               for pid in pids}
+        try:
+            scores = ranker(sentence, own)
+        except Exception:
+            return order  # no ranker answer: lexical order
+        if not isinstance(scores, dict) or any(not isinstance(scores.get(pid), (int, float)) for pid in pids):
+            return order
+        return sorted(pids, key=lambda pid: (-scores[pid], pid))
+
     def _group_matches(self, group, records, people):
         topics = {tid: 1 for tid in group["topic_ids"]}
         query_text = " ".join(group["queries"])
@@ -532,6 +554,21 @@ class PublicEvidenceSearch:
                     best_matched = max(counts.values())
                     eligible = {pid for pid, count in counts.items() if count == best_matched}
                     relaxed = True
+            side = set()
+            condition_specs = [spec for spec in interpretation["groups"] if spec.get("role") == "condition"]
+            condition_groups = [g for g, spec in zip(groups, interpretation["groups"]) if spec.get("role") == "condition"]
+            if not relaxed and condition_groups and len(condition_groups) < len(groups) and eligible - excluded:
+                # Condition side (2026-10-13): people whose records link to every condition group but not to the
+                # field, the closest few to the user's own condition words. They come after the field's people and
+                # carry the field as unmatched, so the assessment keeps them only as adjacent or drops them.
+                beside = set(condition_groups[0])
+                for group in condition_groups[1:]:
+                    beside.intersection_update(group)
+                beside -= eligible | excluded
+                if names:
+                    beside &= named
+                side = set(self._closest(beside, condition_groups, condition_specs, conditions, records)[:CONDITION_SIDE_LIMIT])
+                eligible |= side
             admitted = eligible - excluded
             partial = {pid for pid in eligible if sum(pid in group for group in groups) < len(groups)}
             summaries.append({**deepcopy(interpretation), "matched_candidate_count": len(admitted),
@@ -540,6 +577,7 @@ class PublicEvidenceSearch:
                                  if relaxed else {})})
             for pid in eligible:
                 row = per_person.setdefault(pid, {"records": {}, "interpretations": []})
+                row["side"] = row.get("side", True) and pid in side  # a field match in any interpretation wins
                 details = []
                 matched_count = sum(pid in group for group in groups)
                 waived = relaxed or pid in partial
@@ -576,7 +614,8 @@ class PublicEvidenceSearch:
         per_person = {pid: row for pid, row in per_person.items() if pid not in excluded}
         topics = {tid: 1 for interpretation in interpretations for group in interpretation["groups"]
                   for tid in group["topic_ids"]}
-        ordered = sorted(per_person, key=lambda pid: (-max(per_person[pid]["records"].values()), pid))
+        ordered = sorted(per_person, key=lambda pid: (per_person[pid].get("side", False),
+                                                      -max(per_person[pid]["records"].values()), pid))
         cards = []
         for pid in ordered[:MAX_CANDIDATES]:
             row = per_person[pid]
@@ -595,6 +634,9 @@ class PublicEvidenceSearch:
             scored = [(records[rid], row["records"][rid]) for rid in scored_ids]
             card = self._candidate(people[pid], scored, topics, original_query, row["interpretations"], records)
             card["selection_source"] = selection_source
+            if row.get("side"):
+                card["condition_side"] = True
+                card["reason"] += " 찾는 분야의 기록은 연결되지 않았고, 덧붙인 조건과 연결된 기록이 있는 분입니다."
             if any(item.get("group_relaxation") for item in row["interpretations"]):
                 card["group_relaxation"] = True
                 card["reason"] += " 일부 검색 조건 그룹에는 이 인물의 기록이 연결되지 않아 그 경험은 미확인입니다."
