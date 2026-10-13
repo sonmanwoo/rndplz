@@ -69,7 +69,7 @@ assert.equal(personEvidenceStats(person,null,{evidence:[{id:'b'}]}),
 def test_inspect_registered_context_counts_full_view_and_frozen_history():
     run_js(r"""
 install('chat', ['plainScience','evidenceDescription','inspectEvidenceHtml','inspectFullHtml',
-  'registeredContextHtml','registeredRequestAction','renderInspect']);
+  'registeredContextHtml','registeredRequestAction','candidateMeaning','candidateMeaningText','meaningHtml','renderInspect']);
 const dialog=element(), host=element(), sheet=element(), card=element(), full=element(), body=element();
 host.querySelector=()=>sheet;
 let markup="";Object.defineProperty(host,"innerHTML",{get(){return markup;},set(value){markup=value;full.clearListeners();}});
@@ -123,7 +123,7 @@ shown.links=[];assert.deepEqual(found('P').recordIds,[]);
 
 def test_registered_card_cannot_finish_after_request_revision_changes():
     run_js(r"""
-install('chat',['renderInspect']);
+install('chat',['candidateMeaning','candidateMeaningText','meaningHtml','renderInspect']);
 const dialog=element();dialog.dataset.registeredReview='true';
 global.$=()=>dialog;global.inspectTicket=0;global.registeredEpoch=1;
 global.session={result:{}};let revision='v1',resolve;

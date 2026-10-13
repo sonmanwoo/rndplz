@@ -409,6 +409,16 @@ export function initRecommendationMap(host, {
       const caption = doc.createElement('span'); caption.className = 'rm-hand-caption';
       caption.textContent = record.capability || '이력과 근거 보기';
       item.append(face, name, badge, caption);
+      const meaning = row?.meaning;
+      if (meaning && typeof meaning.score === 'number' && Number.isFinite(meaning.score)) {
+        // 2026-10-13: how close the person's records are to the condition the user added (EmbeddingGemma); a
+        // condition-side candidate also shows its rank among those linked to the conditions without the field.
+        const side = row.condition_side === true && Number.isInteger(meaning.rank) && Number.isInteger(meaning.pool);
+        const line = doc.createElement('span'); line.className = 'rm-hand-meaning';
+        line.textContent = (side ? '조건 쪽 ' + meaning.pool + '명 중 ' + meaning.rank + '위 · ' : '조건 유사도 ') + meaning.score.toFixed(3);
+        line.title = '덧붙인 조건과의 의미 유사도' + (side ? ' · 찾는 분야의 기록 없이 조건과 연결된 후보 ' + meaning.pool + '명 중 순위' : '');
+        item.append(line);
+      }
       if (row?.purpose_relation === 'adjacent') {
         const context = doc.createElement('span');
         context.className = 'rm-candidate-context';

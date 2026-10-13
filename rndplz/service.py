@@ -104,6 +104,7 @@ class Service:
         view = copy.copy(self)
         view.corpus = public_paper_corpus(self.corpus, scope['id'])
         view.engine = Engine(view.corpus)
+        view.engine.meaning = getattr(self.engine, 'meaning', None)
         view._provider_scope = copy.deepcopy(scope)
         return view
 

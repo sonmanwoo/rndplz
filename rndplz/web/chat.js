@@ -979,9 +979,22 @@ function cardCapability(c){
 }
 // Cards show the ~40 KB WebP derivative; the ~3 MB original PNGs missed the card's image deadline on phones.
 function cardPortrait(path){return typeof path==="string"&&/^\/portraits\/[A-Za-z0-9_.-]+\.(png|jpe?g|webp)$/.test(path)?path.replace(/\.(?:png|jpe?g)$/i,'-detail.webp'):'';}
+// Similarity of the person's records to the user's added condition words (EmbeddingGemma, 2026-10-13), and for a
+// condition-side candidate its rank among everyone linked to the conditions without the field. Display only.
+function candidateMeaning(c){
+ const m=c?.meaning;
+ if(!m||typeof m.score!=='number'||!Number.isFinite(m.score))return null;
+ const side=c.condition_side===true&&Number.isInteger(m.rank)&&Number.isInteger(m.pool)&&m.rank>=1&&m.rank<=m.pool;
+ return {score:m.score,side,rank:side?m.rank:null,pool:side?m.pool:null};
+}
+function candidateMeaningText(c){
+ const m=candidateMeaning(c);if(!m)return '';
+ return (m.side?'조건 쪽 후보 '+m.pool+'명 중 '+m.rank+'위 · ':'')+'덧붙인 조건과의 의미 유사도 '+m.score.toFixed(3);
+}
+function meaningHtml(c){const text=candidateMeaningText(c);return text?'<p class="pi-meaning">'+esc(text)+'</p>':'';}
 async function candidateDrawRecords(rows,gemini,historical,signal){
  return Promise.all(rows.map(async c=>{
-  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:cardPortrait(c.profile?.portrait?.path),capability:cardCapability(c),purpose_relation:candidatePurposeRelation(c),purpose_missing:typeof c.purpose_missing==='string'?c.purpose_missing:'',reason:typeof c.reason==='string'?c.reason:''};
+  const record={id:c.id,name:c.profile?.display_name||c.name,portrait:cardPortrait(c.profile?.portrait?.path),capability:cardCapability(c),purpose_relation:candidatePurposeRelation(c),purpose_missing:typeof c.purpose_missing==='string'?c.purpose_missing:'',reason:typeof c.reason==='string'?c.reason:'',meaning:candidateMeaning(c)};
   if(!gemini||historical||c.in_current_pool===false||typeof c.id!=="string"||!c.id)return record;
   try{
    const person=await api("/api/person?id="+encodeURIComponent(c.id),undefined,signal);
@@ -1434,7 +1447,7 @@ async function renderInspect(id){
    '</span></button>'+
    '<div class="pi-facts">'+(label?'<span class="pi-badge">'+esc(label)+'</span>':'')+RndPersonView.nameBlock(shownPerson,'h2','pi-identity',{variant:'inspect',headingId:'piName',headingClass:'pi-name',orgClass:'pi-org'})+'<p class="pi-capability">'+esc(capability)+'</p></div>'+
   '</div><div class="pi-info"><div class="pi-body">'+
-   partialNotice+(registered?registeredContextHtml(candidate):browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation||candidate?(reason?'<p>'+esc(reason)+'</p>':label?'<p>'+esc(label)+'</p>':'<p>이번 요청에서 찾은 후보예요. 아래 근거로 관련성을 확인해 주세요.</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+'</section>')+
+   partialNotice+(registered?registeredContextHtml(candidate):browse?'':'<section><h3>왜 이 사람인가</h3>'+(relation||candidate?(reason?'<p>'+esc(reason)+'</p>':label?'<p>'+esc(label)+'</p>':'<p>이번 요청에서 찾은 후보예요. 아래 근거로 관련성을 확인해 주세요.</p>'):(outside&&!closed?'<p>이번 요청의 후보 목록에 없는 인물이에요. 지금 의뢰 내용을 이분께 그대로 보낼 수 있어요.</p><p class="pi-missing"><strong>추가 확인</strong> 요청과의 관련성은 아직 확인되지 않았어요.</p>':'<p>이번 요청의 후보 목록에 없는 인물이에요.</p>'))+(missing?'<p class="pi-missing"><strong>추가 확인</strong> '+esc(missing)+'</p>':'')+meaningHtml(candidate)+'</section>')+
    (own?'':totalHtml)+(registered?'':'<section><h3>'+esc(RndPersonView.countLabel(shownEvidence.length,!own))+' <small>'+(shownEvidence.length>4?'앞 4건 · ':'')+'눌러서 펼치기</small></h3>'+evidence.map(e=>inspectEvidenceHtml(e,profile)).join('')+'</section>')+
   '</div><div class="pi-actions">'+(registered?registeredRequestAction(candidate):allowed?'<button type="button" class="primary" data-action="letter" data-id="'+esc(id)+'">의뢰 초안 보기</button>':outside&&!closed?'<button type="button" class="primary" data-action="pick-letter" data-id="'+esc(id)+'">이분께 보낼 의뢰 초안 보기</button>':'<p class="pi-note">'+esc(closed?historicalPickNote:unavailable)+'</p>')+'<button type="button" class="pi-full">전체 약력 보기</button></div></div></div></div>';
  dialog.dataset.personId=id;dialog.setAttribute("aria-labelledby","piName");

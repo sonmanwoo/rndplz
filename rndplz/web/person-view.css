@@ -35,6 +35,8 @@
 .pi-body h3 small { margin-left: 4px; color: var(--pc-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; }
 .pi-body p { margin: 0; }
 .pi-missing { padding: 8px 10px; border-radius: 8px; background: #f6f1e6; color: #6b5536; font-size: 12.5px; }
+/* 2026-10-13: similarity to the condition the user added (EmbeddingGemma), and a condition-side candidate's rank. */
+.pi-meaning { margin-top: 6px; color: #6a6560; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pi-body details, .person-evidence, .pi-evidence-plain { border: 1px solid var(--pc-line,var(--line)); border-radius: 9px; }
 .pi-body summary, .person-evidence summary, .pi-evidence-plain { display: grid; gap: 2px; padding: 9px 12px; }
 .pi-body summary, .person-evidence summary { cursor: pointer; list-style: none; }
@@ -59,6 +61,7 @@
 html[data-theme="dark"] .pi-portrait { background: #2a3350; }
 html[data-theme="dark"] .pi-back { border-color: #20283d; background-color: #1e6975; }
 html[data-theme="dark"] .pi-missing { background: #3a3326; color: #f0dfc2; }
+html[data-theme="dark"] .pi-meaning { color: #b9b3ac; }
 /* 전체 약력 inside the card (chat.js inspectFullHtml). */
 .pi-row { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--pc-line); }
 .pi-row:first-of-type { border-top: 0; }
