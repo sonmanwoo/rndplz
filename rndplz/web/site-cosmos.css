@@ -221,3 +221,39 @@ body.crafted .craft-header:has(.site-menu:not([hidden]),.account-menu:not([hidde
  body.crafted #detailDialog.sheet .close-button::after{inset:-7px}
  body.crafted :is(.craft-nav button,#personCardDialog>.close,#detailDialog .close-button):active:not(:disabled),body.profile-page .field-meta .text-button:active:not(:disabled){transform:none}
 }
+/* The more menu melts out of its button (2026-10-13, after Cadence Gooey Menu). site-menu.js draws grey pills in one
+   SVG goo layer and lays the real items over them; the button turns the same grey while the menu is open and its dots
+   become ×. A landed pill turns ink under the pointer or keyboard focus. */
+body.crafted{--goo:#e8e5e1}
+body.crafted .site-menu-toggle{position:relative}
+body.crafted .site-menu-toggle .site-menu-x{opacity:0;transition:opacity .2s}
+body.crafted .site-menu-toggle circle{transition:opacity .2s}
+body.crafted .site-menu-toggle[aria-expanded=true] circle{opacity:0}
+body.crafted .site-menu-toggle[aria-expanded=true] .site-menu-x{opacity:1}
+body.crafted .site-menu-control:has(.site-menu.is-goo) .site-menu-toggle{z-index:91;border-color:transparent;background:var(--goo);transition:background .25s ease,color .25s ease}
+body.crafted .site-menu-control:has(.site-menu.is-landed) .site-menu-toggle:hover{background:var(--ink);color:var(--sheet)}
+body.crafted .site-menu.is-goo{right:auto;max-width:none;max-height:none;overflow:visible;padding:0;border:0;border-radius:0;background:none;box-shadow:none;pointer-events:none}
+.site-menu.is-goo .site-menu-group{display:contents}
+.site-menu-goo{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;filter:drop-shadow(0 8px 18px rgba(13,13,13,.10))}
+.site-menu:not(.is-goo) .site-menu-goo{display:none}   /* the plain panel (a screen too short for the column) */
+.site-menu-goo rect{fill:var(--goo);transition:fill .25s ease}
+.site-menu-goo rect.is-hot{fill:var(--ink)}
+body.crafted .site-menu.is-goo .site-menu-item,body.crafted .site-menu.is-goo #newButton{position:absolute;align-items:center;gap:10px;width:max-content;max-width:var(--room,320px);min-height:0;height:auto;padding:12px 20px;border-radius:22px;background:none;color:var(--ink);white-space:nowrap;pointer-events:none;transition:color .25s ease}
+body.crafted .site-menu.is-goo.is-landed .site-menu-item{pointer-events:auto}
+body.crafted .site-menu.is-goo .site-menu-item:hover:not(:disabled){background:none}
+body.crafted .site-menu.is-goo .site-menu-item.is-hot{color:var(--sheet)}
+.site-menu.is-goo .site-menu-item>svg{margin:0;color:inherit;opacity:.7}
+.site-menu.is-goo .site-menu-item.is-hot>svg{opacity:1}
+.site-menu.is-goo .site-menu-text b{font-size:14px;line-height:20px;overflow:hidden;text-overflow:ellipsis}
+.site-menu.is-goo .site-menu-item:not(.site-menu-model) small{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.site-menu.is-goo .site-menu-item .motion-dot{margin:0}
+/* The model choice: the face shows the mode alone (the model's name is in the list) and the notice of where the
+   conversation is sent runs under it, inside the same pill. The label stays for screen readers. */
+body.crafted .site-menu.is-goo .site-menu-model{flex-wrap:wrap;align-items:center;row-gap:4px;padding:10px 18px 12px 20px;white-space:normal}
+.site-menu.is-goo .site-menu-model .site-menu-text{display:contents}
+.site-menu.is-goo .site-menu-model .site-menu-text>b{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.site-menu.is-goo .site-menu-model .model-select{align-self:center;margin:0;min-width:0}
+.site-menu.is-goo .site-menu-model .model-select-face{background-color:var(--sheet)}
+.site-menu.is-goo .model-select-detail{display:none}
+.site-menu.is-goo .site-menu-model small{flex:0 0 100%;font-size:12px;line-height:1.45;word-break:keep-all}
+body.crafted .site-menu.is-goo .site-menu-item:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
