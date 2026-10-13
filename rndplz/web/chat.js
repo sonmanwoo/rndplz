@@ -277,7 +277,7 @@ function retryButtonLabel(message){
 function responseModelLabel(message){return message.source==="guide"?"기록 탐색 안내 · AI 미사용":message.model||"수소문";}
 // A model name's AiU and 로컬 marks take their colours (AiU's own mark; 로컬 the 수소문 CI) wherever the name is shown.
 function modelNameHTML(name){return esc(name).replace(/(^|\s)(AiU|로컬)(?=\s)/g,(_,lead,mark)=>lead+'<span class="model-mark model-mark-'+(mark==="AiU"?"aiu":"local")+'">'+mark+'</span>');}
-function paintModelFace(){const select=$("modelSelect");$("modelSelectFace").innerHTML=modelNameHTML(select.selectedOptions[0]?.textContent||"");}
+function paintModelFace(){const name=$("modelSelect").selectedOptions[0]?.textContent||"",cut=name.indexOf(" · ");$("modelSelectFace").innerHTML=cut<0?modelNameHTML(name):modelNameHTML(name.slice(0,cut))+'<span class="model-select-detail"> · '+modelNameHTML(name.slice(cut+3))+"</span>";}
 function selectionOrigin(value){return ["automatic","explicit","legacy_unknown"].includes(value)?value:"legacy_unknown";}
 function resolveModelSelection(models,defaultId,id,origin){
  origin=selectionOrigin(origin);
