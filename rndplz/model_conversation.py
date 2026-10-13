@@ -674,7 +674,7 @@ class ModelConversation:
                    'public_search_tool':{
                        'scope':coverage['label'] if coverage is not None else '현재 접근 가능한 등록 기록',
                        'query_match':'각 query의 모든 공백 구분 어절이 같은 기록의 제목·본문에 있어야 합니다. 정확한 연속 구절 일치에는 더 높은 어휘 점수를 줍니다. 없는 어절을 생략하거나 뜻을 자동 추론하지 않습니다. 경력·논문에 실제로 적힐 짧은 연구 개념을 고르세요. 서로 다른 기록으로도 확인할 독립 개념은 groups로, 같은 개념의 한영 표현·표기 변형은 queries로 구성할 수 있습니다.',
-                       'query_logic':'같은 group의 검색어는 OR, groups는 AND, interpretations는 OR',
+                       'query_logic':'같은 group의 검색어는 OR, role=field groups는 AND로 후보를 정하고 role=condition groups는 후보를 거르지 않고 순위·평가에 쓰며, interpretations는 OR',
                        'topic_ids':[],
                        'topic_id_usage':'이 문맥에서 제공된 ID가 없으면 topic_ids는 비우고 queries를 사용하세요.',
                        'person_name_filter':'이름이 명시된 경우에만 등록 이름·별칭과 대조하는 선택 필터입니다. 경험으로 사람을 찾는 요청은 이름 없이 기록 검색식을 사용합니다. 이름과 경험이 모두 주어지면 두 범위의 교집합을 찾습니다.',

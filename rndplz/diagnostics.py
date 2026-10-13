@@ -228,7 +228,7 @@ def _clean_interpretations(value):
         for group in _assessment_list(branch.get('groups'),3):
             if not isinstance(group,dict):continue
             item['groups'].append({'topic_ids':_assessment_ids(group.get('topic_ids'),8),
-                'queries':[redact_text(q,500) for q in _assessment_list(group.get('queries'),6) if isinstance(q,str)]})
+                'queries':[redact_text(q,500) for q in _assessment_list(group.get('queries'),6) if isinstance(q,str)],**({'role':group['role']} if group.get('role') in ('field','condition') else {})})
         interpretations.append(item)
     return interpretations
 
