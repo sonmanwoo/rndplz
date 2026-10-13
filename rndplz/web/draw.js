@@ -288,7 +288,7 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     item.append(button);
     // Leave both text and visibility empty until the original reveal boundary.
     let context = null;
-    if (record.purpose_relation === 'adjacent') {
+    if (record.purpose_relation === 'adjacent' || record.meaning) {
       context = document.createElement('div');
       context.className = 'cd-candidate-context';
       context.id = uid + '-' + run.token + '-context-' + index;
@@ -440,15 +440,26 @@ export function initDraw(host, { onDetail, onFinish, quiet = false, bottomBounda
     card.revealed = true;
     if (card.context) {
       if (card.context.hidden) {
-        const label = document.createElement('p');
-        label.className = 'cd-purpose-label';
-        label.textContent = '인접 분야 후보 · 직접 근거 부족';
-        card.context.append(label);
-        if (typeof card.record.purpose_missing === 'string' && card.record.purpose_missing.trim()) {
-          const missing = document.createElement('p');
-          missing.className = 'cd-purpose-missing';
-          missing.textContent = '추가 확인 사항 · ' + card.record.purpose_missing;
-          card.context.append(missing);
+        if (card.record.purpose_relation === 'adjacent') {
+          const label = document.createElement('p');
+          label.className = 'cd-purpose-label';
+          label.textContent = '인접 분야 후보 · 직접 근거 부족';
+          card.context.append(label);
+          if (typeof card.record.purpose_missing === 'string' && card.record.purpose_missing.trim()) {
+            const missing = document.createElement('p');
+            missing.className = 'cd-purpose-missing';
+            missing.textContent = '추가 확인 사항 · ' + card.record.purpose_missing;
+            card.context.append(missing);
+          }
+        }
+        const meaning = card.record.meaning;
+        if (meaning) {
+          // 2026-10-13: how close this person's records are to the condition the user added, by meaning.
+          const line = document.createElement('p');
+          line.className = 'cd-meaning';
+          line.textContent = (meaning.side ? '조건 쪽 후보 ' + meaning.pool + '명 중 ' + meaning.rank + '위 · ' : '')
+            + '덧붙인 조건과의 의미 유사도 ' + meaning.score.toFixed(3);
+          card.context.append(line);
         }
         card.context.hidden = false;
         // The existing boundary measures the full item, including its revealed note.

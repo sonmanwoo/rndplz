@@ -185,6 +185,8 @@
 .cd-draw .cd-candidate-context p { margin: 0; font-size: inherit; }
 .cd-draw .cd-candidate-context .cd-purpose-label { font-weight: 600; }
 .cd-draw .cd-candidate-context .cd-purpose-missing { margin-top: 5px; }
+.cd-draw .cd-candidate-context .cd-meaning { margin-top: 5px; font-variant-numeric: tabular-nums; opacity: .78; }
+.cd-draw .cd-candidate-context .cd-meaning:first-child { margin-top: 0; }
 /* Candidate inspect view: card, reasons and actions on one sheet (bottom sheet on phones,
    two columns on wider screens). Own implementation; no third-party card CSS or artwork. */
 #personCardDialog {

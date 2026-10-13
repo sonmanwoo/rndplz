@@ -387,9 +387,10 @@ class PublicEvidenceSearch:
                 ambiguous.append(name)
         return selected, unresolved, ambiguous
 
-    def _closest(self, pids, condition_groups, condition_specs, conditions, records):
+    def _closest(self, pids, condition_groups, condition_specs, conditions, records, also=()):
         """Order condition-side people by meaning against the user's condition words when the engine carries a
-        ranker (engine.meaning(sentence, {pid: records}) -> {pid: score}), else by their best lexical match."""
+        ranker (engine.meaning(sentence, {pid: records}) -> {pid: score}), else by their best lexical match.
+        Returns (order, scores for pids and also, or None, the sentence)."""
         lexical = {pid: max((match["score"] for group in condition_groups for match in group.get(pid, {}).values()),
                             default=0.0) for pid in pids}
         order = sorted(pids, key=lambda pid: (-lexical[pid], pid))
@@ -397,16 +398,16 @@ class PublicEvidenceSearch:
             " ".join(query for spec in condition_specs for query in spec["queries"])
         ranker = getattr(self.engine, "meaning", None)
         if not callable(ranker) or not sentence or not pids:
-            return order
+            return order, None, sentence
         own = {pid: [record for record in records.values() if any(c.person_id == pid for c in record.people)]
-               for pid in pids}
+               for pid in set(pids) | set(also)}
         try:
             scores = ranker(sentence, own)
         except Exception:
-            return order  # no ranker answer: lexical order
-        if not isinstance(scores, dict) or any(not isinstance(scores.get(pid), (int, float)) for pid in pids):
-            return order
-        return sorted(pids, key=lambda pid: (-scores[pid], pid))
+            return order, None, sentence  # no ranker answer: lexical order
+        if not isinstance(scores, dict) or any(type(scores.get(pid)) not in (int, float) for pid in own):
+            return order, None, sentence
+        return sorted(pids, key=lambda pid: (-scores[pid], pid)), scores, sentence
 
     def _group_matches(self, group, records, people):
         topics = {tid: 1 for tid in group["topic_ids"]}
@@ -518,6 +519,7 @@ class PublicEvidenceSearch:
                 raise ValueError("record_id_not_exposed")
         per_person = {}
         summaries = []
+        meaning, meaning_sentence = {}, ""
         for rid in record_ids:
             # ID selection grants access to this record, not lexical evidence or
             # semantic relevance. Actual links and an optional name filter bind it.
@@ -567,7 +569,18 @@ class PublicEvidenceSearch:
                 beside -= eligible | excluded
                 if names:
                     beside &= named
-                side = set(self._closest(beside, condition_groups, condition_specs, conditions, records)[:CONDITION_SIDE_LIMIT])
+                order, scores, sentence = self._closest(beside, condition_groups, condition_specs, conditions, records,
+                                                        also=eligible - excluded)
+                side = set(order[:CONDITION_SIDE_LIMIT])
+                if scores:
+                    # Shown on the cards: the similarity to the user's condition words, and for the condition side
+                    # its rank among everyone linked to the conditions without the field.
+                    meaning_sentence = meaning_sentence or sentence
+                    for rank, pid in enumerate(order, 1):
+                        if pid in side:
+                            meaning.setdefault(pid, {"score": round(scores[pid], 3), "rank": rank, "pool": len(order)})
+                    for pid in eligible - excluded:
+                        meaning.setdefault(pid, {"score": round(scores[pid], 3)})
                 eligible |= side
             admitted = eligible - excluded
             partial = {pid for pid in eligible if sum(pid in group for group in groups) < len(groups)}
@@ -634,6 +647,8 @@ class PublicEvidenceSearch:
             scored = [(records[rid], row["records"][rid]) for rid in scored_ids]
             card = self._candidate(people[pid], scored, topics, original_query, row["interpretations"], records)
             card["selection_source"] = selection_source
+            if pid in meaning:
+                card["meaning"] = dict(meaning[pid])
             if row.get("side"):
                 card["condition_side"] = True
                 card["reason"] += " 찾는 분야의 기록은 연결되지 않았고, 덧붙인 조건과 연결된 기록이 있는 분입니다."
@@ -688,6 +703,8 @@ class PublicEvidenceSearch:
                   "required_conditions_verified": False, "lookup_only": True, "proposal_allowed": False,
                   "can_propose": False, "candidate_limit": MAX_CANDIDATES,
                   "matched_candidate_count": len(per_person), "candidates_truncated": len(per_person) > MAX_CANDIDATES}
+        if meaning_sentence and any("meaning" in card for card in cards):
+            result["meaning_sentence"] = meaning_sentence
         pool = getattr(self.corpus, "demo_pool", None)
         if isinstance(pool, dict) and isinstance(pool.get("version"), str):
             result["pool_version"] = pool["version"]

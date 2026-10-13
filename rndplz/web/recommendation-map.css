@@ -247,6 +247,7 @@ html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-team-marker { colo
   padding: 1px 8px; border-radius: 99px; background: #e6eddf; color: #315846; font-size: 10.5px; font-weight: 600; line-height: 1.6;
 }
 #peopleMapHost.recommendation-map .rm-hand-card[data-relation="adjacent"] .rm-hand-badge { background: #f3ebdc; color: #8a5a2b; }
+#peopleMapHost.recommendation-map .rm-candidates .rm-hand-meaning { font-size: 10.5px; line-height: 1.4; color: #7a7f76; font-variant-numeric: tabular-nums; }
 #peopleMapHost.recommendation-map .rm-candidates .rm-hand-caption {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   font-size: 11.5px; line-height: 1.45; color: #62685f;
@@ -259,5 +260,6 @@ html[data-theme="dark"] #peopleMapHost.recommendation-map .mp-team-marker { colo
 html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates > button.rm-hand-card { background: #20283d; color: #edeff8; border-color: #3a4560; }
 html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-face { background: #2a3350; color: #e8f6f3; box-shadow: 0 0 0 3px #20283d, 0 0 0 4px #5f7a8a; }
 html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-badge { background: #1e6975; color: #e8f6f3; }
+html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-meaning { color: #aeb6c8; }
 html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-hand-card[data-relation="adjacent"] .rm-hand-badge { background: #5a4630; color: #f6ecdc; }
 html[data-theme="dark"] #peopleMapHost.recommendation-map .rm-candidates .rm-hand-caption { color: #aab2c8; }

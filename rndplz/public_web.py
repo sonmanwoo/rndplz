@@ -506,6 +506,11 @@ class PublicApp:
         if self.hosted_demo_policy is not None:
             self.allowed_hosts.add(self.hosted_demo_policy.authority.split(':')[0])
         self.engine = build_public_engine(self.env, include_personal, corpus=Corpus())
+        # Condition-side candidates are ordered by meaning when RNDPLZ_EMBED_URL names an embeddings server
+        # (2026-10-13, EmbeddingGemma on llama.cpp); without it, or when it fails, by their lexical match.
+        if self.env.get('RNDPLZ_EMBED_URL'):
+            from .meaning import EmbeddingRanker
+            self.engine.meaning = EmbeddingRanker(self.env['RNDPLZ_EMBED_URL'])
         corpus = self.engine.corpus
         if self.env.get('APP_RUNTIME') == 'hosted_public' and self.env.get('RNDPLZ_GEMMA_BRIDGE_BACKEND') == 'redis':
             from .hosted_gemma import HostedGemmaModels

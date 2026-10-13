@@ -193,6 +193,15 @@ def _candidate(value):
             result["purpose_missing"] = missing
     result["evidence"] = _rows(value.get("evidence"), _evidence)
     result["profile"] = _profile(value.get("profile"))
+    if value.get("condition_side") is True:
+        result["condition_side"] = True
+    meaning = value.get("meaning")
+    if isinstance(meaning, dict) and type(meaning.get("score")) in (int, float) and -1 <= meaning["score"] <= 1:
+        shown = {"score": round(float(meaning["score"]), 3)}
+        rank, pool = meaning.get("rank"), meaning.get("pool")
+        if type(rank) is int and type(pool) is int and 1 <= rank <= pool <= 1000:
+            shown.update(rank=rank, pool=pool)
+        result["meaning"] = shown
     return result
 
 
@@ -201,6 +210,9 @@ def _result(value):
         return None
     result = _pick(value, ("intent", "mode", "query", "pool_version", "current_pool_version", "historical_result",
         "scope_note", "empty_message", "inspection_only", "assessment_status", "lookup_resolution"))
+    sentence = value.get("meaning_sentence")
+    if type(sentence) is str and 0 < len(sentence) <= 500 and not any(ord(c) < 32 for c in sentence):
+        result["meaning_sentence"] = sentence
     result["candidates"] = _rows(value.get("candidates"), _candidate)
     candidates = result["candidates"]
     if all(card.get("purpose_relation") in ("direct", "adjacent") for card in candidates):
