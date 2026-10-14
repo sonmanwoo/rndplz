@@ -262,7 +262,7 @@ def test_draft_body_matches_web_template_and_remains_a_human_handoff(tools, tmp_
         {key: value for key, value in record.items() if key != 'in_current_pool'}
         for record in expected['evidence']]
     assert draft['title'] and draft['display_name']
-    assert draft['body'].startswith(draft['display_name'] + '님께,\n')
+    assert draft['body'].startswith(draft['display_name'] + '님, 안녕하세요.\n')
     assert '사람' in response['handoff'] and '수소문' in response['handoff']
     assert '확인' in response['handoff'] and '발송' in response['handoff']
     assert web_service.store.read() == before

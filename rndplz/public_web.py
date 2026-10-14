@@ -723,6 +723,58 @@ class PublicApp:
             # Classification never blocks the chat: the client keeps its command rules.
             return {'intent': None, 'method': 'unavailable'}
 
+    def _request_letter(self, service, sid):
+        """Write the request part of this conversation's letters beside the lookup: one run of the company
+        AI's fast app (3-5 s; the lookup's assessment takes longer). Returns a function that waits for it
+        briefly and hands the text to the prepared session, or None when none is due. A failed or late run
+        leaves the letters in their rule text; a late one is saved for letters opened afterwards."""
+        from .model_conversation import request_spec_content
+        from .request_letter import CONTRACT, LETTER_SECONDS, letter_key, letter_messages, parse_letter
+        session = next((s for s in service.store.read()['sessions'] if s['id'] == sid), None) if isinstance(sid, str) else None
+        spec = request_spec_content((session or {}).get('request_spec'))
+        if spec is None or spec['has_content'] is not True or not (session.get('discovery') or {}).get('lookup_ready'):
+            return None
+        mode = session.get('mode', 'advice')
+        key = letter_key(spec, mode)
+        if (session.get('request_letter') or {}).get('key') == key:
+            return None
+        try:
+            option = self.models.get(session.get('model_id'))
+        except Exception:
+            return None
+        if option['provider'] != 'aiu':
+            return None
+        # A deep-consultation app thinks 25-35 s per call; the letter is the fast default app's.
+        model_id = next((m['id'] for m in self.models.catalog()['models'] if m['id'] == 'aiu' and m.get('enabled')), option['id'])
+        written = {}
+
+        def run():
+            try:
+                messages = DeadlineMessages(letter_messages(spec, mode))
+                messages.generation_deadline = time.monotonic() + LETTER_SECONDS
+                body = parse_letter(''.join(self.models.stream(model_id, messages, contract=CONTRACT)), spec, mode)
+
+                def save(state):
+                    current = next((s for s in state['sessions'] if s['id'] == sid), None)
+                    now = request_spec_content((current or {}).get('request_spec'))
+                    if now is not None and letter_key(now, current.get('mode', 'advice')) == key:
+                        current['request_letter'] = {'key': key, 'body': body}
+                        return True
+                    return False
+                if service.store.transaction(save):
+                    written.update(key=key, body=body)
+            except Exception:
+                pass  # the letters keep their rule text
+
+        thread = threading.Thread(target=run, name='request-letter', daemon=True)
+        thread.start()
+
+        def finish(prepared, wait=8):
+            thread.join(wait)
+            if written and isinstance(prepared, dict):
+                prepared['request_letter'] = dict(written)
+        return finish
+
     def _account_requests(self, context, environ):
         self._require_admin(context)
         if environ.get('QUERY_STRING', ''):
@@ -1123,6 +1175,7 @@ class PublicApp:
                 return attach_registered(project_session(value))
 
             def prepare_response():
+                letter=self._request_letter(service,payload.get('session_id'))
                 prepared=chat.prepare(payload)
                 revision=(prepared.get('discovery') or {}).get('revision')
                 from .public_profiles import APPROVED_PERSON_IDS
@@ -1138,6 +1191,7 @@ class PublicApp:
                             context_builder=lambda current: chat.request_context(current,for_prepare=True))
                     except (ValueError,KeyError,TypeError):
                         lookup_failed=True
+                if letter:letter(prepared)
                 result=attach_registered(service.prepared_draft_response(prepared))
                 if lookup_failed:
                     result['registered_experts_error']='등록 경력 조회 결과를 확인하지 못했습니다. 기존 논문 조회 결과는 아래에서 확인할 수 있습니다.'

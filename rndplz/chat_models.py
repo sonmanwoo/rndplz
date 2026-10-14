@@ -19,7 +19,7 @@ from .diagnostics import event as diagnostic_event
 DEFAULT_OPENAI_MODEL = 'gpt-6-astra'
 GENERATION_CONTRACT_NAMES = ('dialogue_plan.v1','dialogue_answer.v1','dialogue_refine.v1','dialogue_assessment.v1',
                              'dialogue_plan.v2','dialogue_response.v1','request_intent.v1',
-                             'profile_digest.v1','profile_request.v1',
+                             'profile_digest.v1','profile_request.v1','request_letter.v1',
                              'dialogue_plan.v2+think')
 # The "+think" variant of a contract is the same prompt and schema with the model's reasoning on;
 # it is sent only for a plan repair attempt after the first plan failed validation.

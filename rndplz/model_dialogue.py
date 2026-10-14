@@ -529,6 +529,9 @@ def generation_contract(name):
     if name == "profile_request.v1":
         from .profile_reading import request_contract_spec
         return request_contract_spec()
+    if name == "request_letter.v1":
+        from .request_letter import contract_spec
+        return contract_spec()
     raise ValueError("지원하지 않는 대화 생성 계약입니다.")
 
 

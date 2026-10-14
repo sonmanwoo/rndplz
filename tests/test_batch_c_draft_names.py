@@ -51,7 +51,7 @@ def test_draft_candidate_and_greeting_use_corpus_display_name(draft_service, pid
     before = draft_service.store.read()['sessions']
     draft = draft_service.draft('names', pid)
     assert draft['candidate']['profile']['display_name'] == name
-    assert draft['body'].startswith(name + '님께,\n')
+    assert draft['body'].startswith(name + '님, 안녕하세요.\n')
     # 표시용 응답을 만들면서 저장된 후보나 코퍼스를 바꾸지 않는다.
     assert draft_service.store.read()['sessions'] == before
     assert draft['candidate']['name'] == draft_service.corpus.people[pid].name
@@ -63,7 +63,7 @@ def test_route_letters_and_saved_recipient_names_share_display_rule(draft_servic
     for pid, name in expected.items():
         draft = draft_service.draft('route', pid)
         assert draft['candidate']['profile']['display_name'] == name
-        assert '\n\n' + name + '님께,\n' in draft['body']
+        assert '\n\n' + name + '님, 안녕하세요.\n' in draft['body']
         assert draft['candidate']['route_total'] == 3
     proposals = draft_service.save_proposal({
         'session_id': 'route', 'candidate_ids': list(expected),
@@ -71,7 +71,7 @@ def test_route_letters_and_saved_recipient_names_share_display_rule(draft_servic
     })
     assert {p['recipient_id']: p['recipient_name'] for p in proposals} == expected
     for proposal in proposals:
-        assert '\n\n' + expected[proposal['recipient_id']] + '님께,\n' in proposal['body']
+        assert '\n\n' + expected[proposal['recipient_id']] + '님, 안녕하세요.\n' in proposal['body']
 
 
 def test_prepared_draft_preview_keeps_display_name(draft_service, monkeypatch):
@@ -87,4 +87,4 @@ def test_prepared_draft_preview_keeps_display_name(draft_service, monkeypatch):
     preview = response['draft_previews']['items'][0]
     assert preview['candidate']['name'] == 'Synthetic Researcher'
     assert preview['candidate']['profile']['display_name'] == '시험 연구자'
-    assert preview['body'].startswith('시험 연구자님께,\n')
+    assert preview['body'].startswith('시험 연구자님, 안녕하세요.\n')
