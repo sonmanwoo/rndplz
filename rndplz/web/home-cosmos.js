@@ -17,10 +17,34 @@
     { id:'process', phrase:'공정 모델링 전문가', hint:'공정 최적화 조건' },
     { id:'polymer-circularity', phrase:'자원 순환 연구자', hint:'폐플라스틱 재활용 공정' },
     { id:'separation', phrase:'분리·정제 연구자', hint:'증류 분리 효율' },
+    // One person in this capability (2026-10-14): the phrase shows that one face, so every teammate has a phrase.
+    { id:'lubricants', phrase:'윤활유 개발 전문가', hint:'산업용 윤활유 배합', solo:true },
     { id:'control', phrase:'예측 제어 전문가', hint:'제어기 튜닝 방향' },
     { id:'saf', phrase:'SAF 연료 연구자', hint:'항공유 전환 경로' },
     { id:'cooling', phrase:'냉각·열관리 연구자', hint:'액침 냉각 열성능' }
   ];
+  // The team the intro opens with; their faces also lead the phrases they belong to (pickFaces).
+  const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];
+
+  // Team faces first (2026-10-14), sparingly: only in a capability the person has, one teammate per phrase beside
+  // a field expert, and each teammate in one phrase only (the one with the fewest choices is placed first, each
+  // where they rank highest). The other phrases keep two field experts.
+  function pickFaces(scenes) {
+    const rank = (scene, id) => scene.people.findIndex(p => p.id === id);
+    const choices = TEAM.map(id => ({ id, open:scenes.filter(scene => rank(scene, id) >= 0) })).sort((a, b) => a.open.length - b.open.length);
+    const lead = new Map();
+    for (const { id, open } of choices) {
+      const scene = open.filter(s => !lead.has(s.id)).sort((a, b) => rank(a, id) - rank(b, id))[0];
+      if (scene) lead.set(scene.id, id);
+    }
+    return scenes.map(scene => {
+      const experts = scene.people.filter(p => !TEAM.includes(p.id));
+      const member = scene.people.find(p => p.id === lead.get(scene.id));
+      const thumbs = member ? [member, experts[0] || scene.people.find(p => p !== member)]
+        : experts.length >= 2 ? experts.slice(0, 2) : scene.people.slice(0, 2);
+      return { ...scene, thumbs:thumbs.filter(Boolean) };
+    });
+  }
 
   // ---- home state -------------------------------------------------------
   const isHome = () => main.classList.contains('welcome') && !main.classList.contains('is-chat');
@@ -293,7 +317,6 @@
   else playIntro();
   async function playIntro() {
     const T = ms => ms * .72, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), PAPER = '#f7f5f3';
-    const TEAM = ['LOCAL-JINHO', 'LOCAL-MANWOO', 'LOCAL-DASOL', 'LOCAL-HONG'];
     let skipped = false, layer = null, brand = null, big = '';
     const onKey = event => { if (event.isTrusted) skip(); };
     function end() {
@@ -424,11 +447,11 @@
     if (!data || !Array.isArray(data.people)) return;
     const everyone = data.people.map(p => ({ id:p.id, name:p.profile?.display_name || p.name, image:thumb(p.profile?.portrait?.path) })).filter(p => p.image);
     const byId = new Map(everyone.map(p => [p.id, p]));
-    const scenes = SCENES.map(scene => {
+    const scenes = pickFaces(SCENES.map(scene => {
       const capability = (data.capabilities || []).find(c => c.id === scene.id);
       const people = capability ? capability.people.map(link => byId.get(link.id)).filter(Boolean) : [];
-      return { ...scene, people, thumbs:people.slice(0, 2) };
-    }).filter(scene => scene.people.length >= 2);
+      return { ...scene, people };
+    }).filter(scene => scene.people.length >= (scene.solo ? 1 : 2)));
     if (!scenes.length || !everyone.length) return;
     crowd = Math.max(1, everyone.length - 2); buildPath(); resize();
     for (const person of everyone) {
