@@ -7,7 +7,8 @@
   const charts = {
     choice: [['first', '첫 카드', '--s1'], ['other', '다른 추천 카드', '--s2'], ['picked', '지도에서 직접 고름', '--s3'], ['unknown', '확인 어려움', '--none']],
     edit: [['same', '그대로', '--o1'], ['light', '조금 고침', '--o2'], ['heavy', '많이 고침', '--o3']],
-    letter: [['model', 'AI가 다듬은 문장', '--s1'], ['rule', '규칙 문장', '--s2']]
+    letter: [['model', 'AI가 다듬은 문장', '--s1'], ['rule', '규칙 문장', '--s2']],
+    reaction: [['good', '잘 맞아요', '--s1'], ['unsure', '애매해요', '--none'], ['bad', '안 맞아요', '--bad']]
   };
   let data = null;
   let period = 'week';
@@ -58,8 +59,18 @@
     host.replaceChildren(strip, total ? legend : node('p', 'metrics-empty', '이 기간에는 아직 없어요.'));
   }
 
+  const reasons = [['field', '분야가 달라요'], ['evidence', '근거가 약해요'], ['known', '이미 아는 분이에요']];
+
   function render() {
     const row = data.periods[period];
+    const answered = row.reaction.good + row.reaction.unsure + row.reaction.bad;
+    $('reactionNote').textContent = '의뢰서를 보낸 ' + row.sends + '번 중 ' + answered + '번 답했어요(' + share(answered, row.sends) +
+      '). 한 대화에 한 번만 묻고, 두 번 연달아 지나친 사람에게는 더 묻지 않아요.';
+    $('reasons').replaceChildren(node('li', '', '아쉬운 이유'), ...reasons.map(([key, label]) => {
+      const item = node('li');
+      item.append(node('span', '', label), node('b', '', String(row.reason[key] || 0)));
+      return item;
+    }));
     const funnel = $('funnel');
     funnel.replaceChildren(
       tile('대화 시작', row.started),
@@ -71,7 +82,9 @@
     for (const [name, rows] of Object.entries(charts)) bar(document.querySelector('[data-chart="' + name + '"]'), row[name], rows);
     const lines = [['대화 시작', row.started], ['수소문', row.searched], ['의뢰서 저장한 대화', row.proposed], ['보낸 대화', row.sent],
       ['의뢰서 수', row.letters], ['보낸 의뢰서 수', row.letters_sent]];
+    lines.push(['보낸 횟수', row.sends]);
     for (const [name, rows] of Object.entries(charts)) for (const [key, label] of rows) lines.push([label, row[name][key] || 0]);
+    for (const [key, label] of reasons) lines.push(['이유: ' + label, row.reason[key] || 0]);
     $('metricsTable').replaceChildren(...lines.map(([label, value]) => {
       const tr = node('tr');
       tr.append(node('th', '', label), node('td', '', String(value)));

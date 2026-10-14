@@ -50,10 +50,12 @@ class CollectTests(unittest.TestCase):
                                session('s3', '2026-09-30T01:00:00+00:00'),                     # earlier
                                session('s4', '2026-10-14T01:00:00+00:00', searched=False),     # talked only
                                session('s5', '2026-10-14T01:00:00+00:00', searched=False, user=False)],
-              [letter('s1', 'P-1', '2026-10-14T02:00:00+00:00', draft_similarity=1.0, letter_source='model'),
-               letter('s1', 'P-9', '2026-10-14T02:00:00+00:00', selection='user_pick', draft_similarity=.9, letter_source='model'),
-               letter('s2', 'P-2', '2026-10-10T02:00:00+00:00', state='draft', draft_similarity=.5, letter_source='rule'),
-               letter('s3', 'P-7', '2026-09-30T02:00:00+00:00')])
+              [letter('s1', 'P-1', '2026-10-14T02:00:00+00:00', draft_similarity=1.0, letter_source='model', group_id='g1',
+                      reaction={'fit': 'bad', 'reason': 'field'}),
+               letter('s1', 'P-9', '2026-10-14T02:00:00+00:00', selection='user_pick', draft_similarity=.9, letter_source='model',
+                      group_id='g1', reaction={'fit': 'bad', 'reason': 'field'}),
+               letter('s2', 'P-2', '2026-10-10T02:00:00+00:00', state='draft', draft_similarity=.5, letter_source='rule', group_id='g2'),
+               letter('s3', 'P-7', '2026-09-30T02:00:00+00:00', group_id='g3')])
         write(root, 'account-' + 'b' * 64, [session('t1', '2026-10-13T16:00:00+00:00')])  # 01:00 KST on the 14th
         (Path(root) / ('c' * 32)).mkdir()  # a visitor who never talked
         (Path(root) / ('d' * 32)).mkdir()
@@ -74,6 +76,10 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(today['edit'], {'same': 1, 'light': 1, 'heavy': 0})
         self.assertEqual(week['edit'], {'same': 1, 'light': 1, 'heavy': 1})
         self.assertEqual(every['letter'], {'model': 2, 'rule': 1})
+        # One send reaching two people answers once; a draft is not a send.
+        self.assertEqual((today['sends'], today['reaction'], today['reason']),
+                         (1, {'good': 0, 'unsure': 0, 'bad': 1}, {'field': 1, 'evidence': 0, 'known': 0}))
+        self.assertEqual((week['sends'], every['sends'], every['reaction']['bad']), (1, 2, 1))
         # Read only, and only numbers come out.
         self.assertEqual({p: p.read_bytes() for p in Path(self.root).rglob('state.json')}, before)
         self.assertNotIn('비밀', json.dumps(result, ensure_ascii=False))
@@ -105,9 +111,30 @@ class SavedLetterTests(unittest.TestCase):
         self.assertEqual(draft['letter'], 'request')
         kept = service.save_proposal({'session_id': 's1', 'candidate_ids': ['P-1'], 'state': 'sent', 'idempotency_key': 'k1'})[0]
         self.assertEqual((kept['draft_similarity'], kept['letter_source']), (1.0, 'request'))
+        self.service = service
         edited = service.save_proposal({'session_id': 's1', 'candidate_ids': ['P-1'], 'state': 'sent', 'idempotency_key': 'k2',
                                         'bodies': {'P-1': '연구자님, 제 말로 새로 쓴 짧은 부탁입니다.'}})[0]
         self.assertLess(edited['draft_similarity'], .8)
+
+    def test_reaction_is_kept_on_every_letter_of_the_send(self):
+        self.test_saved_letter_keeps_how_much_of_the_draft_it_kept()
+        service = self.service
+        sent = [p for p in service.store.read()['proposals'] if p['state'] == 'sent']
+        group = sent[0]['group_id']
+        for bad in ({'group_id': group, 'fit': 'great'}, {'group_id': group, 'fit': 'good', 'reason': 'field'},
+                    {'group_id': group, 'fit': 'bad', 'reason': 'mood'}, {'group_id': group, 'fit': 'bad', 'extra': 1},
+                    {'group_id': 'nope', 'fit': 'bad'}, {'group_id': '', 'fit': 'bad'}):
+            with self.assertRaises(ValueError):
+                service.react(bad)
+        self.assertEqual(service.react({'group_id': group, 'fit': 'unsure'}), {'group_id': group, 'fit': 'unsure', 'reason': None})
+        service.react({'group_id': group, 'fit': 'unsure', 'reason': 'evidence'})
+        mine = [p for p in service.store.read()['proposals'] if p['group_id'] == group]
+        self.assertTrue(mine and all(p['reaction']['fit'] == 'unsure' and p['reaction']['reason'] == 'evidence' for p in mine))
+        others = [p for p in service.store.read()['proposals'] if p['group_id'] != group]
+        self.assertTrue(all('reaction' not in p for p in others))
+        draft = service.save_proposal({'session_id': 's1', 'candidate_ids': ['P-1'], 'state': 'draft', 'idempotency_key': 'k3'})[0]
+        with self.assertRaises(ValueError):
+            service.react({'group_id': draft['group_id'], 'fit': 'good'})
 
 
 class AdminOnlyTests(unittest.TestCase):

@@ -272,11 +272,36 @@
     }
   }
   const pause = ms => new Promise(resolve=>setTimeout(resolve,quiet?0:ms));
-  function deliver(name,count=1){
+  // One tap on how the connection fit (2026-10-14); reasons only when it did not quite fit. `ask.send(fit, reason)`
+  // keeps the answer; the scene reports whether anything was tapped through `ask.closed(answered)`.
+  function fitQuestion(ask,answer){
+    const box=document.createElement('section');box.className='fit-ask';box.setAttribute('aria-label','연결 반응');
+    box.innerHTML='<h3>이번 연결은 어땠나요?</h3><p class="fit-sub">한 번만 눌러 주세요. 다음 추천에 반영돼요.</p><div class="fit-chips" role="group" aria-label="추천받은 분이 이번 요청에 맞았는지"><button type="button" data-fit="good">잘 맞아요</button><button type="button" data-fit="unsure">애매해요</button><button type="button" data-fit="bad">안 맞아요</button></div>';
+    let fit=null;
+    const keep=reason=>Promise.resolve().then(()=>ask.send(fit,reason)).catch(()=>{
+      const note=box.querySelector('.fit-thanks,.fit-sub');if(note)note.textContent='지금은 저장하지 못했어요. 다음에 다시 여쭐게요.';});
+    const thank=()=>{box.innerHTML='<h3>고마워요.</h3><p class="fit-thanks" role="status">다음 수소문에서 더 맞는 분을 찾는 데 쓸게요.</p>';};
+    box.addEventListener('click',event=>{
+      const button=event.target.closest('button');if(!button)return;
+      if(button.dataset.fit){
+        fit=button.dataset.fit;answer();keep(null);
+        if(fit==='good')return thank();
+        box.querySelectorAll('[data-fit]').forEach(x=>x.setAttribute('aria-pressed',String(x===button)));
+        if(!box.querySelector('.fit-why'))box.insertAdjacentHTML('beforeend','<div class="fit-why"><p>어떤 점이 아쉬웠나요?</p><div class="fit-chips" role="group" aria-label="아쉬운 점"><button type="button" data-reason="field">분야가 달라요</button><button type="button" data-reason="evidence">근거가 약해요</button><button type="button" data-reason="known">이미 아는 분이에요</button></div><button type="button" class="fit-skip">건너뛰기</button></div>');
+        return;
+      }
+      if(button.dataset.reason)keep(button.dataset.reason);
+      thank();
+    });
+    return box;
+  }
+  function deliver(name,count=1,ask=null){
     const scene=document.createElement('dialog');scene.className='delivery-scene';scene.setAttribute('aria-label','제안 보관 완료');
     scene.innerHTML='<button class="scene-close" aria-label="완료 화면 닫기">×</button><div class="dispatch-art" aria-hidden="true"><div class="dispatch-note"><span class="service-name">수소문 / CORRESPONDENCE</span><strong></strong><i></i><i></i><i></i></div><div class="dispatch-envelope"><div class="envelope-flap"></div><div class="envelope-pocket"></div><span class="envelope-seal">H</span></div></div><div class="dispatch-copy"><span class="micro">SAFELY FILED · '+count+' LETTER'+(count>1?'S':'')+'</span><h2>연결의 첫 문장을 남겼어요.</h2><p>제안함에 시연 기록으로 보관했습니다.</p><a class="primary" href="/explore#inbox">제안함 열기 ↗</a><button class="text-button scene-done">대화로 돌아가기</button></div>';
     scene.querySelector('.dispatch-note strong').textContent=name+'님께';
-    document.body.append(scene);scene.addEventListener('close',()=>scene.remove());
+    let answered=false;
+    if(ask)scene.querySelector('.dispatch-copy').append(fitQuestion(ask,()=>{answered=true;}));
+    document.body.append(scene);scene.addEventListener('close',()=>{scene.remove();ask?.closed?.(answered);});
     scene.querySelectorAll('.scene-close,.scene-done').forEach(b=>b.addEventListener('click',()=>scene.close()));
     scene.showModal();scene.querySelector('.scene-close').focus();
   }

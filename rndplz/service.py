@@ -339,6 +339,28 @@ class Service:
                 created=self.store.transaction(annotate)
         return created
 
+    FITS=("good","unsure","bad")
+    FIT_REASONS=("field","evidence","known")
+
+    def react(self,payload):
+        """One tap on how the connection just sent fit (2026-10-14), kept on every letter of that send;
+        a reason only when it did not quite fit. A later tap replaces the earlier one."""
+        if not isinstance(payload,dict) or set(payload)-{"group_id","fit","reason"}:
+            raise ValueError("연결 반응 형식을 확인해 주세요.")
+        group=validate_text(payload.get("group_id",""),100)
+        fit,reason=payload.get("fit"),payload.get("reason")
+        if fit not in self.FITS or (reason is not None and (fit=="good" or reason not in self.FIT_REASONS)):
+            raise ValueError("연결 반응 형식을 확인해 주세요.")
+        def update(state):
+            letters=[p for p in state["proposals"] if p.get("group_id")==group and p.get("state")=="sent"]
+            if not letters:
+                raise ValueError("보낸 의뢰를 찾을 수 없습니다.")
+            stamp=now()
+            for p in letters:
+                p["reaction"]={"fit":fit,"reason":reason,"at":stamp}
+            return {"group_id":group,"fit":fit,"reason":reason}
+        return self.store.transaction(update)
+
     def transition(self,pid,target):
         allowed={"draft":{"sent","cancelled"},"sent":{"accepted","declined","closed","cancelled"},"accepted":{"closed"},"declined":{"closed"},"closed":set(),"cancelled":set()}
         def update(state):

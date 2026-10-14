@@ -1504,6 +1504,7 @@ class PublicApp:
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id'),
                                                     picked=payload.get('picked') is True),
                 '/api/proposals': lambda: service.save_proposal(payload),
+                '/api/proposals/reaction': lambda: service.react(payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})

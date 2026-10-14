@@ -10,6 +10,7 @@ to the admin account alone.
   choice     who got each letter: the first card, another recommended card, or someone picked on the map
   edit       how far the saved letter moved from its draft (saved since 2026-10-14)
   letter     whether the draft's request part was the company AI's paragraph or the rule text
+  reaction   the one-tap answer after a send (잘 맞아요·애매해요·안 맞아요 and a reason), once per send
 """
 from __future__ import annotations
 
@@ -65,7 +66,9 @@ def _blank():
             'letters': 0, 'letters_sent': 0,
             'choice': {'first': 0, 'other': 0, 'picked': 0, 'unknown': 0},
             'edit': {'same': 0, 'light': 0, 'heavy': 0},
-            'letter': {'model': 0, 'rule': 0}}
+            'letter': {'model': 0, 'rule': 0},
+            'sends': 0, 'reaction': {'good': 0, 'unsure': 0, 'bad': 0},
+            'reason': {'field': 0, 'evidence': 0, 'known': 0}}
 
 
 def collect(root, now=None):
@@ -116,6 +119,21 @@ def collect(root, now=None):
                         row['edit'][edit] += 1
                     if source in row['letter']:
                         row['letter'][source] += 1
+        # One send (one 제안함에 보내기) may reach several people; its reaction counts once.
+        sends = {}
+        for proposal in state.get('proposals') or []:
+            if isinstance(proposal, dict) and proposal.get('state') == 'sent' and proposal.get('group_id'):
+                sends.setdefault(proposal['group_id'], []).append(proposal)
+        for letters_sent in sends.values():
+            reaction = next((p['reaction'] for p in letters_sent if isinstance(p.get('reaction'), dict)), {})
+            moments = [m for m in (_when(p.get('created')) for p in letters_sent) if m is not None]
+            for name in periods(min(moments) if moments else None):
+                row = rows[name]
+                row['sends'] += 1
+                if reaction.get('fit') in row['reaction']:
+                    row['reaction'][reaction['fit']] += 1
+                if reaction.get('reason') in row['reason']:
+                    row['reason'][reaction['reason']] += 1
     return {'generated_at': now.astimezone(KST).isoformat(timespec='seconds'),
             'since': {name: value.date().isoformat() if value else None for name, value in since.items()},
             'periods': rows}
