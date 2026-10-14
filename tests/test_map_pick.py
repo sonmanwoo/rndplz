@@ -63,14 +63,13 @@ class MapPickTests(unittest.TestCase):
     def test_picked_letter_is_the_same_request_marked_as_the_requesters_choice(self):
         draft = self.service.draft('s1', 'P-RM', picked=True)
         body = draft['body']
-        self.assertTrue(body.startswith('로버트 맥코믹님께,'))
+        self.assertTrue(body.startswith('로버트 맥코믹님, 안녕하세요.'))
         self.assertIn('원료 내 이취 물질 제거', body)
-        self.assertIn('[직접 선택]', body)
-        self.assertIn('관련성은 아직 확인되지 않았습니다', body)
-        self.assertNotIn('[연결 근거]', body)
+        self.assertIn('제가 직접 골라 연락드립니다', body)
+        self.assertIn('맞닿아 있는지는 아직 확인하지 못했습니다', body)
         # Newest record first, under the person's records rather than as a link to the request.
         self.assertLess(body.index('바이오 연료 산화 안정성'), body.index('지속가능항공유 연료 특성'))
-        self.assertIn('[연결 근거]', self.service.draft('s1', 'P-MW')['body'])
+        self.assertIn('참고한 기록', self.service.draft('s1', 'P-MW')['body'])
 
     def test_only_people_outside_a_current_result_can_be_picked(self):
         cases = {('s1', 'P-MW'): '후보 카드', ('s1', 'P-OLD'): '역사적', ('s1', 'P-EMPTY'): '등록된 이력',
@@ -91,7 +90,7 @@ class MapPickTests(unittest.TestCase):
         created = self.service.save_proposal({**payload, 'idempotency_key': 'k3', 'picked_ids': ['P-RM']})
         self.assertEqual((created[0]['recipient_id'], created[0]['recipient_name'], created[0]['selection']),
                          ('P-RM', '로버트 맥코믹', 'user_pick'))
-        self.assertIn('[직접 선택]', created[0]['body'])
+        self.assertIn('제가 직접 골라 연락드립니다', created[0]['body'])
         self.assertEqual({e['id'] for e in created[0]['evidence']}, {'R-SAF1', 'R-SAF2'})
         mixed = self.service.save_proposal({**payload, 'idempotency_key': 'k4', 'candidate_ids': ['P-MW', 'P-RM'],
                                             'picked_ids': ['P-RM']})

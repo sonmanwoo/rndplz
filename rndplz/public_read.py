@@ -1,8 +1,9 @@
 """Side-effect-free public corpus, card and request views shared by web and agents."""
 from .data import Corpus
-from .engine import Engine, MODE
+from .engine import Engine
 from .demo_pool import project_corpus, proposal_boundary
 from .public_profiles import restrict_personal_publication, selected_public_people
+from .request_letter import ASK, letter_key, rule_text
 
 SOURCE_NOTE = '공개 논문·제공 경력·가상 현장 기록이며 사내 실명부가 아닙니다.'
 AVAILABILITY_NOTE = '현재 소속·가용 시간·연락 의향은 미확인'
@@ -64,6 +65,21 @@ def picked_candidate(engine,session,cid):
     name=profile.get("display_name") if isinstance(profile.get("display_name"),str) and profile["display_name"].strip() else person.name
     return {"id":cid,"name":name,"virtual":person.virtual,"evidence":evidence,"selection":"user_pick"}
 
+def request_text(session):
+    """The request in a letter: the company AI's paragraph written for this exact brief, else the brief laid
+    out plainly; a session without an approved brief keeps its request text."""
+    from .model_conversation import request_spec_content
+    spec=request_spec_content(session.get("request_spec"))
+    if spec is not None and spec["has_content"] is True:
+        written=session.get("request_letter") or {}
+        if written.get("key")==letter_key(spec,session["mode"]) and isinstance(written.get("body"),str) and written["body"].strip():
+            return written["body"]
+        return rule_text(spec)
+    slots=session["slots"]
+    lines=["지금 이런 일로 도움이 필요합니다.\n"+session.get("proposal_context",session["original"])]
+    lines+=[label+": "+slots[key] for label,key in (("검토 대상","target"),("가진 자료","resources"),("조건","conditions")) if slots.get(key)]
+    return "\n\n".join(lines)
+
 def render_draft(corpus, session, c):
     """Private text template; each caller must validate its own authority."""
     sid = session["id"]
@@ -72,15 +88,28 @@ def render_draft(corpus, session, c):
     name = display_name.strip() if isinstance(display_name, str) and display_name.strip() else person.name if person else c["name"]
     c = {**c, "profile": {**(c.get("profile") or {}), "display_name": name}}
     slots=session["slots"]
-    request_scope={"advice":"15분 자문 또는 문서 의견", "verify":"인용 주장과 전제·검증 방법 검토", "member":"프로젝트에 참여 가능한 역할·기간 협의", "site_request":"현상·운전 조건 검토와 조사 방법 자문", "resource_request":"취급·이관 가능 여부와 담당 경로 확인"}[session["mode"]]
-    refs="\n".join("- "+e["title"]+" ("+e["date"]+")"+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
-    basis="[연결 근거]\n"+refs
-    if c.get("selection")=="user_pick":
-        basis="[직접 선택]\n추천 목록 밖에서 요청자가 직접 고른 분입니다. 이번 요청과의 관련성은 아직 확인되지 않았습니다.\n\n[등록 이력]\n"+refs
-    body=f'{name}님께,\n\n[막힌 현상]\n{session.get("proposal_context",session["original"])}\n\n[목표]\n{slots["goal"] or "추가 협의"}\n\n[검토 대상]\n{slots["target"] or "추가 협의"}\n\n[가진 자료·조건]\n{slots["resources"] or "추가 협의"} / {slots["conditions"] or "조건 확인 필요"}\n\n[요청 범위]\n{MODE[session["mode"]]} · {request_scope}\n\n{basis}\n\n[기한]\n{slots["deadline"] or "협의 가능"}\n\n감사합니다.\n— 시연 제안자'
+    # A letter to a colleague (2026-10-14): greeting, why this person, the request in sentences, the ask and
+    # thanks, then the records it rests on. It was the brief under bracket headings, read like a form.
+    titles=[e["title"] for e in c["evidence"]]
+    seen=("「"+titles[0]+"」"+(" 외 "+str(len(titles)-1)+"건의 기록" if len(titles)>1 else "" if titles[0].endswith("기록") else " 기록")) if titles else "기록"
+    picked=c.get("selection")=="user_pick"
+    if picked:
+        why=f"수소문 추천 목록에는 없었지만, {name}님의 {seen}을 보고 제가 직접 골라 연락드립니다. 이번 일과 맞닿아 있는지는 아직 확인하지 못했습니다."
+    else:
+        why=f"수소문에서 {name}님의 {seen}을 보고 연락드립니다."
+        if c.get("purpose_relation")=="adjacent":
+            why+=" 이번 일과 같은 분야는 아닐 수 있지만, 가까운 주제의 기록이라 의견을 여쭙고 싶었습니다."
+    parts=[f"{name}님, 안녕하세요.", why]
     if session["mode"]=="verify":
         claims="\n".join("> "+x for x in session["result"]["claims"])
-        body=f'[검증 대상 · AI가 제안한 내용이며 사실로 확인되지 않음]\n{claims}\n\n[확인하고 싶은 점]\n{slots["target"] or "위 주장에 필요한 조건과 검증 방법"}\n\n'+body
+        parts.append(f'검증 대상 (AI가 제안한 내용이며 아직 사실로 확인되지 않았습니다)\n{claims}\n\n확인하고 싶은 점: {slots["target"] or "위 주장에 필요한 조건과 검증 방법"}')
+    parts.append(request_text(session))
+    when=(f"기한은 {slots['deadline']}입니다만, 일정은 {name}님 편하신 때에 최대한 맞추겠습니다." if slots["deadline"]
+          else f"일정은 {name}님 편하신 때에 맞추겠습니다.")
+    parts+=[ASK[session["mode"]]+" "+when, "바쁘신 중에 읽어 주셔서 감사합니다.\n— 시연 제안자"]
+    refs="\n".join("- "+e["title"]+(" ("+e["date"]+")" if e.get("date") else "")+(" · 가상 현장 기록" if e["virtual"] else "") for e in c["evidence"])
+    parts.append("참고한 기록\n"+refs)
+    body="\n\n".join(part for part in parts if part)
     if c["virtual"]:
         body="[시연용 가상 현장 기록에 기반한 제안]\n\n"+body
     if c.get("route_order"):
