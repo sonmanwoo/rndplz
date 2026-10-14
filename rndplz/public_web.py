@@ -44,6 +44,7 @@ from .public_read import build_public_engine, record_payload
 from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
+from .visit_counter import VisitCounter
 
 WEB = Path(__file__).with_name('web')
 # How long one ask for a profile document's reading waits before answering "still reading".
@@ -523,6 +524,8 @@ class PublicApp:
             self.models = ObservedRuntimeChatModels(self.env) if self.env.get('APP_RUNTIME') in ('hosted_demo', 'hosted_public') else PublicModels(self.env)
         self.diagnostic_auth=DiagnosticAuth({}, None) if self.hosted_demo_policy is not None else DiagnosticAuth(self.env,Path(__file__).with_name('diagnostic_auth.json'))
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
+        # A person's page views per day for the operator's connection page (2026-10-14); keys only, no IP or text.
+        self.visits = VisitCounter(self.directory / 'visits', self.secret)
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # Same-meaning words for the research map's search box: the local Gemma (RNDPLZ_MAP_SYNONYM_MODEL, 'off' to stop).
         self.map_synonyms = MapSynonyms(self.env.get('RNDPLZ_OLLAMA_URL', 'http://127.0.0.1:11434'), self.env.get('RNDPLZ_MAP_SYNONYM_MODEL', 'gemma4:e4b'))
@@ -1285,6 +1288,11 @@ class PublicApp:
                 if path in ADMIN_PAGES and not (context.get('account') and self.auth.is_admin(context['account'])):
                     return send(404, {'error': '페이지를 찾을 수 없습니다.'})
                 if path in STATIC_FILES:
+                    if document and path not in ADMIN_PAGES:
+                        try:
+                            self.visits.record(context, path, environ.get('HTTP_USER_AGENT', ''))
+                        except OSError:
+                            pass  # a count never stands in the way of the page
                     return serve_static()
                 return send(404, {'error': '페이지를 찾을 수 없습니다.'})
             if not hmac.compare_digest(environ.get('HTTP_X_RNDPLZ_TOKEN', ''), token):
