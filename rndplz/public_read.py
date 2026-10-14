@@ -66,19 +66,20 @@ def picked_candidate(engine,session,cid):
     return {"id":cid,"name":name,"virtual":person.virtual,"evidence":evidence,"selection":"user_pick"}
 
 def request_text(session):
-    """The request in a letter: the company AI's paragraph written for this exact brief, else the brief laid
-    out plainly; a session without an approved brief keeps its request text."""
+    """The request in a letter and where it came from: the company AI's paragraph written for this exact brief
+    ("model"), else the brief laid out plainly ("rule"); a session without an approved brief keeps its request
+    text ("request")."""
     from .model_conversation import request_spec_content
     spec=request_spec_content(session.get("request_spec"))
     if spec is not None and spec["has_content"] is True:
         written=session.get("request_letter") or {}
         if written.get("key")==letter_key(spec,session["mode"]) and isinstance(written.get("body"),str) and written["body"].strip():
-            return written["body"]
-        return rule_text(spec)
+            return written["body"], "model"
+        return rule_text(spec), "rule"
     slots=session["slots"]
     lines=["지금 이런 일로 도움이 필요합니다.\n"+session.get("proposal_context",session["original"])]
     lines+=[label+": "+slots[key] for label,key in (("검토 대상","target"),("가진 자료","resources"),("조건","conditions")) if slots.get(key)]
-    return "\n\n".join(lines)
+    return "\n\n".join(lines), "request"
 
 def render_draft(corpus, session, c):
     """Private text template; each caller must validate its own authority."""
@@ -103,7 +104,8 @@ def render_draft(corpus, session, c):
     if session["mode"]=="verify":
         claims="\n".join("> "+x for x in session["result"]["claims"])
         parts.append(f'검증 대상 (AI가 제안한 내용이며 아직 사실로 확인되지 않았습니다)\n{claims}\n\n확인하고 싶은 점: {slots["target"] or "위 주장에 필요한 조건과 검증 방법"}')
-    parts.append(request_text(session))
+    request, source=request_text(session)
+    parts.append(request)
     when=(f"기한은 {slots['deadline']}입니다만, 일정은 {name}님 편하신 때에 최대한 맞추겠습니다." if slots["deadline"]
           else f"일정은 {name}님 편하신 때에 맞추겠습니다.")
     parts+=[ASK[session["mode"]]+" "+when, "바쁘신 중에 읽어 주셔서 감사합니다.\n— 시연 제안자"]
@@ -114,4 +116,4 @@ def render_draft(corpus, session, c):
         body="[시연용 가상 현장 기록에 기반한 제안]\n\n"+body
     if c.get("route_order"):
         body=f'[가상 자원 요청 경로 {c["route_order"]}/{c["route_total"]} · {c["route_role"]}]\n\n'+body
-    return {"body":body,"candidate":c,"session_id":sid,"request_kind":session["mode"],"evidence":c["evidence"]}
+    return {"body":body,"candidate":c,"session_id":sid,"request_kind":session["mode"],"evidence":c["evidence"],"letter":source}

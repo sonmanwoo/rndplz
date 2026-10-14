@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f5f3">
+  <meta name="robots" content="noindex">
+  <title>연결 지표 — 수소문</title>
+  <script src="/theme.js"></script><link rel="stylesheet" href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"><link rel="stylesheet" href="/craft.css">
+  <style>
+    .metrics-page .craft-header { display:flex; justify-content:space-between; gap:1rem; }
+    .metrics-shell {
+      --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --none:#d6d3cd;
+      --o1:#86b6ef; --o2:#2a78d6; --o3:#104281;
+      width:min(100% - 2rem, 46rem); margin:clamp(1.5rem, 5vh, 3rem) auto 4rem; line-height:1.6;
+    }
+    [data-theme="dark"] .metrics-shell { --s1:#3987e5; --s2:#d95926; --s3:#199e70; --none:#4a4945; --o1:#184f95; --o2:#3987e5; --o3:#86b6ef; --bad:#e66767; }
+    .metrics-shell { --bad:#e34948; }
+    .metrics-eyebrow { font-size:.78rem; color:var(--muted); margin:0; }
+    .metrics-shell h1 { font-size:clamp(1.7rem, 5vw, 2.3rem); line-height:1.25; margin:.3rem 0 .4rem; }
+    .metrics-lead { color:var(--muted); font-size:.92rem; margin:0 0 1.4rem; }
+    .metrics-periods { display:inline-flex; gap:.25rem; padding:.25rem; border:1px solid var(--line); border-radius:999px; background:var(--sheet); }
+    .metrics-periods button { min-height:2.4rem; padding:0 1rem; border:0; border-radius:999px; background:transparent; color:var(--muted); font:inherit; font-size:.88rem; cursor:pointer; }
+    .metrics-periods button[aria-pressed="true"] { background:var(--ink); color:var(--sheet); }
+    .metrics-section { margin-top:1.8rem; padding-top:1.2rem; border-top:1px solid var(--line); }
+    .metrics-section h2 { font-size:1.02rem; margin:0 0 .2rem; }
+    .metrics-note { font-size:.82rem; color:var(--muted); margin:.15rem 0 .8rem; }
+    .metrics-tiles { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:.6rem; margin:.8rem 0 .4rem; }
+    .metrics-tile { background:var(--sheet); border:1px solid var(--line); border-radius:.9rem; padding:.8rem .9rem; }
+    .metrics-tile span { display:block; font-size:.78rem; color:var(--muted); }
+    .metrics-tile b { display:block; font-size:1.7rem; font-weight:650; line-height:1.2; margin:.2rem 0 .1rem; font-variant-numeric:tabular-nums; }
+    .metrics-tile small { font-size:.76rem; color:var(--muted); }
+    .metrics-bar { position:relative; display:flex; gap:2px; height:1.1rem; margin:.7rem 0 .55rem; }
+    .metrics-bar span { display:block; height:100%; min-width:4px; }
+    .metrics-bar span:first-child { border-radius:4px 0 0 4px; }
+    .metrics-bar span:last-child { border-radius:0 4px 4px 0; }
+    .metrics-bar span:only-child { border-radius:4px; }
+    .metrics-bar.is-empty { background:repeating-linear-gradient(135deg, var(--line) 0 6px, transparent 6px 12px); border-radius:4px; }
+    .metrics-legend { display:flex; flex-wrap:wrap; gap:.4rem 1.2rem; margin:0; padding:0; list-style:none; font-size:.85rem; }
+    .metrics-legend li { display:flex; align-items:center; gap:.4rem; }
+    .metrics-legend i { width:.7rem; height:.7rem; border-radius:3px; flex:none; }
+    .metrics-legend b { font-variant-numeric:tabular-nums; font-weight:600; }
+    .metrics-legend small { color:var(--muted); }
+    .metrics-tip { position:fixed; z-index:20; pointer-events:none; background:var(--ink); color:var(--sheet); font-size:.8rem; padding:.35rem .55rem; border-radius:.45rem; white-space:nowrap; }
+    .metrics-empty, .metrics-status { color:var(--muted); font-size:.88rem; }
+    .metrics-stamp { margin-top:2rem; font-size:.78rem; color:var(--muted); }
+    .metrics-reasons { margin-top:.7rem; color:var(--muted); }
+    .metrics-table { margin-top:1rem; font-size:.84rem; }
+    .metrics-table summary { cursor:pointer; color:var(--green); min-height:2.75rem; display:flex; align-items:center; }
+    .metrics-table table { width:100%; border-collapse:collapse; margin-top:.4rem; }
+    .metrics-table th, .metrics-table td { text-align:left; padding:.35rem .4rem; border-bottom:1px solid var(--line); font-weight:400; }
+    .metrics-table td { text-align:right; font-variant-numeric:tabular-nums; }
+    .metrics-page .craft-actions a { color:var(--green); }
+    @media(max-width:560px) { .metrics-tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); } .metrics-page .craft-header { padding:1rem; } }
+  </style>
+<link rel="stylesheet" href="/theme.css"></head>
+<body class="crafted metrics-page">
+  <header class="craft-header">
+    <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RE<span class="brand-dot">·</span>SEARCH, TOGETHER.</small></span></a>
+    <div class="craft-actions"><a href="/">대화로 돌아가기</a></div>
+  </header>
+  <main class="metrics-shell">
+    <p class="metrics-eyebrow">운영자 전용 · 관리자 계정에서만 열려요</p>
+    <h1>연결 지표</h1>
+    <p class="metrics-lead">수소문 뒤에 사람들이 한 행동으로 본 연결 신호예요. 대화 내용·의뢰서 문장·이름은 모으지 않고 개수만 셉니다.</p>
+    <div class="metrics-periods" role="group" aria-label="기간">
+      <button type="button" data-period="today" aria-pressed="false">오늘</button>
+      <button type="button" data-period="week" aria-pressed="true">최근 7일</button>
+      <button type="button" data-period="all" aria-pressed="false">전체</button>
+    </div>
+    <p class="metrics-status" id="metricsStatus" role="status">불러오는 중…</p>
+    <div id="metricsBody" hidden>
+      <section class="metrics-section" aria-labelledby="funnelTitle">
+        <h2 id="funnelTitle">대화에서 의뢰서까지</h2>
+        <div class="metrics-tiles" id="funnel"></div>
+        <p class="metrics-note" id="funnelNote"></p>
+      </section>
+      <section class="metrics-section" aria-labelledby="choiceTitle">
+        <h2 id="choiceTitle">누구에게 보냈나요</h2>
+        <p class="metrics-note">첫 카드에게 많이 보내면 추천 순서가 맞았다는 신호, 지도에서 직접 고른 분이 늘면 추천이 빗나갔다는 신호예요.</p>
+        <div data-chart="choice"></div>
+      </section>
+      <section class="metrics-section" aria-labelledby="reactionTitle">
+        <h2 id="reactionTitle">보낸 직후 반응</h2>
+        <p class="metrics-note" id="reactionNote"></p>
+        <div data-chart="reaction"></div>
+        <ul class="metrics-legend metrics-reasons" id="reasons" aria-label="아쉬운 이유"></ul>
+      </section>
+      <section class="metrics-section" aria-labelledby="editTitle">
+        <h2 id="editTitle">의뢰서를 얼마나 고쳤나요</h2>
+        <p class="metrics-note">초안을 그대로 보냈는지(98% 이상 같음), 조금 고쳤는지(80% 이상), 많이 고쳤는지예요. 10월 14일 이후 저장한 의뢰서부터 셉니다.</p>
+        <div data-chart="edit"></div>
+      </section>
+      <section class="metrics-section" aria-labelledby="letterTitle">
+        <h2 id="letterTitle">의뢰서 문장</h2>
+        <p class="metrics-note">요청 부분을 사내 AI가 문장으로 다듬었는지, 다듬지 못해 규칙 문장으로 대신했는지예요. 10월 14일 이후 저장분부터 셉니다.</p>
+        <div data-chart="letter"></div>
+      </section>
+      <details class="metrics-table">
+        <summary>표로 보기</summary>
+        <table><tbody id="metricsTable"></tbody></table>
+      </details>
+      <p class="metrics-stamp" id="metricsStamp"></p>
+    </div>
+  </main>
+  <script src="/admin-connections.js"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@ from .data import ROOT
 from .engine import Engine, MODE
 from .demo_pool import present_session, proposal_boundary, require_proposal_boundary
 from .public_read import PickError, person_payload, picked_candidate, render_draft
+from .connection_metrics import draft_similarity
 from .storage import StateStore
 from .models import ExternalModel
 
@@ -310,12 +311,14 @@ class Service:
                         raise ValueError("추천 근거가 없는 수신자입니다.")
                     draft=self.draft(sid,cid)
                 body=validate_text(bodies.get(cid,draft["body"]),30000)
+                # How much of the draft the letter kept, for the operator's connection counts (2026-10-14).
+                kept=draft_similarity(draft["body"],body)
                 if session["mode"]=="verify" and "검증 대상" not in body:
                     raise ValueError("검증 요청에는 '검증 대상' 표시가 필요합니다.")
                 if c["virtual"] and "가상" not in body:
                     raise ValueError("현장 제안에는 '가상' 표시가 필요합니다.")
                 stamp=now()
-                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(draft["candidate"].get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
+                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(draft["candidate"].get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,"draft_similarity":kept,"letter_source":draft.get("letter"),**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
                 created.append(p)
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}
@@ -335,6 +338,28 @@ class Service:
                     return [p for p in state["proposals"] if p["id"] in wanted]
                 created=self.store.transaction(annotate)
         return created
+
+    FITS=("good","unsure","bad")
+    FIT_REASONS=("field","evidence","known")
+
+    def react(self,payload):
+        """One tap on how the connection just sent fit (2026-10-14), kept on every letter of that send;
+        a reason only when it did not quite fit. A later tap replaces the earlier one."""
+        if not isinstance(payload,dict) or set(payload)-{"group_id","fit","reason"}:
+            raise ValueError("연결 반응 형식을 확인해 주세요.")
+        group=validate_text(payload.get("group_id",""),100)
+        fit,reason=payload.get("fit"),payload.get("reason")
+        if fit not in self.FITS or (reason is not None and (fit=="good" or reason not in self.FIT_REASONS)):
+            raise ValueError("연결 반응 형식을 확인해 주세요.")
+        def update(state):
+            letters=[p for p in state["proposals"] if p.get("group_id")==group and p.get("state")=="sent"]
+            if not letters:
+                raise ValueError("보낸 의뢰를 찾을 수 없습니다.")
+            stamp=now()
+            for p in letters:
+                p["reaction"]={"fit":fit,"reason":reason,"at":stamp}
+            return {"group_id":group,"fit":fit,"reason":reason}
+        return self.store.transaction(update)
 
     def transition(self,pid,target):
         allowed={"draft":{"sent","cancelled"},"sent":{"accepted","declined","closed","cancelled"},"accepted":{"closed"},"declined":{"closed"},"closed":set(),"cancelled":set()}

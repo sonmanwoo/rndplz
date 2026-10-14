@@ -346,7 +346,11 @@ FONT_FILES = {'/fonts/pretendard/pretendardvariable-dynamic-subset.css': 'text/c
 STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
                 '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html'),
                 # A read-only connection check for a phone outside (2026-10-12): round trips to /healthz, shown on screen only.
-                '/speed': ('speed.html', 'text/html'), '/speed.js': ('speed.js', 'text/javascript')}
+                '/speed': ('speed.html', 'text/html'), '/speed.js': ('speed.js', 'text/javascript'),
+                # The operator's connection counts (2026-10-14): the page opens for the admin account only.
+                '/admin/connections': ('admin-connections.html', 'text/html'),
+                '/admin-connections.js': ('admin-connections.js', 'text/javascript')}
+ADMIN_PAGES = frozenset({'/admin/connections'})
 for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
 
@@ -774,6 +778,14 @@ class PublicApp:
             if written and isinstance(prepared, dict):
                 prepared['request_letter'] = dict(written)
         return finish
+
+    def _connection_counts(self, context, environ):
+        """Counts of what people did after a search, across every conversation folder; admin only."""
+        self._require_admin(context)
+        if environ.get('QUERY_STRING', ''):
+            raise AuthError('connections_query_not_allowed', 400)
+        from .connection_metrics import collect
+        return collect(self.directory)
 
     def _account_requests(self, context, environ):
         self._require_admin(context)
@@ -1238,6 +1250,7 @@ class PublicApp:
                         return send(400, {'error': '참여 포인트 조회에는 추가 조건을 넣지 마세요.', 'code': 'mole_query_not_allowed'})
                     return send(200, profile.store.mole_summary())
                 if path == '/api/account/requests': return send(200, self._account_requests(context, environ))
+                if path == '/api/account/connections': return send(200, self._connection_counts(context, environ))
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, 'mail_delivery': service.mail.status(), **account_view})
                 if path == '/api/chat/models': return send(200, {**self.models.catalog(), 'public': True})
@@ -1269,6 +1282,8 @@ class PublicApp:
                     record = self.engine.corpus.records.get(identifier)
                     if not record: return send(404, {'error': '기록을 찾을 수 없습니다.'})
                     return send(200, record_payload(self.engine, identifier))
+                if path in ADMIN_PAGES and not (context.get('account') and self.auth.is_admin(context['account'])):
+                    return send(404, {'error': '페이지를 찾을 수 없습니다.'})
                 if path in STATIC_FILES:
                     return serve_static()
                 return send(404, {'error': '페이지를 찾을 수 없습니다.'})
@@ -1489,6 +1504,7 @@ class PublicApp:
                 '/api/draft': lambda: service.draft(payload.get('session_id'), payload.get('candidate_id'),
                                                     picked=payload.get('picked') is True),
                 '/api/proposals': lambda: service.save_proposal(payload),
+                '/api/proposals/reaction': lambda: service.react(payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})
