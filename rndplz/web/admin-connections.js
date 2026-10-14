@@ -71,6 +71,13 @@
       item.append(node('span', '', label), node('b', '', String(row.reason[key] || 0)));
       return item;
     }));
+    const visit = data.visits?.[period] || { visitors: 0, accounts: 0, views: 0 };
+    $('visits').replaceChildren(
+      tile('방문자', visit.visitors),
+      tile('그중 로그인', visit.accounts, '방문자의 ' + share(visit.accounts, visit.visitors)),
+      tile('페이지 열람', visit.views, visit.visitors ? '한 명당 ' + (visit.views / visit.visitors).toFixed(1) + '번' : ''));
+    $('visitNote').textContent = '사람이 연 페이지만 셉니다(자동 점검·봇 제외). ' +
+      (data.visits_since ? data.visits_since + '부터 센 숫자예요.' : '10월 14일 배포 이후부터 셉니다.');
     const funnel = $('funnel');
     funnel.replaceChildren(
       tile('대화 시작', row.started),
@@ -82,7 +89,7 @@
     for (const [name, rows] of Object.entries(charts)) bar(document.querySelector('[data-chart="' + name + '"]'), row[name], rows);
     const lines = [['대화 시작', row.started], ['수소문', row.searched], ['의뢰서 저장한 대화', row.proposed], ['보낸 대화', row.sent],
       ['의뢰서 수', row.letters], ['보낸 의뢰서 수', row.letters_sent]];
-    lines.push(['보낸 횟수', row.sends]);
+    lines.push(['보낸 횟수', row.sends], ['방문자', visit.visitors], ['로그인 방문자', visit.accounts], ['페이지 열람', visit.views]);
     for (const [name, rows] of Object.entries(charts)) for (const [key, label] of rows) lines.push([label, row[name][key] || 0]);
     for (const [key, label] of reasons) lines.push(['이유: ' + label, row.reason[key] || 0]);
     $('metricsTable').replaceChildren(...lines.map(([label, value]) => {

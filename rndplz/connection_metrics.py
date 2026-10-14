@@ -11,6 +11,7 @@ to the admin account alone.
   edit       how far the saved letter moved from its draft (saved since 2026-10-14)
   letter     whether the draft's request part was the company AI's paragraph or the rule text
   reaction   the one-tap answer after a send (잘 맞아요·애매해요·안 맞아요 and a reason), once per send
+  visits     people who opened a page (visit_counter: keys only, automated browsers left out)
 """
 from __future__ import annotations
 
@@ -134,6 +135,8 @@ def collect(root, now=None):
                     row['reaction'][reaction['fit']] += 1
                 if reaction.get('reason') in row['reason']:
                     row['reason'][reaction['reason']] += 1
+    from .visit_counter import visit_counts
+    visits, first = visit_counts(Path(root) / 'visits', since)
     return {'generated_at': now.astimezone(KST).isoformat(timespec='seconds'),
             'since': {name: value.date().isoformat() if value else None for name, value in since.items()},
-            'periods': rows}
+            'periods': rows, 'visits': visits, 'visits_since': first}
