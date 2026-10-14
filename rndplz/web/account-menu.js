@@ -120,6 +120,9 @@
   const requestsEntry=moleNode('button','requestsEntry','requests-entry','가입 요청');requestsEntry.type='button';
   requestsEntry.setAttribute('aria-haspopup','dialog');requestsEntry.setAttribute('aria-controls','requestsDialog');
   show(requestsEntry,false);moleUnavailable.after(requestsEntry);
+  // The operator's connection counts (2026-10-14): a page that opens for the admin account only.
+  const metricsEntry=moleNode('a','metricsEntry','requests-entry','연결 지표');metricsEntry.href='/admin/connections';
+  show(metricsEntry,false);requestsEntry.after(metricsEntry);
   const requestsDialog=moleNode('dialog','requestsDialog','mole-dialog requests-dialog');requestsDialog.setAttribute('aria-labelledby','requestsTitle');
   const requestsHeading=moleNode('header','','mole-heading'),requestsClose=moleNode('button','requestsClose','mole-close','×');
   requestsClose.type='button';requestsClose.setAttribute('aria-label','가입 요청 닫기');
@@ -246,7 +249,7 @@
     // The login link's visibility is decided once, so a refresh while the menu is open never blinks it (and drops focus on it).
     const loginShown=!value.authenticated&&value.enabled&&value.login_url==='/auth/google/start';
     show(identity,value.authenticated);show(login,loginShown);show(unavailable,false);show(signupNote,false);
-    const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);
+    const admin=value.authenticated&&value.admin===true;show(requestsEntry,admin);show(metricsEntry,admin);
     if(admin)setRequestsCount(Number.isSafeInteger(value.pending_requests)?value.pending_requests:0);else if(requestsDialog.open)requestsDialog.close();
     if(value.authenticated)show(pendingNote,false);
     accountIcon(value.authenticated?account:null,!value.authenticated);
@@ -291,7 +294,7 @@
         logoutUncertain=false;show(verifySession,false);cancelNavigation();
         error.textContent='같은 세션이 유지되고 있습니다. 작성 중인 내용을 계속할 수 있어요.';
       }
-    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);show(signupNote,false);show(requestsEntry,false);moleLoadAfterSession=false;setMoleAccount(null,'계정 상태를 확인하지 못했어요. 메뉴를 다시 열면 다시 확인합니다.');note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
+    }catch(exc){if(epoch!==requestEpoch||invalidated)return;supported=false;logout.disabled=true;show(login,false);show(signupNote,false);show(requestsEntry,false);show(metricsEntry,false);moleLoadAfterSession=false;setMoleAccount(null,'계정 상태를 확인하지 못했어요. 메뉴를 다시 열면 다시 확인합니다.');note.textContent=exc.message||'계정 상태를 불러오지 못했어요.';}
     finally{if(epoch===requestEpoch){checking=false;if(verifySession)verifySession.disabled=false;}}
   }
   toggle.addEventListener('click',()=>{menu.hidden=!menu.hidden;toggle.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){if(moleAccount)loadMole();else{moleLoadAfterSession=true;refreshSession();}Array.from(menu.querySelectorAll('button:not(:disabled),a')).find(node=>node.getClientRects().length)?.focus();}});

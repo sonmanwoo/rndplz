@@ -13,6 +13,7 @@ from .data import ROOT
 from .engine import Engine, MODE
 from .demo_pool import present_session, proposal_boundary, require_proposal_boundary
 from .public_read import PickError, person_payload, picked_candidate, render_draft
+from .connection_metrics import draft_similarity
 from .storage import StateStore
 from .models import ExternalModel
 
@@ -310,12 +311,14 @@ class Service:
                         raise ValueError("추천 근거가 없는 수신자입니다.")
                     draft=self.draft(sid,cid)
                 body=validate_text(bodies.get(cid,draft["body"]),30000)
+                # How much of the draft the letter kept, for the operator's connection counts (2026-10-14).
+                kept=draft_similarity(draft["body"],body)
                 if session["mode"]=="verify" and "검증 대상" not in body:
                     raise ValueError("검증 요청에는 '검증 대상' 표시가 필요합니다.")
                 if c["virtual"] and "가상" not in body:
                     raise ValueError("현장 제안에는 '가상' 표시가 필요합니다.")
                 stamp=now()
-                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(draft["candidate"].get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
+                p={"id":uuid.uuid4().hex,"group_id":group,"session_id":sid,"recipient_id":cid,"recipient_name":(draft["candidate"].get("profile") or {}).get("display_name") or c["name"],"request_kind":session["mode"],"direction":session["asker"]+"→"+("site" if c["virtual"] else "lab"),"body":body,"evidence":c["evidence"],"topics":session["result"]["topic_ids"],"state":state_name,"simulated":True,"virtual":c["virtual"],"route_order":c.get("route_order"),"route_total":c.get("route_total"),"copy_to_proposer":True,"draft_similarity":kept,"letter_source":draft.get("letter"),**({"selection":"user_pick"} if cid in picked else {}),"created":stamp,"updated":stamp,"history":[{"state":state_name,"at":stamp,"simulated":True}]}
                 created.append(p)
             state["proposals"].extend(created)
             state["idempotency"][key]={"digest":digest,"ids":[p["id"] for p in created]}
