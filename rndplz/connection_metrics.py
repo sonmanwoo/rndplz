@@ -11,6 +11,7 @@ to the admin account alone.
   edit       how far the saved letter moved from its draft (saved since 2026-10-14)
   letter     whether the draft's request part was the company AI's paragraph or the rule text
   reaction   the one-tap answer after a send (잘 맞아요·애매해요·안 맞아요 and a reason), once per send
+  outcome    how the request of a send turned out (case_notes), with where it got stuck, once per send
   visits     people who opened a page (visit_counter: keys only, automated browsers left out)
 """
 from __future__ import annotations
@@ -69,6 +70,8 @@ def _blank():
             'edit': {'same': 0, 'light': 0, 'heavy': 0},
             'letter': {'model': 0, 'rule': 0},
             'sends': 0, 'reaction': {'good': 0, 'unsure': 0, 'bad': 0},
+            'outcome': {'solved': 0, 'partial': 0, 'unsolved': 0, 'ongoing': 0},
+            'stuck': {'field': 0, 'evidence': 0, 'unreachable': 0, 'changed': 0, 'other': 0}, 'shared': 0,
             'reason': {'field': 0, 'evidence': 0, 'known': 0}}
 
 
@@ -127,6 +130,7 @@ def collect(root, now=None):
                 sends.setdefault(proposal['group_id'], []).append(proposal)
         for letters_sent in sends.values():
             reaction = next((p['reaction'] for p in letters_sent if isinstance(p.get('reaction'), dict)), {})
+            outcome = next((p['outcome'] for p in letters_sent if isinstance(p.get('outcome'), dict)), {})
             moments = [m for m in (_when(p.get('created')) for p in letters_sent) if m is not None]
             for name in periods(min(moments) if moments else None):
                 row = rows[name]
@@ -135,6 +139,12 @@ def collect(root, now=None):
                     row['reaction'][reaction['fit']] += 1
                 if reaction.get('reason') in row['reason']:
                     row['reason'][reaction['reason']] += 1
+                if outcome.get('result') in row['outcome']:
+                    row['outcome'][outcome['result']] += 1
+                    row['shared'] += outcome.get('visibility') == 'team'
+                for reason in outcome.get('reasons') or []:
+                    if reason in row['stuck']:
+                        row['stuck'][reason] += 1
     from .visit_counter import visit_counts
     visits, first = visit_counts(Path(root) / 'visits', since)
     return {'generated_at': now.astimezone(KST).isoformat(timespec='seconds'),

@@ -8,7 +8,7 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "destination": "https://bioprocess-dx.tailfe053a.ts.net:8443/$1",
+      "destination": "https://susomun.tailfe053a.ts.net:8443/$1",
       "permanent": false
     }
   ]

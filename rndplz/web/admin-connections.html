@@ -45,6 +45,16 @@
     .metrics-empty, .metrics-status { color:var(--muted); font-size:.88rem; }
     .metrics-stamp { margin-top:2rem; font-size:.78rem; color:var(--muted); }
     .metrics-reasons { margin-top:.7rem; color:var(--muted); }
+    .metrics-cases { list-style:none; margin:.6rem 0 0; padding:0; display:grid; gap:.7rem; }
+    .metrics-cases li { background:var(--sheet); border:1px solid var(--line); border-radius:.9rem; padding:.85rem .95rem; font-size:.88rem; }
+    .metrics-cases header { display:flex; flex-wrap:wrap; gap:.3rem .7rem; align-items:baseline; }
+    .metrics-cases header b { font-size:.95rem; }
+    .metrics-cases header small, .metrics-cases dt { color:var(--muted); font-size:.78rem; }
+    .metrics-cases dl { margin:.5rem 0 0; }
+    .metrics-cases dd { margin:0 0 .4rem; white-space:pre-wrap; }
+    .metrics-cases .case-review { display:flex; gap:.5rem; margin-top:.5rem; align-items:center; }
+    .metrics-cases button { min-height:2.5rem; padding:0 1rem; border-radius:999px; border:1px solid var(--line); background:#fff; font:inherit; font-size:.84rem; cursor:pointer; }
+    .metrics-cases button.is-on { background:var(--ink); color:var(--sheet); border-color:var(--ink); }
     .metrics-table { margin-top:1rem; font-size:.84rem; }
     .metrics-table summary { cursor:pointer; color:var(--green); min-height:2.75rem; display:flex; align-items:center; }
     .metrics-table table { width:100%; border-collapse:collapse; margin-top:.4rem; }
@@ -90,6 +100,17 @@
         <p class="metrics-note" id="reactionNote"></p>
         <div data-chart="reaction"></div>
         <ul class="metrics-legend metrics-reasons" id="reasons" aria-label="아쉬운 이유"></ul>
+      </section>
+      <section class="metrics-section" aria-labelledby="outcomeTitle">
+        <h2 id="outcomeTitle">결과</h2>
+        <p class="metrics-note" id="outcomeNote"></p>
+        <div data-chart="outcome"></div>
+        <ul class="metrics-legend metrics-reasons" id="stuck" aria-label="막힌 이유"></ul>
+      </section>
+      <section class="metrics-section" aria-labelledby="casesTitle">
+        <h2 id="casesTitle">팀 공유 사례</h2>
+        <p class="metrics-note">요청자가 '팀과 공유'를 고른 결과예요. 올리면 팀 사례 모음에 쓰여요(기간과 상관없이 모두).</p>
+        <ol class="metrics-cases" id="cases"></ol>
       </section>
       <section class="metrics-section" aria-labelledby="editTitle">
         <h2 id="editTitle">의뢰서를 얼마나 고쳤나요</h2>

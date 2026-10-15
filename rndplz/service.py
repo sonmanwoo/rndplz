@@ -339,6 +339,22 @@ class Service:
                 created=self.store.transaction(annotate)
         return created
 
+    def outcome_draft(self,payload):
+        """What the result sheet of one send opens with (case_notes.draft)."""
+        from .case_notes import draft
+        if not isinstance(payload,dict) or set(payload)!={"group_id"}:
+            raise ValueError("결과를 남길 의뢰를 찾을 수 없습니다.")
+        return draft(self.store.read(),payload["group_id"])
+
+    def record_outcome(self,payload):
+        """How the request of one send turned out (2026-10-15), kept on its sent letters; the note and recipients."""
+        from .case_notes import apply, letters_of, validate
+        outcome=validate(payload)
+        def update(state):
+            note=apply(state,outcome)
+            return note,[p.get("recipient_name") for p in letters_of(state,outcome["group_id"])]
+        return self.store.transaction(update)
+
     FITS=("good","unsure","bad")
     FIT_REASONS=("field","evidence","known")
 

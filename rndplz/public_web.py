@@ -45,6 +45,7 @@ from .auth_service import AuthService, AuthError, AUTHORIZATION, strict_json
 from .profile_chat import ProfileChat
 from .scout_projection import project_session
 from .visit_counter import VisitCounter
+from .case_notes import CaseShelf
 
 WEB = Path(__file__).with_name('web')
 # How long one ask for a profile document's reading waits before answering "still reading".
@@ -352,7 +353,7 @@ STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', '
                 '/admin/connections': ('admin-connections.html', 'text/html'),
                 '/admin-connections.js': ('admin-connections.js', 'text/javascript')}
 ADMIN_PAGES = frozenset({'/admin/connections'})
-for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css'):
+for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css', 'case-note.js', 'case-note.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
 
 STATIC_FILES.update(LANDING_ASSETS)
@@ -526,6 +527,8 @@ class PublicApp:
         self.diagnostics=Diagnostics(self.directory/'diagnostics') if self.diagnostic_auth.enabled else None
         # A person's page views per day for the operator's connection page (2026-10-14); keys only, no IP or text.
         self.visits = VisitCounter(self.directory / 'visits', self.secret)
+        # Case notes shared with the team wait here for the admin (2026-10-15).
+        self.cases = CaseShelf(self.directory / 'cases')
         if self.diagnostics is not None:self.diagnostics.mark_interrupted()
         # Same-meaning words for the research map's search box: the local Gemma (RNDPLZ_MAP_SYNONYM_MODEL, 'off' to stop).
         self.map_synonyms = MapSynonyms(self.env.get('RNDPLZ_OLLAMA_URL', 'http://127.0.0.1:11434'), self.env.get('RNDPLZ_MAP_SYNONYM_MODEL', 'gemma4:e4b'))
@@ -781,6 +784,12 @@ class PublicApp:
             if written and isinstance(prepared, dict):
                 prepared['request_letter'] = dict(written)
         return finish
+
+    def _save_outcome(self, service, payload):
+        """Keep a send's result; one shared with the team is copied for the admin, a private one taken back."""
+        note, recipients = service.record_outcome(payload)
+        self.cases.share(note, recipients)
+        return note
 
     def _connection_counts(self, context, environ):
         """Counts of what people did after a search, across every conversation folder; admin only."""
@@ -1254,6 +1263,9 @@ class PublicApp:
                     return send(200, profile.store.mole_summary())
                 if path == '/api/account/requests': return send(200, self._account_requests(context, environ))
                 if path == '/api/account/connections': return send(200, self._connection_counts(context, environ))
+                if path == '/api/account/cases':
+                    self._require_admin(context)
+                    return send(200, {'cases': self.cases.all()})
                 if path == '/api/self-profile': return send(200, {'token':token, **profile.read()})
                 if path == '/api/chat/bootstrap': return send(200, {'token': token, 'history': chat.history(), **self.models.catalog(), 'public': True, 'session_mode': session_mode, 'logout_supported': True, 'mail_delivery': service.mail.status(), **account_view})
                 if path == '/api/chat/models': return send(200, {**self.models.catalog(), 'public': True})
@@ -1376,6 +1388,11 @@ class PublicApp:
                 return self._recovery_report(context,chat,payload,send,diagnostic_probe)
             if path == '/api/chat/intent':
                 return send(200, self._request_intent(service, payload))
+            if path == '/api/account/cases/review':
+                self._require_admin(context)
+                if set(payload) != {'case_id', 'decision'}:
+                    return send(400, {'error': '검토 내용을 확인해 주세요.', 'code': 'review_invalid'})
+                return send(200, self.cases.review(payload['case_id'], payload['decision']))
             if path == '/api/account/requests/decide':
                 self._require_admin(context)
                 person_id = payload.get('person_id')
@@ -1513,6 +1530,8 @@ class PublicApp:
                                                     picked=payload.get('picked') is True),
                 '/api/proposals': lambda: service.save_proposal(payload),
                 '/api/proposals/reaction': lambda: service.react(payload),
+                '/api/proposals/outcome-draft': lambda: service.outcome_draft(payload),
+                '/api/proposals/outcome': lambda: self._save_outcome(service, payload),
                 '/api/transition': lambda: service.transition(payload.get('id'), payload.get('state')),
             }
             if path not in routes: return send(404, {'error': '경로를 찾을 수 없습니다.'})
