@@ -330,10 +330,11 @@ html[data-theme="dark"] .letter-postmark > .letterhead .susomun-ci { --ci-surfac
 #promoReelDialog video{display:block;width:100%;aspect-ratio:16/9;max-height:calc(100dvh - 100px);background:#000;border-radius:8px}
 
 /* grape-egg:start */
-.hero-object .mini-sheet.egg-grape{background:none!important;border:0!important;box-shadow:none!important;cursor:pointer;animation:egg-pop .5s ease both}
-.mini-sheet.egg-grape svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 5px 6px #3a1f5530)}
+.site-menu-toggle.egg-grape>svg:not(.egg-mark){display:none}
+.site-menu-toggle.egg-grape{background:#f4eefa!important;border-color:#cbb6dc!important}
+.site-menu-toggle .egg-mark{width:24px;height:30px;display:block;overflow:visible;animation:egg-pop .5s ease both;filter:drop-shadow(0 2px 3px #3a1f5530)}
 @keyframes egg-pop{0%{scale:.55;opacity:.3}60%{scale:1.18}100%{scale:1;opacity:1}}
-.no-motion .mini-sheet.egg-grape{animation:none}
+.no-motion .site-menu-toggle .egg-mark{animation:none}
 .egg-dialog{width:min(580px,calc(100vw - 28px));max-height:min(88dvh,780px);overflow:auto}
 .egg-lock{display:grid;gap:12px;padding:6px 2px 4px}
 .egg-hint{margin:0;line-height:1.6}
