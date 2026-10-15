@@ -8,7 +8,8 @@
     choice: [['first', '첫 카드', '--s1'], ['other', '다른 추천 카드', '--s2'], ['picked', '지도에서 직접 고름', '--s3'], ['unknown', '확인 어려움', '--none']],
     edit: [['same', '그대로', '--o1'], ['light', '조금 고침', '--o2'], ['heavy', '많이 고침', '--o3']],
     letter: [['model', 'AI가 다듬은 문장', '--s1'], ['rule', '규칙 문장', '--s2']],
-    reaction: [['good', '잘 맞아요', '--s1'], ['unsure', '애매해요', '--none'], ['bad', '안 맞아요', '--bad']]
+    reaction: [['good', '잘 맞아요', '--s1'], ['unsure', '애매해요', '--none'], ['bad', '안 맞아요', '--bad']],
+    outcome: [['solved', '해결됐어요', '--o3'], ['partial', '일부 풀렸어요', '--o1'], ['unsolved', '안 풀렸어요', '--bad'], ['ongoing', '아직 진행 중', '--none']]
   };
   let data = null;
   let period = 'week';
@@ -60,9 +61,59 @@
   }
 
   const reasons = [['field', '분야가 달라요'], ['evidence', '근거가 약해요'], ['known', '이미 아는 분이에요']];
+  const stuck = [['field', '분야가 달랐어요'], ['evidence', '근거가 약했어요'], ['unreachable', '연락이 닿지 않았어요'], ['changed', '문제가 바뀌었어요'], ['other', '기타']];
+  const noteLabels = { problem: '무엇이 문제였나요', helped: '도움이 된 것', remaining: '아직 남은 것', lesson: '다음에 쓸 교훈', tried: '해 본 것', next: '다음에 다르게 해 볼 것' };
+  const resultLabels = Object.fromEntries(charts.outcome.map(([key, text]) => [key, text]));
+  let token = '';
+
+  // Team-shared notes: every one, newest first, with 올리기 / 보류 (2026-10-15).
+  function renderCases(cases) {
+    const list = $('cases');
+    if (!cases.length) { list.replaceChildren(node('li', 'metrics-empty', '아직 공유된 사례가 없어요.')); return; }
+    list.replaceChildren(...cases.map(item => {
+      const li = node('li'), head = node('header');
+      head.append(node('b', '', resultLabels[item.result] || item.result),
+        node('small', '', [String(item.at || '').slice(0, 10), Number.isInteger(item.days) ? item.days + '일' : '', (item.recipients || []).join(', '), item.route].filter(Boolean).join(' · ')));
+      const dl = node('dl');
+      for (const [key, text] of Object.entries(item.notes || {})) dl.append(node('dt', '', noteLabels[key] || key), node('dd', '', text));
+      if ((item.reasons || []).length) dl.append(node('dt', '', '막힌 이유'), node('dd', '', item.reasons.map(r => (stuck.find(([k]) => k === r) || [, r])[1]).join(', ')));
+      const review = node('div', 'case-review');
+      for (const [decision, text] of [['approved', '올리기'], ['held', '보류']]) {
+        const button = node('button', item.review === decision ? 'is-on' : '', text);
+        button.type = 'button'; button.setAttribute('aria-pressed', String(item.review === decision));
+        button.addEventListener('click', () => decide(item, decision, review));
+        review.append(button);
+      }
+      review.append(node('small', '', item.review === 'approved' ? '올라감' : item.review === 'held' ? '보류' : '확인 전'));
+      li.append(head, dl, review);
+      return li;
+    }));
+  }
+  async function decide(item, decision, review) {
+    const note = review.querySelector('small');
+    note.textContent = '저장하고 있어요…';
+    try {
+      if (!token) token = (await (await fetch('/api/account/session', { credentials: 'same-origin', cache: 'no-store' })).json()).token || '';
+      const response = await fetch('/api/account/cases/review', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-RnDplz-Token': token }, body: JSON.stringify({ case_id: item.case_id, decision }) });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value?.error || '저장하지 못했어요.');
+      Object.assign(item, value);
+      renderCases(cases);
+    } catch (error) { note.textContent = '저장하지 못했어요. ' + error.message; }
+  }
+  let cases = [];
 
   function render() {
     const row = data.periods[period];
+    const recorded = Object.values(row.outcome).reduce((a, b) => a + b, 0), closed = recorded - row.outcome.ongoing;
+    $('outcomeNote').textContent = '의뢰서를 보낸 ' + row.sends + '번 중 ' + recorded + '번 결과를 남겼어요. 해결률(해결+일부 ÷ 결과가 난 것) ' +
+      share(row.outcome.solved + row.outcome.partial, closed) + ' · 팀과 공유 ' + row.shared + '건.';
+    $('stuck').replaceChildren(node('li', '', '막힌 이유'), ...stuck.map(([key, text]) => {
+      const item = node('li');
+      item.append(node('span', '', text), node('b', '', String(row.stuck[key] || 0)));
+      return item;
+    }));
     const answered = row.reaction.good + row.reaction.unsure + row.reaction.bad;
     $('reactionNote').textContent = '의뢰서를 보낸 ' + row.sends + '번 중 ' + answered + '번 답했어요(' + share(answered, row.sends) +
       '). 한 대화에 한 번만 묻고, 두 번 연달아 지나친 사람에게는 더 묻지 않아요.';
@@ -89,7 +140,7 @@
     for (const [name, rows] of Object.entries(charts)) bar(document.querySelector('[data-chart="' + name + '"]'), row[name], rows);
     const lines = [['대화 시작', row.started], ['수소문', row.searched], ['의뢰서 저장한 대화', row.proposed], ['보낸 대화', row.sent],
       ['의뢰서 수', row.letters], ['보낸 의뢰서 수', row.letters_sent]];
-    lines.push(['보낸 횟수', row.sends], ['방문자', visit.visitors], ['로그인 방문자', visit.accounts], ['페이지 열람', visit.views]);
+    lines.push(['보낸 횟수', row.sends], ['방문자', visit.visitors], ['로그인 방문자', visit.accounts], ['페이지 열람', visit.views], ['팀 공유 결과', row.shared]);
     for (const [name, rows] of Object.entries(charts)) for (const [key, label] of rows) lines.push([label, row[name][key] || 0]);
     for (const [key, label] of reasons) lines.push(['이유: ' + label, row.reason[key] || 0]);
     $('metricsTable').replaceChildren(...lines.map(([label, value]) => {
@@ -124,6 +175,8 @@
       status.hidden = true;
       $('metricsBody').hidden = false;
       render();
+      fetch('/api/account/cases', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : { cases: [] })
+        .then(v => { cases = Array.isArray(v.cases) ? v.cases : []; renderCases(cases); }).catch(() => renderCases([]));
     })
     .catch(error => { status.textContent = '지표를 불러오지 못했어요. ' + error.message; });
 })();

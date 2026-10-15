@@ -326,7 +326,7 @@ async function saveLetter(status){
 async function openInbox(trigger=document.activeElement){
  const proposals=await api("/api/proposals");$("inboxCount").textContent=proposals.length;
  const actions={draft:[["sent","보내기 · 시연"],["cancelled","취소"]],sent:[["accepted","수락 · 시연"],["declined","거절 · 시연"],["closed","종료"],["cancelled","취소"]],accepted:[["closed","종료"]],declined:[["closed","종료"]],closed:[],cancelled:[]};
- $("inboxContent").innerHTML=proposals.length?proposals.slice().reverse().map(p=>'<article class="inbox-item"><header><h3>'+esc(p.recipient_name)+'</h3><span class="tag">'+stateNames[p.state]+'</span></header><small>'+esc(modes[p.request_kind])+' · '+esc(p.direction)+' · '+new Date(p.created).toLocaleString("ko-KR")+(p.route_order?' · 경로 '+p.route_order+'/'+p.route_total:"")+'</small><details><summary>보관된 편지와 근거 보기</summary><pre>'+esc(p.body)+'</pre><p>근거 '+p.evidence.length+'건 · 제안자 사본 보관</p><p>시연 이력: '+p.history.map(h=>stateNames[h.state]).join(" → ")+'</p></details><div class="inbox-actions"><button class="outline" data-action="recipient" data-id="'+p.id+'">받는 사람 화면 · 시연</button>'+actions[p.state].map(([s,label])=>'<button class="outline" data-action="transition" data-id="'+p.id+'" data-value="'+s+'">'+label+'</button>').join("")+'</div></article>').join(""):'<div class="empty-state"><span class="symbol">✉</span><h3>첫 연결을 기다리고 있어요.</h3><p>후보 카드에서 제안문을 작성해보세요.</p></div>';
+ $("inboxContent").innerHTML=proposals.length?proposals.slice().reverse().map(p=>'<article class="inbox-item"><header><h3>'+esc(p.recipient_name)+'</h3><span class="tag">'+stateNames[p.state]+'</span></header><small>'+esc(modes[p.request_kind])+' · '+esc(p.direction)+' · '+new Date(p.created).toLocaleString("ko-KR")+(p.route_order?' · 경로 '+p.route_order+'/'+p.route_total:"")+'</small>'+(window.RndCaseNote?RndCaseNote.block(p):"")+'<details><summary>보관된 편지와 근거 보기</summary><pre>'+esc(p.body)+'</pre><p>근거 '+p.evidence.length+'건 · 제안자 사본 보관</p><p>시연 이력: '+p.history.map(h=>stateNames[h.state]).join(" → ")+'</p></details><div class="inbox-actions"><button class="outline" data-action="recipient" data-id="'+p.id+'">받는 사람 화면 · 시연</button>'+actions[p.state].map(([s,label])=>'<button class="outline" data-action="transition" data-id="'+p.id+'" data-value="'+s+'">'+label+'</button>').join("")+'</div></article>').join(""):'<div class="empty-state"><span class="symbol">✉</span><h3>첫 연결을 기다리고 있어요.</h3><p>후보 카드에서 제안문을 작성해보세요.</p></div>';
  showDialog("inboxDialog",false,trigger);
 }
 
@@ -367,6 +367,8 @@ document.addEventListener("click",event=>{
  if(mapHost&&!mapButton)return;
  const button=mapButton||event.target.closest("button[data-action]");if(!button)return;
  const action=mapButton?button.dataset.mapOpen:button.dataset.action,id=button.dataset.id,value=button.dataset.value;
+ // How the request of a send turned out (case-note.js, 2026-10-15): the sheet opens over the 제안함.
+ if(action==="case"){RndCaseNote.open(button.dataset.group,{api,onSaved:()=>openInbox().then(()=>toast("결과를 남겼어요."))}).catch(e=>toast(e.message));return;}
  if(action==="close"){
   const dialog=button.closest("dialog");
   if(dialog.id==="detailDialog")closeDetail();else dialog.close();
