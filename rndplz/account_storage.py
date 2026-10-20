@@ -16,6 +16,13 @@ MOLE_RULE = 'profile_first_experience'
 MOLE_POLICY_VERSION = 'v1'
 MOLE_AMOUNT = 1
 MOLE_LIMIT = 20
+SESSION_SECONDS = 86400
+# A login session ends after ten minutes without a request; activity is written at most every 30 s.
+IDLE_SECONDS = 600
+TOUCH_SECONDS = 30
+# Version of the privacy notice a login or sign-up request agrees to (web/account-consent.html).
+CONSENT_VERSION = 'privacy-2026-10-20'
+CONSENT_HOLD_SECONDS = 600
 
 
 def mole_time(timestamp):
@@ -58,6 +65,11 @@ def account_view(row):
     return {'id': row['id'], 'verified': True, 'storage_lifetime': 'account_database',
             'display_name': row['display_name'], 'email': row['email'],
             'person_id': row['person_id'] if 'person_id' in keys else None}
+
+
+def masked_email(email):
+    local, _, domain = email.partition('@')
+    return (local[:1] + '***@' + domain) if domain else ''
 
 
 def email_for_person(db_path, person_id):
@@ -141,7 +153,28 @@ class AccountStorage:
                     BEGIN SELECT RAISE(ABORT,'mole_ledger_append_only'); END;
                 CREATE TRIGGER IF NOT EXISTS mole_no_delete BEFORE DELETE ON mole_ledger
                     BEGIN SELECT RAISE(ABORT,'mole_ledger_append_only'); END;
+                -- Who granted, rejected or revoked an account's access, and when.
+                CREATE TABLE IF NOT EXISTS permission_history(
+                    id TEXT PRIMARY KEY, occurred_at INTEGER NOT NULL, actor TEXT NOT NULL,
+                    target_account_id TEXT NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS permission_history_time ON permission_history(occurred_at);
+                CREATE TRIGGER IF NOT EXISTS permission_history_no_update BEFORE UPDATE ON permission_history
+                    BEGIN SELECT RAISE(ABORT,'permission_history_append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS permission_history_no_delete BEFORE DELETE ON permission_history
+                    BEGIN SELECT RAISE(ABORT,'permission_history_append_only'); END;
+                -- Agreement to the privacy notice: one row per account and notice version.
+                CREATE TABLE IF NOT EXISTS privacy_consents(
+                    account_id TEXT NOT NULL REFERENCES accounts(id), terms_version TEXT NOT NULL,
+                    consented_at INTEGER NOT NULL, PRIMARY KEY(account_id, terms_version));
+                -- A verified Google login waiting on the consent screen; nothing else is written before agreement.
+                CREATE TABLE IF NOT EXISTS consent_holds(
+                    cookie_hash TEXT PRIMARY KEY, google_sub TEXT NOT NULL, display_name TEXT NOT NULL,
+                    email TEXT NOT NULL, mode TEXT NOT NULL CHECK(mode IN ('session','request')),
+                    invitation_hash TEXT, state_hash TEXT, expires INTEGER NOT NULL);
             ''')
+            columns = {row['name'] for row in db.execute('PRAGMA table_info(sessions)')}
+            if 'last_seen' not in columns:
+                db.execute('ALTER TABLE sessions ADD COLUMN last_seen INTEGER')
 
             # Optional binding of an invitation/account to one public corpus person.
             for table in ('invitations', 'accounts'):
@@ -180,6 +213,57 @@ class AccountStorage:
         if sub not in self.allowed_subs and not (row is not None and row['approved']):
             raise AuthError('team_member_not_allowed', 403)
 
+    def _record_permission(self, db, actor, account_id, action, **detail):
+        db.execute('INSERT INTO permission_history VALUES(?,?,?,?,?,?)',
+                   (uuid.uuid4().hex, int(self.clock()), actor, account_id, action,
+                    json.dumps(detail, ensure_ascii=False, sort_keys=True)))
+
+    def permission_history(self, limit=200):
+        """Administrator view of access grants, rejections and revocations, newest first."""
+        with self.connection() as db:
+            rows = db.execute('SELECT * FROM permission_history ORDER BY occurred_at DESC, rowid DESC LIMIT ?',
+                              (limit,)).fetchall()
+        return [{'occurred_at': row['occurred_at'], 'actor': row['actor'], 'target_account_id': row['target_account_id'],
+                 'action': row['action'], 'detail': json.loads(row['detail'])} for row in rows]
+
+    def _consent(self, db, sub, consent_version, consent_given):
+        """With a version, a login needs that notice agreed: record it when given, else stop for the consent screen."""
+        if consent_version is None:
+            return  # Trusted offline callers; every Google login passes a version.
+        row = db.execute('SELECT 1 FROM privacy_consents c JOIN accounts a ON a.id=c.account_id '
+                         'WHERE a.google_sub=? AND c.terms_version=?', (sub, consent_version)).fetchone()
+        if row is None and not consent_given:
+            raise AuthError('consent_required', 403)
+
+    def _store_consent(self, db, sub, consent_version, consent_given):
+        if consent_version is not None and consent_given:
+            db.execute('INSERT INTO privacy_consents SELECT id,?,? FROM accounts WHERE google_sub=? '
+                       'ON CONFLICT DO NOTHING', (consent_version, int(self.clock()), sub))
+
+    def hold_for_consent(self, sub, display_name, email, mode, enrollment_flow=None):
+        """Keep a verified login for the consent screen for ten minutes; returns the opaque cookie value."""
+        if mode not in ('session', 'request'):
+            raise AuthError('consent_mode_invalid', 400)
+        cookie = secrets.token_urlsafe(32)
+        flow = enrollment_flow or {}
+        with self.transaction() as db:
+            db.execute('DELETE FROM consent_holds WHERE expires<=? OR google_sub=?', (int(self.clock()), sub))
+            if db.execute('SELECT count(*) FROM consent_holds').fetchone()[0] >= 256:
+                raise AuthError('login_busy', 429)
+            db.execute('INSERT INTO consent_holds VALUES(?,?,?,?,?,?,?,?)',
+                       (digest(cookie), sub, display_name, email, mode, flow.get('invitation_hash'),
+                        flow.get('state_hash'), int(self.clock()) + CONSENT_HOLD_SECONDS))
+        return cookie
+
+    def take_consent_hold(self, cookie):
+        """One use: the held login leaves storage whether the visitor agrees or declines."""
+        with self.transaction() as db:
+            row = db.execute('SELECT * FROM consent_holds WHERE cookie_hash=?', (digest(cookie),)).fetchone()
+            db.execute('DELETE FROM consent_holds WHERE cookie_hash=? OR expires<=?', (digest(cookie), int(self.clock())))
+        if row is None or row['expires'] <= self.clock():
+            raise AuthError('consent_hold_unavailable', 403)
+        return dict(row)
+
     def issue_invitation(self, ttl_seconds=600, person_id=None):
         # Trusted local administrator only; HTTP must never expose this method.
         if type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 3600:
@@ -195,7 +279,7 @@ class AccountStorage:
                        (iid, digest(invitation), expires, person_id))
         return {'invitation_id': iid, 'invitation': invitation, 'expires_at': expires, 'person_id': person_id}
 
-    def bind_person(self, account_id, person_id):
+    def bind_person(self, account_id, person_id, *, actor='local_operator'):
         """Administrator binding of an existing account to one public person (None unbinds)."""
         if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
             raise AuthError('account_id_invalid', 400)
@@ -207,23 +291,24 @@ class AccountStorage:
                     'SELECT 1 FROM accounts WHERE person_id=? AND id<>?', (person_id, account_id)).fetchone() is not None:
                 raise AuthError('person_already_bound', 409)
             db.execute('UPDATE accounts SET person_id=? WHERE id=?', (person_id, account_id))
+            self._record_permission(db, actor, account_id, 'person_bound', person_id=person_id)
         return {'account_id': account_id, 'person_id': person_id}
 
     def list_accounts(self):
         """Administrator listing with masked emails; never returns subs or sessions."""
         with self.connection() as db:
             rows = db.execute('SELECT a.id, a.google_sub, a.display_name, a.email, a.person_id, a.created, '
-                              'COALESCE(s.revoked,0) AS revoked, COALESCE(s.approved,0) AS approved FROM accounts a '
-                              'LEFT JOIN subject_approvals s USING(google_sub) ORDER BY a.created').fetchall()
-        def masked(email):
-            local, _, domain = email.partition('@')
-            return (local[:1] + '***@' + domain) if domain else ''
+                              'COALESCE(s.revoked,0) AS revoked, COALESCE(s.approved,0) AS approved, '
+                              'c.terms_version, c.consented_at FROM accounts a '
+                              'LEFT JOIN subject_approvals s USING(google_sub) '
+                              'LEFT JOIN privacy_consents c ON c.account_id=a.id AND c.terms_version=? '
+                              'ORDER BY a.created', (CONSENT_VERSION,)).fetchall()
         def status(row):
             return ('revoked' if row['revoked'] else
                     'active' if row['approved'] or row['google_sub'] in self.allowed_subs else 'pending')
-        return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': masked(row['email']),
+        return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': masked_email(row['email']),
                  'person_id': row['person_id'], 'created': row['created'], 'revoked': bool(row['revoked']),
-                 'status': status(row)}
+                 'status': status(row), 'consent_version': row['terms_version'], 'consented_at': row['consented_at']}
                 for row in rows]
 
     # Open sign-up: a Google account outside the team is recorded as a pending request
@@ -237,12 +322,13 @@ class AccountStorage:
                           'WHERE s.approved=0 AND s.revoked=0 ORDER BY a.created, a.id').fetchall()
         return [row for row in rows if row['google_sub'] not in self.allowed_subs]
 
-    def request_access(self, sub, display_name, email):
+    def request_access(self, sub, display_name, email, *, consent_version=None, consent_given=False):
         """Called only after signed Google token verification, for a subject that is not a member."""
         with self.transaction() as db:
             approval = db.execute('SELECT revoked FROM subject_approvals WHERE google_sub=?', (sub,)).fetchone()
             if approval is not None and approval['revoked']:
                 raise AuthError('account_revoked', 401)
+            self._consent(db, sub, consent_version, consent_given)
             row = db.execute('SELECT id FROM accounts WHERE google_sub=?', (sub,)).fetchone()
             if row is None:
                 if len(self._pending_rows(db)) >= self.PENDING_REQUEST_LIMIT:
@@ -255,12 +341,13 @@ class AccountStorage:
                 db.execute('UPDATE accounts SET display_name=?,email=? WHERE id=?', (display_name, email, aid))
             db.execute('INSERT INTO subject_approvals(google_sub,approved) VALUES(?,0) '
                        'ON CONFLICT(google_sub) DO NOTHING', (sub,))
+            self._store_consent(db, sub, consent_version, consent_given)
         return {'pending': True, 'account_id': aid}
 
     def pending_requests(self):
-        """Administrator view, oldest first; the full verified email identifies the requester."""
+        """Administrator view, oldest first; the email is masked like the account list."""
         with self.connection() as db:
-            return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': row['email'],
+            return [{'account_id': row['id'], 'display_name': row['display_name'], 'email': masked_email(row['email']),
                      'requested_at': row['created']} for row in self._pending_rows(db)]
 
     def pending_count(self):
@@ -279,7 +366,7 @@ class AccountStorage:
                               'WHERE a.person_id IS NOT NULL AND COALESCE(s.revoked,0)=0').fetchall()
         return [(row['person_id'], json.loads(row['payload'])) for row in rows]
 
-    def decide_request(self, account_id, approve, person_id=None):
+    def decide_request(self, account_id, approve, person_id=None, *, actor='local_operator'):
         """Administrator decision on one pending request; approval may bind one public person."""
         if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
             raise AuthError('account_id_invalid', 400)
@@ -293,6 +380,7 @@ class AccountStorage:
                 raise AuthError('request_not_pending', 409)
             if not approve:
                 db.execute('UPDATE subject_approvals SET revoked=1 WHERE google_sub=?', (row['google_sub'],))
+                self._record_permission(db, actor, account_id, 'request_rejected')
                 return {'account_id': account_id, 'status': 'rejected', 'person_id': None}
             if person_id is not None and db.execute(
                     'SELECT 1 FROM accounts WHERE person_id=? AND id<>?', (person_id, account_id)).fetchone() is not None:
@@ -300,6 +388,7 @@ class AccountStorage:
             db.execute('UPDATE subject_approvals SET approved=1,approved_at=? WHERE google_sub=?',
                        (int(self.clock()), row['google_sub']))
             db.execute('UPDATE accounts SET person_id=? WHERE id=?', (person_id, account_id))
+            self._record_permission(db, actor, account_id, 'request_approved', person_id=person_id)
         return {'account_id': account_id, 'status': 'approved', 'person_id': person_id}
 
     def has_active_approvals(self):
@@ -348,7 +437,7 @@ class AccountStorage:
             db.execute('UPDATE invitations SET revoked=1 WHERE id=?', (invitation_id,))
         return True  # Account revocation is separate for an already consumed invitation.
 
-    def revoke_account(self, account_id):
+    def revoke_account(self, account_id, *, actor='local_operator'):
         if not isinstance(account_id, str) or not re.fullmatch('[a-f0-9]{32}', account_id):
             raise AuthError('account_id_invalid', 400)
         with self.transaction() as db:
@@ -358,6 +447,7 @@ class AccountStorage:
             db.execute('INSERT INTO subject_approvals(google_sub,revoked) VALUES(?,1) '
                        'ON CONFLICT(google_sub) DO UPDATE SET revoked=1', (row['google_sub'],))
             db.execute('UPDATE sessions SET revoked=1 WHERE account_id=?', (account_id,))
+            self._record_permission(db, actor, account_id, 'account_revoked')
         return True
 
     def add_flow(self, state, cookie, nonce, verifier, *, invitation=None):
@@ -401,8 +491,9 @@ class AccountStorage:
                            (flow['invitation_hash'], flow['state_hash']))
         return True
 
-    def _issue_session(self, db, sub, display_name, email, previous_cookie):
+    def _issue_session(self, db, sub, display_name, email, previous_cookie, consent_version=None, consent_given=False):
         self._authorized(db, sub)
+        self._consent(db, sub, consent_version, consent_given)
         token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         row = db.execute('SELECT * FROM accounts WHERE google_sub=?', (sub,)).fetchone()
         if row is None:
@@ -414,12 +505,15 @@ class AccountStorage:
             db.execute('UPDATE accounts SET display_name=?,email=? WHERE id=?', (display_name, email, aid))
         if previous_cookie:
             db.execute('UPDATE sessions SET revoked=1 WHERE token_hash=?', (digest(previous_cookie),))
-        db.execute('INSERT INTO sessions(token_hash,account_id,csrf,expires) VALUES(?,?,?,?)',
-                   (digest(token), aid, csrf, int(self.clock()) + 86400))
+        now = int(self.clock())
+        db.execute('INSERT INTO sessions(token_hash,account_id,csrf,expires,last_seen) VALUES(?,?,?,?,?)',
+                   (digest(token), aid, csrf, now + SESSION_SECONDS, now))
+        self._store_consent(db, sub, consent_version, consent_given)
         row = db.execute('SELECT * FROM accounts WHERE id=?', (aid,)).fetchone()
         return {'session_cookie': token, 'csrf': csrf, 'account': account_view(row)}
 
-    def issue_session(self, sub, display_name, email, previous_cookie=None, *, enrollment_flow=None):
+    def issue_session(self, sub, display_name, email, previous_cookie=None, *, enrollment_flow=None,
+                      consent_version=None, consent_given=False):
         # Called only after signed Google token/nonce/issuer/audience/time verification.
         with self.transaction() as db:
             person_id = None
@@ -437,21 +531,33 @@ class AccountStorage:
                 db.execute('INSERT INTO subject_approvals(google_sub,approved,approved_at) VALUES(?,1,?) '
                            'ON CONFLICT(google_sub) DO UPDATE SET approved=1,approved_at=excluded.approved_at',
                            (sub, int(self.clock())))
-            issued = self._issue_session(db, sub, display_name, email, previous_cookie)
+            issued = self._issue_session(db, sub, display_name, email, previous_cookie, consent_version, consent_given)
             if person_id is not None:
                 # The invitation named the public person this account represents.
                 db.execute('UPDATE accounts SET person_id=? WHERE google_sub=?', (person_id, sub))
                 issued['account']['person_id'] = person_id
+            if enrollment_flow is not None and enrollment_flow.get('invitation_hash') is not None:
+                self._record_permission(db, 'invitation:' + invitation['id'], issued['account']['id'],
+                                        'invitation_enrolled', person_id=person_id)
             return issued
 
     def principal(self, db, cookie, account_id=None):
-        row = db.execute('''SELECT accounts.*,sessions.csrf FROM sessions JOIN accounts
+        row = db.execute('''SELECT accounts.*,sessions.csrf,sessions.expires,sessions.last_seen FROM sessions JOIN accounts
             ON accounts.id=sessions.account_id WHERE token_hash=? AND revoked=0 AND expires>?''',
                          (digest(cookie), self.clock())).fetchone()
         if row is None or (account_id is not None and row['id'] != account_id):
             raise AuthError('session_expired_or_revoked', 401)
+        if self.clock() - self._last_seen(row) >= IDLE_SECONDS:
+            # Ten idle minutes end the session for good, not only for this request.
+            db.execute('UPDATE sessions SET revoked=1 WHERE token_hash=?', (digest(cookie),))
+            raise AuthError('session_idle_timeout', 401)
         self._authorized(db, row['google_sub'])
         return row
+
+    @staticmethod
+    def _last_seen(row):
+        # Sessions issued before the idle check count from their issue time.
+        return row['last_seen'] if row['last_seen'] is not None else row['expires'] - SESSION_SECONDS
 
     def authenticate(self, cookie):
         if not cookie:
@@ -459,6 +565,9 @@ class AccountStorage:
         try:
             with self.connection() as db:
                 row = self.principal(db, cookie)
+                now = int(self.clock())
+                if now - self._last_seen(row) >= TOUCH_SECONDS:
+                    db.execute('UPDATE sessions SET last_seen=? WHERE token_hash=?', (now, digest(cookie)))
                 return {'account': account_view(row), 'csrf': row['csrf']}
         except AuthError:
             return None
