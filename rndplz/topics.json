@@ -282,7 +282,16 @@
       "ncc",
       "oxo-sru",
       "ocu",
-      "btx"
+      "btx",
+      "대리모델",
+      "서로게이트",
+      "surrogate model",
+      "하이브리드 모델",
+      "hybrid model",
+      "베이지안 최적화",
+      "bayesian optimization",
+      "실험 최적화",
+      "process optimization"
     ],
     "color": "#5c9690"
   },
