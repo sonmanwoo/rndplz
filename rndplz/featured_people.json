@@ -41,7 +41,8 @@
             "수학적 모델링·공정 모사",
             "APC Application",
             "열역학·물성 데이터 분석",
-            "통계적 공정관리"
+            "통계적 공정관리",
+            "대리모델·베이지안 최적화"
           ]
         },
         {
@@ -89,6 +90,10 @@
         {
           "title": "본인 제공 프로필 사진",
           "url": ""
+        },
+        {
+          "title": "출판사 공개 논문 서지·초록 3편 · 2026.10.25",
+          "url": "https://api.openalex.org/authors/A5081517733"
         }
       ],
       "portrait": {
@@ -11529,6 +11534,171 @@
       "author_coverage": "all_authors_named_selected_profile_linked",
       "text_kind": "editorial_summary",
       "contribution_note": "공동저자 표기이며 개인의 세부 수행 역할을 구분하지 않는다."
+    },
+    {
+      "id": "PAPER-MW-2022-01",
+      "title": "Computational-cost-efficient surrogate model of vacuum pressure swing adsorption for CO separation process optimization",
+      "date": "2022-11-01",
+      "authors": [
+        {
+          "name": "Jinsu Kim",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Manwoo Son",
+          "person_id": "LOCAL-MANWOO",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Sang Sup Han",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Young-Seek Yoon",
+          "person_id": null,
+          "role": "middle",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Hyunmin Oh",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "PE-SEP",
+        "PE-MODEL"
+      ],
+      "summary": "제철 부생가스에서 CO를 분리하는 진공 압력 스윙 흡착(VPSA) 공정을 대상으로, 수학적 모델로 만든 완전 요인 설계 데이터로 머신러닝 대리모델을 학습해 공정 최적화에 쓴 연구다. 18개 알고리즘 가운데 Extra Trees가 순도·회수율을 R² 0.999로 예측했고, 최적 조건(흡착 3.94 bar·탈착 0.05 bar)과 전력·CO 가격 민감도, 생산성–순도 파레토 경계를 제시했다. 증류 공정 자체의 실험·운전 경험을 입증하는 논문은 아니다. 연구 주제의 한·영 표기: 대리모델, 서로게이트, 흡착 분리, 공정 최적화, 실험 설계, 머신러닝, surrogate model, vacuum pressure swing adsorption, VPSA, CO separation, design of experiments, machine learning.",
+      "evidence_kind": "simulation",
+      "doi": "10.1016/j.seppur.2022.121827",
+      "url": "https://doi.org/10.1016/j.seppur.2022.121827",
+      "venue": "Separation and Purification Technology 300, 121827 (2022)",
+      "contribution_note": "출판사 페이지에 Jinsu Kim·Manwoo Son이 공동 1저자로 표기되어 있다. 교신저자와 개인별 세부 수행 역할은 확인하지 않았다.",
+      "boundary_note": "흡착 분리 공정의 모델 기반 최적화 사례이며 증류탑 운전·특정 설비 경험이나 현재 협업 가능성을 확인한 결과가 아니다.",
+      "metadata_sources": [
+        "https://doi.org/10.1016/j.seppur.2022.121827",
+        "https://api.openalex.org/authors/A5081517733"
+      ],
+      "kind": "paper",
+      "field": "process_engineering",
+      "scope": "public_research_case",
+      "checked_at": "2026-10-25",
+      "classification_basis": [
+        "출판사 공개 서지·초록을 확인한 편집 요약"
+      ],
+      "author_coverage": "all_authors_named_selected_profile_linked",
+      "text_kind": "editorial_summary",
+      "fulltext_or_abstract_copied": false
+    },
+    {
+      "id": "PAPER-MW-2023-01",
+      "title": "Digital transformation of rotary hearth furnace for process automation and CO2 reduction: Hybrid model under limited operational data utilization",
+      "date": "2023-09-08",
+      "authors": [
+        {
+          "name": "Manwoo Son",
+          "person_id": "LOCAL-MANWOO",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Jinsu Kim",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "PE-MODEL"
+      ],
+      "summary": "적은 운전 데이터와 물질·에너지 수지 기반 1원리 모델을 결합해 회전로상로(RHF)의 하이브리드 모델을 만든 연구다. 1원리 모델로 운전 데이터가 비어 있는 탐색 공간을 채운 뒤 XGBoost로 탈아연율·금속화율을 예측했고(시험 R² > 0.96), 설명 가능한 머신러닝으로 원료 탄소량이 가장 중요한 변수임을 밝혀 '탄소 창'을 제시했다. 한 시나리오는 연 0.9 MtCO2 감축으로 추정됐다. 연구 주제의 한·영 표기: 하이브리드 모델, 1원리 모델, 제한된 운전 데이터, 설명 가능한 머신러닝, 공정 최적화, 디지털 전환, hybrid model, first-principles model, limited operational data, XGBoost, SHAP, explainable AI, process optimization, digital transformation.",
+      "evidence_kind": "simulation",
+      "doi": "10.1016/j.jmapro.2023.05.108",
+      "url": "https://doi.org/10.1016/j.jmapro.2023.05.108",
+      "venue": "Journal of Manufacturing Processes 101 (2023)",
+      "contribution_note": "출판사 페이지의 저자 순서상 1저자다. 교신저자와 개인별 세부 수행 역할은 확인하지 않았다.",
+      "boundary_note": "제철 부산물 처리로의 모델링·최적화 사례이며 해당 설비의 현장 운전 경험이나 현재 협업 가능성을 확인한 결과가 아니다.",
+      "metadata_sources": [
+        "https://doi.org/10.1016/j.jmapro.2023.05.108",
+        "https://api.openalex.org/authors/A5081517733"
+      ],
+      "kind": "paper",
+      "field": "process_engineering",
+      "scope": "public_research_case",
+      "checked_at": "2026-10-25",
+      "classification_basis": [
+        "출판사 공개 서지·초록을 확인한 편집 요약"
+      ],
+      "author_coverage": "all_authors_named_selected_profile_linked",
+      "text_kind": "editorial_summary",
+      "fulltext_or_abstract_copied": false
+    },
+    {
+      "id": "PAPER-MW-2026-01",
+      "title": "Resource-constrained Bayesian optimization assisted by machine learning for vacuum pressure swing adsorption",
+      "date": "2026",
+      "authors": [
+        {
+          "name": "Manwoo Son",
+          "person_id": "LOCAL-MANWOO",
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Seok Goo Lee",
+          "person_id": null,
+          "role": "first",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        },
+        {
+          "name": "Jinsu Kim",
+          "person_id": null,
+          "role": "last",
+          "corresponding": false,
+          "corresponding_status": "not_checked"
+        }
+      ],
+      "tags": [
+        "PE-SEP",
+        "PE-MODEL"
+      ],
+      "summary": "평가 횟수가 제한된 조건에서 운전 조건을 찾는 실험 최적화 틀을 제안한 연구다. 실험으로 검증된 gPROMS 고충실도 모델로 학습한 Extra Trees 대리모델을 가상 실험 환경으로 두고 Ax 기반 베이지안 최적화(가우시안 과정, qLogNEHVI·qLogNEI)로 다음 조건을 순차적으로 골랐다. 평가 100회로 3,000회 기준 탐색과 같거나 나은 순도–생산성 파레토 해를 찾았고(정규화 hypervolume 0.979 대 0.967), 회수율·비에너지를 더한 4목적 확장과 경제성 단일 목적 최적화, GP lengthscale 변화로 어떤 운전 변수가 탐색을 이끄는지 해석했다. 평가 횟수는 대리모델에 대한 가상 평가이며 실제 실험 횟수를 그만큼 줄였다는 뜻은 아니다. 연구 주제의 한·영 표기: 베이지안 최적화, 실험 최적화, 실험 설계, 대리모델, 다목적 최적화, 흡착 분리, 운전 조건 최적화, Bayesian optimization, Gaussian process, surrogate model, multi-objective optimization, design of experiments, experimental-cost efficiency, vacuum pressure swing adsorption, VPSA.",
+      "evidence_kind": "simulation",
+      "doi": "10.1016/j.seppur.2026.140580",
+      "url": "https://doi.org/10.1016/j.seppur.2026.140580",
+      "venue": "Separation and Purification Technology 422, 140580 (2027)",
+      "contribution_note": "출판사 페이지에 Manwoo Son·Seok Goo Lee가 공동 1저자로 표기되어 있다. 교신저자와 개인별 세부 수행 역할은 확인하지 않았다.",
+      "boundary_note": "흡착 분리 공정의 대리모델 기반 최적화 사례이며 증류탑 운전·실물 실험의 횟수 절감이나 현재 협업 가능성을 확인한 결과가 아니다.",
+      "metadata_sources": [
+        "https://doi.org/10.1016/j.seppur.2026.140580",
+        "https://api.openalex.org/authors/A5081517733"
+      ],
+      "kind": "paper",
+      "field": "process_engineering",
+      "scope": "public_research_case",
+      "checked_at": "2026-10-25",
+      "classification_basis": [
+        "출판사 공개 서지·초록을 확인한 편집 요약"
+      ],
+      "author_coverage": "all_authors_named_selected_profile_linked",
+      "text_kind": "editorial_summary",
+      "fulltext_or_abstract_copied": false
     }
   ],
   "experience_records": [
