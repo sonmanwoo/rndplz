@@ -420,13 +420,21 @@
       "people": []
     },
     {
-      "id": "polymer-circularity",
-      "label": "고분자·자원 순환",
-      "description": "중합과 고분자·폐자원 전환에 관한 연구.",
+      "id": "polymer",
+      "label": "고분자·중합",
+      "description": "중합 반응과 고분자 소재를 다루는 연구.",
       "topic_ids": [
         "GS-POLYMER",
-        "GS-CIRCULAR",
         "PE-POLYMER"
+      ],
+      "people": []
+    },
+    {
+      "id": "circularity",
+      "label": "자원 순환",
+      "description": "폐플라스틱 등 폐자원을 다시 쓸 수 있게 전환하는 연구.",
+      "topic_ids": [
+        "GS-CIRCULAR"
       ],
       "people": []
     }

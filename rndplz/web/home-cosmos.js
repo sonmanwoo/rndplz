@@ -15,7 +15,7 @@
   const SCENES = [
     { id:'catalyst', phrase:'촉매 설계 연구자', hint:'촉매 비활성화 원인' },
     { id:'process', phrase:'공정 모델링 전문가', hint:'공정 최적화 조건' },
-    { id:'polymer-circularity', phrase:'자원 순환 연구자', hint:'폐플라스틱 재활용 공정' },
+    { id:'circularity', phrase:'자원 순환 연구자', hint:'폐플라스틱 재활용 공정' },
     { id:'separation', phrase:'분리·정제 연구자', hint:'증류 분리 효율' },
     // One person in this capability (2026-10-14): the phrase shows that one face, so every teammate has a phrase.
     { id:'lubricants', phrase:'윤활유 개발 전문가', hint:'산업용 윤활유 배합', solo:true },
