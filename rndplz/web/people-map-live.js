@@ -157,8 +157,9 @@
         if (v > 20) { node.vx *= 20 / v; node.vy *= 20 / v; }
         node.x += node.vx; node.y += node.vy; speed += v;
       }
-      // Cards keep their size: overlapping boxes are pushed apart along the shorter overlap.
-      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      // Cards keep their size: overlapping boxes are pushed apart along the shorter overlap. Two passes, since one
+      // push can close another gap in a crowded cluster (the 2026-10-26 '자원 순환' split left catalyst cards touching).
+      for (let pass = 0; pass < 2; pass++) for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
         const p = nodes[i], q = nodes[j], dx = q.x - p.x, dy = q.y - p.y;
         const ox = (p.w + q.w) / 2 + GAP - Math.abs(dx), oy = (p.h + q.h) / 2 + GAP - Math.abs(dy);
         if (ox <= 0 || oy <= 0) continue;
