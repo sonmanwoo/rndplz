@@ -167,6 +167,14 @@ dialog{width:650px;max-width:94vw;max-height:88dvh;padding:28px;overflow:auto}.d
   .history-rail.is-locked{opacity:.6;pointer-events:none}
   .history-rail .subtle{padding:10px 12px;font-size:12px}
 }
+/* 2026-10-29: each listed conversation can be deleted; the bin shows on hover, on focus, beside the open one and on touch screens. */
+.history-row{position:relative}
+.history-row .history-item,.history-rail .history-row .history-item{padding-right:44px}
+.history-delete{position:absolute;top:50%;right:6px;translate:0 -50%;display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;opacity:0;transition:opacity .15s,background-color .15s,color .15s}
+.history-row:hover .history-delete,.history-delete:focus-visible,.history-item.is-current+.history-delete{opacity:1}
+.history-delete:hover{background:color-mix(in srgb,var(--red) 10%,transparent);color:var(--red)}
+.history-delete:disabled{opacity:.4;cursor:default}
+@media(hover:none){.history-delete{opacity:1}}
 /* The list toggle leads the header, above the conversation list on the left. */
 .craft-lead{display:flex;align-items:center;gap:14px;justify-self:start;min-width:0}
 .craft-lead #historyButton{font-size:18px;color:#636b61;flex-shrink:0}

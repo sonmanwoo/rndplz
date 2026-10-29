@@ -91,11 +91,17 @@ def collect(root, now=None):
         for proposal in state.get('proposals') or []:
             if isinstance(proposal, dict):
                 letters.setdefault(proposal.get('session_id'), []).append(proposal)
-        for sid, session in sessions.items():
-            moment = _when(session.get('created'))
-            names = periods(moment)
-            started = any(m.get('role') == 'user' for m in session.get('messages') or [] if isinstance(m, dict))
-            searched = _searched(session)
+        rows_of = [(sid, session.get('created'),
+                    any(m.get('role') == 'user' for m in session.get('messages') or [] if isinstance(m, dict)),
+                    _searched(session),
+                    [c.get('id') for c in ((session.get('result') or {}).get('candidates') or []) if isinstance(c, dict)])
+                   for sid, session in sessions.items()]
+        # A conversation the person deleted leaves only these counts (Conversation.delete).
+        rows_of += [(row.get('id'), row.get('created'), row.get('started') is True, row.get('searched') is True,
+                     [c for c in row.get('cards') or [] if isinstance(c, str)])
+                    for row in state.get('deleted_sessions') or [] if isinstance(row, dict)]
+        for sid, created, started, searched, cards in rows_of:
+            names = periods(_when(created))
             saved = letters.get(sid, [])
             for name in names:
                 row = rows[name]
@@ -105,7 +111,6 @@ def collect(root, now=None):
                     row['searched_by'][kind] += 1
                     row['proposed'] += bool(saved)
                     row['sent'] += any(p.get('state') == 'sent' for p in saved)
-            cards = [c.get('id') for c in ((session.get('result') or {}).get('candidates') or []) if isinstance(c, dict)]
             for proposal in saved:
                 choice = ('picked' if proposal.get('selection') == 'user_pick' else
                           'first' if cards and proposal.get('recipient_id') == cards[0] else
