@@ -832,7 +832,7 @@ function syncResponseProgress(){
 // Wide screens keep the earlier conversations listed on the left; narrow ones open the list as a dialog.
 const RAIL_MEDIA=matchMedia("(min-width:1100px)");
 let railHtml="";
-function historyHtml(){return history.length?history.map(h=>{const current=h.id===session?.id;return '<button class="history-item'+(current?' is-current':'')+'" data-action="history" data-id="'+h.id+'"'+(current?' aria-current="true"':'')+'>'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasPublicPaperScope(h)?" · "+publicPaperLabel(h)+" · 공개 논문":"")+'</small></button>';}).join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';}
+function historyHtml(){return history.length?history.map(h=>{const current=h.id===session?.id;return '<div class="history-row"><button class="history-item'+(current?' is-current':'')+'" data-action="history" data-id="'+h.id+'"'+(current?' aria-current="true"':'')+'>'+esc(h.title)+'<small>'+new Date(h.updated).toLocaleString("ko-KR")+(hasPublicPaperScope(h)?" · "+publicPaperLabel(h)+" · 공개 논문":"")+'</small></button><button type="button" class="history-delete" data-action="history-delete" data-id="'+h.id+'" aria-label="'+esc(h.title)+' 대화 삭제" title="대화 삭제"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button></div>';}).join(""):'<p class="subtle">첫 대화를 시작해 보세요.</p>';}
 function renderRail(){const list=$("historyRailList");if(!list)return;const html=historyHtml();if(html!==railHtml){railHtml=html;list.innerHTML=html;}}
 function setRail(open,remember=true){document.body.classList.toggle("rail-closed",!open);$("historyButton").setAttribute("aria-expanded",String(RAIL_MEDIA.matches&&open));if(remember)try{localStorage.setItem("rndplz-history-rail",open?"open":"closed");}catch{}}
 {let open=true;try{open=localStorage.getItem("rndplz-history-rail")!=="closed";}catch{}setRail(open,false);}
@@ -1677,7 +1677,17 @@ document.addEventListener("click",async e=>{const button=e.target.closest("butto
     if(!$("composerError").textContent)error(e.message);
    }finally{if(navigationEpoch===recoveryEpoch)attachmentPreviewTicket++;}
   }
-  else if(action==="recovery-status")await recoverSavedTurn(recoveryState);
+  else if(action==="history-delete"){
+    const row=history.find(h=>h.id===id);
+    if(!confirm("「"+(row?.title||"이 대화")+"」 대화를 지울까요?\n대화 내용과 이 대화에 올린 첨부가 지워지고 되돌릴 수 없어요. 제안함에 저장하거나 보낸 의뢰는 남아요."))return;
+    button.disabled=true;
+    try{await api("/api/chat/delete",{session_id:id});}catch(e){if(e.code!=="session_unavailable"){button.disabled=false;throw e;}}
+    history=history.filter(h=>h.id!==id);
+    if(session?.id===id)newChat();else render();
+    if($("historyDialog").open)$("historyList").innerHTML=historyHtml();
+    toast("대화를 지웠어요.");
+   }
+   else if(action==="recovery-status")await recoverSavedTurn(recoveryState);
   else if(action==="retry")await retryTurn(id);
   else if(action==="choice"){if(composerSendLocked())return;setComposerDraft(button.dataset.text||"");await submitComposer();}
   else if(action==="choice-free"){$("message").focus();}

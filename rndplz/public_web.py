@@ -1388,6 +1388,17 @@ class PublicApp:
                 return self._recovery_report(context,chat,payload,send,diagnostic_probe)
             if path == '/api/chat/intent':
                 return send(200, self._request_intent(service, payload))
+            if path == '/api/chat/delete':
+                if set(payload) != {'session_id'} or not isinstance(payload['session_id'], str):
+                    return send(400, {'error': '지울 대화를 확인해 주세요.', 'code': 'delete_invalid'})
+                try:
+                    return send(200, chat.delete(payload['session_id']))
+                except ValueError as exc:
+                    if str(exc) == '응답이 끝난 뒤 대화를 지워 주세요.':
+                        return send(409, {'error': str(exc), 'code': 'delete_busy'})
+                    if str(exc) == '대화를 찾을 수 없습니다.':
+                        return send(404, {'error': '이미 지웠거나 열 수 없는 대화예요.', 'code': 'session_unavailable'})
+                    raise
             if path == '/api/account/cases/review':
                 self._require_admin(context)
                 if set(payload) != {'case_id', 'decision'}:
@@ -1418,7 +1429,7 @@ class PublicApp:
                 return send(200, {'authorization_url': flow['authorization_url']})
             if path == '/api/chat':
                 state = service.store.read()
-                if sum(s.get('turns', 0) for s in state['sessions']) >= 40:
+                if sum(s.get('turns', 0) for s in state['sessions'] + state.get('deleted_sessions', [])) >= 40:
                     diagnostic_error='message_limit';return send(429, {'error': '이 방문자의 공개 시연 메시지 한도에 도달했습니다.'})
                 if not self.request_slots.acquire(blocking=False):
                     diagnostic_error='busy';return send(429, {'error': '응답 중인 방문자가 많습니다. 잠시 후 다시 시도해 주세요.'})

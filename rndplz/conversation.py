@@ -9,6 +9,7 @@ from dataclasses import asdict
 from .attachments import Attachments
 from .chat_models import ChatModels
 from .chat_actions import ChatActions
+from .connection_metrics import _searched as searched
 from .discovery import Discovery, DiscoveryError, DEFER_SEARCH, CONTROL_ONLY, FAMILIES
 from .service import now, validate_text, GEMINI_SCOPE_ID, RUNTIME_SCOPE_ID, GEMINI_DOCUMENT_SCOPE_ID, RUNTIME_DOCUMENT_SCOPE_ID, RUNTIME_SCOPE_PROVIDERS, ProviderScopeError, provider_scope
 from .diagnostics import capture_scope, event as diagnostic_event, scope as diagnostic_scope
@@ -288,6 +289,30 @@ class Conversation(ModelConversation):
         s=self.service.session(sid)
         if s.get('kind')!='chat':raise ValueError('이 대화는 이전 시연 화면에서 확인해 주세요.')
         return s
+
+    # 2026-10-29: people asked to delete a conversation from the list. Its messages, request and own
+    # attachments go; what stays is a row of counts in 'deleted_sessions' (no text), so the message
+    # limit and the operator's connection counts do not reset. Saved letters live in the proposals.
+    def delete(self,sid):
+        removed=[]
+        def apply(state):
+            session=next((s for s in state['sessions'] if s['id']==sid and s.get('kind')=='chat'),None)
+            if session is None:raise ValueError('대화를 찾을 수 없습니다.')
+            if session.get('pending'):raise ValueError('응답이 끝난 뒤 대화를 지워 주세요.')
+            state['sessions'].remove(session)
+            result=session.get('result') if isinstance(session.get('result'),dict) else {}
+            state.setdefault('deleted_sessions',[]).append({'id':sid,'created':session.get('created'),'deleted':now(),
+                'turns':session.get('turns',0),
+                'started':any(m.get('role')=='user' for m in session.get('messages',[])),
+                'searched':searched(session),
+                'cards':[c.get('id') for c in result.get('candidates') or [] if isinstance(c,dict)]})
+            left=json.dumps({k:v for k,v in state.items() if k!='deleted_sessions'},ensure_ascii=False)
+            removed.extend(ref['id'] for m in session.get('messages',[]) for ref in m.get('attachments',[])
+                           if re.fullmatch(r'[a-f0-9]{32}',str(ref.get('id'))) and ref['id'] not in left)
+        self.store.transaction(apply)
+        if self.attachments.backend is None:
+            for identifier in removed:(self.attachments.directory/(identifier+'.json')).unlink(missing_ok=True)
+        return {'deleted':sid}
 
     # Without attachment reader tools (the unscoped operator-PC Gemma path) the body in the
     # conversation is the only way a model reads a file. Bodies share one budget, newest first,
