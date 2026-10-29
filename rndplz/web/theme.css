@@ -103,7 +103,7 @@ html[data-theme="dark"] :is(.draft-tag,.section-nav span,.field-meta,.suggestion
 html[data-theme="dark"] :is(.career-heading button,.source-actions button.danger) { color:var(--red); }
 html[data-theme="dark"] :is(.profile-page input:not([type="file"]),.profile-page textarea,.profile-page select,.enrollment-card input) { background:var(--desk); color:var(--ink); border-color:var(--theme-control-edge); }
 html[data-theme="dark"] :is(.profile-page input,.profile-page textarea,.profile-page select):focus { background:var(--sheet); border-color:var(--green); }
-html[data-theme="dark"] #enrollmentSubmit { background:var(--green); color:var(--desk); border-color:var(--green); }
+html[data-theme="dark"] :is(#enrollmentSubmit,#consentAgree) { background:var(--green); color:var(--desk); border-color:var(--green); }
 html[data-theme="dark"] #checkEnrollment { border-color:var(--theme-control-edge); }
 html[data-theme="dark"] :is(.enrollment-error,.profile-error) { background:#302330; color:var(--error); border-color:var(--error); }
 

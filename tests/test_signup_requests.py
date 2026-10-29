@@ -37,7 +37,7 @@ class SignupStorageTests(unittest.TestCase):
             self.storage.issue_session('sub-jinho', '오진호', 'jinho@example.com')
         self.assertEqual(caught.exception.code, 'team_member_not_allowed')
         self.assertEqual(self.storage.pending_count(), 1)
-        self.assertEqual(self.storage.pending_requests()[0]['email'], 'jinho@example.com')
+        self.assertEqual(self.storage.pending_requests()[0]['email'], 'j***@example.com')
         self.assertEqual(self.storage.list_accounts()[0]['status'], 'pending')
         self.assertFalse(self.storage.has_login_members())
         # Asking again only refreshes the same request.
@@ -159,7 +159,20 @@ class SignupWebTests(unittest.TestCase):
         login_cookie = cookie_pair(header, '__Host-rndplz_login')
         claims = {'sub': sub, 'name': name, 'email': email, 'email_verified': True}
         with mock.patch('rndplz.auth_service.verify_google_token', return_value=claims):
-            return call(self.app, 'GET', '/auth/google/callback', cookies=[login_cookie], query='code=abc&state=' + state)
+            result = call(self.app, 'GET', '/auth/google/callback', cookies=[login_cookie], query='code=abc&state=' + state)
+        if result[0] == 303 and result[1]('location') == ['/auth/consent']:
+            return self.agree(cookie_pair(result[1], '__Host-rndplz_consent'))
+        return result
+
+    def agree(self, consent_cookie):
+        """Answers the first-login consent screen; returns the callback's (303, header, None) shape."""
+        _, header, body = call(self.app, 'GET', '/api/account/session')
+        visitor = cookie_pair(header, 'rndplz_visitor')
+        status, header, body = call(self.app, 'POST', '/auth/consent', cookies=[visitor, consent_cookie],
+                                    token=body['token'], body={'decision': 'agree'})
+        self.assertEqual(status, 200)
+        location = [body['location']]
+        return 303, lambda name: location if name == 'location' else header(name), None
 
     def decide(self, account_id, decision, person_id, token=None):
         return call(self.app, 'POST', '/api/account/requests/decide', cookies=[self.admin_cookie],
@@ -178,7 +191,7 @@ class SignupWebTests(unittest.TestCase):
         status, _, body = call(self.app, 'GET', '/api/account/requests', cookies=[self.admin_cookie])
         self.assertEqual(status, 200)
         request = body['requests'][0]
-        self.assertEqual((request['display_name'], request['email']), ('오진호', 'jinho@example.com'))
+        self.assertEqual((request['display_name'], request['email']), ('오진호', 'j***@example.com'))
         people = {row['person_id']: row for row in body['people']}
         self.assertEqual(set(people), {'LOCAL-MANWOO', 'LOCAL-JINHO', 'LOCAL-DASOL', 'LOCAL-HONG'})
         self.assertTrue(people['LOCAL-MANWOO']['bound'])
@@ -204,14 +217,14 @@ class SignupWebTests(unittest.TestCase):
         status, _, body = self.decide(request['account_id'], 'reject', None)
         self.assertEqual((status, body['status']), (200, 'rejected'))
         status, _, body = self.google_login('sub-x', 'Stranger', 'x@example.com')
-        self.assertEqual((status, body['code']), (401, 'account_revoked'))
+        self.assertEqual((status, body['code']), (403, 'login_failed'))
 
     def test_without_an_administrator_outsiders_are_refused(self):
         self.use_admins(self.app.auth.storage, set())
         status, _, body = call(self.app, 'GET', '/api/account/session', cookies=[self.admin_cookie])
         self.assertEqual((body['admin'], body['signup_requests']), (False, False))
         status, _, body = self.google_login('sub-y', 'Nobody', 'y@example.com')
-        self.assertEqual((status, body['code']), (403, 'team_member_not_allowed'))
+        self.assertEqual((status, body['code']), (403, 'login_failed'))
         self.assertEqual(self.app.auth.storage.pending_count(), 0)
 
 

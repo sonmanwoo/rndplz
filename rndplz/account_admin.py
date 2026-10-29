@@ -18,6 +18,7 @@ def main(argv=None):
     bind.add_argument('--account-id', required=True)
     bind.add_argument('--person-id', required=True)
     commands.add_parser('list-accounts', help='Accounts with masked emails and bound person ids')
+    commands.add_parser('permission-history', help='Access grants, rejections and revocations, newest first')
     reverse = commands.add_parser('reverse-mole')
     reverse.add_argument('--id', required=True, help='Original grant UUID')
     reverse.add_argument('--reason', required=True, choices=('incorrect_award',))
@@ -34,6 +35,8 @@ def main(argv=None):
             result = service.storage.bind_person(args.account_id, args.person_id or None)
         elif args.command == 'list-accounts':
             result = service.storage.list_accounts()
+        elif args.command == 'permission-history':
+            result = service.storage.permission_history()
         elif args.command == 'invitation-status':
             result = service.storage.invitation_status(args.id)
         elif args.command == 'revoke-invitation':

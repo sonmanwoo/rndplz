@@ -12,7 +12,7 @@ import tempfile
 import time
 import urllib.request
 from urllib.parse import urlencode, urlsplit
-from .account_storage import AccountStorage, AuthError
+from .account_storage import AccountStorage, AuthError, CONSENT_HOLD_SECONDS, CONSENT_VERSION
 
 AUTHORIZATION = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN = 'https://oauth2.googleapis.com/token'
@@ -151,6 +151,7 @@ class Config:
 class AuthService:
     SESSION_COOKIE_NAME = '__Host-rndplz_account'
     LOGIN_COOKIE_NAME = '__Host-rndplz_login'
+    CONSENT_COOKIE_NAME = '__Host-rndplz_consent'
 
     def __init__(self, config=None, storage=None, transport=None, *, reason='account_not_configured'):
         self.config, self.storage = config, storage
@@ -258,14 +259,44 @@ class AuthService:
             return ''.join(c for c in value if ord(c) >= 32)[:limit] if isinstance(value, str) else ''
         name = safe_text(claims.get('name'), 200)
         email = safe_text(claims.get('email'), 320) if claims.get('email_verified') is True else ''
+        sub = claims['sub']
+        # An allowed login that has not agreed to this privacy notice stops at the consent
+        # screen; the storage call rolled back, so nothing about the person is written yet.
         try:
-            return self.storage.issue_session(claims['sub'], name, email, previous_cookie, enrollment_flow=flow)
+            return self.storage.issue_session(sub, name, email, previous_cookie, enrollment_flow=flow,
+                                              consent_version=CONSENT_VERSION)
         except AuthError as error:
+            if error.code == 'consent_required':
+                return self._hold(sub, name, email, 'session', flow)
             # A Google account outside the team becomes a sign-up request for an administrator.
             if (error.code != 'team_member_not_allowed' or not self.signup_requests_enabled
                     or flow['invitation_hash'] is not None):
                 raise
-            return self.storage.request_access(claims['sub'], name, email)
+        try:
+            return self.storage.request_access(sub, name, email, consent_version=CONSENT_VERSION)
+        except AuthError as error:
+            if error.code != 'consent_required':
+                raise
+            return self._hold(sub, name, email, 'request', None)
+
+    def _hold(self, sub, name, email, mode, flow):
+        cookie = self.storage.hold_for_consent(sub, name, email, mode, flow if flow and flow['invitation_hash'] else None)
+        return {'consent_required': True, 'consent_cookie': cookie, 'cookie_max_age': CONSENT_HOLD_SECONDS}
+
+    def finish_consent(self, consent_cookie, agree, previous_cookie=None):
+        """The consent screen's answer; agreement records the notice version and finishes the held login."""
+        self._enabled()
+        hold = self.storage.take_consent_hold(consent_cookie)
+        if not agree:
+            return {'declined': True}
+        if hold['mode'] == 'request':
+            require(self.signup_requests_enabled, 'signup_requests_not_enabled')
+            return self.storage.request_access(hold['google_sub'], hold['display_name'], hold['email'],
+                                               consent_version=CONSENT_VERSION, consent_given=True)
+        flow = ({'invitation_hash': hold['invitation_hash'], 'state_hash': hold['state_hash']}
+                if hold['invitation_hash'] else None)
+        return self.storage.issue_session(hold['google_sub'], hold['display_name'], hold['email'], previous_cookie,
+                                          enrollment_flow=flow, consent_version=CONSENT_VERSION, consent_given=True)
 
     def cancel_login(self, state, login_cookie):
         self._enabled()

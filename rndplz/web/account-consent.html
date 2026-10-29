@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f7f5f3">
+  <title>개인정보 수집·이용 동의 — 수소문</title>
+  <script src="/theme.js"></script><link rel="stylesheet" href="/fonts/pretendard/pretendardvariable-dynamic-subset.css"><link rel="stylesheet" href="/craft.css">
+  <script src="/account-consent.js" defer></script>
+  <style>
+    .enrollment-page .craft-header { display:flex; justify-content:space-between; gap:1rem; }
+    .enrollment-shell { width:min(100% - 2rem, 34rem); margin:clamp(2rem, 7vh, 5rem) auto; }
+    .enrollment-shell h1 { font-size:clamp(1.8rem, 5.5vw, 2.6rem); line-height:1.25; margin:.6rem 0 1.2rem; }
+    .enrollment-shell p, .consent-terms dd { line-height:1.7; }
+    .enrollment-card { margin:1.5rem 0; padding:clamp(1rem, 4vw, 2rem); background:#fffdf7; border:1px solid #dddcd1; border-radius:1rem; }
+    .consent-terms { margin:0 0 1.2rem; }
+    .consent-terms dt { font-weight:700; margin-top:1rem; }
+    .consent-terms dt:first-child { margin-top:0; }
+    .consent-terms dd { margin:.25rem 0 0; }
+    .consent-actions { display:flex; flex-direction:column; gap:.6rem; }
+    .enrollment-card button { box-sizing:border-box; min-height:48px; width:100%; padding:.75rem 1rem; font:inherit; border-radius:.4rem; cursor:pointer; }
+    #consentAgree { border:1px solid #385f4c; background:#385f4c; color:#fff; }
+    #consentDecline { border:1px solid #9ba697; background:transparent; color:inherit; }
+    .enrollment-card button:disabled { opacity:.55; cursor:not-allowed; }
+    .enrollment-shell :focus-visible { outline:2px solid #ad4e37; outline-offset:3px; }
+    .enrollment-note { font-size:.9rem; color:#5c6258; }
+    .enrollment-error { color:#913e2e; padding:.8rem; border-left:3px solid currentColor; background:#fff5ef; }
+    .enrollment-shell [hidden] { display:none!important; }
+    .enrollment-footer { display:flex; gap:1rem; flex-wrap:wrap; }
+    @media(max-width:420px) { .enrollment-page .craft-header { padding:1rem; } }
+  </style>
+<link rel="stylesheet" href="/theme.css"></head>
+<body class="crafted enrollment-page">
+  <a class="skip-link" href="#consentTitle">동의 안내로 이동</a>
+  <header class="craft-header">
+    <a href="/" class="craft-brand" aria-label="수소문 홈"><span class="craft-symbol" aria-hidden="true">H</span><span class="craft-wordmark">수소문<small>RE<span class="brand-dot">·</span>SEARCH, TOGETHER.</small></span></a>
+    <div class="craft-actions"><a href="/">대화로 돌아가기</a><div class="theme-controls" data-theme-controls role="group" aria-label="화면 모드" hidden><button type="button" data-theme-set="light" aria-pressed="true">라이트</button><button type="button" data-theme-set="dark" aria-pressed="false">다크</button></div></div>
+  </header>
+  <main class="enrollment-shell">
+    <p class="eyebrow">Google 계정으로 처음 오신 분께</p>
+    <h1 id="consentTitle" tabindex="-1">개인정보 수집·이용 동의</h1>
+    <p>로그인하거나 가입을 요청하려면 아래 내용에 동의해 주세요. 동의하기 전에는 Google 계정 정보를 저장하지 않았어요.</p>
+    <section class="enrollment-card" aria-labelledby="consentTitle">
+      <dl class="consent-terms">
+        <dt>수집하는 항목</dt>
+        <dd>Google 계정 고유 식별자, 이름, Google이 확인한 이메일 주소. 로그인한 뒤에는 직접 입력한 내 프로필 내용과 첨부 파일, 참여 포인트 기록</dd>
+        <dt>이용 목적</dt>
+        <dd>로그인과 본인 확인, 운영자의 가입 요청 확인·승인, 내 프로필 관리</dd>
+        <dt>보유 기간</dt>
+        <dd>삭제를 요청하거나 시험 운영을 마칠 때까지. 로그인 세션은 10분 동안 활동이 없으면 끝나고, 길어도 24시간입니다. 거절한 가입 요청은 다시 요청하지 못하도록 식별자·이름·이메일을 보관하며, 요청하면 지웁니다.</dd>
+        <dt>처리 위치와 국외 처리</dt>
+        <dd>계정 정보와 기록은 운영자 PC에 저장합니다. 내 프로필 자료 읽기나 사내 AI(AiU) 상담 모델을 쓰면 입력·첨부한 내용이 GS칼텍스 사내 AI 플랫폼 AiU로 전송되고, 연결된 모델(Google Gemini, AWS Bedrock의 Anthropic Claude)이 국외에서 처리할 수 있습니다.</dd>
+        <dt>동의를 거부할 권리</dt>
+        <dd>동의하지 않을 수 있어요. 동의하지 않으면 로그인과 가입 요청을 할 수 없고, 방문자로는 계속 이용할 수 있습니다.</dd>
+      </dl>
+      <p class="enrollment-note">자세한 내용은 <a href="/privacy">개인정보처리방침</a>(2026년 10월 20일 시행)에 있습니다.</p>
+      <p id="consentStatus" role="status" aria-live="polite">동의 화면을 준비하고 있습니다.</p>
+      <p id="consentError" class="enrollment-error" role="alert" tabindex="-1" hidden></p>
+      <div class="consent-actions">
+        <button id="consentAgree" type="button" disabled>동의하고 계속</button>
+        <button id="consentDecline" type="button" disabled>동의하지 않음</button>
+      </div>
+      <noscript><p>동의를 진행하려면 브라우저에서 JavaScript를 켜고 이 페이지를 다시 열어 주세요.</p></noscript>
+    </section>
+    <nav class="enrollment-footer" aria-label="다른 시작 방법"><a href="/">방문자로 계속 이용</a></nav>
+  </main>
+</body>
+</html>

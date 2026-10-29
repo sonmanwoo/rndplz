@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import threading
 import time
 import uuid
@@ -346,6 +347,8 @@ FONT_FILES = {'/fonts/pretendard/pretendardvariable-dynamic-subset.css': 'text/c
 
 # One canonical allowlist for serving and HTML/CSS content-version references.
 STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', 'text/html'), '/profile': ('profile.html', 'text/html'), '/auth/google/enroll': ('account-enroll.html', 'text/html'),
+                # The privacy agreement a first login or sign-up request answers before anything is stored (2026-10-20).
+                '/auth/consent': ('account-consent.html', 'text/html'),
                 '/privacy': ('privacy.html', 'text/html'), '/terms': ('terms.html', 'text/html'),
                 # A read-only connection check for a phone outside (2026-10-12): round trips to /healthz, shown on screen only.
                 '/speed': ('speed.html', 'text/html'), '/speed.js': ('speed.js', 'text/javascript'),
@@ -353,7 +356,7 @@ STATIC_FILES = {'/': ('index.html', 'text/html'), '/explore': ('explore.html', '
                 '/admin/connections': ('admin-connections.html', 'text/html'),
                 '/admin-connections.js': ('admin-connections.js', 'text/javascript')}
 ADMIN_PAGES = frozenset({'/admin/connections'})
-for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css', 'case-note.js', 'case-note.css'):
+for name in ('people-map.css', 'people-map-model.js', 'people-map-layout.js', 'people-map-graph.js', 'people-map-live.js', 'people-map.js', 'people-map-focus.js', 'people-map-mobile.js', 'theme.js', 'theme.css', 'craft.css', 'person-view.css', 'person-view.js', 'chat.css', 'style.css', 'craft.js', 'chat.js', 'app.js', 'profile.css', 'profile.js', 'profile-chat.js', 'account-menu.js', 'account-enroll.js', 'account-consent.js', 'draw.js', 'draw.css', 'recommendation-map.js', 'recommendation-map.css', 'feedback.js', 'feedback.css', 'promo-reel.js', 'home-cosmos.js', 'home-cosmos.css', 'home-intro-gate.js', 'site-menu.js', 'site-cosmos.css', 'case-note.js', 'case-note.css'):
     STATIC_FILES['/' + name] = (name, 'text/css' if name.endswith('.css') else 'text/javascript')
 
 STATIC_FILES.update(LANDING_ASSETS)
@@ -507,6 +510,8 @@ class PublicApp:
             self.allowed_hosts.add(self.env['RENDER_EXTERNAL_HOSTNAME'])
         self.allowed_hosts.update({'127.0.0.1', 'localhost'})
         self.origin = self.hosted_demo_policy.origin if self.hosted_demo_policy is not None else self.env.get('RNDPLZ_PUBLIC_ORIGIN', '').rstrip('/')
+        # Design drafts under /ui-previews/ are served only where RNDPLZ_UI_PREVIEWS=1 (never on the public address).
+        self.ui_previews = self.env.get('RNDPLZ_UI_PREVIEWS') == '1'
         # Read-only tools for other agents (an AiU external tool), behind RNDPLZ_AGENT_API_KEY; off without a key.
         self.agent_http = AgentHTTP(self.env, self.origin)
         if self.hosted_demo_policy is not None:
@@ -876,37 +881,78 @@ class PublicApp:
             if not query.get('code', [''])[0] or not query.get('state', [''])[0]:
                 raise AuthError('login_query_invalid', 400)
             login_cookie = self._account_cookie(environ, self.auth.LOGIN_COOKIE_NAME)
-            try:
-                previous_cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME)
-            except AuthError:
-                previous_cookie = None
-            # A malformed/expired prior cookie cannot prevent a fresh valid login.
-            if previous_cookie and self.auth.authenticate(previous_cookie) is None:
-                previous_cookie = None
+            previous_cookie, stale_cookie = self._previous_session(environ)
             result = self.auth.finish(query['code'][0], query['state'][0], login_cookie, previous_cookie)
-            if result.get('pending'):
-                # Sign-up request recorded; no account session until an administrator approves it.
-                headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
-                headers.append(('Location', '/?account_pending=1'))
-                return send(303, b'', 'text/plain; charset=utf-8')
-            if previous_cookie:
-                old_key = 'account-' + hashlib.sha256(previous_cookie.encode('utf-8')).hexdigest()
-                with self.lock:
-                    previous = self.contexts.pop(old_key, None)
-                    if previous is not None:
-                        previous['revoked'] = True
-            headers.append(('Set-Cookie', self._account_cookie_header(
-                self.auth.SESSION_COOKIE_NAME, result['session_cookie'], 86400)))
             headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
-            headers.append(('Set-Cookie', self._expired_cookie()))
-            headers.append(('Location', '/?account_changed=1'))
+            if result.get('consent_required'):
+                # Nothing about the person is stored until the consent screen is answered.
+                headers.append(('Set-Cookie', self._account_cookie_header(
+                    self.auth.CONSENT_COOKIE_NAME, result['consent_cookie'], result['cookie_max_age'])))
+                if stale_cookie:
+                    # A dead account cookie would block the consent screen's visitor answer.
+                    headers.append(('Set-Cookie', self._account_cookie_header(self.auth.SESSION_COOKIE_NAME)))
+                headers.append(('Location', '/auth/consent'))
+                return send(303, b'', 'text/plain; charset=utf-8')
+            headers.append(('Location', self._login_finished(result, previous_cookie, headers)))
             return send(303, b'', 'text/plain; charset=utf-8')
         except AuthError as exc:
             headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
-            return send(exc.status, {'error': str(exc), 'code': exc.code})
+            return self._login_failed(send, exc.code, exc.status)
         except Exception:
             headers.append(('Set-Cookie', self._account_cookie_header(self.auth.LOGIN_COOKIE_NAME)))
-            return send(503, {'error': '계정 인증을 지금 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.', 'code': 'account_service_unavailable'})
+            return self._login_failed(send, 'account_service_unavailable', 503)
+
+    @staticmethod
+    def _login_failed(send, reason, status):
+        # Every failed login answers with one code, so a response never tells which account
+        # check failed (unknown, revoked, not on the team); the reason goes to the server log only.
+        print('login failed:', reason, file=sys.stderr, flush=True)
+        if status >= 500:
+            return send(503, {'error': '계정 인증을 지금 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.', 'code': 'login_failed'})
+        return send(403, {'error': '로그인하지 못했습니다. 처음부터 다시 시도해 주세요.', 'code': 'login_failed'})
+
+    def _previous_session(self, environ):
+        """(live account cookie or None, whether a dead one is present)."""
+        try:
+            cookie = self._account_cookie(environ, self.auth.SESSION_COOKIE_NAME)
+        except AuthError:
+            return None, True
+        # A malformed/expired prior cookie cannot prevent a fresh valid login.
+        if cookie and self.auth.authenticate(cookie) is None:
+            return None, True
+        return cookie, False
+
+    def _login_finished(self, result, previous_cookie, headers):
+        """Cookies for a finished login or sign-up request; returns where the browser goes next."""
+        if result.get('pending'):
+            # Sign-up request recorded; no account session until an administrator approves it.
+            return '/?account_pending=1'
+        if previous_cookie:
+            old_key = 'account-' + hashlib.sha256(previous_cookie.encode('utf-8')).hexdigest()
+            with self.lock:
+                previous = self.contexts.pop(old_key, None)
+                if previous is not None:
+                    previous['revoked'] = True
+        headers.append(('Set-Cookie', self._account_cookie_header(
+            self.auth.SESSION_COOKIE_NAME, result['session_cookie'], 86400)))
+        headers.append(('Set-Cookie', self._expired_cookie()))
+        return '/?account_changed=1'
+
+    def _consent_answer(self, environ, agree, send, headers):
+        """The consent screen's agree/decline; the held login is used once either way."""
+        headers[:] = [(name, value) for name, value in headers if name.lower() != 'set-cookie']
+        headers.append(('Set-Cookie', self._account_cookie_header(self.auth.CONSENT_COOKIE_NAME)))
+        try:
+            consent_cookie = self._account_cookie(environ, self.auth.CONSENT_COOKIE_NAME)
+            if consent_cookie is None:
+                raise AuthError('consent_hold_unavailable')
+            previous_cookie, _ = self._previous_session(environ)
+            result = self.auth.finish_consent(consent_cookie, agree, previous_cookie)
+        except AuthError as exc:
+            return self._login_failed(send, exc.code, exc.status)
+        if result.get('declined'):
+            return send(200, {'location': '/', 'declined': True})
+        return send(200, {'location': self._login_finished(result, previous_cookie, headers)})
 
     def visitor(self, environ):
         account = self._account_context(environ)
@@ -1044,6 +1090,8 @@ class PublicApp:
         headers = [('Cache-Control', 'no-store'), ('X-Content-Type-Options', 'nosniff'),
                    ('Referrer-Policy', 'same-origin'),
                    ('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")]
+        if self.secure:
+            headers.append(('Strict-Transport-Security', 'max-age=31536000; includeSubDomains'))
         diagnostic_request=None;diagnostic_content=None;diagnostic_error='request_rejected';received=time.monotonic()
         diagnostic_model_called=False
         diagnostic_probe=None
@@ -1087,6 +1135,8 @@ class PublicApp:
         if host not in self.allowed_hosts:
             return send(421, {'error': '허용되지 않은 서비스 주소입니다.'})
         path, method = environ.get('PATH_INFO', '/'), environ.get('REQUEST_METHOD', 'GET')
+        if path.startswith('/ui-previews/') and not self.ui_previews:
+            return send(404, {'error': '페이지를 찾을 수 없습니다.'})
         if path in ('/auth/google/start', '/auth/google/callback'):
             return self._google_login(environ, path, method, send, headers)
         if path == '/auth/google/enroll':
@@ -1095,6 +1145,9 @@ class PublicApp:
             if environ.get('QUERY_STRING', ''):
                 return send(400, {'error': '초대 코드는 주소에 넣지 말고 입력란에 입력해 주세요.'})
         if path == '/healthz':
+            if method != 'GET':
+                headers.append(('Allow', 'GET'))
+                return send(405, {'error': '상태 확인은 GET 요청으로만 처리합니다.'})
             return send(200, {'status': 'ok'})
         if method not in ('GET', 'POST'):
             return send(405, {'error': '지원하지 않는 요청입니다.'})
@@ -1321,7 +1374,7 @@ class PublicApp:
             if path in ('/api/chat/configure', '/api/export', '/api/ai/structure', '/api/ai/draft'):
                 return send(403, {'error': '공개 시연에서 제공하지 않는 관리 기능입니다.'})
             length = int(environ.get('CONTENT_LENGTH') or '0')
-            if path == '/auth/google/enroll' and not 0 < length <= 4096:
+            if path in ('/auth/google/enroll', '/auth/consent') and not 0 < length <= 4096:
                 return send(413, {'error': '초대 입력의 크기를 확인해 주세요.'})
             body_limit = 2048 if path in ('/api/chat/recovery-report','/api/attachments/client-report') else MAX_HTTPS_BODY if path == '/api/attachments/https' else MAX_UPLOAD_BODY if path in ('/api/attachments','/api/self-profile/upload','/api/self-profile/chat') else 200000
             if path in CHUNK_UPLOAD_ROUTES:
@@ -1336,7 +1389,7 @@ class PublicApp:
                 return send(413, {'error': '요청 크기가 허용 범위를 넘었습니다. 공개 시연 첨부는 약 1MB까지입니다.'})
             raw_payload = environ['wsgi.input'].read(length).decode('utf-8')
             try:
-                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/api/account/requests/decide','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') or path in CHUNK_UPLOAD_ROUTES else json.loads(raw_payload)
+                payload = strict_json(raw_payload) if path in ('/auth/google/enroll','/auth/consent','/api/account/requests/decide','/api/attachments/https','/api/chat/recovery-report','/api/attachments/client-report') or path in CHUNK_UPLOAD_ROUTES else json.loads(raw_payload)
             except AuthError:
                 if path in CHUNK_UPLOAD_ROUTES:
                     raise AttachmentError('corrupt') from None
@@ -1411,8 +1464,13 @@ class PublicApp:
                         or not (person_id is None or (isinstance(person_id, str) and
                                 person_id in {row['person_id'] for row in self._bindable_people()}))):
                     return send(400, {'error': '승인 요청 내용을 확인해 주세요.', 'code': 'decision_invalid'})
-                decided = self.auth.storage.decide_request(payload['account_id'], payload['decision'] == 'approve', person_id)
+                decided = self.auth.storage.decide_request(payload['account_id'], payload['decision'] == 'approve', person_id,
+                                                           actor=context['account']['id'])
                 return send(200, {**decided, 'pending_requests': self.auth.storage.pending_count()})
+            if path == '/auth/consent':
+                if set(payload) != {'decision'} or payload['decision'] not in ('agree', 'decline'):
+                    return send(400, {'error': '동의 여부를 확인해 주세요.', 'code': 'consent_invalid'})
+                return self._consent_answer(environ, payload['decision'] == 'agree', send, headers)
             if path == '/auth/google/enroll':
                 if set(payload) != {'invitation'} or not isinstance(payload.get('invitation'), str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}', payload['invitation']):
                     return send(400, {'error': '받은 초대 코드를 확인해 주세요.'})
